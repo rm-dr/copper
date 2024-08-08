@@ -106,7 +106,7 @@ pub(in crate::api) async fn add_attr(
 		Err(MetastoreError::DuplicateAttrName(x)) => {
 			return (
 				StatusCode::BAD_REQUEST,
-				format!("Attribute `{x}` already exists on class `{class_handle:?}`"),
+				format!("Attribute `{x}` already exists"),
 			)
 				.into_response()
 		}

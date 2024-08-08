@@ -31,7 +31,7 @@ export function DeleteAttrButton(params: {
 			setErrorMessage((e) => {
 				return {
 					...e,
-					name: "Attr name does not match",
+					name: "Attribute name does not match",
 				};
 			});
 			return;
@@ -104,7 +104,7 @@ export function DeleteAttrButton(params: {
 			</div>
 
 			<TextInput
-				placeholder="Enter attr name"
+				placeholder="Enter attribute name"
 				size="sm"
 				disabled={isLoading}
 				error={errorMessage.name !== null}

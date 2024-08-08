@@ -1,6 +1,6 @@
 import { XIconX } from "@/app/components/icons";
 import { ActionIcon, Popover } from "@mantine/core";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 
 export function ButtonPopover(params: {
 	color: string;
@@ -10,12 +10,11 @@ export function ButtonPopover(params: {
 	isOpened: boolean;
 	setOpened: (opened: boolean) => void;
 }) {
-	const ref = useRef(null);
+	// TODO: fix this type
+	const ref = useRef<null | any>(null);
 
-	// Close on click out (since)
 	useEffect(() => {
 		function onClickOutside(event: any) {
-			// TODO: fix this type error
 			if (ref.current && !ref.current.contains(event.target)) {
 				params.setOpened(false);
 			}
