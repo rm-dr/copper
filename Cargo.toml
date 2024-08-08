@@ -25,7 +25,7 @@ rpath = false
 
 [workspace]
 members = ["crates/*"]
-default-members = ["crates/ufo"]
+default-members = ["crates/ufoc", "crates/ufod"]
 resolver = "2"
 
 
@@ -43,30 +43,50 @@ documentation = ""
 readme = ""
 
 
+[workspace.lints]
+
+
 [workspace.dependencies]
 ufo-pipeline = { path = "crates/pipeline" }
 ufo-pipeline-nodes = { path = "crates/pipeline-nodes" }
 ufo-database = { path = "crates/database" }
 ufo-util = { path = "crates/util" }
-ufo = { path = "crates/ufo" }
 ufo-audiofile = { path = "crates/audiofile" }
 
-crossbeam = "0.8.4"
-anyhow = "1.0.83"
-itertools = "0.12.1"
-petgraph = "0.6.5"
-serde = { version = "1.0.201", features = ["serde_derive"] }
-smartstring = { version = "1.0.1", features = ["serde"] }
-toml = "0.8.12"
-serde_with = "3.8.1"
-futures = "0.3.30"
-sha2 = "0.10.8"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-nu-ansi-term = "0.50.0"
-walkdir = "2"
+ufoc = { path = "crates/ufoc" }
+ufod = { path = "crates/ufod" }
+
+
+# Cli
 clap = { version = "4.5.4", features = ["derive"] }
 indicatif = { version = "0.17.8", features = ["improved_unicode"] }
+nu-ansi-term = "0.50.0"
 crossterm = "0.27.0"
 
-[workspace.lints]
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Parallism & async
+crossbeam = "0.8.4"
+futures = "0.3.30"
+
+# Utility
+smartstring = { version = "1.0.1", features = ["serde"] }
+sha2 = "0.10.8"
+petgraph = "0.6.5"
+anyhow = "1.0.83"
+itertools = "0.12.1"
+walkdir = "2"
+
+# Network
+reqwest = { version = "0.12.4", features = ["json", "blocking"] }
+url = { version = "2.5.0", features = ["serde"] }
+tokio = { version = "1.0", features = ["full"] }
+axum = { version = "0.7.5", features = ["ws"] }
+
+# Serde
+serde = { version = "1.0.201", features = ["serde_derive"] }
+serde_json = "1.0.68"
+toml = "0.8.12"
+serde_with = "3.8.1"

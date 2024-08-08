@@ -155,22 +155,32 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		self.active_jobs.iter().filter_map(|x| x.as_ref())
 	}
 
-	/// Find an active job by id.
+	/// Get this runner's job queue
+	pub fn get_queued_jobs(&self) -> &VecDeque<(u128, PipelineSingleJob<StubType>)> {
+		&self.job_queue
+	}
+
+	/// Get a list of all jobs this runner has completed
+	pub fn get_completed_jobs(&self) -> &VecDeque<CompletedJob<StubType>> {
+		&self.completed_jobs
+	}
+
+	/// Empty this runner's completed job log
+	pub fn clear_completed_jobs(&mut self) {
+		self.completed_jobs.clear()
+	}
+
+	/// Find a queued job by id
+	pub fn queued_job_by_id(&self, id: u128) -> Option<&(u128, PipelineSingleJob<StubType>)> {
+		self.job_queue.iter().find(|(x, _)| *x == id)
+	}
+
+	/// Find an active job by id
 	pub fn active_job_by_id(&self, id: u128) -> Option<&(u128, PipelineSingleJob<StubType>)> {
 		self.active_jobs
 			.iter()
 			.find(|x| x.as_ref().is_some_and(|(x, _)| *x == id))
 			.map(|x| x.as_ref().unwrap())
-	}
-
-	/// Find a queued job by id.
-	pub fn queued_job_by_id(&self, id: u128) -> Option<&(u128, PipelineSingleJob<StubType>)> {
-		self.job_queue.iter().find(|(x, _)| *x == id)
-	}
-
-	/// Get the oldest completed job
-	pub fn pop_completed_job(&mut self) -> Option<CompletedJob<StubType>> {
-		self.completed_jobs.pop_front()
 	}
 
 	/// Update this runner: process all changes that occured since we last called `run()`,

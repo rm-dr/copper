@@ -2,12 +2,9 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use crossterm::style::Stylize;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use std::{
-	ffi::OsStr,
-	fmt::Write,
-	path::PathBuf,
-	sync::{Arc, Mutex},
-};
+use std::{fmt::Write, path::PathBuf};
+use ufod::{AddJobParams, RunnerStatus, RunningNodeState};
+use url::Url;
 use walkdir::WalkDir;
 
 use ufo_database::{
@@ -18,14 +15,6 @@ use ufo_database::{
 		sqlite::db::SQLiteDB,
 	},
 };
-use ufo_pipeline::{
-	api::PipelineNodeState,
-	labels::PipelineLabel,
-	runner::runner::{PipelineRunConfig, PipelineRunner},
-};
-use ufo_pipeline_nodes::{data::UFOData, nodetype::UFONodeType, UFOContext};
-
-//mod log;
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
@@ -33,20 +22,16 @@ use ufo_pipeline_nodes::{data::UFOData, nodetype::UFONodeType, UFOContext};
 struct Args {
 	#[command(subcommand)]
 	command: Commands,
+
+	#[arg(long, default_value = "http://localhost:3000")]
+	host: Url,
 }
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-	New {
-		target_dir: Option<PathBuf>,
-	},
-	Import {
-		pipeline: String,
-		args: Vec<String>,
-
-		#[arg(long, default_value = ".")]
-		db_root: PathBuf,
-	},
+	New { target_dir: Option<PathBuf> },
+	Import { pipeline: String, args: Vec<String> },
+	WatchJobs,
 }
 
 fn truncate_front(s: &str, len: usize) -> String {
@@ -58,16 +43,23 @@ fn truncate_front(s: &str, len: usize) -> String {
 }
 
 fn main() -> Result<()> {
-	tracing_subscriber::fmt()
-		//.with_env_filter("ufo_pipeline=debug")
-		.with_env_filter("ufo_pipeline=error")
-		.without_time()
-		.with_ansi(true)
-		//.with_max_level(Level::DEBUG)
-		//.event_format(log::LogFormatter::new(true))
-		.init();
-
 	let cli = Args::parse();
+
+	let spin_style = ProgressStyle::with_template("{spinner:.darkgrey} {msg}")
+		.unwrap()
+		.tick_chars("⠴⠦⠖⠲⠶");
+
+	/*
+		let bar_style = ProgressStyle::with_template(&format!(
+			"{} {} {} {}",
+			"[{pos}/{len} done]",
+			"{bar:30}".dark_grey(),
+			"{percent}%",
+			"({elapsed}/{eta})"
+		))
+		.unwrap()
+		.progress_chars("⣿⣷⣶⣦⣤⣄⣀");
+	*/
 
 	match cli.command {
 		Commands::New { target_dir } => {
@@ -173,154 +165,153 @@ fn main() -> Result<()> {
 			}
 		}
 
-		Commands::Import {
-			pipeline,
-			args,
-			db_root,
-		} => {
-			let database = SQLiteDB::open(&db_root).unwrap();
-
-			let ctx = UFOContext {
-				database: Arc::new(Mutex::new(database)),
-				blob_fragment_size: 1_000_000,
-			};
-
-			// Prep runner
-			let mut runner: PipelineRunner<UFONodeType> = PipelineRunner::new(
-				PipelineRunConfig {
-					node_threads: 2,
-					max_active_jobs: 8,
-				},
-				ctx.clone(),
-			);
-
-			// TODO: pipeline dir stored in db
-			for entry in WalkDir::new(db_root.join("pipelines")) {
-				let entry = entry.unwrap();
-				if entry.path().is_file() {
-					if entry.path().extension() != Some(OsStr::new("toml")) {
-						panic!()
-					}
-					runner.add_pipeline(
-						entry.path(),
-						entry
-							.path()
-							.file_name()
-							.unwrap()
-							.to_str()
-							.unwrap()
-							.strip_suffix(".toml")
-							.unwrap()
-							.to_string(),
-					)?;
-				}
-			}
-
-			let pipeline: PipelineLabel = pipeline.into();
-			if runner.get_pipeline(&pipeline).is_none() {
-				println!("Pipeline not found: {}", pipeline);
-				return Ok(());
-			}
-
-			let multi_bar = MultiProgress::new();
-			let spin_style = ProgressStyle::with_template("{spinner:.darkgrey} {msg}")
-				.unwrap()
-				.tick_chars("⠴⠦⠖⠲⠶");
-			let bar_style = ProgressStyle::with_template(&format!(
-				"{} {} {} {}",
-				"[{pos}/{len} done]",
-				"{bar:30}".dark_grey(),
-				"{percent}%",
-				"({elapsed}/{eta})"
-			))
-			.unwrap()
-			.progress_chars("⣿⣷⣶⣦⣤⣄⣀");
-
+		Commands::Import { pipeline, args } => {
+			let client = reqwest::blocking::Client::new();
 			let scan_spin = ProgressBar::new_spinner().with_style(spin_style.clone());
-			multi_bar.add(scan_spin.clone());
 			let mut n_jobs = 0;
 
 			let p = PathBuf::from(args.first().unwrap());
 			if p.is_file() {
-				runner.add_job(&pipeline, vec![UFOData::Path(Arc::new(p))]);
+				client
+					.post(cli.host.join("add_job").unwrap())
+					.json(&AddJobParams {
+						pipeline: (&pipeline).into(),
+						input: p.into(),
+					})
+					.send()
+					.unwrap();
 			} else if p.is_dir() {
 				for entry in WalkDir::new(&p) {
 					let entry = entry.unwrap();
 					if entry.path().is_file() {
 						scan_spin.tick();
-						runner.add_job(
-							&pipeline,
-							vec![UFOData::Path(Arc::new(entry.path().into()))],
-						);
+						client
+							.post(cli.host.join("add_job").unwrap())
+							.json(&AddJobParams {
+								pipeline: (&pipeline).into(),
+								input: entry.path().into(),
+							})
+							.send()
+							.unwrap();
 						n_jobs += 1;
 						scan_spin.set_message(format!(
 							"{} {} {}",
 							"Scanning".cyan(),
 							p.canonicalize().unwrap().to_str().unwrap().dark_grey(),
-							format!("({n_jobs} jobs to run)")
+							format!("(added {n_jobs} jobs)")
 						))
 					}
 				}
 			}
 			scan_spin.finish();
-			//multi_bar.remove(&scan_spin);
+		}
 
-			let mut active_job_spinners = Vec::new();
-			let bar = ProgressBar::new(n_jobs).with_style(bar_style.clone());
-			multi_bar.insert_after(&scan_spin, bar.clone());
+		Commands::WatchJobs => {
+			let client = reqwest::blocking::Client::new();
+
+			let mut active_job_spinners: Vec<(u128, ProgressBar)> = Vec::new();
+			//let bar = ProgressBar::new(0).with_style(bar_style.clone());
+			let multi_bar = MultiProgress::new();
+
+			let mut is_empty = true;
+			let empty_spinner = ProgressBar::new_spinner()
+				.with_style(spin_style.clone())
+				.with_message(format!(
+					"No jobs in queue at {}",
+					format!("{}", cli.host).dark_grey().italic()
+				));
+
+			multi_bar.insert_from_back(0, empty_spinner.clone());
 
 			loop {
-				//std::thread::sleep(std::time::Duration::from_millis(100));
-				runner.run()?;
+				std::thread::sleep(std::time::Duration::from_millis(100));
 
-				let mut has_active_job = false;
-				for (id, job) in runner.iter_active_jobs() {
-					has_active_job = true;
+				let resp = client.get(cli.host.join("status").unwrap()).send().unwrap();
+				let resp: RunnerStatus = serde_json::from_str(&resp.text().unwrap()).unwrap();
 
-					if active_job_spinners.iter().all(|(i, _)| i != id) {
-						let spin = multi_bar.insert_before(
-							&bar,
+				if !resp.running_jobs.is_empty() {
+					multi_bar.remove(&empty_spinner);
+					is_empty = false;
+				} else if is_empty {
+					empty_spinner.tick();
+					empty_spinner.set_message(format!(
+						"No jobs in queue at {} ({} completed)",
+						format!("{}", cli.host).dark_grey().italic(),
+						resp.finished_jobs
+					));
+				} else {
+					is_empty = true;
+					multi_bar.insert_from_back(0, empty_spinner.clone());
+				}
+
+				let mut i = 0;
+				while i < active_job_spinners.len() {
+					let (job_id, spin) = &active_job_spinners[i];
+					if resp.running_jobs.iter().all(|x| x.job_id != *job_id) {
+						spin.finish_and_clear();
+						multi_bar.remove(&spin);
+						active_job_spinners.swap_remove(i);
+					} else {
+						i += 1
+					}
+				}
+
+				for j in &resp.running_jobs {
+					if active_job_spinners.iter().all(|(i, _)| *i != j.job_id) {
+						let spin = multi_bar.insert_from_back(
+							0,
 							ProgressBar::new_spinner().with_style(spin_style.clone()),
 						);
-						active_job_spinners.push((*id, spin));
+						active_job_spinners.push((j.job_id, spin));
 					}
 
 					let mut s = String::new();
-					for l in job.get_pipeline().iter_node_labels() {
+					for n in &j.node_status {
 						s.write_str(&format!(
 							"{}",
-							match job.get_node_status(l).unwrap() {
-								(true, _) => "R".yellow(),
-								(false, PipelineNodeState::Done) => "D".dark_green(),
-								(false, PipelineNodeState::Pending(_)) => "#".dark_grey(),
+							match n.state {
+								RunningNodeState::Running => "R".yellow(),
+								RunningNodeState::Done => "D".dark_green(),
+								RunningNodeState::Pending(_) => "#".dark_grey(),
 							}
 						))
 						.unwrap();
 					}
 
-					let i = &active_job_spinners.iter().find(|(i, _)| i == id).unwrap().1;
+					let i = &active_job_spinners
+						.iter()
+						.find(|(i, _)| *i == j.job_id)
+						.unwrap()
+						.1;
 					i.set_message(format!(
 						"{} {} {} {s}   {}",
 						"Running".green(),
-						job.get_pipeline().get_name(),
-						format!("[{id:>3}]:").dark_grey(),
+						j.pipeline,
+						format!("[{:>3}]:", j.job_id).dark_grey(),
 						format!(
 							"Input: {}",
 							// TODO: pick one input, depending on type of pipeline
-							truncate_front(&format!("{:?}", job.get_input().first().unwrap()), 30)
+							truncate_front(&j.input_exemplar, 30)
 						)
 						.dark_grey()
 						.italic()
 					));
 					i.tick();
-					bar.tick();
+					//bar.tick();
 				}
 
-				while let Some(x) = runner.pop_completed_job() {
-					bar.inc(1);
+				/*
+				let resp: Vec<CompletedJobStatus> =
+					serde_json::from_str(&resp.text().unwrap()).unwrap();
+				//multi_bar.println(format!("{:?}", resp));
+
+				for x in &resp {
 					if x.error.is_some() {
 						multi_bar
-							.println(format!("Pipeline failed: {}; {:?}", x.pipeline, x.input))
+							.println(format!(
+								"Pipeline failed: {}; {:?}",
+								x.pipeline, x.input_exemplar
+							))
 							.unwrap();
 					}
 
@@ -330,15 +321,12 @@ fn main() -> Result<()> {
 						.find(|(_, (i, _))| *i == x.job_id)
 						.map(|(i, _)| i);
 					if let Some(i) = i {
+						//bar.inc(1);
 						let x = active_job_spinners.swap_remove(i);
 						multi_bar.remove(&x.1);
 					}
 				}
-
-				if !has_active_job {
-					bar.finish();
-					return Ok(());
-				}
+				*/
 			}
 		}
 	}
