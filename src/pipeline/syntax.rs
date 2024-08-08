@@ -72,7 +72,7 @@ impl Pipeline {
 				// out_link: the node `input_name` is connected to
 
 				// Make sure `input_name` is a valid input for this node
-				if node_spec
+				if !node_spec
 					.node_type
 					.get_inputs()
 					.iter()
