@@ -344,14 +344,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 		// Send new input to node
 		while !node_instance_container.input_queue.is_empty() {
 			let data = node_instance_container.input_queue.pop_front().unwrap();
-			locked_node
-				.as_mut()
-				.unwrap()
-				.take_input(data, |port, data| {
-					// This should never fail, since we never close the receiver.
-					send_data.send((node, port, data)).unwrap();
-					Ok(())
-				})?;
+			locked_node.as_mut().unwrap().take_input(data)?;
 		}
 		self.handle_all_messages()?;
 		drop(locked_node);

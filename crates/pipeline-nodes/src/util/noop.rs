@@ -8,9 +8,14 @@ use crate::{
 	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
 };
 
-#[derive(Clone)]
+enum ReceivedInput {
+	NotReceived,
+	Received(UFOData),
+	Sent,
+}
+
 pub struct Noop {
-	received_input: Vec<bool>,
+	received_input: Vec<ReceivedInput>,
 }
 
 impl Noop {
@@ -19,7 +24,10 @@ impl Noop {
 		inputs: Vec<(PipelinePortLabel, MetaDbDataStub)>,
 	) -> Self {
 		Self {
-			received_input: inputs.into_iter().map(|_| false).collect(),
+			received_input: inputs
+				.into_iter()
+				.map(|_| ReceivedInput::NotReceived)
+				.collect(),
 		}
 	}
 }
@@ -33,29 +41,45 @@ impl PipelineNode for Noop {
 		true
 	}
 
-	fn take_input<F>(
-		&mut self,
-		(port, data): (usize, UFOData),
-		send_data: F,
-	) -> Result<(), PipelineError>
-	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
-	{
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
 		assert!(port < self.received_input.len());
-		assert!(!self.received_input[port]);
-		self.received_input[port] = true;
-		send_data(port, data)?;
+		assert!(matches!(
+			self.received_input[port],
+			ReceivedInput::NotReceived
+		));
+		self.received_input[port] = ReceivedInput::Received(data);
 		return Ok(());
 	}
 
-	fn run<F>(&mut self, _send_data: F) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		if self.received_input.iter().all(|x| *x) {
-			return Ok(PipelineNodeState::Done);
+		let mut is_done = false;
+		for i in 0..self.received_input.len() {
+			match self.received_input[i] {
+				ReceivedInput::NotReceived => {
+					is_done = false;
+				}
+				ReceivedInput::Received(_) => {
+					let d = std::mem::replace(&mut self.received_input[i], ReceivedInput::Sent);
+					send_data(
+						i,
+						match d {
+							ReceivedInput::Received(d) => d,
+							_ => unreachable!(),
+						},
+					)?;
+				}
+				ReceivedInput::Sent => {}
+			}
 		}
-		return Ok(PipelineNodeState::Pending("args not ready"));
+
+		if is_done {
+			return Ok(PipelineNodeState::Done);
+		} else {
+			return Ok(PipelineNodeState::Pending("waiting for args"));
+		}
 	}
 }
 

@@ -125,30 +125,23 @@ impl PipelineNode for UFONodeInstance {
 		}
 	}
 
-	fn take_input<F>(
-		&mut self,
-		portdata: (usize, UFOData),
-		send_data: F,
-	) -> Result<(), PipelineError>
-	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
-	{
+	fn take_input(&mut self, portdata: (usize, UFOData)) -> Result<(), PipelineError> {
 		match self {
-			Self::AddItem { node, .. } => node.take_input(portdata, send_data),
-			Self::FindItem { node, .. } => node.take_input(portdata, send_data),
-			Self::File { node, .. } => node.take_input(portdata, send_data),
+			Self::AddItem { node, .. } => node.take_input(portdata),
+			Self::FindItem { node, .. } => node.take_input(portdata),
+			Self::File { node, .. } => node.take_input(portdata),
 
 			// Utility
-			Self::Constant { node, .. } => node.take_input(portdata, send_data),
-			Self::IfNone { node, .. } => node.take_input(portdata, send_data),
-			Self::Noop { node, .. } => node.take_input(portdata, send_data),
-			Self::Print { node, .. } => node.take_input(portdata, send_data),
-			Self::Hash { node, .. } => node.take_input(portdata, send_data),
+			Self::Constant { node, .. } => node.take_input(portdata),
+			Self::IfNone { node, .. } => node.take_input(portdata),
+			Self::Noop { node, .. } => node.take_input(portdata),
+			Self::Print { node, .. } => node.take_input(portdata),
+			Self::Hash { node, .. } => node.take_input(portdata),
 
 			// Audio
-			Self::ExtractTags { node, .. } => node.take_input(portdata, send_data),
-			Self::StripTags { node, .. } => node.take_input(portdata, send_data),
-			Self::ExtractCovers { node, .. } => node.take_input(portdata, send_data),
+			Self::ExtractTags { node, .. } => node.take_input(portdata),
+			Self::StripTags { node, .. } => node.take_input(portdata),
+			Self::ExtractCovers { node, .. } => node.take_input(portdata),
 		}
 	}
 

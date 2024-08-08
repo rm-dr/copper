@@ -1,6 +1,5 @@
-use async_broadcast::TryRecvError;
 use sha2::{Digest, Sha256, Sha512};
-use std::sync::Arc;
+use std::{collections::VecDeque, sync::Arc};
 use ufo_metadb::data::{HashType, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
@@ -69,8 +68,16 @@ impl HashComputer {
 	}
 }
 
+enum HashData {
+	Blob {
+		fragments: VecDeque<Arc<Vec<u8>>>,
+		is_done: bool,
+	},
+	Binary(Arc<Vec<u8>>),
+}
+
 pub struct Hash {
-	data: Option<UFOData>,
+	data: Option<HashData>,
 	hasher: Option<HashComputer>,
 }
 
@@ -88,18 +95,30 @@ impl PipelineNode for Hash {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(
-		&mut self,
-		(port, data): (usize, UFOData),
-		_send_data: F,
-	) -> Result<(), PipelineError>
-	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
-	{
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
 		match port {
-			0 => {
-				self.data = Some(data);
-			}
+			0 => match data {
+				UFOData::Binary { data, .. } => {
+					self.data = Some(HashData::Binary(data));
+				}
+				UFOData::Blob {
+					fragment, is_last, ..
+				} => match &mut self.data {
+					None => {
+						self.data = Some(HashData::Blob {
+							fragments: VecDeque::from([fragment]),
+							is_done: is_last,
+						})
+					}
+					Some(HashData::Blob { fragments, is_done }) => {
+						assert!(!*is_done);
+						fragments.push_back(fragment);
+						*is_done = is_last;
+					}
+					Some(_) => panic!(),
+				},
+				_ => todo!(),
+			},
 			_ => unreachable!("bad input port {port}"),
 		}
 		return Ok(());
@@ -114,26 +133,22 @@ impl PipelineNode for Hash {
 		}
 
 		match self.data.as_mut().unwrap() {
-			UFOData::Binary { data, .. } => {
+			HashData::Binary(data) => {
 				self.hasher.as_mut().unwrap().update(&**data);
 				send_data(0, self.hasher.take().unwrap().finish())?;
 				return Ok(PipelineNodeState::Done);
 			}
-			UFOData::Blob { data, .. } => loop {
-				match data.try_recv() {
-					Err(TryRecvError::Closed) => {
-						send_data(0, self.hasher.take().unwrap().finish())?;
-						return Ok(PipelineNodeState::Done);
-					}
-					Err(TryRecvError::Empty) => {
-						return Ok(PipelineNodeState::Pending("not all data received"));
-					}
-					Err(_) => panic!(),
-					Ok(x) => self.hasher.as_mut().unwrap().update(&**x),
+			HashData::Blob { fragments, is_done } => {
+				while let Some(data) = fragments.pop_front() {
+					self.hasher.as_mut().unwrap().update(&**data)
 				}
-			},
-
-			_ => todo!(),
+				if *is_done {
+					send_data(0, self.hasher.take().unwrap().finish())?;
+					return Ok(PipelineNodeState::Done);
+				} else {
+					return Ok(PipelineNodeState::Pending("waiting for data"));
+				}
+			}
 		};
 	}
 }

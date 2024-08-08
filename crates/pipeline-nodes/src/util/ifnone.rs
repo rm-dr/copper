@@ -32,14 +32,7 @@ impl PipelineNode for IfNone {
 		true
 	}
 
-	fn take_input<F>(
-		&mut self,
-		(port, data): (usize, UFOData),
-		_send_data: F,
-	) -> Result<(), PipelineError>
-	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
-	{
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
 		match port {
 			0 => {
 				self.input = Some(data);

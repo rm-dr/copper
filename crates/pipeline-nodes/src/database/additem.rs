@@ -1,9 +1,11 @@
+use core::panic;
 use std::{
+	collections::VecDeque,
+	fmt::Debug,
 	io::Write,
 	sync::{Arc, Mutex},
 };
 
-use async_broadcast::TryRecvError;
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use ufo_blobstore::fs::store::{FsBlobHandle, FsBlobStore, FsBlobWriter};
@@ -23,11 +25,22 @@ use crate::{
 
 enum DataHold {
 	Static(UFOData),
-	BlobWriting(
-		async_broadcast::Receiver<Arc<Vec<u8>>>,
-		Option<FsBlobWriter>,
-	),
+	BlobWriting {
+		buffer: VecDeque<Arc<Vec<u8>>>,
+		writer: Option<FsBlobWriter>,
+		is_done: bool,
+	},
 	BlobDone(FsBlobHandle),
+}
+
+impl Debug for DataHold {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+		match self {
+			DataHold::Static(data) => write!(f, "Static: {:?}", data),
+			DataHold::BlobWriting { .. } => write!(f, "Writing blob"),
+			DataHold::BlobDone(h) => write!(f, "Blob done: {h:?}"),
+		}
+	}
 }
 
 #[derive(Debug, Deserialize, Copy, Clone)]
@@ -68,22 +81,33 @@ impl PipelineNode for AddItem {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(
-		&mut self,
-		(port, data): (usize, UFOData),
-		_send_data: F,
-	) -> Result<(), PipelineError>
-	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
-	{
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
 		assert!(port < self.attrs.len());
-		self.data[port] = Some(match data {
-			UFOData::Blob { format, data } => {
-				let blob = self.db.lock().unwrap().new_blob(&format);
-				DataHold::BlobWriting(data, Some(blob))
+		match data {
+			UFOData::Blob {
+				format,
+				fragment,
+				is_last,
+			} => match &mut self.data[port] {
+				None => {
+					self.data[port] = Some(DataHold::BlobWriting {
+						buffer: VecDeque::from([fragment]),
+						writer: Some(self.db.lock().unwrap().new_blob(&format)),
+						is_done: is_last,
+					})
+				}
+				Some(DataHold::BlobWriting {
+					buffer, is_done, ..
+				}) => {
+					buffer.push_back(fragment);
+					*is_done = is_last;
+				}
+				x => panic!("bad input {x:?}"),
+			},
+			x => {
+				self.data[port] = Some(DataHold::Static(x));
 			}
-			x => DataHold::Static(x),
-		});
+		};
 		return Ok(());
 	}
 
@@ -94,28 +118,16 @@ impl PipelineNode for AddItem {
 		let mut exit = false;
 		for i in &mut self.data {
 			match i {
-				Some(DataHold::BlobWriting(f, buf)) => {
-					let mut finish = false;
-					loop {
-						match f.try_recv() {
-							Err(TryRecvError::Closed) => {
-								finish = true;
-								break;
-							}
-							Err(TryRecvError::Empty) => {
-								exit = true;
-								break;
-							}
-							Err(TryRecvError::Overflowed(_)) => {
-								unreachable!()
-							}
-							Ok(x) => {
-								buf.as_mut().unwrap().write(&x[..])?;
-							}
-						}
+				Some(DataHold::BlobWriting {
+					buffer,
+					writer,
+					is_done,
+				}) => {
+					while let Some(data) = buffer.pop_front() {
+						writer.as_mut().unwrap().write(&data[..])?;
 					}
-					if finish {
-						let x = self.db.lock().unwrap().finish_blob(buf.take().unwrap());
+					if *is_done {
+						let x = self.db.lock().unwrap().finish_blob(writer.take().unwrap());
 						std::mem::swap(i, &mut Some(DataHold::BlobDone(x)));
 					}
 				}
@@ -125,7 +137,7 @@ impl PipelineNode for AddItem {
 		}
 
 		if exit {
-			return Ok(PipelineNodeState::Pending("args not ready"));
+			return Ok(PipelineNodeState::Pending("waiting for data"));
 		}
 
 		let mut attrs = Vec::new();

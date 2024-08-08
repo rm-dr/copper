@@ -28,14 +28,7 @@ impl PipelineNode for Constant {
 		true
 	}
 
-	fn take_input<F>(
-		&mut self,
-		(_port, _data): (usize, UFOData),
-		_send_data: F,
-	) -> Result<(), PipelineError>
-	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
-	{
+	fn take_input(&mut self, (_port, _data): (usize, UFOData)) -> Result<(), PipelineError> {
 		unreachable!()
 	}
 

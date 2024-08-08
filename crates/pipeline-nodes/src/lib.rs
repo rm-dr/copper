@@ -7,8 +7,8 @@ pub mod data;
 mod helpers;
 mod traits;
 
-pub mod input;
 pub mod database;
+pub mod input;
 pub mod tags;
 pub mod util;
 
@@ -23,9 +23,6 @@ use ufo_metadb::api::MetaDb;
 #[derive(Clone)]
 pub struct UFOContext {
 	pub database: Arc<Mutex<dyn MetaDb<FsBlobStore>>>,
-
-	/// How many fragments a blob channel can hold at once
-	pub blob_channel_capacity: usize,
 
 	/// The maximum size, in bytes, of a blob channel fragment
 	pub blob_fragment_size: usize,

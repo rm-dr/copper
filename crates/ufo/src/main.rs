@@ -269,7 +269,7 @@ fn main() -> Result<()> {
 			multi_bar.insert_after(&scan_spin, bar.clone());
 
 			loop {
-				//thread::sleep(Duration::from_millis(10));
+				//std::thread::sleep(std::time::Duration::from_millis(100));
 				runner.run()?;
 
 				let mut has_active_job = false;

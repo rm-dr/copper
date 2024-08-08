@@ -1,4 +1,7 @@
-use std::{io::Seek, sync::Arc};
+use std::{
+	io::{Seek, SeekFrom},
+	sync::Arc,
+};
 use ufo_audiofile::flac::flac_read_pictures;
 use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
@@ -9,15 +12,17 @@ use crate::{
 };
 
 pub struct ExtractCovers {
-	data: Option<UFOData>,
-	buffer: ArcVecBuffer,
+	format: Option<MimeType>,
+	fragments: ArcVecBuffer,
+	is_done: bool,
 }
 
 impl ExtractCovers {
 	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext) -> Self {
 		Self {
-			data: None,
-			buffer: ArcVecBuffer::new(),
+			format: None,
+			fragments: ArcVecBuffer::new(),
+			is_done: false,
 		}
 	}
 }
@@ -27,21 +32,31 @@ impl PipelineNode for ExtractCovers {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(
-		&mut self,
-		(port, data): (usize, UFOData),
-		_send_data: F,
-	) -> Result<(), PipelineError>
-	where
-		F: Fn(usize, UFOData) -> Result<(), PipelineError>,
-	{
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
 		match port {
 			0 => {
-				self.data = Some(data);
-			}
-			_ => unreachable!("bad input port {port}"),
-		}
+				let (format, fragment, is_last) = match data {
+					UFOData::Blob {
+						format,
+						fragment,
+						is_last,
+					} => (format, fragment, is_last),
+					_ => panic!(),
+				};
 
+				assert!(!self.is_done);
+
+				if let Some(f) = &self.format {
+					assert!(*f == format);
+				} else {
+					self.format = Some(format);
+				}
+
+				self.fragments.push_back(fragment);
+				self.is_done = is_last;
+			}
+			_ => unreachable!(),
+		}
 		return Ok(());
 	}
 
@@ -49,35 +64,14 @@ impl PipelineNode for ExtractCovers {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		if self.data.is_none() {
+		if self.format.is_none() {
 			return Ok(PipelineNodeState::Pending("args not ready"));
 		}
 
-		let (data_type, data) = match self.data.as_mut().unwrap() {
-			UFOData::Blob {
-				format: data_type,
-				data,
-			} => (data_type, data),
-			_ => panic!("bad data {:#?}", self.data),
-		};
-
-		let (changed, done) = self.buffer.recv_all(data);
-		match (changed, done) {
-			(false, true) => {
-				// We couldn't read a flac metadata header,
-				// probably consumed a bad stream.
-				// TODO: this should be an error
-				send_data(0, UFOData::None(MetaDbDataStub::Binary))?;
-				return Ok(PipelineNodeState::Done);
-			}
-			(false, false) => return Ok(PipelineNodeState::Pending("no new data")),
-			(true, true) | (true, false) => {}
-		}
-
-		self.buffer.seek(std::io::SeekFrom::Start(0)).unwrap();
-		let picture = match data_type {
+		self.fragments.seek(SeekFrom::Start(0))?;
+		let picture = match self.format.as_ref().unwrap() {
 			MimeType::Flac => {
-				let pictures = flac_read_pictures(&mut self.buffer);
+				let pictures = flac_read_pictures(&mut self.fragments);
 				if pictures.is_err() {
 					return Ok(PipelineNodeState::Pending("malformed pictures"));
 				}

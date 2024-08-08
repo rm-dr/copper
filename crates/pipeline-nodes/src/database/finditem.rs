@@ -45,14 +45,7 @@ impl PipelineNode for FindItem {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(
-		&mut self,
-		(port, data): (usize, UFOData),
-		_send_data: F,
-	) -> Result<(), PipelineError>
-	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
-	{
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
 		assert!(port == 0);
 		assert!(data.as_stub() == self.attr_type);
 		self.attr_value = Some(data);

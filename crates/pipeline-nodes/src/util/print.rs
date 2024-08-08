@@ -30,14 +30,7 @@ impl PipelineNode for Print {
 		true
 	}
 
-	fn take_input<F>(
-		&mut self,
-		(port, data): (usize, UFOData),
-		_send_data: F,
-	) -> Result<(), PipelineError>
-	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
-	{
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
 		assert!(port == 0);
 		println!("{data:?}");
 		self.has_received = true;

@@ -1,5 +1,8 @@
 use itertools::Itertools;
-use std::{io::Seek, sync::Arc};
+use std::{
+	io::{Seek, SeekFrom},
+	sync::Arc,
+};
 use ufo_audiofile::{common::tagtype::TagType, flac::flac_read_tags};
 use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::{
@@ -15,17 +18,19 @@ use crate::{
 
 // TODO: fail after max buffer size
 pub struct ExtractTags {
-	data: Option<UFOData>,
 	tags: Vec<TagType>,
-	buffer: ArcVecBuffer,
+	format: Option<MimeType>,
+	fragments: ArcVecBuffer,
+	is_done: bool,
 }
 
 impl ExtractTags {
 	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext, tags: Vec<TagType>) -> Self {
 		Self {
-			data: None,
 			tags: tags.into_iter().unique().collect(),
-			buffer: ArcVecBuffer::new(),
+			fragments: ArcVecBuffer::new(),
+			is_done: false,
+			format: None,
 		}
 	}
 }
@@ -35,17 +40,28 @@ impl PipelineNode for ExtractTags {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(
-		&mut self,
-		(port, data): (usize, UFOData),
-		_send_data: F,
-	) -> Result<(), PipelineError>
-	where
-		F: Fn(usize, UFOData) -> Result<(), PipelineError>,
-	{
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
 		match port {
 			0 => {
-				self.data = Some(data);
+				let (format, fragment, is_last) = match data {
+					UFOData::Blob {
+						format,
+						fragment,
+						is_last,
+					} => (format, fragment, is_last),
+					_ => panic!(),
+				};
+
+				assert!(!self.is_done);
+
+				if let Some(f) = &self.format {
+					assert!(*f == format);
+				} else {
+					self.format = Some(format);
+				}
+
+				self.fragments.push_back(fragment);
+				self.is_done = is_last;
 			}
 			_ => unreachable!(),
 		}
@@ -56,29 +72,14 @@ impl PipelineNode for ExtractTags {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		if self.data.is_none() {
+		if self.format.is_none() {
 			return Ok(PipelineNodeState::Pending("args not ready"));
 		}
 
-		let (data_type, data) = match self.data.as_mut().unwrap() {
-			UFOData::Blob {
-				format: data_type,
-				data,
-			} => (data_type, data),
-			_ => panic!(),
-		};
-
-		let (changed, done) = self.buffer.recv_all(data);
-		match (changed, done) {
-			(false, true) => unreachable!(),
-			(false, false) => return Ok(PipelineNodeState::Pending("no new data")),
-			(true, true) | (true, false) => {}
-		}
-
-		self.buffer.seek(std::io::SeekFrom::Start(0)).unwrap();
-		let tagger = match data_type {
+		self.fragments.seek(SeekFrom::Start(0))?;
+		let tagger = match self.format.as_ref().unwrap() {
 			MimeType::Flac => {
-				let r = flac_read_tags(&mut self.buffer);
+				let r = flac_read_tags(&mut self.fragments);
 				if r.is_err() {
 					return Ok(PipelineNodeState::Pending("malformed block"));
 				}

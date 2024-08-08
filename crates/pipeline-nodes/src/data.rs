@@ -1,4 +1,3 @@
-use async_broadcast::Receiver;
 use serde::Deserialize;
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use ufo_metadb::{
@@ -72,7 +71,10 @@ pub enum UFOData {
 		format: MimeType,
 
 		/// A receiver that provides data
-		data: Receiver<Arc<Vec<u8>>>,
+		fragment: Arc<Vec<u8>>,
+
+		/// Is this the last fragment?
+		is_last: bool,
 	},
 
 	#[serde(skip)]

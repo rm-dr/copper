@@ -1,88 +1,7 @@
-use async_broadcast::{broadcast, Receiver, Sender, TryRecvError, TrySendError};
 use std::{
 	io::{Read, Seek, SeekFrom},
 	sync::Arc,
 };
-use ufo_pipeline::api::PipelineNodeState;
-
-/// Write helper for `Blob` channels.
-/// Handles sending & holding of messages (if the channel is full)
-pub struct HoldSender {
-	held_message: Option<Arc<Vec<u8>>>,
-	sender: Sender<Arc<Vec<u8>>>,
-}
-
-impl HoldSender {
-	pub fn new(channel_size: usize) -> (Self, Receiver<Arc<Vec<u8>>>) {
-		let (sender, receiver) = broadcast(channel_size);
-
-		(
-			Self {
-				held_message: None,
-				sender,
-			},
-			receiver,
-		)
-	}
-
-	pub fn is_holding(&self) -> bool {
-		self.held_message.is_some()
-	}
-
-	/// If we're holding a message, try to send it.
-	///
-	/// If this returns `None`, keep going.
-	/// If this returns `Some(_)`, return with the given status immediately.
-	pub fn send_held_message(&mut self) -> Option<PipelineNodeState> {
-		// If we're holding a message to send, try to send it
-		if let Some(x) = self.held_message.take() {
-			match self.sender.try_broadcast(x) {
-				Err(TrySendError::Full(x)) => {
-					// We can't send this message now, try next time.
-					self.held_message = Some(x);
-					return Some(PipelineNodeState::Pending("holdsender: full"));
-				}
-				Err(TrySendError::Inactive(_)) => {
-					// This should never happen, we don't deactivate readers
-					unreachable!();
-					// If all readers are inactive, wait for them.
-					//return Ok(PipelineNodeState::Pending);
-				}
-				Err(TrySendError::Closed(_)) => {
-					// All readers are closed, we have no reason to keep reading this file.
-					return Some(PipelineNodeState::Done);
-				}
-				Ok(_) => {
-					// We just sent the segment we're holding, but there may be more.
-					// Keep reading.
-					return None;
-				}
-			};
-		} else {
-			return None;
-		}
-	}
-
-	/// Send or store the given buffer.
-	///
-	/// If this returns `None`, keep going.
-	/// If this returns `Some(_)`, return with the given status immediately.
-	pub fn send_or_store(&mut self, buf: Arc<Vec<u8>>) -> Option<PipelineNodeState> {
-		// This should never happen. If we have a message stored,
-		// we cannot try to send another.
-		assert!(self.held_message.is_none());
-
-		// Try to send a message, store it if sending fails
-		match self.sender.try_broadcast(buf) {
-			Err(TrySendError::Inactive(x)) | Err(TrySendError::Full(x)) => {
-				self.held_message = Some(x);
-				Some(PipelineNodeState::Pending("holdsender: full"))
-			}
-			Err(TrySendError::Closed(_)) => Some(PipelineNodeState::Done),
-			Ok(_) => None,
-		}
-	}
-}
 
 /// Read helper for `Blob` channels.
 /// Stores a vec of `Blob` fragments and provides a `Read`
@@ -105,31 +24,8 @@ impl ArcVecBuffer {
 		}
 	}
 
-	/// Receive all messages into this buffer.
-	/// Returns (buffer_changed, all_messages_received)
-	///
-	/// This does not change the position of this buffer's cursor.
-	pub fn recv_all(&mut self, recv: &mut Receiver<Arc<Vec<u8>>>) -> (bool, bool) {
-		let mut buffer_changed = false;
-		loop {
-			match recv.try_recv() {
-				Err(TryRecvError::Closed) => {
-					return (buffer_changed, true);
-				}
-				Err(TryRecvError::Empty) => {
-					return (buffer_changed, false);
-				}
-				Err(TryRecvError::Overflowed(_)) => {
-					// We never use overflowing receivers,
-					// so this should never happen.
-					unreachable!()
-				}
-				Ok(x) => {
-					buffer_changed = true;
-					self.buffer.push(x);
-				}
-			}
-		}
+	pub fn push_back(&mut self, data: Arc<Vec<u8>>) {
+		self.buffer.push(data);
 	}
 
 	pub fn len(&self) -> u64 {

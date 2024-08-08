@@ -57,15 +57,11 @@ pub trait PipelineNode {
 
 	/// Collect inputs queued for this node.
 	/// Called before each call to `run()``.
-	fn take_input<F>(
+	fn take_input(
 		&mut self,
 		// (target port, data)
 		input: (usize, Self::DataType),
-		send_data: F,
-	) -> Result<(), Self::ErrorType>
-	where
-		F: Fn(usize, Self::DataType) -> Result<(), Self::ErrorType>;
-
+	) -> Result<(), Self::ErrorType>;
 	/// Run this node.
 	/// This is always run in a worker thread.
 	fn run<F>(&mut self, _send_data: F) -> Result<PipelineNodeState, Self::ErrorType>
