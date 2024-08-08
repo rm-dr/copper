@@ -84,7 +84,6 @@ impl Blobstore for LocalDataset {
 			blob_handle = ?blob,
 		);
 
-		// Start transaction
 		let mut conn = self.conn.lock().unwrap();
 
 		// We intentionally don't use a connection here.
@@ -96,15 +95,16 @@ impl Blobstore for LocalDataset {
 				.fetch_one(&mut *conn),
 		);
 
-		let file_path = match res {
+		let rel_file_path = match res {
 			Err(sqlx::Error::RowNotFound) => return Err(BlobstoreError::InvalidBlobHandle),
 			Err(e) => return Err(BlobstoreError::DbError(Box::new(e))),
 			Ok(res) => PathBuf::from(res.get::<&str, _>("file_path")),
 		};
+		let file_path = self.blobstore_root.join(&rel_file_path);
 
 		// Delete blob metadata
 		if let Err(e) = block_on(
-			sqlx::query("DELETE FROM meta_attributes WHERE id=?;")
+			sqlx::query("DELETE FROM meta_blobs WHERE id=?;")
 				.bind(u32::from(blob))
 				.execute(&mut *conn),
 		) {
@@ -128,5 +128,18 @@ impl Blobstore for LocalDataset {
 		);
 
 		return Ok(());
+	}
+
+	fn all_blobs(&self) -> Result<Vec<BlobHandle>, BlobstoreError> {
+		let mut conn = self.conn.lock().unwrap();
+
+		let res =
+			block_on(sqlx::query("SELECT id FROM meta_blobs ORDER BY id;").fetch_all(&mut *conn))
+				.map_err(|e| BlobstoreError::DbError(Box::new(e)))?;
+
+		Ok(res
+			.into_iter()
+			.map(|x| x.get::<u32, _>("id").into())
+			.collect())
 	}
 }

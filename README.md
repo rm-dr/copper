@@ -8,8 +8,11 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 CRUD datasets
 - [ ] Rename set, class, attr endpoint
-- [ ] Complete class deletion
-  - [ ] Delete blobs
+- [ ] Close menu on tree collapse
+- [ ] Reorder attributes & classes
+- [ ] One integer type, with options
+- [ ] Clean up blobstore tmp dirs
+- [ ] Loading state for modals
 
 ## 📦 Dataset locks
 - [ ] delete dataset while pipeline is running?
@@ -63,16 +66,22 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 
 ## 📦 UI Cleanup
+- [ ] why is ui so slow?
 - [ ] onmousedown: check button, catch keyboard input
 - [ ] tab all interactables
 - [ ] Next cache config
 - [ ] Font
 - [ ] Panel width. Center, or change page background?
 - [ ] Prettier errors from server (markdown? might be overkill.)
+- [ ] Fade bottom of all scrolls
+  - dataset tree
+  - upload queue
+
 
 ## 📦 Better uploads
 - [ ] Upload in parallel
 - [ ] Warn when closing window if uploading
+- [ ] View and edit queue (?)
 
 ## 📦 Better dataset names
 - Store name in db, use idx as fs path?
@@ -102,6 +111,9 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Error if full db path doesn't exist (no panic)
 - [ ] Text vs long text datatypes
 - [ ] Deletion could take a while. Will our request time out?
+- [ ] Clippy
+- [ ] What if we panic when an unfinished blob is dropped? (log)
+- [ ] Structs for big returns in dataset api
 
 ## 📦 UI Cleanup
  - Rename `upload` page
@@ -111,6 +123,9 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## 📦 Distribution
 - [ ] Docker file & compose
 - [ ] `crates.io`
+- [ ] Clippy check rule
+- [ ] Auto build & test
+- [ ] Git config, rules (docs), and rebase
 
 ## 📦 Branding
 - [ ] Better name
@@ -277,6 +292,8 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] unique
 - [ ] multi-unique
 - [ ] Make sure all these hold on CRUD
+
+## Automatic dataset backups
 
 ## Pipes as transactions
 - If a pipe fails, a dataset should not have partial state

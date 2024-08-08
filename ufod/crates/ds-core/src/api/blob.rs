@@ -75,4 +75,5 @@ where
 	fn new_blob(&self, mime: &MimeType) -> Result<BlobstoreTmpWriter, BlobstoreError>;
 	fn finish_blob(&self, blob: BlobstoreTmpWriter) -> Result<BlobHandle, BlobstoreError>;
 	fn delete_blob(&self, blob: BlobHandle) -> Result<(), BlobstoreError>;
+	fn all_blobs(&self) -> Result<Vec<BlobHandle>, BlobstoreError>;
 }

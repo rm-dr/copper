@@ -1,12 +1,16 @@
 use futures::executor::block_on;
 use itertools::Itertools;
 use smartstring::{LazyCompact, SmartString};
-use sqlx::{query::Query, sqlite::SqliteArguments, Connection, Executor, Row, Sqlite};
+use sqlx::{query::Query, sqlite::SqliteArguments, Connection, Row, Sqlite};
 use std::iter;
+use tracing::debug;
 use ufo_ds_core::{
-	api::meta::{AttributeOptions, Metastore},
+	api::{
+		blob::{BlobHandle, Blobstore},
+		meta::{AttributeOptions, Metastore},
+	},
 	data::{MetastoreData, MetastoreDataStub},
-	errors::MetastoreError,
+	errors::{BlobstoreError, MetastoreError},
 	handles::{AttrHandle, ClassHandle, ItemHandle},
 };
 
@@ -14,27 +18,12 @@ use super::LocalDataset;
 
 // SQL helper functions
 impl LocalDataset {
-	fn get_table_name<'e, 'c, E>(executor: E, class: ClassHandle) -> Result<String, MetastoreError>
-	where
-		E: Executor<'c, Database = Sqlite>,
-	{
-		let id: u32 = {
-			let res = block_on(
-				sqlx::query("SELECT id FROM meta_classes WHERE id=?;")
-					.bind(u32::from(class))
-					.fetch_one(executor),
-			);
+	pub fn get_table_name(class: ClassHandle) -> String {
+		format!("class_{}", u32::from(class))
+	}
 
-			match res {
-				Err(sqlx::Error::RowNotFound) => {
-					return Err(MetastoreError::BadClassHandle);
-				}
-				Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
-				Ok(res) => res.get("id"),
-			}
-		};
-
-		Ok(format!("class_{id}"))
+	pub fn get_column_name(attr: AttrHandle) -> String {
+		format!("attr_{}", u32::from(attr))
 	}
 
 	fn bind_storage<'a>(
@@ -58,6 +47,58 @@ impl LocalDataset {
 			MetastoreData::Blob { handle } => q.bind(u32::from(*handle)),
 		}
 	}
+
+	/// Delete all blobs that are not referenced by an attribute
+	fn delete_dead_blobs(&self) -> Result<(), MetastoreError> {
+		let attrs = self.get_all_attrs()?;
+		let mut all_blobs = self
+			.all_blobs()
+			.map_err(|e| MetastoreError::BlobstoreError(e))?;
+
+		// Do this after getting attrs to prevent deadlock
+		let mut conn = self.conn.lock().unwrap();
+
+		// Get all used blobs
+		for (c_handle, a_handle, _, attr_type) in attrs {
+			match attr_type {
+				MetastoreDataStub::Blob => {
+					let table_name = Self::get_table_name(c_handle);
+					let column_name = Self::get_column_name(a_handle);
+
+					let res = block_on(
+						sqlx::query(&format!(
+							"SELECT \"{column_name}\" FROM \"{table_name}\" ORDER BY id;"
+						))
+						.fetch_all(&mut *conn),
+					)
+					.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
+					// Remove used blobs from all_blobs
+					for r in res {
+						let blob_handle: BlobHandle = r.get::<u32, _>(column_name.as_str()).into();
+						if let Some(index) = all_blobs.iter().position(|x| *x == blob_handle) {
+							all_blobs.swap_remove(index);
+						};
+					}
+				}
+				_ => continue,
+			}
+		}
+
+		// Prevent deadlock
+		drop(conn);
+
+		for b in all_blobs {
+			debug!(
+				message = "Deleting dead blob",
+				blob_handle = ?b
+			);
+			self.delete_blob(b)
+				.map_err(|e| MetastoreError::BlobstoreError(e))?;
+		}
+
+		return Ok(());
+	}
 }
 
 impl Metastore for LocalDataset {
@@ -74,7 +115,7 @@ impl Metastore for LocalDataset {
 			block_on(conn_lock.begin()).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		// Add attribute metadata
-		let new_attr_id = {
+		let new_attr = {
 			let res = block_on(
 				sqlx::query(
 					"
@@ -102,13 +143,13 @@ impl Metastore for LocalDataset {
 					}
 				}
 				Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
-				Ok(x) => x.last_insert_rowid(),
+				Ok(x) => u32::try_from(x.last_insert_rowid()).unwrap(),
 			}
 		};
-		let column_name = format!("attr_{new_attr_id}");
 
 		// Find table to modify
-		let table_name = Self::get_table_name(&mut *t, class)?;
+		let table_name = Self::get_table_name(class);
+		let column_name = Self::get_column_name(new_attr.into());
 
 		// Map internal type to sqlite type
 		let data_type_str = match data_type {
@@ -138,7 +179,7 @@ impl Metastore for LocalDataset {
 					.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 					res.get("id")
 				};
-				format!(" REFERENCES \"class_{id}\"(id)")
+				format!(" REFERENCES \"{}\"(id)", Self::get_table_name(id.into()))
 			}
 
 			MetastoreDataStub::Blob => {
@@ -170,7 +211,7 @@ impl Metastore for LocalDataset {
 		// Commit transaction
 		block_on(t.commit()).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
-		Ok(u32::try_from(new_attr_id).unwrap().into())
+		Ok(u32::try_from(new_attr).unwrap().into())
 	}
 
 	fn add_class(&self, class_name: &str) -> Result<ClassHandle, MetastoreError> {
@@ -196,10 +237,10 @@ impl Metastore for LocalDataset {
 					}
 				}
 				Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
-				Ok(res) => res.last_insert_rowid(),
+				Ok(res) => u32::try_from(res.last_insert_rowid()).unwrap(),
 			}
 		};
-		let table_name = format!("class_{new_class_id}");
+		let table_name = Self::get_table_name(new_class_id.into());
 
 		// Create new table
 		block_on(
@@ -226,7 +267,7 @@ impl Metastore for LocalDataset {
 		let mut t =
 			block_on(conn_lock.begin()).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
-		let table_name = Self::get_table_name(&mut *t, class)?;
+		let table_name = Self::get_table_name(class);
 
 		// Add new row with data
 		let res = if attrs.is_empty() {
@@ -239,7 +280,7 @@ impl Metastore for LocalDataset {
 			// Find rows of all provided attributes
 			let attr_names = attrs
 				.iter()
-				.map(|(h, _)| format!("\"attr_{}\"", u32::from(*h)))
+				.map(|(h, _)| Self::get_column_name(*h))
 				.join(", ");
 
 			let attr_values = iter::repeat('?').take(attrs.len()).join(", ");
@@ -295,8 +336,8 @@ impl Metastore for LocalDataset {
 		};
 
 		// Get the table we want to modify
-		let table_name = Self::get_table_name(&mut *t, class_id)?;
-		let col_name = format!("attr_{}", u32::from(attr));
+		let table_name = Self::get_table_name(class_id);
+		let col_name = Self::get_column_name(attr);
 
 		// Delete attribute metadata
 		if let Err(e) = block_on(
@@ -317,6 +358,11 @@ impl Metastore for LocalDataset {
 		if let Err(e) = block_on(t.commit()) {
 			return Err(MetastoreError::DbError(Box::new(e)));
 		};
+
+		// Clean up dangling blobs
+		// This locks our connection, so we must drop our existing lock first.
+		drop(conn_lock);
+		self.delete_dead_blobs()?;
 
 		return Ok(());
 	}
@@ -348,7 +394,7 @@ impl Metastore for LocalDataset {
 		// TODO: delete blobs (here, del attr, and del item)
 
 		// Get the table we want to modify
-		let table_name = Self::get_table_name(&mut *t, class)?;
+		let table_name = Self::get_table_name(class);
 
 		// Delete all attribute metadata
 		{
@@ -389,6 +435,11 @@ impl Metastore for LocalDataset {
 		if let Err(e) = block_on(t.commit()) {
 			return Err(MetastoreError::DbError(Box::new(e)));
 		};
+
+		// Clean up dangling blobs
+		// This locks our connection, so we must drop our existing lock first.
+		drop(conn_lock);
+		self.delete_dead_blobs()?;
 
 		return Ok(());
 	}
@@ -434,8 +485,38 @@ impl Metastore for LocalDataset {
 		};
 	}
 
-	fn get_all_attrs(&self) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>)>, MetastoreError> {
-		unimplemented!()
+	fn get_all_attrs(
+		&self,
+	) -> Result<
+		Vec<(
+			ClassHandle,
+			AttrHandle,
+			SmartString<LazyCompact>,
+			MetastoreDataStub,
+		)>,
+		MetastoreError,
+	> {
+		let mut conn = self.conn.lock().unwrap();
+
+		let res = block_on(
+			sqlx::query(
+				"SELECT id, class_id, pretty_name, data_type FROM meta_attributes ORDER BY id;",
+			)
+			.fetch_all(&mut *conn),
+		)
+		.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
+		return Ok(res
+			.into_iter()
+			.map(|x| {
+				(
+					x.get::<u32, _>("id").into(),
+					x.get::<u32, _>("class_id").into(),
+					x.get::<String, _>("pretty_name").into(),
+					serde_json::from_str(x.get::<&str, _>("data_type")).unwrap(),
+				)
+			})
+			.collect());
 	}
 	fn get_all_classes(
 		&self,
@@ -508,8 +589,8 @@ impl Metastore for LocalDataset {
 					let attr_id: u32 = res.get("meta_attributes.id");
 
 					Ok((
-						format!("class_{class_id}"),
-						format!("attr_{attr_id}"),
+						Self::get_table_name(class_id.into()),
+						Self::get_column_name(attr_id.into()),
 						res.get::<bool, _>("is_not_null"),
 					))
 				}
@@ -689,7 +770,10 @@ impl Metastore for LocalDataset {
 					let class_id: u32 = res.get("class_id");
 					let attr_id: u32 = res.get("attr_id");
 
-					Ok((format!("class_{class_id}"), format!("attr_{attr_id}")))
+					Ok((
+						Self::get_table_name(class_id.into()),
+						Self::get_column_name(attr_id.into()),
+					))
 				}
 			}
 		}?;

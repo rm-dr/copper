@@ -35,6 +35,12 @@ pub enum MetastoreError {
 
 	/// We tried to create an class with a name that already exists
 	DuplicateClassName(SmartString<LazyCompact>),
+
+	// We intentionally don't implement From<BlobstoreError> here.
+	// This helps keep us from accidentally `?`ing a BlobstoreError into a MetastoreError.
+	// Any time we want to convert, we have to do so explicitly.
+	/// We enountered an error while manipulating blobs
+	BlobstoreError(BlobstoreError),
 }
 
 impl Display for MetastoreError {
@@ -44,6 +50,7 @@ impl Display for MetastoreError {
 			Self::DeleteClassDanglingRef(_) => {
 				write!(f, "Cannot delete class, would create dangling references")
 			}
+			Self::BlobstoreError(_) => write!(f, "Blobstore error"),
 			Self::BadAttrHandle => write!(f, "BadAttrHandle"),
 			Self::BadClassHandle => write!(f, "BadClassHandle"),
 			Self::TypeMismatch => write!(f, "TypeMismatch"),
@@ -59,6 +66,7 @@ impl Error for MetastoreError {
 	fn cause(&self) -> Option<&dyn Error> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
+			Self::BlobstoreError(x) => Some(x),
 			_ => None,
 		}
 	}

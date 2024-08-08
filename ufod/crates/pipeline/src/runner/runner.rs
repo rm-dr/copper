@@ -3,7 +3,7 @@
 
 use std::{collections::VecDeque, marker::PhantomData, sync::Arc};
 
-use tracing::debug;
+use tracing::{debug, warn};
 
 use super::single::{PipelineSingleJob, SingleJobState};
 use crate::{
@@ -192,7 +192,7 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 						r.take();
 					}
 					Err(err) => {
-						debug!(
+						warn!(
 							message = "Job failed",
 							job_id = id,
 							pipeline = ?x.get_pipeline().name,

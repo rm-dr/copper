@@ -57,7 +57,17 @@ where
 	fn get_all_classes(
 		&self,
 	) -> Result<Vec<(ClassHandle, SmartString<LazyCompact>)>, MetastoreError>;
-	fn get_all_attrs(&self) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>)>, MetastoreError>;
+	fn get_all_attrs(
+		&self,
+	) -> Result<
+		Vec<(
+			ClassHandle,
+			AttrHandle,
+			SmartString<LazyCompact>,
+			MetastoreDataStub,
+		)>,
+		MetastoreError,
+	>;
 
 	fn get_class(&self, class_name: &str) -> Result<Option<ClassHandle>, MetastoreError>;
 	fn get_attr(
