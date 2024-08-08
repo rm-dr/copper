@@ -7,15 +7,27 @@ also shouldn't cause deadlocks, since datasets manage their own locks.
 a threadpool, and are thus inherintly async. This isn't ideal, though, we might want to fix this
 later (part of writing a better scheduler).
 
-
+- What log level should I use?
+  - `Error`, if something is wrong and we can't continue
+  - `Warn`, if something wrong and we're ok
+  - `Info`, if something happened that a sysadmin might care about.
+    - *Note: the default log level for all internal modules is `Info`*
+  - `Debug`, somewhere in between
+  - `Trace`, if this is a minor event we don't care about unless we're debugging a specific problem.
 
 
 # TODO
 
-Poor man's issue tracker. Good enough for now, this team isn't very big.
+The list below is a minimal issue tracker.
 
 Projects marked with a 📦 are prerequisites for `v0.1.0` release.
 The goal is a *minimal* working version: robust, usable, but possibly slow and missing fancy features.
+
+## 📦 Logging cleanup
+- [ ] logging everywhere
+  - [ ] api
+  - [ ] dataset impl
+  - [ ] dataset maindb loader
 
 ## 📦 Fixes
 - [ ] Server deadlocks with two parallel clients
@@ -79,22 +91,12 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Fix attribute index on delete
 
 ## 📦 Daemon cleanup
-- [ ] resize images on server(?)
-- [ ] clone fewer arcs
-- [ ] fix all panics/unwraps
-- [ ] Remove petgraph (write cycle detection algo)
-- [ ] Log to file
+- [ ] remove panics/unwraps
 - [ ] Minor TODOs in code (search all files)
 - [ ] enforce nonempty set, attr, class names
 - [ ] Error if full db path doesn't exist (no panic)
 - [ ] What if we panic when an unfinished blob is dropped? (log)
 - [ ] stream big files in `/items/attr`
-- [ ] Make pipeline runner send + sync (no mutex)
-
-## 📦 Logging cleanup
-- [ ] logging everywhere
-- [ ] well-defined log levels
-- [ ] log locks?
 
 ## 📦 UI Cleanup
 - Rename `upload` page
@@ -106,17 +108,18 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - Replace `any`
   - Generate api?
 
-## 📦 Config cleanup
-- [ ] accept envvars (docker) and toml file?
-- [ ] default values for everything
-- [ ] configure pipeline runner (n threads, n pipelines)
-
 ## 📦 Distribution
 - [ ] Docker file & compose
 - [ ] `crates.io`
-- [ ] Clippy check rule
-- [ ] Auto build & test
+- [ ] CI:
+  - [ ] clippy
+  - [ ] lychee
+  - [ ] cargo test
+  - [ ] cargo build
+  - [ ] docker build
 - [ ] Git config, rules (docs), and rebase
+- [ ] MD docs for devs?
+  - [ ] When should nodes panic?
 
 ## 📦 Branding
 - [ ] Better name
@@ -144,7 +147,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] utoipa tags
 - [ ] use memmap2 for files
 - [ ] Generic datasets, other dataset types
-- [ ] Helpful error backtraces (anyhow?)
+- [ ] Remove petgraph (write cycle detection algo)
 
 ## More async
 - [ ] asyncify blobstore
