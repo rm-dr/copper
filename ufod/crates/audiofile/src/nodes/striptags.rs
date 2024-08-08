@@ -9,20 +9,57 @@ use ufo_node_base::{
 	UFOContext,
 };
 use ufo_pipeline::{
-	api::{
-		NodeInputInfo, NodeOutputInfo, PipelineData, PipelineNode, PipelineNodeError,
-		PipelineNodeState,
-	},
+	api::{InitNodeError, NodeInfo, PipelineNode, PipelineNodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
 use ufo_util::mime::MimeType;
 
+/// Info for a [`StripTags`] node
+pub struct StripTagsInfo {
+	inputs: [(PipelinePortID, UFODataStub); 1],
+	outputs: [(PipelinePortID, UFODataStub); 1],
+}
+
+impl StripTagsInfo {
+	/// Generate node info from parameters
+	pub fn new(
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+	) -> Result<Self, InitNodeError> {
+		if params.len() != 0 {
+			return Err(InitNodeError::BadParameterCount { expected: 0 });
+		}
+
+		Ok(Self {
+			inputs: [(PipelinePortID::new("data"), UFODataStub::Bytes)],
+			outputs: [(PipelinePortID::new("out"), UFODataStub::Bytes)],
+		})
+	}
+}
+
+impl NodeInfo<UFOData> for StripTagsInfo {
+	fn inputs(
+		&self,
+	) -> &[(
+		PipelinePortID,
+		<UFOData as ufo_pipeline::api::PipelineData>::DataStubType,
+	)] {
+		&self.inputs
+	}
+
+	fn outputs(
+		&self,
+	) -> &[(
+		PipelinePortID,
+		<UFOData as ufo_pipeline::api::PipelineData>::DataStubType,
+	)] {
+		&self.outputs
+	}
+}
+
 /// Strip all metadata from an audio file
 pub struct StripTags {
-	inputs: Vec<NodeInputInfo<<UFOData as PipelineData>::DataStubType>>,
-	outputs: Vec<NodeOutputInfo<<UFOData as PipelineData>::DataStubType>>,
-
+	info: StripTagsInfo,
 	blob_fragment_size: u64,
 	data: DataSource,
 	strip: FlacMetaStrip,
@@ -33,24 +70,10 @@ impl StripTags {
 	pub fn new(
 		ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Result<Self, PipelineNodeError> {
-		if params.len() != 0 {
-			return Err(PipelineNodeError::BadParameterCount { expected: 0 });
-		}
-
+	) -> Result<Self, InitNodeError> {
 		Ok(Self {
-			inputs: vec![NodeInputInfo {
-				name: PipelinePortID::new("data"),
-				accepts_type: UFODataStub::Bytes,
-			}],
-
-			outputs: vec![NodeOutputInfo {
-				name: PipelinePortID::new("out"),
-				produces_type: UFODataStub::Bytes,
-			}],
-
+			info: StripTagsInfo::new(params)?,
 			blob_fragment_size: ctx.blob_fragment_size,
-
 			strip: FlacMetaStrip::new(),
 			data: DataSource::Uninitialized,
 		})
@@ -58,24 +81,16 @@ impl StripTags {
 }
 
 impl PipelineNode<UFOData> for StripTags {
-	fn inputs(&self) -> &[NodeInputInfo<<UFOData as PipelineData>::DataStubType>] {
-		&self.inputs
+	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
+		&self.info
 	}
 
-	fn outputs(&self) -> &[NodeOutputInfo<<UFOData as PipelineData>::DataStubType>] {
-		&self.outputs
-	}
-
-	fn take_input(
-		&mut self,
-		target_port: usize,
-		input_data: UFOData,
-	) -> Result<(), ufo_pipeline::api::PipelineNodeError> {
+	fn take_input(&mut self, target_port: usize, input_data: UFOData) -> Result<(), RunNodeError> {
 		match target_port {
 			0 => match input_data {
 				UFOData::Bytes { source, mime } => {
 					if mime != MimeType::Flac {
-						return Err(PipelineNodeError::UnsupportedFormat(format!(
+						return Err(RunNodeError::UnsupportedFormat(format!(
 							"cannot strip tags from `{}`",
 							mime
 						)));
@@ -94,8 +109,8 @@ impl PipelineNode<UFOData> for StripTags {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), PipelineNodeError>,
-	) -> Result<ufo_pipeline::api::PipelineNodeState, PipelineNodeError> {
+		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+	) -> Result<ufo_pipeline::api::PipelineNodeState, RunNodeError> {
 		// Push latest data into metadata stripper
 		match &mut self.data {
 			DataSource::Uninitialized => {
@@ -106,12 +121,12 @@ impl PipelineNode<UFOData> for StripTags {
 				while let Some(d) = data.pop_front() {
 					self.strip
 						.push_data(&d)
-						.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 				}
 				if *is_done {
 					self.strip
 						.finish()
-						.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 				}
 			}
 
@@ -127,12 +142,12 @@ impl PipelineNode<UFOData> for StripTags {
 
 				self.strip
 					.push_data(&v)
-					.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+					.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 
 				if n == 0 {
 					self.strip
 						.finish()
-						.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 				}
 			}
 		}

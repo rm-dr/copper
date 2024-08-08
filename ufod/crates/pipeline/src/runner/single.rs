@@ -15,7 +15,7 @@ use super::{
 	util::{EdgeState, NodeRunState},
 };
 use crate::{
-	api::{PipelineData, PipelineJobContext, PipelineNode, PipelineNodeError, PipelineNodeState},
+	api::{PipelineData, PipelineJobContext, PipelineNode, PipelineNodeState, RunNodeError},
 	dispatcher::NodeDispatcher,
 	graph::util::GraphNodeIdx,
 	labels::PipelineNodeID,
@@ -28,7 +28,7 @@ pub struct PipelineSingleJobError {
 	_private: (),
 
 	pub node: PipelineNodeID,
-	pub error: PipelineNodeError,
+	pub error: RunNodeError,
 }
 
 impl Display for PipelineSingleJobError {
@@ -115,7 +115,7 @@ pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobCon
 		// The node that sent this status
 		GraphNodeIdx,
 		// The status that was sent
-		Result<PipelineNodeState, PipelineNodeError>,
+		Result<PipelineNodeState, RunNodeError>,
 	)>,
 
 	/// A receiver for node status messages
@@ -123,7 +123,7 @@ pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobCon
 		// The node that sent this status
 		GraphNodeIdx,
 		// The status that was sent
-		Result<PipelineNodeState, PipelineNodeError>,
+		Result<PipelineNodeState, RunNodeError>,
 	)>,
 
 	// TODO: remove and write better scheduler
@@ -184,7 +184,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			.iter_nodes_idx()
 			.map(|(idx, node_data)| {
 				let node = dispatcher
-					.make_node(
+					.init_node(
 						&context,
 						&node_data.node_type,
 						&node_data.node_params,
@@ -197,7 +197,12 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				let mut input_queue = VecDeque::new();
 
 				// Send empty data to disconnected inputs
-				let mut port_is_empty = node.inputs().iter().map(|_| true).collect::<Vec<_>>();
+				let mut port_is_empty = node
+					.get_info()
+					.inputs()
+					.iter()
+					.map(|_| true)
+					.collect::<Vec<_>>();
 				for i in pipeline.graph.edges_ending_at(idx) {
 					let edge = &pipeline.graph.get_edge(*i).2;
 					if edge.is_after() {
@@ -208,7 +213,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				for (i, e) in port_is_empty.into_iter().enumerate() {
 					if e {
 						input_queue
-							.push_back((i, DataType::disconnected(node.inputs()[i].accepts_type)));
+							.push_back((i, DataType::disconnected(node.get_info().inputs()[i].1)));
 					}
 				}
 
@@ -250,8 +255,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		// Contents are (node index, result of `node.run()`)
 		#[allow(clippy::type_complexity)]
 		let (send_status, receive_status): (
-			Sender<(GraphNodeIdx, Result<PipelineNodeState, PipelineNodeError>)>,
-			Receiver<(GraphNodeIdx, Result<PipelineNodeState, PipelineNodeError>)>,
+			Sender<(GraphNodeIdx, Result<PipelineNodeState, RunNodeError>)>,
+			Receiver<(GraphNodeIdx, Result<PipelineNodeState, RunNodeError>)>,
 		) = unbounded();
 
 		Self {

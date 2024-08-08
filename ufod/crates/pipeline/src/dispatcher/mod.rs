@@ -5,3 +5,6 @@ pub use param::*;
 
 mod dispatcher;
 pub use dispatcher::*;
+
+mod errors;
+pub use errors::*;

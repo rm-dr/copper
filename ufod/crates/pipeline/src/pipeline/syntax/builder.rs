@@ -159,8 +159,8 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 					.get(node_name)
 					.unwrap();
 				for (input_name, out_link) in node_spec.inputs.iter() {
-					let node = dispatcher
-						.make_node(
+					let node_info = dispatcher
+						.node_info(
 							context,
 							&node_spec.node_type,
 							&node_spec.node_params,
@@ -170,10 +170,10 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 							node: node_name.clone(),
 							bad_type: node_spec.node_type.clone(),
 						})?;
-					let in_port = (&*node)
+					let in_port = (&*node_info)
 						.inputs()
 						.iter()
-						.find_position(|x| x.name == *input_name)
+						.find_position(|(name, _)| name == input_name)
 						.ok_or(PipelinePrepareError::NoNodeInput {
 							node: PipelineErrorNode::Named(node_name.clone()),
 							input: input_name.clone(),
@@ -207,9 +207,9 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		out_link: &NodeOutput,
 	) -> Result<(), PipelinePrepareError<DataType>> {
 		let node_spec = self.spec.nodes.get(&out_link.node).unwrap();
-		let node_inst = self
+		let node_info = self
 			.dispatcher
-			.make_node(
+			.node_info(
 				self.context,
 				&node_spec.node_type,
 				&node_spec.node_params,
@@ -219,10 +219,11 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				node: out_link.node.clone(),
 				bad_type: node_spec.node_type.clone(),
 			})?;
-		let out_port = node_inst
+
+		let out_port = node_info
 			.outputs()
 			.iter()
-			.find_position(|x| x.name == out_link.port)
+			.find_position(|(name, _)| *name == out_link.port)
 			.unwrap();
 
 		self.graph.borrow_mut().add_edge(
@@ -264,9 +265,9 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			}
 			let get_node = get_node.unwrap();
 
-			let node = self
+			let node_info = self
 				.dispatcher
-				.make_node(
+				.node_info(
 					self.context,
 					&get_node.node_type,
 					&get_node.node_params,
@@ -277,11 +278,12 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 					bad_type: get_node.node_type.clone(),
 				})?;
 
-			node.outputs()
+			node_info
+				.outputs()
 				.iter()
-				.find(|x| x.name == output.port)
+				.find(|(name, _)| *name == output.port)
 				.unwrap()
-				.produces_type
+				.1
 		};
 
 		let input_type: <DataType as PipelineData>::DataStubType = {
@@ -294,9 +296,9 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			}
 			let get_node = get_node.unwrap();
 
-			let node = self
+			let node_info = self
 				.dispatcher
-				.make_node(
+				.node_info(
 					self.context,
 					&get_node.node_type,
 					&get_node.node_params,
@@ -307,11 +309,12 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 					bad_type: get_node.node_type.clone(),
 				})?;
 
-			node.inputs()
+			node_info
+				.outputs()
 				.iter()
-				.find(|x| x.name == input.port)
+				.find(|(name, _)| *name == output.port)
 				.unwrap()
-				.accepts_type
+				.1
 		};
 
 		if !output_type.is_subset_of(&input_type) {

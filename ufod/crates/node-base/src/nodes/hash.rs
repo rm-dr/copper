@@ -7,10 +7,7 @@ use std::{
 };
 use ufo_ds_core::data::HashType;
 use ufo_pipeline::{
-	api::{
-		NodeInputInfo, NodeOutputInfo, PipelineData, PipelineNode, PipelineNodeError,
-		PipelineNodeState,
-	},
+	api::{InitNodeError, NodeInfo, PipelineData, PipelineNode, PipelineNodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -18,7 +15,6 @@ use ufo_pipeline::{
 use crate::{
 	data::{UFOData, UFODataStub},
 	helpers::DataSource,
-	UFOContext,
 };
 
 enum HashComputer {
@@ -82,8 +78,8 @@ impl HashComputer {
 }
 
 pub struct Hash {
-	inputs: Vec<NodeInputInfo<<UFOData as PipelineData>::DataStubType>>,
-	outputs: Vec<NodeOutputInfo<<UFOData as PipelineData>::DataStubType>>,
+	inputs: [(PipelinePortID, UFODataStub); 1],
+	outputs: [(PipelinePortID, UFODataStub); 1],
 
 	data: DataSource,
 	hasher: Option<HashComputer>,
@@ -91,11 +87,10 @@ pub struct Hash {
 
 impl Hash {
 	pub fn new(
-		_ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Result<Self, PipelineNodeError> {
+	) -> Result<Self, InitNodeError> {
 		if params.len() != 1 {
-			return Err(PipelineNodeError::BadParameterCount { expected: 1 });
+			return Err(InitNodeError::BadParameterCount { expected: 1 });
 		}
 
 		let hash_type: HashType = if let Some(value) = params.get("hash_type") {
@@ -105,29 +100,26 @@ impl Hash {
 					serde_json::from_str(&format!("\"{hash_type}\"")).unwrap()
 				}
 				_ => {
-					return Err(PipelineNodeError::BadParameterType {
+					return Err(InitNodeError::BadParameterType {
 						param_name: "hash_type".into(),
 					})
 				}
 			}
 		} else {
-			return Err(PipelineNodeError::MissingParameter {
+			return Err(InitNodeError::MissingParameter {
 				param_name: "value".into(),
 			});
 		};
 
 		Ok(Self {
-			inputs: vec![NodeInputInfo {
-				name: PipelinePortID::new("data"),
-				accepts_type: UFODataStub::Bytes,
-			}],
+			inputs: [(PipelinePortID::new("data"), UFODataStub::Bytes)],
 
-			outputs: vec![NodeOutputInfo {
-				name: PipelinePortID::new("hash"),
-				produces_type: UFODataStub::Hash {
+			outputs: [(
+				PipelinePortID::new("hash"),
+				UFODataStub::Hash {
 					hash_type: hash_type,
 				},
-			}],
+			)],
 
 			data: DataSource::Uninitialized,
 			hasher: Some(HashComputer::new(hash_type)),
@@ -135,20 +127,22 @@ impl Hash {
 	}
 }
 
-impl PipelineNode<UFOData> for Hash {
-	fn inputs(&self) -> &[NodeInputInfo<<UFOData as PipelineData>::DataStubType>] {
+impl NodeInfo<UFOData> for Hash {
+	fn inputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &[NodeOutputInfo<<UFOData as PipelineData>::DataStubType>] {
+	fn outputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
 		&self.outputs
 	}
+}
 
-	fn take_input(
-		&mut self,
-		target_port: usize,
-		input_data: UFOData,
-	) -> Result<(), PipelineNodeError> {
+impl PipelineNode<UFOData> for Hash {
+	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
+		self
+	}
+
+	fn take_input(&mut self, target_port: usize, input_data: UFOData) -> Result<(), RunNodeError> {
 		match target_port {
 			0 => match input_data {
 				UFOData::Bytes { source, mime } => {
@@ -165,8 +159,8 @@ impl PipelineNode<UFOData> for Hash {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), PipelineNodeError>,
-	) -> Result<PipelineNodeState, PipelineNodeError> {
+		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+	) -> Result<PipelineNodeState, RunNodeError> {
 		match &mut self.data {
 			DataSource::Uninitialized => {
 				return Ok(PipelineNodeState::Pending("args not ready"));

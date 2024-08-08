@@ -162,7 +162,11 @@ pub(super) async fn run_pipeline(
 	};
 
 	let pipe = match dataset
-		.load_pipeline(runner.get_dispatcher(), &context, &pipeline_name)
+		.load_pipeline(
+			runner.get_dispatcher(),
+			&context, // Unused when building pipelines
+			&pipeline_name,
+		)
 		.await
 	{
 		Ok(Some(x)) => x,

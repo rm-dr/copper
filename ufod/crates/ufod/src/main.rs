@@ -64,67 +64,96 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 	// Base nodes
 	{
-		use ufo_node_base::nodes::{AddItem, Constant, FindItem, Hash, IfNone};
+		use ufo_node_base::nodes::{
+			AddItem, AddItemInfo, Constant, FindItem, FindItemInfo, Hash, IfNone,
+		};
 
 		runner
 			.mut_dispatcher()
-			.register_node("Constant", BTreeMap::new(), &|ctx, params, _| {
-				Ok(Box::new(Constant::new(ctx, params)?))
-			})
+			.register_node(
+				"Constant",
+				BTreeMap::new(),
+				&|_ctx, params, _| Ok(Box::new(Constant::new(params)?)),
+				&|_ctx, params, _| Ok(Box::new(Constant::new(params)?)),
+			)
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("Hash", BTreeMap::new(), &|ctx, params, _| {
-				Ok(Box::new(Hash::new(ctx, params)?))
-			})
+			.register_node(
+				"Hash",
+				BTreeMap::new(),
+				&|_ctx, params, _| Ok(Box::new(Hash::new(params)?)),
+				&|_ctx, params, _| Ok(Box::new(Hash::new(params)?)),
+			)
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("IfNone", BTreeMap::new(), &|ctx, params, _| {
-				Ok(Box::new(IfNone::new(ctx, params)?))
-			})
+			.register_node(
+				"IfNone",
+				BTreeMap::new(),
+				&|_ctx, params, _| Ok(Box::new(IfNone::new(params)?)),
+				&|_ctx, params, _| Ok(Box::new(IfNone::new(params)?)),
+			)
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("AddItem", BTreeMap::new(), &|ctx, params, _| {
-				Ok(Box::new(AddItem::new(ctx, params)?))
-			})
+			.register_node(
+				"AddItem",
+				BTreeMap::new(),
+				&|ctx, params, _| Ok(Box::new(AddItemInfo::new(ctx, params)?)),
+				&|ctx, params, _| Ok(Box::new(AddItem::new(ctx, params)?)),
+			)
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("FindItem", BTreeMap::new(), &|ctx, params, _| {
-				Ok(Box::new(FindItem::new(ctx, params)?))
-			})
+			.register_node(
+				"FindItem",
+				BTreeMap::new(),
+				&|ctx, params, _| Ok(Box::new(FindItemInfo::new(ctx, params)?)),
+				&|ctx, params, _| Ok(Box::new(FindItem::new(ctx, params)?)),
+			)
 			.unwrap();
 	}
 
 	// Audiofile nodes
 	{
-		use ufo_audiofile::nodes::{ExtractCovers, ExtractTags, StripTags};
+		use ufo_audiofile::nodes::{
+			ExtractCovers, ExtractCoversInfo, ExtractTags, ExtractTagsInfo, StripTags,
+			StripTagsInfo,
+		};
 
 		runner
 			.mut_dispatcher()
-			.register_node("StripTags", BTreeMap::new(), &|ctx, params, _| {
-				Ok(Box::new(StripTags::new(ctx, params)?))
-			})
+			.register_node(
+				"StripTags",
+				BTreeMap::new(),
+				&|_ctx, params, _| Ok(Box::new(StripTagsInfo::new(params)?)),
+				&|ctx, params, _| Ok(Box::new(StripTags::new(ctx, params)?)),
+			)
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("ExtractCovers", BTreeMap::new(), &|ctx, params, _| {
-				Ok(Box::new(ExtractCovers::new(ctx, params)?))
-			})
+			.register_node(
+				"ExtractCovers",
+				BTreeMap::new(),
+				&|_ctx, params, _| Ok(Box::new(ExtractCoversInfo::new(params)?)),
+				&|ctx, params, _| Ok(Box::new(ExtractCovers::new(ctx, params)?)),
+			)
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("ExtractTags", BTreeMap::new(), &|ctx, params, _| {
-				Ok(Box::new(ExtractTags::new(ctx, params)?))
-			})
+			.register_node(
+				"ExtractTags",
+				BTreeMap::new(),
+				&|_ctx, params, _| Ok(Box::new(ExtractTagsInfo::new(params)?)),
+				&|ctx, params, _| Ok(Box::new(ExtractTags::new(ctx, params)?)),
+			)
 			.unwrap();
 	}
 

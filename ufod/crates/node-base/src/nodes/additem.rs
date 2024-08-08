@@ -16,10 +16,7 @@ use ufo_ds_core::{
 };
 use ufo_ds_impl::local::LocalDataset;
 use ufo_pipeline::{
-	api::{
-		NodeInputInfo, NodeOutputInfo, PipelineData, PipelineNode, PipelineNodeError,
-		PipelineNodeState,
-	},
+	api::{InitNodeError, NodeInfo, PipelineData, PipelineNode, PipelineNodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -40,10 +37,9 @@ enum DataHold {
 	BlobDone(BlobHandle),
 }
 
-pub struct AddItem {
-	inputs: Vec<NodeInputInfo<<UFOData as PipelineData>::DataStubType>>,
+pub struct AddItemInfo {
+	inputs: Vec<(PipelinePortID, <UFOData as PipelineData>::DataStubType)>,
 
-	dataset: Arc<LocalDataset>,
 	class: ClassHandle,
 	attrs: Vec<AttrInfo>,
 	error_non_unique: bool,
@@ -51,26 +47,26 @@ pub struct AddItem {
 	data: Vec<Option<DataHold>>,
 }
 
-impl AddItem {
+impl AddItemInfo {
 	pub fn new(
 		ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Result<Self, PipelineNodeError> {
+	) -> Result<Self, InitNodeError> {
 		if params.len() != 2 {
-			return Err(PipelineNodeError::BadParameterCount { expected: 2 });
+			return Err(InitNodeError::BadParameterCount { expected: 2 });
 		}
 
 		let error_non_unique: bool = if let Some(value) = params.get("error_non_unique") {
 			match value {
 				NodeParameterValue::Boolean(x) => *x,
 				_ => {
-					return Err(PipelineNodeError::BadParameterType {
+					return Err(InitNodeError::BadParameterType {
 						param_name: "error_non_unique".into(),
 					})
 				}
 			}
 		} else {
-			return Err(PipelineNodeError::MissingParameter {
+			return Err(InitNodeError::MissingParameter {
 				param_name: "error_non_unique".into(),
 			});
 		};
@@ -82,22 +78,22 @@ impl AddItem {
 					match x {
 						Ok(Some(x)) => x.handle,
 						Ok(None) => {
-							return Err(PipelineNodeError::BadParameterOther {
+							return Err(InitNodeError::BadParameterOther {
 								param_name: "class".into(),
 								message: "No such class".into(),
 							})
 						}
-						Err(e) => return Err(PipelineNodeError::Other(Box::new(e))),
+						Err(e) => return Err(InitNodeError::Other(Box::new(e))),
 					}
 				}
 				_ => {
-					return Err(PipelineNodeError::BadParameterType {
+					return Err(InitNodeError::BadParameterType {
 						param_name: "class".into(),
 					})
 				}
 			}
 		} else {
-			return Err(PipelineNodeError::MissingParameter {
+			return Err(InitNodeError::MissingParameter {
 				param_name: "class".into(),
 			});
 		};
@@ -105,16 +101,11 @@ impl AddItem {
 		let attrs: Vec<AttrInfo> = block_on(ctx.dataset.class_get_attrs(class)).unwrap();
 		let data = attrs.iter().map(|_| None).collect();
 
-		Ok(AddItem {
+		Ok(Self {
 			inputs: attrs
 				.iter()
-				.map(|x| NodeInputInfo {
-					name: PipelinePortID::new(&x.name),
-					accepts_type: x.data_type.into(),
-				})
+				.map(|x| (PipelinePortID::new(&x.name), x.data_type.into()))
 				.collect(),
-
-			dataset: ctx.dataset.clone(),
 
 			class,
 			attrs,
@@ -124,32 +115,51 @@ impl AddItem {
 	}
 }
 
-impl PipelineNode<UFOData> for AddItem {
-	fn inputs(&self) -> &[NodeInputInfo<<UFOData as PipelineData>::DataStubType>] {
+impl NodeInfo<UFOData> for AddItemInfo {
+	fn inputs(&self) -> &[(PipelinePortID, UFODataStub)] {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &[NodeOutputInfo<<UFOData as PipelineData>::DataStubType>] {
+	fn outputs(&self) -> &[(PipelinePortID, UFODataStub)] {
 		&[]
 	}
+}
 
-	fn take_input(
-		&mut self,
-		target_port: usize,
-		input_data: UFOData,
-	) -> Result<(), PipelineNodeError> {
-		assert!(target_port < self.attrs.len());
+pub struct AddItem {
+	dataset: Arc<LocalDataset>,
+	info: AddItemInfo,
+}
+
+impl AddItem {
+	pub fn new(
+		ctx: &UFOContext,
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+	) -> Result<Self, InitNodeError> {
+		Ok(AddItem {
+			dataset: ctx.dataset.clone(),
+			info: AddItemInfo::new(ctx, params)?,
+		})
+	}
+}
+
+impl PipelineNode<UFOData> for AddItem {
+	fn get_info(&self) -> &dyn NodeInfo<UFOData> {
+		&self.info
+	}
+
+	fn take_input(&mut self, target_port: usize, input_data: UFOData) -> Result<(), RunNodeError> {
+		assert!(target_port < self.info.attrs.len());
 		match input_data {
 			UFOData::Bytes { mime, source } => {
-				let x = &self.attrs[target_port];
+				let x = &self.info.attrs[target_port];
 				match x.data_type {
 					MetastoreDataStub::Binary => {
-						if self.data[target_port].is_none() {
-							self.data[target_port] =
+						if self.info.data[target_port].is_none() {
+							self.info.data[target_port] =
 								Some(DataHold::Binary(DataSource::Uninitialized));
 						}
 
-						match &mut self.data[target_port] {
+						match &mut self.info.data[target_port] {
 							Some(DataHold::Binary(reader)) => {
 								reader.consume(mime, source);
 							}
@@ -158,17 +168,17 @@ impl PipelineNode<UFOData> for AddItem {
 					}
 
 					MetastoreDataStub::Blob => {
-						if self.data[target_port].is_none() {
-							self.data[target_port] = Some(DataHold::BlobWriting {
+						if self.info.data[target_port].is_none() {
+							self.info.data[target_port] = Some(DataHold::BlobWriting {
 								reader: DataSource::Uninitialized,
 								writer: Some(
 									block_on(self.dataset.new_blob(&mime))
-										.map_err(|e| PipelineNodeError::Other(Box::new(e)))?,
+										.map_err(|e| RunNodeError::Other(Box::new(e)))?,
 								),
 							});
 						}
 
-						match &mut self.data[target_port] {
+						match &mut self.info.data[target_port] {
 							Some(DataHold::BlobWriting { reader, .. }) => {
 								reader.consume(mime, source);
 							}
@@ -180,7 +190,7 @@ impl PipelineNode<UFOData> for AddItem {
 			}
 
 			x => {
-				self.data[target_port] = Some(DataHold::Static(x));
+				self.info.data[target_port] = Some(DataHold::Static(x));
 			}
 		};
 		return Ok(());
@@ -188,9 +198,9 @@ impl PipelineNode<UFOData> for AddItem {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), PipelineNodeError>,
-	) -> Result<PipelineNodeState, PipelineNodeError> {
-		for i in &mut self.data {
+		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+	) -> Result<PipelineNodeState, RunNodeError> {
+		for i in &mut self.info.data {
 			match i {
 				Some(DataHold::BlobWriting { reader, writer }) => match reader {
 					DataSource::Uninitialized => {
@@ -204,7 +214,7 @@ impl PipelineNode<UFOData> for AddItem {
 
 						if *is_done {
 							let x = block_on(self.dataset.finish_blob(writer.take().unwrap()))
-								.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+								.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 							std::mem::swap(i, &mut Some(DataHold::BlobDone(x)));
 						}
 					}
@@ -212,7 +222,7 @@ impl PipelineNode<UFOData> for AddItem {
 					DataSource::File { file, .. } => {
 						std::io::copy(file, writer.as_mut().unwrap())?;
 						let x = block_on(self.dataset.finish_blob(writer.take().unwrap()))
-							.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+							.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 						std::mem::swap(i, &mut Some(DataHold::BlobDone(x)));
 					}
 				},
@@ -222,7 +232,7 @@ impl PipelineNode<UFOData> for AddItem {
 		}
 
 		let mut attrs = Vec::new();
-		for (attr, data) in self.attrs.iter().zip(self.data.iter_mut()) {
+		for (attr, data) in self.info.attrs.iter().zip(self.info.data.iter_mut()) {
 			let data = match data.as_mut().unwrap() {
 				DataHold::Binary(x) => match x {
 					DataSource::Binary {
@@ -258,32 +268,34 @@ impl PipelineNode<UFOData> for AddItem {
 			};
 			attrs.push((attr.handle, data));
 		}
-		let res = block_on(self.dataset.add_item(self.class, attrs));
+		let res = block_on(self.dataset.add_item(self.info.class, attrs));
 
 		match res {
 			Ok(item) => {
 				send_data(
 					0,
 					UFOData::Reference {
-						class: self.class,
+						class: self.info.class,
 						item,
 					},
 				)?;
 			}
 			Err(err) => match err {
 				MetastoreError::UniqueViolated => {
-					if self.error_non_unique {
-						return Err(PipelineNodeError::Other(Box::new(err)));
+					if self.info.error_non_unique {
+						return Err(RunNodeError::Other(Box::new(err)));
 					} else {
 						send_data(
 							0,
 							UFOData::None {
-								data_type: UFODataStub::Reference { class: self.class },
+								data_type: UFODataStub::Reference {
+									class: self.info.class,
+								},
 							},
 						)?;
 					}
 				}
-				_ => return Err(PipelineNodeError::Other(Box::new(err))),
+				_ => return Err(RunNodeError::Other(Box::new(err))),
 			},
 		}
 

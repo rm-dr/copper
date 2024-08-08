@@ -85,7 +85,7 @@ pub(super) async fn get_pipeline(
 			&UFOContext {
 				dataset: dataset.clone(),
 				blob_fragment_size: state.config.blob_fragment_size,
-				input: BTreeMap::new(), //TODO: fix
+				input: BTreeMap::new(), // Unused when building pipelines
 			},
 			&pipeline_name,
 		)

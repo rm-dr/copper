@@ -7,10 +7,7 @@ use ufo_ds_core::{
 };
 use ufo_ds_impl::local::LocalDataset;
 use ufo_pipeline::{
-	api::{
-		NodeInputInfo, NodeOutputInfo, PipelineData, PipelineNode, PipelineNodeError,
-		PipelineNodeState,
-	},
+	api::{InitNodeError, NodeInfo, PipelineData, PipelineNode, PipelineNodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -20,24 +17,21 @@ use crate::{
 	UFOContext,
 };
 
-pub struct FindItem {
-	inputs: Vec<NodeInputInfo<<UFOData as PipelineData>::DataStubType>>,
-	outputs: Vec<NodeOutputInfo<<UFOData as PipelineData>::DataStubType>>,
+pub struct FindItemInfo {
+	inputs: [(PipelinePortID, UFODataStub); 1],
+	outputs: [(PipelinePortID, UFODataStub); 1],
 
-	dataset: Arc<LocalDataset>,
 	class: ClassHandle,
 	by_attr: AttrInfo,
-
-	attr_value: Option<UFOData>,
 }
 
-impl FindItem {
+impl FindItemInfo {
 	pub fn new(
 		ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Result<Self, PipelineNodeError> {
+	) -> Result<Self, InitNodeError> {
 		if params.len() != 2 {
-			return Err(PipelineNodeError::BadParameterCount { expected: 2 });
+			return Err(InitNodeError::BadParameterCount { expected: 2 });
 		}
 
 		let class: ClassHandle = if let Some(value) = params.get("class") {
@@ -47,22 +41,22 @@ impl FindItem {
 					match x {
 						Ok(Some(x)) => x.handle,
 						Ok(None) => {
-							return Err(PipelineNodeError::BadParameterOther {
+							return Err(InitNodeError::BadParameterOther {
 								param_name: "class".into(),
 								message: "No such class".into(),
 							})
 						}
-						Err(e) => return Err(PipelineNodeError::Other(Box::new(e))),
+						Err(e) => return Err(InitNodeError::Other(Box::new(e))),
 					}
 				}
 				_ => {
-					return Err(PipelineNodeError::BadParameterType {
+					return Err(InitNodeError::BadParameterType {
 						param_name: "class".into(),
 					})
 				}
 			}
 		} else {
-			return Err(PipelineNodeError::MissingParameter {
+			return Err(InitNodeError::MissingParameter {
 				param_name: "class".into(),
 			});
 		};
@@ -74,85 +68,105 @@ impl FindItem {
 					match x {
 						Ok(Some(x)) => x.clone(),
 						Ok(None) => {
-							return Err(PipelineNodeError::BadParameterOther {
+							return Err(InitNodeError::BadParameterOther {
 								param_name: "by_attr".into(),
 								message: "No such attribute".into(),
 							})
 						}
-						Err(e) => return Err(PipelineNodeError::Other(Box::new(e))),
+						Err(e) => return Err(InitNodeError::Other(Box::new(e))),
 					}
 				}
 				_ => {
-					return Err(PipelineNodeError::BadParameterType {
+					return Err(InitNodeError::BadParameterType {
 						param_name: "by_attr".into(),
 					})
 				}
 			}
 		} else {
-			return Err(PipelineNodeError::MissingParameter {
+			return Err(InitNodeError::MissingParameter {
 				param_name: "by_attr".into(),
 			});
 		};
 
-		Ok(FindItem {
-			inputs: vec![NodeInputInfo {
-				name: PipelinePortID::new("attr_value"),
-				accepts_type: by_attr.data_type.into(),
-			}],
-
-			outputs: vec![NodeOutputInfo {
-				name: PipelinePortID::new("found_item"),
-				produces_type: UFODataStub::Reference { class },
-			}],
-
-			dataset: ctx.dataset.clone(),
+		Ok(Self {
+			inputs: [(PipelinePortID::new("attr_value"), by_attr.data_type.into())],
+			outputs: [(
+				PipelinePortID::new("found_item"),
+				UFODataStub::Reference { class },
+			)],
 
 			class,
 			by_attr,
+		})
+	}
+}
+
+impl NodeInfo<UFOData> for FindItemInfo {
+	fn inputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+		&self.inputs
+	}
+
+	fn outputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+		&self.outputs
+	}
+}
+
+pub struct FindItem {
+	info: FindItemInfo,
+	dataset: Arc<LocalDataset>,
+	attr_value: Option<UFOData>,
+}
+
+impl FindItem {
+	pub fn new(
+		ctx: &UFOContext,
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+	) -> Result<Self, InitNodeError> {
+		if params.len() != 2 {
+			return Err(InitNodeError::BadParameterCount { expected: 2 });
+		}
+
+		let info = FindItemInfo::new(ctx, params)?;
+
+		Ok(Self {
+			info,
+			dataset: ctx.dataset.clone(),
 			attr_value: None,
 		})
 	}
 }
 
 impl PipelineNode<UFOData> for FindItem {
-	fn inputs(&self) -> &[NodeInputInfo<<UFOData as PipelineData>::DataStubType>] {
-		&self.inputs
+	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
+		&self.info
 	}
 
-	fn outputs(&self) -> &[NodeOutputInfo<<UFOData as PipelineData>::DataStubType>] {
-		&self.outputs
-	}
-
-	fn take_input(
-		&mut self,
-		target_port: usize,
-		input_data: UFOData,
-	) -> Result<(), PipelineNodeError> {
+	fn take_input(&mut self, target_port: usize, input_data: UFOData) -> Result<(), RunNodeError> {
 		assert!(target_port == 0);
-		assert!(input_data.as_stub() == self.by_attr.data_type.into());
+		assert!(input_data.as_stub() == self.info.by_attr.data_type.into());
 		self.attr_value = Some(input_data);
 		return Ok(());
 	}
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), PipelineNodeError>,
-	) -> Result<PipelineNodeState, PipelineNodeError> {
+		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+	) -> Result<PipelineNodeState, RunNodeError> {
 		if self.attr_value.is_none() {
 			return Ok(PipelineNodeState::Pending("waiting for input"));
 		}
 
 		let found = block_on(self.dataset.find_item_with_attr(
-			self.by_attr.handle,
+			self.info.by_attr.handle,
 			self.attr_value.as_ref().unwrap().as_db_data().unwrap(),
 		))
-		.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+		.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 
 		if let Some(item) = found {
 			send_data(
 				0,
 				UFOData::Reference {
-					class: self.class,
+					class: self.info.class,
 					item,
 				},
 			)?;
@@ -160,7 +174,9 @@ impl PipelineNode<UFOData> for FindItem {
 			send_data(
 				0,
 				UFOData::None {
-					data_type: UFODataStub::Reference { class: self.class },
+					data_type: UFODataStub::Reference {
+						class: self.info.class,
+					},
 				},
 			)?;
 		}

@@ -2,19 +2,16 @@ use std::collections::BTreeMap;
 
 use smartstring::{LazyCompact, SmartString};
 use ufo_pipeline::{
-	api::{
-		NodeInputInfo, NodeOutputInfo, PipelineData, PipelineNode, PipelineNodeError,
-		PipelineNodeState,
-	},
+	api::{InitNodeError, NodeInfo, PipelineData, PipelineNode, PipelineNodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
 
-use crate::{data::UFOData, UFOContext};
+use crate::data::{UFOData, UFODataStub};
 
 pub struct IfNone {
-	inputs: Vec<NodeInputInfo<<UFOData as PipelineData>::DataStubType>>,
-	outputs: Vec<NodeOutputInfo<<UFOData as PipelineData>::DataStubType>>,
+	inputs: [(PipelinePortID, UFODataStub); 2],
+	outputs: [(PipelinePortID, UFODataStub); 1],
 
 	ifnone: Option<UFOData>,
 	input: Option<UFOData>,
@@ -22,44 +19,34 @@ pub struct IfNone {
 
 impl IfNone {
 	pub fn new(
-		_ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Result<Self, PipelineNodeError> {
+	) -> Result<Self, InitNodeError> {
 		if params.len() != 1 {
-			return Err(PipelineNodeError::BadParameterCount { expected: 1 });
+			return Err(InitNodeError::BadParameterCount { expected: 1 });
 		}
 
 		let data_type = if let Some(value) = params.get("value") {
 			match value {
 				NodeParameterValue::DataType(data_type) => data_type.clone(),
 				_ => {
-					return Err(PipelineNodeError::BadParameterType {
+					return Err(InitNodeError::BadParameterType {
 						param_name: "value".into(),
 					})
 				}
 			}
 		} else {
-			return Err(PipelineNodeError::MissingParameter {
+			return Err(InitNodeError::MissingParameter {
 				param_name: "value".into(),
 			});
 		};
 
 		Ok(Self {
-			inputs: vec![
-				NodeInputInfo {
-					name: PipelinePortID::new("data"),
-					accepts_type: data_type,
-				},
-				NodeInputInfo {
-					name: PipelinePortID::new("ifnone"),
-					accepts_type: data_type,
-				},
+			inputs: [
+				(PipelinePortID::new("data"), data_type),
+				(PipelinePortID::new("ifnone"), data_type),
 			],
 
-			outputs: vec![NodeOutputInfo {
-				name: PipelinePortID::new("out"),
-				produces_type: data_type,
-			}],
+			outputs: [(PipelinePortID::new("out"), data_type)],
 
 			ifnone: None,
 			input: None,
@@ -67,24 +54,26 @@ impl IfNone {
 	}
 }
 
-impl PipelineNode<UFOData> for IfNone {
-	fn inputs(&self) -> &[NodeInputInfo<<UFOData as PipelineData>::DataStubType>] {
+impl NodeInfo<UFOData> for IfNone {
+	fn inputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &[NodeOutputInfo<<UFOData as PipelineData>::DataStubType>] {
+	fn outputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
 		&self.outputs
+	}
+}
+
+impl PipelineNode<UFOData> for IfNone {
+	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
+		self
 	}
 
 	fn quick_run(&self) -> bool {
 		true
 	}
 
-	fn take_input(
-		&mut self,
-		target_port: usize,
-		input_data: UFOData,
-	) -> Result<(), PipelineNodeError> {
+	fn take_input(&mut self, target_port: usize, input_data: UFOData) -> Result<(), RunNodeError> {
 		match target_port {
 			0 => {
 				self.input = Some(input_data);
@@ -99,8 +88,8 @@ impl PipelineNode<UFOData> for IfNone {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), PipelineNodeError>,
-	) -> Result<PipelineNodeState, PipelineNodeError> {
+		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+	) -> Result<PipelineNodeState, RunNodeError> {
 		if self.input.is_none() || self.ifnone.is_none() {
 			return Ok(PipelineNodeState::Pending("args not ready"));
 		}

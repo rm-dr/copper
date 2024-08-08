@@ -1,63 +1,61 @@
-use std::collections::BTreeMap;
-
 use smartstring::{LazyCompact, SmartString};
+use std::collections::BTreeMap;
 use ufo_pipeline::{
-	api::{
-		NodeInputInfo, NodeOutputInfo, PipelineData, PipelineNode, PipelineNodeError,
-		PipelineNodeState,
-	},
+	api::{InitNodeError, NodeInfo, PipelineData, PipelineNode, PipelineNodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
 
-use crate::{data::UFOData, UFOContext};
+use crate::data::{UFOData, UFODataStub};
+
 pub struct Constant {
-	outputs: [NodeOutputInfo<<UFOData as PipelineData>::DataStubType>; 1],
+	outputs: [(PipelinePortID, UFODataStub); 1],
 	value: UFOData,
 }
 
 impl Constant {
 	pub fn new(
-		_ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Result<Self, PipelineNodeError> {
+	) -> Result<Self, InitNodeError> {
 		if params.len() != 1 {
-			return Err(PipelineNodeError::BadParameterCount { expected: 1 });
+			return Err(InitNodeError::BadParameterCount { expected: 1 });
 		}
 
 		let value = if let Some(value) = params.get("value") {
 			match value {
 				NodeParameterValue::Data(data) => data.clone(),
 				_ => {
-					return Err(PipelineNodeError::BadParameterType {
+					return Err(InitNodeError::BadParameterType {
 						param_name: "value".into(),
 					})
 				}
 			}
 		} else {
-			return Err(PipelineNodeError::MissingParameter {
+			return Err(InitNodeError::MissingParameter {
 				param_name: "value".into(),
 			});
 		};
 
 		Ok(Self {
-			outputs: [NodeOutputInfo {
-				name: PipelinePortID::new("out"),
-				produces_type: value.as_stub(),
-			}],
-
+			outputs: [(PipelinePortID::new("out"), value.as_stub())],
 			value,
 		})
 	}
 }
 
-impl PipelineNode<UFOData> for Constant {
-	fn inputs(&self) -> &[NodeInputInfo<<UFOData as PipelineData>::DataStubType>] {
+impl NodeInfo<UFOData> for Constant {
+	fn inputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
 		&[]
 	}
 
-	fn outputs(&self) -> &[NodeOutputInfo<<UFOData as PipelineData>::DataStubType>] {
+	fn outputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
 		&self.outputs
+	}
+}
+
+impl PipelineNode<UFOData> for Constant {
+	fn get_info(&self) -> &dyn NodeInfo<UFOData> {
+		self
 	}
 
 	fn quick_run(&self) -> bool {
@@ -68,14 +66,14 @@ impl PipelineNode<UFOData> for Constant {
 		&mut self,
 		_target_port: usize,
 		_input_data: UFOData,
-	) -> Result<(), PipelineNodeError> {
+	) -> Result<(), RunNodeError> {
 		unreachable!("Constant nodes do not take input.")
 	}
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), PipelineNodeError>,
-	) -> Result<PipelineNodeState, PipelineNodeError> {
+		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+	) -> Result<PipelineNodeState, RunNodeError> {
 		send_data(0, self.value.clone())?;
 		Ok(PipelineNodeState::Done)
 	}

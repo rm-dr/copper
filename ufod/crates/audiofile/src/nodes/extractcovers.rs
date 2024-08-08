@@ -7,20 +7,47 @@ use ufo_node_base::{
 	UFOContext,
 };
 use ufo_pipeline::{
-	api::{
-		NodeInputInfo, NodeOutputInfo, PipelineData, PipelineNode, PipelineNodeError,
-		PipelineNodeState,
-	},
+	api::{InitNodeError, NodeInfo, PipelineData, PipelineNode, PipelineNodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
 use ufo_util::mime::MimeType;
 
+/// Info for a [`ExtractCovers`] node
+pub struct ExtractCoversInfo {
+	inputs: [(PipelinePortID, UFODataStub); 1],
+	outputs: [(PipelinePortID, UFODataStub); 1],
+}
+
+impl ExtractCoversInfo {
+	/// Generate node info from parameters
+	pub fn new(
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+	) -> Result<Self, InitNodeError> {
+		if params.len() != 0 {
+			return Err(InitNodeError::BadParameterCount { expected: 0 });
+		}
+
+		Ok(Self {
+			inputs: [(PipelinePortID::new("data"), UFODataStub::Bytes)],
+			outputs: [(PipelinePortID::new("cover_data"), UFODataStub::Bytes)],
+		})
+	}
+}
+
+impl NodeInfo<UFOData> for ExtractCoversInfo {
+	fn inputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+		&self.inputs
+	}
+
+	fn outputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+		&self.outputs
+	}
+}
+
 /// Extract covers from an audio file
 pub struct ExtractCovers {
-	inputs: Vec<NodeInputInfo<<UFOData as PipelineData>::DataStubType>>,
-	outputs: Vec<NodeOutputInfo<<UFOData as PipelineData>::DataStubType>>,
-
+	info: ExtractCoversInfo,
 	blob_fragment_size: u64,
 	data: DataSource,
 	reader: FlacPictureReader,
@@ -31,24 +58,10 @@ impl ExtractCovers {
 	pub fn new(
 		ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Result<Self, PipelineNodeError> {
-		if params.len() != 0 {
-			return Err(PipelineNodeError::BadParameterCount { expected: 0 });
-		}
-
+	) -> Result<Self, InitNodeError> {
 		Ok(Self {
-			inputs: vec![NodeInputInfo {
-				name: PipelinePortID::new("data"),
-				accepts_type: UFODataStub::Bytes,
-			}],
-
-			outputs: vec![NodeOutputInfo {
-				name: PipelinePortID::new("cover_data"),
-				produces_type: UFODataStub::Bytes,
-			}],
-
+			info: ExtractCoversInfo::new(params)?,
 			blob_fragment_size: ctx.blob_fragment_size,
-
 			reader: FlacPictureReader::new(),
 			data: DataSource::Uninitialized,
 		})
@@ -56,24 +69,16 @@ impl ExtractCovers {
 }
 
 impl PipelineNode<UFOData> for ExtractCovers {
-	fn inputs(&self) -> &[NodeInputInfo<<UFOData as PipelineData>::DataStubType>] {
-		&self.inputs
+	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
+		&self.info
 	}
 
-	fn outputs(&self) -> &[NodeOutputInfo<<UFOData as PipelineData>::DataStubType>] {
-		&self.outputs
-	}
-
-	fn take_input(
-		&mut self,
-		target_port: usize,
-		input_data: UFOData,
-	) -> Result<(), PipelineNodeError> {
+	fn take_input(&mut self, target_port: usize, input_data: UFOData) -> Result<(), RunNodeError> {
 		match target_port {
 			0 => match input_data {
 				UFOData::Bytes { source, mime } => {
 					if mime != MimeType::Flac {
-						return Err(PipelineNodeError::UnsupportedFormat(format!(
+						return Err(RunNodeError::UnsupportedFormat(format!(
 							"cannot extract covers from `{}`",
 							mime
 						)));
@@ -92,8 +97,8 @@ impl PipelineNode<UFOData> for ExtractCovers {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), PipelineNodeError>,
-	) -> Result<PipelineNodeState, PipelineNodeError> {
+		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+	) -> Result<PipelineNodeState, RunNodeError> {
 		// Push latest data into cover reader
 		match &mut self.data {
 			DataSource::Uninitialized => {
@@ -104,12 +109,12 @@ impl PipelineNode<UFOData> for ExtractCovers {
 				while let Some(d) = data.pop_front() {
 					self.reader
 						.push_data(&d)
-						.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 				}
 				if *is_done {
 					self.reader
 						.finish()
-						.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 				}
 			}
 
@@ -121,12 +126,12 @@ impl PipelineNode<UFOData> for ExtractCovers {
 					.read_to_end(&mut v)?;
 				self.reader
 					.push_data(&v)
-					.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+					.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 
 				if n == 0 {
 					self.reader
 						.finish()
-						.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 				}
 			}
 		}

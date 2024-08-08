@@ -6,7 +6,7 @@ use smartstring::{LazyCompact, SmartString};
 
 use super::ports::NodeInput;
 use crate::{
-	api::{PipelineData, PipelineNodeError},
+	api::{InitNodeError, PipelineData},
 	labels::{PipelineName, PipelineNodeID, PipelinePortID},
 };
 
@@ -117,10 +117,10 @@ pub enum PipelinePrepareError<DataType: PipelineData> {
 		bad_type: SmartString<LazyCompact>,
 	},
 
-	/// We encountered a [`PipelineNodeError`] while building a pipeline
-	PipelineNodeError {
+	/// We encountered an [`InitNodeError`] while building a pipeline
+	InitNodeError {
 		/// The error we encountered
-		error: PipelineNodeError,
+		error: InitNodeError,
 	},
 }
 
@@ -185,8 +185,8 @@ impl<DataType: PipelineData> Display for PipelinePrepareError<DataType> {
 			Self::InvalidNodeType { node, bad_type } => {
 				writeln!(f, "Node {node} has invalid type {bad_type}")
 			}
-			Self::PipelineNodeError { .. } => {
-				writeln!(f, "Encountered a PipelineNodeError")
+			Self::InitNodeError { .. } => {
+				writeln!(f, "Encountered a InitNodeError")
 			}
 		}
 	}
@@ -198,15 +198,14 @@ impl<DataType: PipelineData> Error for PipelinePrepareError<DataType> {
 			Self::CouldNotOpenFile { error } => Some(error),
 			Self::CouldNotReadFile { error } => Some(error),
 			Self::CouldNotParseFile { error } => Some(error),
-			Self::PipelineNodeError { error } => Some(error),
+			Self::InitNodeError { error } => Some(error),
 			_ => None,
 		}
 	}
 }
 
-// TODO: this is messy
-impl<DataType: PipelineData> From<PipelineNodeError> for PipelinePrepareError<DataType> {
-	fn from(error: PipelineNodeError) -> Self {
-		Self::PipelineNodeError { error }
+impl<DataType: PipelineData> From<InitNodeError> for PipelinePrepareError<DataType> {
+	fn from(error: InitNodeError) -> Self {
+		Self::InitNodeError { error }
 	}
 }
