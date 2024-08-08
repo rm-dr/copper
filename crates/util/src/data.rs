@@ -46,7 +46,14 @@ pub enum PipelineData {
 
 	/// A block of text
 	Text(String),
-	Binary { format: BinaryFormat, data: Vec<u8> },
+
+	/// Binary data
+	Binary {
+		/// How to interpret this data
+		format: BinaryFormat,
+		/// The data
+		data: Vec<u8>,
+	},
 }
 
 impl Debug for PipelineData {
