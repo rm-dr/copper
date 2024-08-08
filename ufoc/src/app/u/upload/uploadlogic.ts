@@ -182,6 +182,16 @@ export function startUploadingFiles(params: {
 	};
 
 	const do_upload = async () => {
+		const request_body_limit = await APIclient.GET("/status").then(
+			({ data, error }) => {
+				if (error !== undefined) {
+					throw error;
+				}
+
+				return data.request_body_limit;
+			},
+		);
+
 		for (const file of params.files) {
 			let upload_job_id;
 			try {
@@ -204,7 +214,9 @@ export function startUploadingFiles(params: {
 					upload_job_id,
 					blob: file.file,
 					file_extension: c.join("."),
-					max_fragment_size: 1500000, // TODO: get from server
+
+					// Leave a few KB for headers & metadata
+					max_fragment_size: request_body_limit - 25_000,
 
 					// Whenever we make progress on any file
 					onProgress: (uploaded_bytes) => {
