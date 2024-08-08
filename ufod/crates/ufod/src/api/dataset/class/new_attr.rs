@@ -15,7 +15,7 @@ use utoipa::ToSchema;
 use crate::api::RouterState;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub(in crate::api) struct NewItemclassAttrParams {
+pub(in crate::api) struct NewClassAttrParams {
 	/// The new attribute's data type
 	pub data_type: MetastoreDataStub,
 
@@ -23,14 +23,14 @@ pub(in crate::api) struct NewItemclassAttrParams {
 	pub options: AttributeOptions,
 }
 
-/// Create a new attribute in this itemclass
+/// Create a new attribute in this class
 #[utoipa::path(
 	post,
 	path = "/{dataset_name}/classes/{class_name}/attrs/{attr_name}",
 	tag = "Itemclass",
 	params(
 		("dataset_name" = String, description = "Dataset name"),
-		("class_name" = String, description = "Itemclass name"),
+		("class_name" = String, description = "Class name"),
 		("attr_name" = String, description = "New attribute name"),
 	),
 	responses(
@@ -40,10 +40,10 @@ pub(in crate::api) struct NewItemclassAttrParams {
 		(status = 500, description = "Internal server error", body=String),
 	),
 )]
-pub(in crate::api) async fn new_itemclass_attr(
+pub(in crate::api) async fn new_class_attr(
 	Path((dataset_name, class_name, attr_name)): Path<(String, String, String)>,
 	State(state): State<RouterState>,
-	Json(new_params): Json<NewItemclassAttrParams>,
+	Json(new_params): Json<NewClassAttrParams>,
 ) -> Response {
 	let dataset = match state.main_db.get_dataset(&dataset_name) {
 		Ok(Some(x)) => x,
@@ -68,7 +68,7 @@ pub(in crate::api) async fn new_itemclass_attr(
 		}
 	};
 
-	let class_id: ClassHandle = match dataset.get_class(&class_name) {
+	let class_handle: ClassHandle = match dataset.get_class(&class_name) {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -79,21 +79,21 @@ pub(in crate::api) async fn new_itemclass_attr(
 		}
 		Err(e) => {
 			error!(
-				message = "Could not get item class by name",
+				message = "Could not get class by name",
 				dataset = dataset_name,
-				item_class_name = ?class_name,
+				class_name = ?class_name,
 				error = ?e
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get item class by name"),
+				format!("Could not get class by name {e}"),
 			)
 				.into_response();
 		}
 	};
 
 	let res = dataset.add_attr(
-		class_id,
+		class_handle,
 		&attr_name,
 		new_params.data_type,
 		new_params.options,
@@ -104,7 +104,7 @@ pub(in crate::api) async fn new_itemclass_attr(
 		Err(MetastoreError::DuplicateAttrName(x)) => {
 			return (
 				StatusCode::BAD_REQUEST,
-				format!("Attribute `{x}` already exists on class `{class_id:?}`"),
+				format!("Attribute `{x}` already exists on class `{class_handle:?}`"),
 			)
 				.into_response()
 		}
@@ -112,10 +112,14 @@ pub(in crate::api) async fn new_itemclass_attr(
 			error!(
 				message = "Could not create new attribute",
 				dataset = dataset_name,
-				item_class = ?class_id,
+				class = ?class_name,
 				error = ?e
 			);
-			return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e:?}")).into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not create new attribute: {e}"),
+			)
+				.into_response();
 		}
 	}
 }

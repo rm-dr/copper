@@ -49,6 +49,7 @@ impl PipelineInfoInput {
 	tag = "Pipeline",
 	responses(
 		(status = 200, description = "Pipeline info", body = Vec<PipelineInfoShort>),
+		(status = 404, description = "This dataset doesn't exist", body = String),
 		(status = 500, description = "Could not load pipeline", body = String),
 	),
 )]
@@ -56,16 +57,54 @@ pub(in crate::api) async fn list_pipelines(
 	Path(dataset_name): Path<String>,
 	State(state): State<RouterState>,
 ) -> Response {
-	let dataset = state.main_db.get_dataset(&dataset_name).unwrap().unwrap();
+	let dataset = match state.main_db.get_dataset(&dataset_name) {
+		Ok(Some(x)) => x,
+		Ok(None) => {
+			return (
+				StatusCode::NOT_FOUND,
+				format!("Dataset `{dataset_name}` does not exist"),
+			)
+				.into_response()
+		}
+		Err(e) => {
+			error!(
+				message = "Could not get dataset by name",
+				dataset = dataset_name,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not get dataset by name: {e}"),
+			)
+				.into_response();
+		}
+	};
 
 	let context = Arc::new(UFOContext {
 		dataset: dataset.clone(),
 		blob_fragment_size: 1_000_000,
 	});
 
+	let all_pipes = match dataset.all_pipelines() {
+		Ok(x) => x,
+		Err(e) => {
+			error!(
+				message = "Could not list pipelines",
+				dataset = dataset_name,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not list pipelines: {e}"),
+			)
+				.into_response();
+		}
+	};
+
 	let mut out = Vec::new();
-	for pipe_name in dataset.all_pipelines().unwrap() {
+	for pipe_name in all_pipes {
 		let pipe = match dataset.load_pipeline(&pipe_name, context.clone()) {
+			// This should never fail---all_pipelines must only return valid names.
 			Ok(x) => x.unwrap(),
 			Err(e) => {
 				error!(
@@ -77,6 +116,7 @@ pub(in crate::api) async fn list_pipelines(
 			}
 		};
 
+		// Same thing here---this should not be none.
 		let input_node_type = pipe.get_node(pipe.input_node_id()).unwrap();
 
 		out.push(PipelineInfoShort {

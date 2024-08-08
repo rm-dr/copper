@@ -7,6 +7,7 @@ use axum::{
 	Json,
 };
 use serde::{Deserialize, Serialize};
+use tracing::error;
 use ufo_pipeline::labels::{PipelineName, PipelineNodeID};
 use ufo_pipeline_nodes::UFOContext;
 use utoipa::ToSchema;
@@ -40,7 +41,8 @@ pub(in crate::api) struct PipelineInfo {
 	),
 	responses(
 		(status = 200, description = "Pipeline info", body = PipelineInfo),
-		(status = 404, description = "There is no pipeline with this name")
+		(status = 404, description = "There is no such pipeline or database", body=String),
+		(status = 500, description = "Internal server error", body=String)
 	),
 )]
 pub(in crate::api) async fn get_pipeline(
@@ -48,24 +50,60 @@ pub(in crate::api) async fn get_pipeline(
 	State(state): State<RouterState>,
 ) -> Response {
 	let pipeline_name = PipelineName::new(&pipeline_name);
-	let dataset = state.main_db.get_dataset(&dataset_name).unwrap().unwrap();
+
+	let dataset = match state.main_db.get_dataset(&dataset_name) {
+		Ok(Some(x)) => x,
+		Ok(None) => {
+			return (
+				StatusCode::NOT_FOUND,
+				format!("Dataset `{dataset_name}` does not exist"),
+			)
+				.into_response()
+		}
+		Err(e) => {
+			error!(
+				message = "Could not get dataset by name",
+				dataset = dataset_name,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not get dataset by name: {e}"),
+			)
+				.into_response();
+		}
+	};
 
 	let context = Arc::new(UFOContext {
 		dataset: dataset.clone(),
+		// TODO: config & publish
 		blob_fragment_size: 1_000_000,
 	});
 
-	let pipe = if let Some(pipe) = state
-		.main_db
-		.get_dataset(&dataset_name)
-		.unwrap()
-		.unwrap()
-		.load_pipeline(&pipeline_name, context)
-		.unwrap()
-	{
-		pipe
-	} else {
-		return StatusCode::NOT_FOUND.into_response();
+	let pipe = match dataset.load_pipeline(&pipeline_name, context) {
+		Ok(Some(x)) => x,
+		Ok(None) => {
+			return (
+				StatusCode::NOT_FOUND,
+				format!(
+					"Dataset `{dataset_name}` does not have a pipeline named `{pipeline_name}`"
+				),
+			)
+				.into_response()
+		}
+		Err(e) => {
+			error!(
+				message = "Could not get pipeline by name",
+				dataset = dataset_name,
+				pipeline_name = ?pipeline_name,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not get pipeline by name: {e}"),
+			)
+				.into_response();
+		}
 	};
 
 	let node_ids = pipe.iter_node_ids().cloned().collect::<Vec<_>>();

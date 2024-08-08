@@ -1,21 +1,26 @@
 use crate::{helpers::maindb::dataset::DatasetType, RouterState};
 use axum::{
-	routing::{get, post},
+	routing::{delete, get, post},
 	Router,
 };
 use utoipa::OpenApi;
 
-mod itemclass;
+mod class;
 mod pipeline;
 
+mod del;
 mod list;
 mod new;
 
-use itemclass::{list::*, new::*, new_attr::*};
+use class::{del::*, del_attr::*, list::*, new::*, new_attr::*};
 use pipeline::{get::*, list::*, run::*};
 
+use del::*;
 use list::*;
 use new::*;
+
+// TODO: rename all "itemclass" to "class"
+// (or maybe something else?)
 
 #[derive(OpenApi)]
 #[openapi(
@@ -26,24 +31,28 @@ use new::*;
 		list_pipelines,
 		get_pipeline,
 		run_pipeline,
-		new_itemclass,
-		list_itemclasses,
-		new_itemclass_attr
+		new_class,
+		list_classes,
+		new_class_attr,
+		del_class,
+		del_class_attr,
+		del_dataset
 	),
 	components(schemas(
 		NewDatasetParams,
-		NewDatasetError,
 		PipelineInfo,
 		PipelineInfoShort,
 		PipelineInfoInput,
-		AddJobResult,
 		AddJobParams,
 		AddJobInput,
 		DatasetInfoShort,
 		DatasetType,
-		ItemclassInfo,
+		ClassInfo,
 		AttrInfo,
-		NewItemclassAttrParams
+		NewClassAttrParams,
+		DeleteAttrConfirmation,
+		DeleteClassConfirmation,
+		DeleteDatasetConfirmation
 	))
 )]
 pub(super) struct DatasetApi;
@@ -53,12 +62,18 @@ pub(super) fn router() -> Router<RouterState> {
 		// Datasets
 		.route("/", get(list_datasets))
 		.route("/:dataset_name", post(new_dataset))
+		.route("/:dataset_name", delete(del_dataset))
 		// Item classes
-		.route("/:dataset_name/classes", get(list_itemclasses))
-		.route("/:dataset_name/classes/:class_name", post(new_itemclass))
+		.route("/:dataset_name/classes", get(list_classes))
+		.route("/:dataset_name/classes/:class_name", post(new_class))
+		.route("/:dataset_name/classes/:class_name", delete(del_class))
 		.route(
 			"/:dataset_name/classes/:class_name/attrs/:attr_name",
-			post(new_itemclass_attr),
+			post(new_class_attr),
+		)
+		.route(
+			"/:dataset_name/classes/:class_name/attrs/:attr_name",
+			delete(del_class_attr),
 		)
 		// Pipelines
 		.route("/:dataset_name/pipelines", get(list_pipelines))

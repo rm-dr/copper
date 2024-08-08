@@ -15,16 +15,16 @@ use ufo_ds_core::{
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub(in crate::api) struct ItemclassInfo {
-	/// This item class' name
+pub(in crate::api) struct ClassInfo {
+	/// This class' name
 	#[schema(value_type = String)]
 	name: SmartString<LazyCompact>,
 
-	/// This item class' unique handle
+	/// This class' unique handle
 	#[schema(value_type = u32)]
 	handle: ClassHandle,
 
-	/// This item class' attributes
+	/// This class' attributes
 	attrs: Vec<AttrInfo>,
 }
 
@@ -42,7 +42,7 @@ pub(in crate::api) struct AttrInfo {
 	data_type: MetastoreDataStub,
 }
 
-/// Get this dataset's itemclasses
+/// Get this dataset's classes
 #[utoipa::path(
 	get,
 	path = "/{dataset_name}/classes",
@@ -51,27 +51,48 @@ pub(in crate::api) struct AttrInfo {
 		("dataset_name" = String, description = "Dataset name"),
 	),
 	responses(
-		(status = 200, description = "Item classes", body = Vec<ItemclassInfo>),
+		(status = 200, description = "Classes", body = Vec<ClassInfo>),
 		(status = 500, description = "Internal server error", body = String),
 	),
 )]
-pub(in crate::api) async fn list_itemclasses(
+pub(in crate::api) async fn list_classes(
 	Path(dataset_name): Path<String>,
 	State(state): State<RouterState>,
 ) -> Response {
-	let dataset = state.main_db.get_dataset(&dataset_name).unwrap().unwrap();
+	let dataset = match state.main_db.get_dataset(&dataset_name) {
+		Ok(Some(x)) => x,
+		Ok(None) => {
+			return (
+				StatusCode::NOT_FOUND,
+				format!("Dataset `{dataset_name}` does not exist"),
+			)
+				.into_response()
+		}
+		Err(e) => {
+			error!(
+				message = "Could not get dataset by name",
+				dataset = dataset_name,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not get dataset by name: {e}"),
+			)
+				.into_response();
+		}
+	};
 
 	let classes = match dataset.get_all_classes() {
 		Ok(x) => x,
 		Err(e) => {
 			error!(
-				message = "Could not get item classes",
+				message = "Could not get classes",
 				dataset = ?dataset_name,
 				error = ?e
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get classes: {e:?}"),
+				format!("Could not get classes: {e}"),
 			)
 				.into_response();
 		}
@@ -83,20 +104,20 @@ pub(in crate::api) async fn list_itemclasses(
 			Ok(x) => x,
 			Err(e) => {
 				error!(
-					message = "Could not get item class attributes",
+					message = "Could not get class attributes",
 					dataset = ?dataset_name,
-					item_class_handle = ?class_handle,
+					class_handle = ?class_handle,
 					error = ?e
 				);
 				return (
 					StatusCode::INTERNAL_SERVER_ERROR,
-					format!("Could not get attributes: {e:?}"),
+					format!("Could not get class attributes: {e}"),
 				)
 					.into_response();
 			}
 		};
 
-		out.push(ItemclassInfo {
+		out.push(ClassInfo {
 			name: class_name,
 			handle: class_handle.into(),
 			attrs: attrs

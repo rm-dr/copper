@@ -158,4 +158,8 @@ impl MainDB {
 			}
 		}))
 	}
+
+	pub fn del_dataset(&self, dataset_name: &str) -> Result<(), ()> {
+		todo!()
+	}
 }

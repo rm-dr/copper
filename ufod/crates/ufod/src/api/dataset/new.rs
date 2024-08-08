@@ -21,13 +21,6 @@ pub(super) enum NewDatasetParams {
 	LocalDataset,
 }
 
-#[derive(Deserialize, Serialize, ToSchema, Debug)]
-#[serde(tag = "type")]
-pub(super) enum NewDatasetError {
-	BadName(String),
-	AlreadyExists,
-}
-
 /// Create a new dataset
 #[utoipa::path(
 	post,
@@ -37,8 +30,8 @@ pub(super) enum NewDatasetError {
 	),
 	responses(
 		(status = 200, description = "Dataset created successfully"),
-		(status = 400, description = "Could not create dataset", body = NewDatasetError),
-		(status = 500, description = "Internal server error"),
+		(status = 400, description = "Could not create dataset", body = String),
+		(status = 500, description = "Internal server error", body = String),
 	),
 )]
 pub(super) async fn new_dataset(
@@ -55,16 +48,12 @@ pub(super) async fn new_dataset(
 			match res {
 				Ok(_) => {}
 				Err(CreateDatasetError::BadName(message)) => {
-					return (
-						StatusCode::BAD_REQUEST,
-						Json(NewDatasetError::BadName(message)),
-					)
-						.into_response()
+					return (StatusCode::BAD_REQUEST, message).into_response()
 				}
 				Err(CreateDatasetError::AlreadyExists(_)) => {
 					return (
 						StatusCode::BAD_REQUEST,
-						Json(NewDatasetError::AlreadyExists),
+						format!("A dataeset named `{dataset_name}` already exists."),
 					)
 						.into_response();
 				}
