@@ -2,24 +2,21 @@ import styles from "./itemtable.module.scss";
 import { Panel, PanelSection } from "../../components/panel";
 import clsx from "clsx";
 import {
+	XIconAddLeft,
+	XIconAddRight,
+	XIconDots,
 	XIconItems,
-	XIconListArrow,
-	XIconMenu,
 	XIconSortDown,
+	XIconTrash,
 } from "@/app/components/icons";
 
-import {
-	Dispatch,
-	SetStateAction,
-	useCallback,
-	useEffect,
-	useRef,
-	useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActionIcon, Menu, rem } from "@mantine/core";
+import { AttrSelector } from "@/app/components/apiselect/attr";
 
 export function ItemTablePanel(params: {
 	selectedDataset: string | null;
-	setSelectedDataset: Dispatch<SetStateAction<string | null>>;
+	selectedClass: string | null;
 }) {
 	return (
 		<>
@@ -29,7 +26,13 @@ export function ItemTablePanel(params: {
 				title={"Item Table"}
 			>
 				<PanelSection>
-					<ItemTable data={td.data} headers={td.headers} minCellWidth={120} />
+					<ItemTable
+						data={td.data}
+						headers={td.headers}
+						minCellWidth={120}
+						selectedClass={params.selectedClass}
+						selectedDataset={params.selectedDataset}
+					/>
 				</PanelSection>
 			</Panel>
 		</>
@@ -56,6 +59,9 @@ const initHeaders = (headers: any[]) => {
 };
 
 const ItemTable = (params: {
+	selectedDataset: string | null;
+	selectedClass: string | null;
+
 	// Column headers, in the order they should be shown
 	headers: {
 		// The string to show the user
@@ -275,19 +281,12 @@ const ItemTable = (params: {
 										)}
 									/>
 								)}
-								<div
-									style={{
-										display: "flex",
-										alignItems: "center",
-										justifyContent: "flex-start",
-										gap: "0.5rem",
-									}}
-								>
-									<div className={styles.sorticon}>
-										<XIconSortDown />
-									</div>
-									<div>{header.pretty_name}</div>
-								</div>
+								<ColumnHeader
+									attr={null}
+									setAttr={console.log}
+									selectedClass={params.selectedClass}
+									selectedDataset={params.selectedDataset}
+								/>
 							</th>
 						))}
 					</tr>
@@ -311,3 +310,86 @@ const ItemTable = (params: {
 		</>
 	);
 };
+
+function ColumnHeader(params: {
+	selectedDataset: string | null;
+	selectedClass: string | null;
+	attr: null | string;
+	setAttr: (attr: string | null) => void;
+}) {
+	return (
+		<div
+			style={{
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "flex-start",
+				gap: "0.5rem",
+			}}
+		>
+			<div className={styles.sorticon}>
+				<XIconSortDown />
+			</div>
+			<div>
+				{params.attr === null ? (
+					<AttrSelector
+						onSelect={params.setAttr}
+						selectedClass={params.selectedClass}
+						selectedDataset={params.selectedDataset}
+					/>
+				) : (
+					params.attr
+				)}
+			</div>
+
+			<div className={styles.menuicon}>
+				<ColumnMenu disabled={false} />
+			</div>
+		</div>
+	);
+}
+
+function ColumnMenu(params: { disabled: boolean }) {
+	return (
+		<>
+			<Menu
+				shadow="md"
+				position="right-start"
+				withArrow
+				arrowPosition="center"
+				disabled={params.disabled}
+			>
+				<Menu.Target>
+					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
+						<XIconDots />
+					</ActionIcon>
+				</Menu.Target>
+
+				<Menu.Dropdown>
+					<Menu.Label>Table Column</Menu.Label>
+					<Menu.Item
+						leftSection={
+							<XIconAddLeft style={{ width: rem(14), height: rem(14) }} />
+						}
+					>
+						Add column (left)
+					</Menu.Item>
+					<Menu.Item
+						leftSection={
+							<XIconAddRight style={{ width: rem(14), height: rem(14) }} />
+						}
+					>
+						Add column (right)
+					</Menu.Item>
+					<Menu.Item
+						color="red"
+						leftSection={
+							<XIconTrash style={{ width: rem(14), height: rem(14) }} />
+						}
+					>
+						Remove this column
+					</Menu.Item>
+				</Menu.Dropdown>
+			</Menu>
+		</>
+	);
+}

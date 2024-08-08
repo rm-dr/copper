@@ -8,6 +8,8 @@ async function update_attrs(params: {
 		return Promise.resolve(null);
 	}
 
+	// TODO: list attrs endpoint, or take attrs as input?
+	// this is a bit inefficient.
 	const res = await fetch(
 		"/api/class/list?" +
 			new URLSearchParams({

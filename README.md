@@ -19,10 +19,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 
 ## 📦 CRUD items
-- [ ] Create items by pipeline
-  - [ ] Fetch item node should work
-  - [ ] Clean up input list & api
-    - get inputs from server
+- [ ] Dynamic input panel
 - [ ] Hash files when uploading (incremental)
   - make sure uploads don't expire
   - [ ] clean up upload api
@@ -37,7 +34,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## 📦 How to fail pipelines?
 - e.g, duplicate album art
 
-## 📦 CRUD datasets
+## CRUD datasets
 - [ ] Rename set, class, attr endpoint
 
 ## 📦 Authentication
@@ -109,6 +106,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Clippy
 - [ ] What if we panic when an unfinished blob is dropped? (log)
 - [ ] Structs for big returns in dataset api
+- [ ] Which locks should be async?
 
 ## 📦 Logging cleanup
 - [ ] logging everywhere
