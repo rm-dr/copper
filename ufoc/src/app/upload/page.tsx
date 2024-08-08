@@ -69,12 +69,14 @@ export default function Page() {
 			const [ac, _promise] = startUploadingFiles({
 				setUploadState,
 				onFinishFile: (upload_job, file_name) => {
-					fetch(`/api/pipelines/${selectedPipeline}/run`, {
+					fetch("/api/pipeline/run", {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
 						},
 						body: JSON.stringify({
+							dataset: selectedDataset,
+							pipeline: selectedPipeline,
 							input: {
 								type: "File",
 								file_name,

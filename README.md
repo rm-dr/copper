@@ -204,6 +204,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 
 ## More nodes:
+- [ ] Node spec codegen
 - [ ] node tests
 - [ ] hash additional types
 - [ ] external command (for user plugins)

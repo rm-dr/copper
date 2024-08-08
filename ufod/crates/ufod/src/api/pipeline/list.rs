@@ -9,6 +9,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::error;
+use ufo_ds_core::errors::PipestoreError;
 use ufo_pipeline::labels::PipelineName;
 use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
 use utoipa::{IntoParams, ToSchema};
@@ -26,7 +27,11 @@ pub(super) struct PipelineInfoShort {
 	#[schema(value_type = String)]
 	pub name: PipelineName,
 
+	/// The input this pipeline takes
 	pub input_type: PipelineInfoInput,
+
+	/// If true, we couldn't load this pipeline successfully.
+	pub has_error: bool,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
@@ -112,7 +117,25 @@ pub(super) async fn list_pipelines(
 	for pipe_name in all_pipes {
 		let pipe = match dataset.load_pipeline(&pipe_name, context.clone()) {
 			// This should never fail---all_pipelines must only return valid names.
-			Ok(x) => x.unwrap(),
+			Ok(x) => {
+				let pipe = x.unwrap();
+
+				// Same thing here---this should not be none.
+				let input_node_type = pipe.get_node(pipe.input_node_id()).unwrap();
+
+				PipelineInfoShort {
+					name: pipe_name.clone(),
+					input_type: PipelineInfoInput::node_to_input_type(input_node_type),
+					has_error: false,
+				}
+			}
+
+			Err(PipestoreError::PipelinePrepareError(_)) => PipelineInfoShort {
+				name: pipe_name.clone(),
+				input_type: PipelineInfoInput::None,
+				has_error: true,
+			},
+
 			Err(e) => {
 				error!(
 					message = "Could not load pipeline",
@@ -123,13 +146,7 @@ pub(super) async fn list_pipelines(
 			}
 		};
 
-		// Same thing here---this should not be none.
-		let input_node_type = pipe.get_node(pipe.input_node_id()).unwrap();
-
-		out.push(PipelineInfoShort {
-			name: pipe_name.clone(),
-			input_type: PipelineInfoInput::node_to_input_type(input_node_type),
-		});
+		out.push(pipe);
 	}
 
 	return Json(out).into_response();

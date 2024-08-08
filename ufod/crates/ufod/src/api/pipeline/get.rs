@@ -8,6 +8,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::error;
+use ufo_ds_core::errors::PipestoreError;
 use ufo_pipeline::labels::{PipelineName, PipelineNodeID};
 use ufo_pipeline_nodes::UFOContext;
 use utoipa::ToSchema;
@@ -77,8 +78,27 @@ pub(in crate::api) async fn get_pipeline(
 		blob_fragment_size: 1_000_000,
 	});
 
-	let pipe = match dataset.load_pipeline(&pipeline_name, context) {
-		Ok(Some(x)) => x,
+	// TODO: clean up.
+	// We shouldn't need to load a pipeline to get its info
+	match dataset.load_pipeline(&pipeline_name, context) {
+		Ok(Some(pipe)) => {
+			let node_ids = pipe.iter_node_ids().cloned().collect::<Vec<_>>();
+			let input_node_type = pipe.get_node(pipe.input_node_id()).unwrap();
+
+			return (
+				StatusCode::OK,
+				Json(Some(PipelineInfo {
+					short: PipelineInfoShort {
+						name: pipeline_name,
+						input_type: PipelineInfoInput::node_to_input_type(input_node_type),
+						has_error: false,
+					},
+					nodes: node_ids,
+					input_node: pipe.input_node_id().clone(),
+				})),
+			)
+				.into_response();
+		}
 		Ok(None) => {
 			return (
 				StatusCode::NOT_FOUND,
@@ -89,6 +109,23 @@ pub(in crate::api) async fn get_pipeline(
 			)
 				.into_response()
 		}
+
+		Err(PipestoreError::PipelinePrepareError(_)) => {
+			return (
+				StatusCode::OK,
+				Json(Some(PipelineInfo {
+					short: PipelineInfoShort {
+						name: pipeline_name,
+						input_type: PipelineInfoInput::None,
+						has_error: false,
+					},
+					nodes: vec![],
+					input_node: PipelineNodeID::new("INVALID"),
+				})),
+			)
+				.into_response();
+		}
+
 		Err(e) => {
 			error!(
 				message = "Could not get pipeline by name",
@@ -103,20 +140,4 @@ pub(in crate::api) async fn get_pipeline(
 				.into_response();
 		}
 	};
-
-	let node_ids = pipe.iter_node_ids().cloned().collect::<Vec<_>>();
-	let input_node_type = pipe.get_node(pipe.input_node_id()).unwrap();
-
-	return (
-		StatusCode::OK,
-		Json(Some(PipelineInfo {
-			short: PipelineInfoShort {
-				name: pipeline_name,
-				input_type: PipelineInfoInput::node_to_input_type(input_node_type),
-			},
-			nodes: node_ids,
-			input_node: pipe.input_node_id().clone(),
-		})),
-	)
-		.into_response();
 }

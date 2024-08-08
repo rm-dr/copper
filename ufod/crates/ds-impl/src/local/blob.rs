@@ -12,7 +12,7 @@ impl Blobstore for LocalDataset {
 		*li += 1;
 
 		block_on(
-			sqlx::query("UPDATE meta SET val=? WHERE var=\"idx_counter\";")
+			sqlx::query("UPDATE meta_meta SET val=? WHERE var=\"idx_counter\";")
 				.bind(*li)
 				.execute(&mut *self.conn.lock().unwrap()),
 		)
@@ -30,7 +30,7 @@ impl Blobstore for LocalDataset {
 
 	fn finish_blob(&self, mut blob: BlobstoreTmpWriter) -> BlobHandle {
 		block_on(
-			sqlx::query("INSERT INTO blobs (data_type, file_path) VALUES (?, ?);")
+			sqlx::query("INSERT INTO meta_blobs (data_type, file_path) VALUES (?, ?);")
 				.bind(blob.handle.get_type().to_string())
 				.bind(blob.path_to_file.to_str().unwrap())
 				.execute(&mut *self.conn.lock().unwrap()),

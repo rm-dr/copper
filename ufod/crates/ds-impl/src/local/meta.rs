@@ -233,31 +233,12 @@ impl Metastore for LocalDataset {
 			)
 		} else {
 			// Find rows of all provided attributes
-			let (attr_names, attr_values) = {
-				let mut attr_names: Vec<String> = Vec::new();
-				for (a, _) in &attrs {
-					let res = block_on(
-						sqlx::query("SELECT id FROM meta_attributes WHERE id=?;")
-							.bind(u32::from(*a))
-							.fetch_one(&mut *t),
-					);
+			let attr_names = attrs
+				.iter()
+				.map(|(h, _)| format!("\"attr_{}\"", u32::from(*h)))
+				.join(", ");
 
-					let column_id: u32 = match res {
-						Err(sqlx::Error::RowNotFound) => {
-							return Err(MetastoreError::BadClassHandle);
-						}
-						Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
-						Ok(res) => res.get("id"),
-					};
-
-					attr_names.push(format!("\"attr_{column_id}\""));
-				}
-
-				(
-					attr_names.join(", "),
-					iter::repeat('?').take(attr_names.len()).join(", "),
-				)
-			};
+			let attr_values = iter::repeat('?').take(attr_names.len()).join(", ");
 
 			let q_str =
 				format!("INSERT INTO \"{table_name}\" ({attr_names}) VALUES ({attr_values});",);

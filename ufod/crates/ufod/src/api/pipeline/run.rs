@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::sync::Arc;
 use tracing::error;
+use ufo_ds_core::errors::PipestoreError;
 use ufo_pipeline::labels::PipelineName;
 use ufo_pipeline_nodes::{data::UFOData, UFOContext};
 use utoipa::ToSchema;
@@ -96,6 +97,15 @@ pub(super) async fn run_pipeline(
 			)
 				.into_response()
 		}
+
+		Err(PipestoreError::PipelinePrepareError(_)) => {
+			return (
+				StatusCode::BAD_REQUEST,
+				format!("Cannot run invalid pipeline"),
+			)
+				.into_response();
+		}
+
 		Err(e) => {
 			error!(
 				message = "Could not get pipeline by name",
