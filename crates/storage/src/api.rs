@@ -36,12 +36,17 @@ pub trait Dataset {
 	async fn del_item(&mut self, item: Self::ItemHandle) -> Result<(), Self::ErrorType>;
 	async fn del_attr(&mut self, attr: Self::AttrHandle) -> Result<(), Self::ErrorType>;
 
-	async fn iter_items(&self) -> impl Iterator<Item = Self::ItemHandle>;
-	async fn iter_classes(&self) -> impl Iterator<Item = Self::ClassHandle>;
-	async fn iter_attrs(&self) -> impl Iterator<Item = Self::AttrHandle>;
+	async fn iter_items(&self) -> Result<impl Iterator<Item = Self::ItemHandle>, Self::ErrorType>;
+	async fn iter_classes(
+		&self,
+	) -> Result<impl Iterator<Item = Self::ClassHandle>, Self::ErrorType>;
+	async fn iter_attrs(&self) -> Result<impl Iterator<Item = Self::AttrHandle>, Self::ErrorType>;
 
-	async fn get_class(&self, class_name: &str) -> Option<Self::ClassHandle>;
-	async fn get_attr(&self, attr_name: &str) -> Option<Self::AttrHandle>;
+	async fn get_class(
+		&self,
+		class_name: &str,
+	) -> Result<Option<Self::ClassHandle>, Self::ErrorType>;
+	async fn get_attr(&self, attr_name: &str) -> Result<Option<Self::AttrHandle>, Self::ErrorType>;
 
 	async fn item_set_attr(
 		&mut self,
@@ -54,27 +59,33 @@ pub trait Dataset {
 		item: Self::ItemHandle,
 		attr: Self::AttrHandle,
 	) -> Result<PipelineData, Self::ErrorType>;
-	async fn item_get_class(&self, item: Self::ItemHandle) -> Self::ClassHandle;
+	async fn item_get_class(
+		&self,
+		item: Self::ItemHandle,
+	) -> Result<Self::ClassHandle, Self::ErrorType>;
 
 	async fn class_set_name(
 		&mut self,
 		class: Self::ClassHandle,
 		name: &str,
 	) -> Result<(), Self::ErrorType>;
-	async fn class_get_name(&self, class: Self::ClassHandle) -> &str;
+	async fn class_get_name(&self, class: Self::ClassHandle) -> Result<&str, Self::ErrorType>;
 	async fn class_get_attrs(
 		&self,
 		class: Self::ClassHandle,
-	) -> impl Iterator<Item = Self::AttrHandle>;
-	async fn class_num_attrs(&self, class: Self::ClassHandle) -> usize;
+	) -> Result<impl Iterator<Item = Self::AttrHandle>, Self::ErrorType>;
+	async fn class_num_attrs(&self, class: Self::ClassHandle) -> Result<usize, Self::ErrorType>;
 
 	async fn attr_set_name(
 		&mut self,
 		attr: Self::AttrHandle,
 		name: &str,
 	) -> Result<(), Self::ErrorType>;
-	async fn attr_get_name(&self, attr: Self::AttrHandle) -> &str;
-	async fn attr_get_type(&self, attr: Self::AttrHandle) -> PipelineDataType;
+	async fn attr_get_name(&self, attr: Self::AttrHandle) -> Result<&str, Self::ErrorType>;
+	async fn attr_get_type(
+		&self,
+		attr: Self::AttrHandle,
+	) -> Result<PipelineDataType, Self::ErrorType>;
 	async fn attr_get_class(&self, attr: Self::AttrHandle) -> Self::ClassHandle;
 	// TODO: errors for bad attr
 }

@@ -133,7 +133,7 @@ impl Dataset for MemDataset {
 	) -> Result<Self::ItemHandle, Self::ErrorType> {
 		let mut data = HashMap::new();
 
-		let attr_iter = self.class_get_attrs(class).await;
+		let attr_iter = self.class_get_attrs(class).await?;
 		for (i, a) in attr_iter.enumerate() {
 			data.insert(a, (*attrs.get(i).unwrap()).clone());
 		}
@@ -160,28 +160,35 @@ impl Dataset for MemDataset {
 		Ok(())
 	}
 
-	async fn get_attr(&self, attr_name: &str) -> Option<Self::AttrHandle> {
-		self.attrs
+	async fn get_attr(&self, attr_name: &str) -> Result<Option<Self::AttrHandle>, Self::ErrorType> {
+		Ok(self
+			.attrs
 			.iter()
-			.find_map(|(x, y)| (y.name == attr_name).then_some(*x))
+			.find_map(|(x, y)| (y.name == attr_name).then_some(*x)))
 	}
 
-	async fn get_class(&self, class_name: &str) -> Option<Self::ClassHandle> {
-		self.classes
+	async fn get_class(
+		&self,
+		class_name: &str,
+	) -> Result<Option<Self::ClassHandle>, Self::ErrorType> {
+		Ok(self
+			.classes
 			.iter()
-			.find_map(|(x, y)| (y.name == class_name).then_some(*x))
+			.find_map(|(x, y)| (y.name == class_name).then_some(*x)))
 	}
 
-	async fn iter_items(&self) -> impl Iterator<Item = Self::ItemHandle> {
-		self.items.keys().cloned()
+	async fn iter_items(&self) -> Result<impl Iterator<Item = Self::ItemHandle>, Self::ErrorType> {
+		Ok(self.items.keys().cloned())
 	}
 
-	async fn iter_attrs(&self) -> impl Iterator<Item = Self::AttrHandle> {
-		self.attrs.keys().cloned()
+	async fn iter_attrs(&self) -> Result<impl Iterator<Item = Self::AttrHandle>, Self::ErrorType> {
+		Ok(self.attrs.keys().cloned())
 	}
 
-	async fn iter_classes(&self) -> impl Iterator<Item = Self::ClassHandle> {
-		self.classes.keys().cloned()
+	async fn iter_classes(
+		&self,
+	) -> Result<impl Iterator<Item = Self::ClassHandle>, Self::ErrorType> {
+		Ok(self.classes.keys().cloned())
 	}
 
 	async fn item_get_attr(
@@ -199,8 +206,11 @@ impl Dataset for MemDataset {
 			.clone())
 	}
 
-	async fn item_get_class(&self, item: Self::ItemHandle) -> Self::ClassHandle {
-		self.items.get(&item).unwrap().class
+	async fn item_get_class(
+		&self,
+		item: Self::ItemHandle,
+	) -> Result<Self::ClassHandle, Self::ErrorType> {
+		Ok(self.items.get(&item).unwrap().class)
 	}
 
 	async fn item_set_attr(
@@ -226,24 +236,26 @@ impl Dataset for MemDataset {
 		Ok(())
 	}
 
-	async fn class_get_name(&self, class: Self::ClassHandle) -> &str {
-		&self.classes.get(&class).unwrap().name
+	async fn class_get_name(&self, class: Self::ClassHandle) -> Result<&str, Self::ErrorType> {
+		Ok(&self.classes.get(&class).unwrap().name)
 	}
 
 	async fn class_get_attrs(
 		&self,
 		class: Self::ClassHandle,
-	) -> impl Iterator<Item = Self::AttrHandle> {
-		self.attrs
+	) -> Result<impl Iterator<Item = Self::AttrHandle>, Self::ErrorType> {
+		Ok(self
+			.attrs
 			.iter()
-			.filter_map(move |(id, attr)| if attr.class == class { Some(*id) } else { None })
+			.filter_map(move |(id, attr)| if attr.class == class { Some(*id) } else { None }))
 	}
 
-	async fn class_num_attrs(&self, class: Self::ClassHandle) -> usize {
-		self.attrs
+	async fn class_num_attrs(&self, class: Self::ClassHandle) -> Result<usize, Self::ErrorType> {
+		Ok(self
+			.attrs
 			.iter()
 			.filter(move |(_, attr)| attr.class == class)
-			.count()
+			.count())
 	}
 
 	async fn attr_set_name(
@@ -255,12 +267,15 @@ impl Dataset for MemDataset {
 		Ok(())
 	}
 
-	async fn attr_get_name(&self, attr: Self::AttrHandle) -> &str {
-		&self.attrs.get(&attr).unwrap().name
+	async fn attr_get_name(&self, attr: Self::AttrHandle) -> Result<&str, Self::ErrorType> {
+		Ok(&self.attrs.get(&attr).unwrap().name)
 	}
 
-	async fn attr_get_type(&self, attr: Self::AttrHandle) -> PipelineDataType {
-		self.attrs.get(&attr).unwrap().data_type
+	async fn attr_get_type(
+		&self,
+		attr: Self::AttrHandle,
+	) -> Result<PipelineDataType, Self::ErrorType> {
+		Ok(self.attrs.get(&attr).unwrap().data_type)
 	}
 
 	async fn attr_get_class(&self, attr: Self::AttrHandle) -> Self::ClassHandle {

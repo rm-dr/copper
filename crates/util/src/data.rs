@@ -50,6 +50,16 @@ impl Debug for PipelineData {
 	}
 }
 
+impl PipelineData {
+	pub fn get_type(&self) -> PipelineDataType {
+		match self {
+			Self::None(t) => *t,
+			Self::Text(_) => PipelineDataType::Text,
+			Self::Binary { .. } => PipelineDataType::Binary,
+		}
+	}
+}
+
 /// A data type inside a pipeline.
 /// Corresponds to [`PipelineData`]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

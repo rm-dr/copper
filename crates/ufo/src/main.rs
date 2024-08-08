@@ -6,11 +6,8 @@ use ufo_pipeline::{
 	output::{storage::StorageOutput, PipelineOutput, PipelineOutputKind},
 	pipeline::Pipeline,
 };
-use ufo_storage::{
-	api::Dataset,
-	sea::{self, SeaDataset},
-};
-use ufo_util::data::PipelineDataType;
+use ufo_storage::{api::Dataset, sea::dataset::SeaDataset};
+use ufo_util::data::{self, PipelineData, PipelineDataType};
 
 fn main() -> Result<()> {
 	// Make dataset
@@ -39,7 +36,7 @@ fn main() -> Result<()> {
 
 	match &pipe.get_config().output {
 		PipelineOutputKind::DataSet { attrs } => {
-			let c = block_on(dataset.get_class("AudioFile")).unwrap();
+			let c = block_on(dataset.get_class("AudioFile"))?.unwrap();
 			let mut e = StorageOutput::new(
 				&mut dataset,
 				c,
@@ -49,11 +46,14 @@ fn main() -> Result<()> {
 		}
 	}
 
-	//println!("\n\n\n\n{:#?}", dataset);
+	block_on(dataset.item_set_attr(
+		1.into(),
+		1.into(),
+		&PipelineData::None(PipelineDataType::Text),
+	))
+	.unwrap();
 
-	if let Err(err) = block_on(sea::run()) {
-		panic!("{}", err);
-	}
+	//println!("\n\n\n\n{:#?}", dataset);
 
 	Ok(())
 }

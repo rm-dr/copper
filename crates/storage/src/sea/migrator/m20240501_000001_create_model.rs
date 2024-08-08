@@ -149,6 +149,14 @@ impl MigrationTrait for Migration {
 							.from(ValueStr::Table, ValueStr::Item)
 							.to(Item::Table, Item::Id),
 					)
+					.index(
+						// (item, attr) pairs must be unique
+						Index::create()
+							.name("idx-item-attr")
+							.col(ValueStr::Item)
+							.col(ValueStr::Attr)
+							.unique(),
+					)
 					.to_owned(),
 			)
 			.await?;

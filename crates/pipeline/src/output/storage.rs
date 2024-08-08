@@ -42,7 +42,7 @@ impl<'a, DatasetType: Dataset> PipelineOutput for StorageOutput<'a, DatasetType>
 		// TODO: partial add
 		// TODO: make sure attrs exist
 		for ((attr_name, _), data) in self.attrs.iter().zip(data.iter()) {
-			let a = block_on(self.dataset.get_attr(attr_name)).unwrap();
+			let a = block_on(self.dataset.get_attr(attr_name)).unwrap().unwrap();
 			block_on(self.dataset.item_set_attr(i, a, data)).unwrap();
 		}
 
