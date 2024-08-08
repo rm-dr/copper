@@ -222,7 +222,10 @@ export function useDeleteClassModal(params: {
 		modal: (
 			<TreeModal
 				opened={opened}
-				close={close}
+				close={() => {
+					close();
+					setErrorMessage({ name: null, response: null });
+				}}
 				title="Delete class"
 				keepOpen={isLoading}
 			>
@@ -259,26 +262,35 @@ export function useDeleteClassModal(params: {
 					}}
 				/>
 
-				<div style={{ marginTop: "1rem" }}>
+				<Button.Group style={{ marginTop: "1rem" }}>
+					<Button
+						variant="light"
+						fullWidth
+						color="red"
+						onMouseDown={close}
+						disabled={isLoading}
+					>
+						Cancel
+					</Button>
 					<Button
 						variant="filled"
-						color="red"
 						fullWidth
-						size="xs"
+						color="red"
+						loading={isLoading}
 						leftSection={<XIconTrash />}
 						onClick={del_class}
 					>
 						Confirm
 					</Button>
+				</Button.Group>
 
-					<Text c="red" ta="center">
-						{errorMessage.response
-							? errorMessage.response
-							: errorMessage.name
-							? errorMessage.name
-							: ""}
-					</Text>
-				</div>
+				<Text c="red" ta="center">
+					{errorMessage.response
+						? errorMessage.response
+						: errorMessage.name
+						? errorMessage.name
+						: ""}
+				</Text>
 			</TreeModal>
 		),
 	};
@@ -301,6 +313,77 @@ export function useAddAttrModal(params: {
 
 	const [newAttrName, setNewAttrName] = useState("");
 	const [newAttrType, setNewAttrType] = useState<string | null>(null);
+
+	const add_attr = () => {
+		setLoading(true);
+		if (newAttrName == "") {
+			setLoading(false);
+			setErrorMessage((m) => {
+				return {
+					...m,
+					name: "Name cannot be empty",
+				};
+			});
+			return;
+		} else if (newAttrType === null) {
+			setLoading(false);
+			setErrorMessage((m) => {
+				return {
+					...m,
+					type: "Type cannot be empty",
+				};
+			});
+			return;
+		}
+
+		setErrorMessage({
+			name: null,
+			type: null,
+			response: null,
+		});
+		fetch("/api/attr/add", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				class: params.class_name,
+				dataset: params.dataset_name,
+				attr: newAttrName,
+				data_type: {
+					type: newAttrType,
+				},
+				options: {
+					unique: false,
+				},
+			}),
+		}).then((res) => {
+			setLoading(false);
+			if (res.status == 400) {
+				res.text().then((text) => {
+					setErrorMessage((m) => {
+						return {
+							...m,
+							response: text,
+						};
+					});
+				});
+			} else if (!res.ok) {
+				res.text().then((text) => {
+					setErrorMessage((m) => {
+						return {
+							...m,
+							response: `Error ${res.status}: ${text}`,
+						};
+					});
+				});
+			} else {
+				params.onSuccess();
+				setLoading(false);
+				close();
+			}
+		});
+	};
 
 	return {
 		open,
@@ -361,7 +444,16 @@ export function useAddAttrModal(params: {
 					clearable
 				/>
 
-				<div style={{ marginTop: "1rem" }}>
+				<Button.Group style={{ marginTop: "1rem" }}>
+					<Button
+						variant="light"
+						fullWidth
+						color="red"
+						onMouseDown={close}
+						disabled={isLoading}
+					>
+						Cancel
+					</Button>
 					<Button
 						variant="filled"
 						color={
@@ -371,90 +463,21 @@ export function useAddAttrModal(params: {
 						}
 						fullWidth
 						leftSection={<XIconPlus />}
-						onClick={() => {
-							setLoading(true);
-							if (newAttrName == "") {
-								setLoading(false);
-								setErrorMessage((m) => {
-									return {
-										...m,
-										name: "Name cannot be empty",
-									};
-								});
-								return;
-							} else if (newAttrType === null) {
-								setLoading(false);
-								setErrorMessage((m) => {
-									return {
-										...m,
-										type: "Type cannot be empty",
-									};
-								});
-								return;
-							}
-
-							setErrorMessage({
-								name: null,
-								type: null,
-								response: null,
-							});
-							fetch("/api/attr/add", {
-								method: "POST",
-								headers: {
-									"Content-Type": "application/json",
-								},
-								body: JSON.stringify({
-									class: params.class_name,
-									dataset: params.dataset_name,
-									attr: newAttrName,
-									data_type: {
-										type: newAttrType,
-									},
-									options: {
-										unique: false,
-									},
-								}),
-							}).then((res) => {
-								setLoading(false);
-								if (res.status == 400) {
-									res.text().then((text) => {
-										setErrorMessage((m) => {
-											return {
-												...m,
-												response: text,
-											};
-										});
-									});
-								} else if (!res.ok) {
-									res.text().then((text) => {
-										setErrorMessage((m) => {
-											return {
-												...m,
-												response: `Error ${res.status}: ${text}`,
-											};
-										});
-									});
-								} else {
-									params.onSuccess();
-									setLoading(false);
-									close();
-								}
-							});
-						}}
+						onClick={add_attr}
 					>
-						Add attribute
+						Create Attribute
 					</Button>
+				</Button.Group>
 
-					<Text c="red" ta="center">
-						{errorMessage.response
-							? errorMessage.response
-							: errorMessage.name
-							? errorMessage.name
-							: errorMessage.type
-							? errorMessage.type
-							: ""}
-					</Text>
-				</div>
+				<Text c="red" ta="center">
+					{errorMessage.response
+						? errorMessage.response
+						: errorMessage.name
+						? errorMessage.name
+						: errorMessage.type
+						? errorMessage.type
+						: ""}
+				</Text>
 			</TreeModal>
 		),
 	};

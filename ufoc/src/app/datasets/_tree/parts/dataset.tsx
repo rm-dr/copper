@@ -227,7 +227,10 @@ export function useDeleteDatasetModal(params: {
 		modal: (
 			<TreeModal
 				opened={opened}
-				close={close}
+				close={() => {
+					close();
+					setErrorMessage({ name: null, response: null });
+				}}
 				title="Delete dataset"
 				keepOpen={isLoading}
 			>
@@ -262,25 +265,35 @@ export function useDeleteDatasetModal(params: {
 					}}
 				/>
 
-				<div style={{ marginTop: "1rem" }}>
+				<Button.Group style={{ marginTop: "1rem" }}>
+					<Button
+						variant="light"
+						fullWidth
+						color="red"
+						onMouseDown={close}
+						disabled={isLoading}
+					>
+						Cancel
+					</Button>
 					<Button
 						variant="filled"
-						color="red"
 						fullWidth
 						leftSection={<XIconTrash />}
-						onClick={del_dataset}
+						color="red"
+						loading={isLoading}
+						onMouseDown={del_dataset}
 					>
 						Confirm
 					</Button>
+				</Button.Group>
 
-					<Text c="red" ta="center">
-						{errorMessage.response
-							? errorMessage.response
-							: errorMessage.name
-							? errorMessage.name
-							: ""}
-					</Text>
-				</div>
+				<Text c="red" ta="center">
+					{errorMessage.response
+						? errorMessage.response
+						: errorMessage.name
+						? errorMessage.name
+						: ""}
+				</Text>
 			</TreeModal>
 		),
 	};
@@ -296,12 +309,51 @@ export function useAddClassModal(params: {
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [newClassName, setNewClassName] = useState("");
 
+	const new_class = () => {
+		setLoading(true);
+		if (newClassName == "") {
+			setLoading(false);
+			setErrorMessage("Name cannot be empty");
+			return;
+		}
+		setErrorMessage(null);
+
+		fetch(`/api/class/add`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				class: newClassName,
+				dataset: params.dataset_name,
+			}),
+		})
+			.then((res) => {
+				setLoading(false);
+				if (!res.ok) {
+					res.text().then((text) => {
+						setErrorMessage(text);
+					});
+				} else {
+					params.onSuccess();
+					close();
+				}
+			})
+			.catch((e) => {
+				setLoading(false);
+				setErrorMessage(`Error: ${e}`);
+			});
+	};
+
 	return {
 		open,
 		modal: (
 			<TreeModal
 				opened={opened}
-				close={close}
+				close={() => {
+					close();
+					setErrorMessage(null);
+				}}
 				title="Add a class"
 				keepOpen={isLoading}
 			>
@@ -315,7 +367,6 @@ export function useAddClassModal(params: {
 						<Text c="lime" span>{` ${params.dataset_name}`}</Text>:
 					</Text>
 				</div>
-
 				<TextInput
 					data-autofocus
 					placeholder="New class name"
@@ -326,55 +377,30 @@ export function useAddClassModal(params: {
 						setErrorMessage(null);
 					}}
 				/>
-				<div style={{ marginTop: "1rem" }}>
+				<Button.Group style={{ marginTop: "1rem" }}>
+					<Button
+						variant="light"
+						fullWidth
+						color="red"
+						onMouseDown={close}
+						disabled={isLoading}
+					>
+						Cancel
+					</Button>
 					<Button
 						variant="filled"
-						color={errorMessage === null ? "green" : "red"}
 						fullWidth
+						color={errorMessage === null ? "green" : "red"}
+						loading={isLoading}
 						leftSection={<XIconFolderPlus />}
-						onClick={() => {
-							setLoading(true);
-							if (newClassName == "") {
-								setLoading(false);
-								setErrorMessage("Name cannot be empty");
-								return;
-							}
-							setErrorMessage(null);
-
-							fetch(`/api/class/add`, {
-								method: "POST",
-								headers: {
-									"Content-Type": "application/json",
-								},
-								body: JSON.stringify({
-									class: newClassName,
-									dataset: params.dataset_name,
-								}),
-							})
-								.then((res) => {
-									setLoading(false);
-									if (!res.ok) {
-										res.text().then((text) => {
-											setErrorMessage(text);
-										});
-									} else {
-										params.onSuccess();
-										close();
-									}
-								})
-								.catch((e) => {
-									setLoading(false);
-									setErrorMessage(`Error: ${e}`);
-								});
-						}}
+						onMouseDown={new_class}
 					>
-						Create new class
+						Create class
 					</Button>
-
-					<Text c="red" ta="center">
-						{errorMessage ? errorMessage : ""}
-					</Text>
-				</div>
+				</Button.Group>
+				<Text c="red" ta="center">
+					{errorMessage ? errorMessage : ""}
+				</Text>
 			</TreeModal>
 		),
 	};

@@ -189,7 +189,10 @@ export function useDeleteAttrModal(params: {
 		modal: (
 			<TreeModal
 				opened={opened}
-				close={close}
+				close={() => {
+					close();
+					setErrorMessage({ name: null, response: null });
+				}}
 				title="Delete attribute"
 				keepOpen={isLoading}
 			>
@@ -224,7 +227,16 @@ export function useDeleteAttrModal(params: {
 					}}
 				/>
 
-				<div style={{ marginTop: "1rem" }}>
+				<Button.Group style={{ marginTop: "1rem" }}>
+					<Button
+						variant="light"
+						fullWidth
+						color="red"
+						onMouseDown={close}
+						disabled={isLoading}
+					>
+						Cancel
+					</Button>
 					<Button
 						variant="filled"
 						color="red"
@@ -234,15 +246,15 @@ export function useDeleteAttrModal(params: {
 					>
 						Confirm
 					</Button>
+				</Button.Group>
 
-					<Text c="red" ta="center">
-						{errorMessage.response
-							? errorMessage.response
-							: errorMessage.name
-							? errorMessage.name
-							: ""}
-					</Text>
-				</div>
+				<Text c="red" ta="center">
+					{errorMessage.response
+						? errorMessage.response
+						: errorMessage.name
+						? errorMessage.name
+						: ""}
+				</Text>
 			</TreeModal>
 		),
 	};

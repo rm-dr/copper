@@ -3,6 +3,7 @@ import { TreeModal } from "../tree_modal";
 import { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
 import { datasetTypes } from "..";
+import { XIconDatabasePlus } from "@/app/components/icons";
 
 export function useNewDsModal(onSuccess: () => void) {
 	const [opened, { open, close }] = useDisclosure(false);
@@ -17,12 +18,67 @@ export function useNewDsModal(onSuccess: () => void) {
 	const [newDsName, setNewDsName] = useState("");
 	const [newDsType, setNewDsType] = useState<null | string>(null);
 
+	const new_ds = () => {
+		setLoading(true);
+		if (newDsName == "" || newDsName === null) {
+			setLoading(false);
+			setErrorMessage((e) => ({
+				...e,
+				name: "Name cannot be empty",
+			}));
+			return;
+		} else if (newDsType === null) {
+			setLoading(false);
+			setErrorMessage((e) => ({
+				...e,
+				type: "Dataset type is required",
+			}));
+			return;
+		}
+
+		setErrorMessage((e) => ({
+			name: null,
+			type: null,
+			response: null,
+		}));
+
+		fetch(`/api/dataset/add`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				name: newDsName,
+				params: {
+					type: newDsType,
+				},
+			}),
+		}).then((res) => {
+			setLoading(false);
+			if (!res.ok) {
+				res.text().then((text) => {
+					setErrorMessage((e) => ({
+						...e,
+						response: text,
+					}));
+				});
+			} else {
+				// Successfully created new dataset
+				onSuccess();
+				close();
+			}
+		});
+	};
+
 	return {
 		open,
 		modal: (
 			<TreeModal
 				opened={opened}
-				close={close}
+				close={() => {
+					close();
+					setErrorMessage({ name: null, type: null, response: null });
+				}}
 				title="Create a new dataset"
 				keepOpen={isLoading}
 			>
@@ -65,6 +121,7 @@ export function useNewDsModal(onSuccess: () => void) {
 					}}
 					clearable
 				/>
+
 				<Button.Group style={{ marginTop: "1rem" }}>
 					<Button
 						variant="light"
@@ -80,78 +137,22 @@ export function useNewDsModal(onSuccess: () => void) {
 						fullWidth
 						color="green"
 						loading={isLoading}
-						onMouseDown={() => {
-							setLoading(true);
-							if (newDsName == "" || newDsName === null) {
-								setLoading(false);
-								setErrorMessage((e) => ({
-									...e,
-									name: "Name cannot be empty",
-								}));
-								return;
-							} else if (newDsType === null) {
-								setLoading(false);
-								setErrorMessage((e) => ({
-									...e,
-									type: "Dataset type is required",
-								}));
-								return;
-							}
-
-							setErrorMessage((e) => ({
-								name: null,
-								type: null,
-								response: null,
-							}));
-
-							fetch(`/api/dataset/add`, {
-								method: "POST",
-								headers: {
-									"Content-Type": "application/json",
-								},
-								body: JSON.stringify({
-									name: newDsName,
-									params: {
-										type: newDsType,
-									},
-								}),
-							}).then((res) => {
-								setLoading(false);
-								if (!res.ok) {
-									res.text().then((text) => {
-										setErrorMessage((e) => ({
-											...e,
-											response: text,
-										}));
-									});
-								} else {
-									// Successfully created new dataset
-									onSuccess();
-									close();
-								}
-							});
-						}}
+						onMouseDown={new_ds}
+						leftSection={<XIconDatabasePlus />}
 					>
 						Create
 					</Button>
 				</Button.Group>
-				<div
-					style={{
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
-					}}
-				>
-					<Text c="red">
-						{errorMessage.response
-							? errorMessage.response
-							: errorMessage.name
-							? errorMessage.name
-							: errorMessage.type
-							? errorMessage.type
-							: ""}
-					</Text>
-				</div>
+
+				<Text c="red" ta="center">
+					{errorMessage.response
+						? errorMessage.response
+						: errorMessage.name
+						? errorMessage.name
+						: errorMessage.type
+						? errorMessage.type
+						: ""}
+				</Text>
 			</TreeModal>
 		),
 	};

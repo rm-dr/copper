@@ -24,7 +24,6 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
   - [ ] Modal errors
   - [ ] Loading indicators
   - [ ] Error indicators (in `ApiSelector` too!)
-  - [ ] Cancel button in modals
   - [ ] Dataset & attribute type descriptions
 
 ## 📦 Dataset locks
