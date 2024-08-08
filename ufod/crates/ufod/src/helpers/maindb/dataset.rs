@@ -105,6 +105,8 @@ impl MainDB {
 		)
 		.map_err(|e| CreateDatasetError::DbError(Box::new(e)))?;
 
+		block_on(t.commit()).unwrap();
+
 		Ok(())
 	}
 
