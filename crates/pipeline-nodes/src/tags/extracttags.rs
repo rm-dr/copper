@@ -89,7 +89,12 @@ impl PipelineNode for ExtractTags {
 				r.unwrap()
 			}
 			MimeType::Mp3 => unimplemented!(),
-			_ => return Err(PipelineError::UnsupportedDataType),
+			_ => {
+				return Err(PipelineError::UnsupportedDataType(format!(
+					"cannot extract tags from `{}`",
+					self.format.as_ref().unwrap()
+				)))
+			}
 		};
 
 		if tagger.is_none() {

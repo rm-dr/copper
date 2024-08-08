@@ -44,7 +44,7 @@ impl PipelineNode for ExtractCovers {
 						fragment,
 						is_last,
 					} => (format, fragment, is_last),
-					_ => panic!(),
+					_ => unreachable!(),
 				};
 
 				assert!(!self.is_done);
@@ -82,7 +82,12 @@ impl PipelineNode for ExtractCovers {
 				pictures.pop()
 			}
 			MimeType::Mp3 => unimplemented!(),
-			_ => return Err(PipelineError::UnsupportedDataType),
+			_ => {
+				return Err(PipelineError::UnsupportedDataType(format!(
+					"cannot extract pictures from `{}`",
+					self.format.as_ref().unwrap()
+				)))
+			}
 		};
 
 		if let Some(picture) = picture {

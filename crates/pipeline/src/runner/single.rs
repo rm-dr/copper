@@ -416,7 +416,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 					source = "pipeline",
 					summary = "Node finished",
 					node = node_id.to_string(),
-					status=?res.as_ref().unwrap()
+					status=?res.as_ref()
 				);
 				send_status.send((node, res)).unwrap();
 			}));

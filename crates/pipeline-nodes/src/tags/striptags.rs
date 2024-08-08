@@ -51,10 +51,16 @@ impl PipelineNode for StripTags {
 						fragment,
 						is_last,
 					} => (format, fragment, is_last),
-					_ => return Err(PipelineError::UnsupportedDataType),
+					_ => unreachable!(),
 				};
 
-				assert!(format == MimeType::Flac);
+				if format != MimeType::Flac {
+					return Err(PipelineError::UnsupportedDataType(format!(
+						"cannot strip tags from `{}`",
+						format
+					)));
+				}
+
 				assert!(!self.is_done);
 				self.is_done = is_last;
 				self.strip.write_all(&**fragment)?;

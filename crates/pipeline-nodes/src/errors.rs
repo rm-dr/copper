@@ -18,7 +18,10 @@ pub enum PipelineError {
 	DatabaseError(MetastoreError),
 
 	FileSystemError(Box<dyn Error>),
-	UnsupportedDataType,
+
+	/// We were given an unsupported data type.
+	/// Contains a helpful message.
+	UnsupportedDataType(String),
 }
 
 impl Error for PipelineError {
@@ -41,7 +44,7 @@ impl Display for PipelineError {
 			Self::FlacError(_) => write!(f, "Pipeline flac error"),
 			Self::DatabaseError(_) => write!(f, "Pipeline database error"),
 			Self::FileSystemError(_) => write!(f, "Pipeline filesystem error"),
-			Self::UnsupportedDataType => write!(f, "Unsupported Item data type"),
+			Self::UnsupportedDataType(m) => write!(f, "Unsupported Item data type: {m}"),
 		}
 	}
 }
