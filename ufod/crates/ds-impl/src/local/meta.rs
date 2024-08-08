@@ -32,18 +32,38 @@ impl LocalDataset {
 	fn bind_storage<'a>(
 		q: Query<'a, Sqlite, SqliteArguments<'a>>,
 		storage: &'a mut MetastoreData,
-	) -> Query<'a, Sqlite, SqliteArguments<'a>> {
-		match storage {
+	) -> Result<Query<'a, Sqlite, SqliteArguments<'a>>, MetastoreError> {
+		Ok(match storage {
 			// We MUST bind something, even for null values.
 			// If we don't, the null value's '?' won't be used
 			// and all following fields will be shifted left.
 			MetastoreData::None(_) => q.bind(None::<u32>),
 			MetastoreData::Text(s) => q.bind(&**s),
-			MetastoreData::Integer(x) => q.bind(*x),
-			MetastoreData::PositiveInteger(x) => q.bind(i64::from_be_bytes(x.to_be_bytes())),
+			MetastoreData::Reference { item, .. } => q.bind(u32::from(*item)),
+			MetastoreData::Blob { handle } => q.bind(u32::from(*handle)),
 			MetastoreData::Boolean(x) => q.bind(*x),
-			MetastoreData::Float(x) => q.bind(*x),
 			MetastoreData::Hash { data, .. } => q.bind(&**data),
+
+			MetastoreData::Float {
+				value,
+				is_non_negative,
+			} => {
+				if *is_non_negative && *value < 0.0 {
+					return Err(MetastoreError::NonNegativeViolated);
+				}
+				q.bind(*value)
+			}
+
+			MetastoreData::Integer {
+				value,
+				is_non_negative,
+			} => {
+				if *is_non_negative && *value < 0 {
+					return Err(MetastoreError::NonNegativeViolated);
+				}
+				q.bind(*value)
+			}
+
 			MetastoreData::Binary { data, mime: format } => {
 				let s = format.to_string();
 				let l = u32::try_from(s.len()).unwrap();
@@ -57,17 +77,18 @@ impl LocalDataset {
 					.unwrap();
 				q.bind(d)
 			}
-			MetastoreData::Reference { item, .. } => q.bind(u32::from(*item)),
-			MetastoreData::Blob { handle } => q.bind(u32::from(*handle)),
-		}
+		})
 	}
 
 	fn read_storage(row: &SqliteRow, attr: &AttrInfo) -> MetastoreData {
 		let col_name = Self::get_column_name(attr.handle);
 		return match attr.data_type {
-			MetastoreDataStub::Float => row
+			MetastoreDataStub::Float { is_non_negative } => row
 				.get::<Option<_>, _>(&col_name[..])
-				.map(MetastoreData::Float)
+				.map(|value| MetastoreData::Float {
+					is_non_negative,
+					value,
+				})
 				.unwrap_or(MetastoreData::None(attr.data_type)),
 
 			MetastoreDataStub::Boolean => row
@@ -75,15 +96,12 @@ impl LocalDataset {
 				.map(MetastoreData::Boolean)
 				.unwrap_or(MetastoreData::None(attr.data_type)),
 
-			MetastoreDataStub::Integer => row
+			MetastoreDataStub::Integer { is_non_negative } => row
 				.get::<Option<_>, _>(&col_name[..])
-				.map(MetastoreData::Integer)
-				.unwrap_or(MetastoreData::None(attr.data_type)),
-
-			MetastoreDataStub::PositiveInteger => row
-				.get::<Option<i64>, _>(&col_name[..])
-				.map(|x| u64::from_be_bytes(x.to_be_bytes()))
-				.map(MetastoreData::PositiveInteger)
+				.map(|value| MetastoreData::Integer {
+					is_non_negative,
+					value,
+				})
 				.unwrap_or(MetastoreData::None(attr.data_type)),
 
 			MetastoreDataStub::Text => row
@@ -265,10 +283,9 @@ impl Metastore for LocalDataset {
 		// Map internal type to sqlite type
 		let data_type_str = match data_type {
 			MetastoreDataStub::Text => "TEXT",
-			MetastoreDataStub::Integer => "INTEGER",
-			MetastoreDataStub::PositiveInteger => "INTEGER",
+			MetastoreDataStub::Integer { .. } => "INTEGER",
 			MetastoreDataStub::Boolean => "INTEGER",
-			MetastoreDataStub::Float => "REAL",
+			MetastoreDataStub::Float { .. } => "REAL",
 			MetastoreDataStub::Binary => "BLOB",
 			MetastoreDataStub::Blob => "INTEGER",
 			MetastoreDataStub::Reference { .. } => "INTEGER",
@@ -403,7 +420,7 @@ impl Metastore for LocalDataset {
 			let mut q = sqlx::query(&q_str);
 
 			for (_, value) in &mut attrs {
-				q = Self::bind_storage(q, value);
+				q = Self::bind_storage(q, value)?;
 			}
 
 			q.execute(&mut *t).await
@@ -891,7 +908,7 @@ impl Metastore for LocalDataset {
 
 		let query_str = format!("SELECT id FROM \"{table_name}\" WHERE \"{column_name}\"=?;");
 		let mut q = sqlx::query(&query_str);
-		q = Self::bind_storage(q, &mut attr_value);
+		q = Self::bind_storage(q, &mut attr_value)?;
 
 		let res = q.bind(u32::from(attr)).fetch_one(&mut *conn).await;
 		return match res {

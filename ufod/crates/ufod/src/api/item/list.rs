@@ -53,16 +53,14 @@ pub(super) struct ItemListResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type")]
 pub(super) enum ItemListData {
-	PositiveInteger {
-		attr: AttrInfo,
-		value: Option<u64>,
-	},
 	Integer {
 		attr: AttrInfo,
+		is_non_negative: bool,
 		value: Option<i64>,
 	},
 	Float {
 		attr: AttrInfo,
+		is_non_negative: bool,
 		value: Option<f64>,
 	},
 	Boolean {
@@ -125,20 +123,18 @@ impl ItemListData {
 					handle: None,
 					size: None,
 				},
-				MetastoreDataStub::Integer => ItemListData::Integer {
+				MetastoreDataStub::Integer { is_non_negative } => ItemListData::Integer {
 					attr: attr.clone(),
-					value: None,
-				},
-				MetastoreDataStub::PositiveInteger => ItemListData::PositiveInteger {
-					attr: attr.clone(),
+					is_non_negative: *is_non_negative,
 					value: None,
 				},
 				MetastoreDataStub::Boolean => ItemListData::Boolean {
 					attr: attr.clone(),
 					value: None,
 				},
-				MetastoreDataStub::Float => ItemListData::Float {
+				MetastoreDataStub::Float { is_non_negative } => ItemListData::Float {
 					attr: attr.clone(),
+					is_non_negative: *is_non_negative,
 					value: None,
 				},
 				MetastoreDataStub::Hash { hash_type } => ItemListData::Hash {
@@ -151,10 +147,6 @@ impl ItemListData {
 					class: *class,
 					item: None,
 				},
-			},
-			MetastoreData::PositiveInteger(x) => ItemListData::PositiveInteger {
-				attr: attr.clone(),
-				value: Some(*x),
 			},
 			MetastoreData::Blob { handle } => {
 				let size = match dataset.blob_size(*handle).await {
@@ -180,17 +172,25 @@ impl ItemListData {
 					size: Some(size),
 				}
 			}
-			MetastoreData::Integer(x) => ItemListData::Integer {
+			MetastoreData::Integer {
+				value,
+				is_non_negative,
+			} => ItemListData::Integer {
+				is_non_negative: *is_non_negative,
 				attr: attr.clone(),
-				value: Some(*x),
+				value: Some(*value),
 			},
 			MetastoreData::Boolean(x) => ItemListData::Boolean {
 				attr: attr.clone(),
 				value: Some(*x),
 			},
-			MetastoreData::Float(x) => ItemListData::Float {
+			MetastoreData::Float {
+				value,
+				is_non_negative,
+			} => ItemListData::Float {
+				is_non_negative: *is_non_negative,
 				attr: attr.clone(),
-				value: Some(*x),
+				value: Some(*value),
 			},
 			MetastoreData::Binary { mime, data } => ItemListData::Binary {
 				attr: attr.clone(),

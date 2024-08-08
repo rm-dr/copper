@@ -62,7 +62,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		/** Find an attribute by name */
+		/** Get a single attribute's info */
 		get: operations["get_attr"];
 		put?: never;
 		post?: never;
@@ -351,7 +351,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		/** Get the value of a specific item in this class */
+		/** Get a specific item in this class */
 		get: operations["get_item"];
 		put?: never;
 		post?: never;
@@ -695,13 +695,7 @@ export interface components {
 		ItemListData:
 			| {
 					attr: components["schemas"]["AttrInfo"];
-					/** @enum {string} */
-					type: "PositiveInteger";
-					/** Format: int64 */
-					value?: number | null;
-			  }
-			| {
-					attr: components["schemas"]["AttrInfo"];
+					is_non_negative: boolean;
 					/** @enum {string} */
 					type: "Integer";
 					/** Format: int64 */
@@ -709,6 +703,7 @@ export interface components {
 			  }
 			| {
 					attr: components["schemas"]["AttrInfo"];
+					is_non_negative: boolean;
 					/** @enum {string} */
 					type: "Float";
 					/** Format: double */
@@ -811,20 +806,18 @@ export interface components {
 					type: "Blob";
 			  }
 			| {
+					is_non_negative: boolean;
 					/** @enum {string} */
 					type: "Integer";
 			  }
 			| {
+					is_non_negative: boolean;
 					/** @enum {string} */
-					type: "PositiveInteger";
+					type: "Float";
 			  }
 			| {
 					/** @enum {string} */
 					type: "Boolean";
-			  }
-			| {
-					/** @enum {string} */
-					type: "Float";
 			  }
 			| {
 					hash_type: components["schemas"]["HashType"];
@@ -1018,7 +1011,14 @@ export interface operations {
 					"text/plain": string;
 				};
 			};
-			/** @description Unknown dataset or class name */
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Bad dataset or class */
 			404: {
 				headers: {
 					[name: string]: unknown;
@@ -1051,7 +1051,7 @@ export interface operations {
 			};
 		};
 		responses: {
-			/** @description Successfully deleted this attribute */
+			/** @description Successfully deleted attribute */
 			200: {
 				headers: {
 					[name: string]: unknown;
@@ -1067,7 +1067,14 @@ export interface operations {
 					"text/plain": string;
 				};
 			};
-			/** @description Unknown dataset, class, or attribute */
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Bad dataset, class, or attribute */
 			404: {
 				headers: {
 					[name: string]: unknown;
@@ -1108,6 +1115,13 @@ export interface operations {
 				content: {
 					"application/json": components["schemas"]["AttrInfo"];
 				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
 			};
 			/** @description Could not find attribute */
 			404: {
@@ -1150,7 +1164,14 @@ export interface operations {
 					"application/json": components["schemas"]["AttrInfo"];
 				};
 			};
-			/** @description Could not find attribute */
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Bad dataset or attribute */
 			404: {
 				headers: {
 					[name: string]: unknown;
@@ -1278,7 +1299,7 @@ export interface operations {
 					"application/json": components["schemas"]["ListgroupInfo"][];
 				};
 			};
-			/** @description Could not create group */
+			/** @description Could not list groups */
 			400: {
 				headers: {
 					[name: string]: unknown;
@@ -1532,7 +1553,14 @@ export interface operations {
 					"text/plain": string;
 				};
 			};
-			/** @description This dataset doesn't exist */
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Bad dataset */
 			404: {
 				headers: {
 					[name: string]: unknown;
@@ -1581,6 +1609,13 @@ export interface operations {
 					"text/plain": string;
 				};
 			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
 			/** @description Invalid dataset or class */
 			404: {
 				headers: {
@@ -1622,6 +1657,22 @@ export interface operations {
 					"application/json": components["schemas"]["ExtendedClassInfo"];
 				};
 			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Invalid dataset or class */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
 			/** @description Internal server error */
 			500: {
 				headers: {
@@ -1652,6 +1703,13 @@ export interface operations {
 				content: {
 					"application/json": components["schemas"]["ExtendedClassInfo"][];
 				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
 			};
 			/** @description Internal server error */
 			500: {
@@ -1823,6 +1881,13 @@ export interface operations {
 					"text/plain": string;
 				};
 			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
 			/** @description Invalid dataset, class, or item */
 			404: {
 				headers: {
@@ -1864,6 +1929,13 @@ export interface operations {
 				content: {
 					"application/json": components["schemas"]["ItemListItem"];
 				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
 			};
 			/** @description Unknown dataset, class, or item */
 			404: {
@@ -1919,6 +1991,13 @@ export interface operations {
 					"text/plain": string;
 				};
 			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
 			/** @description Unknown dataset or class name */
 			404: {
 				headers: {
@@ -1959,6 +2038,13 @@ export interface operations {
 				content: {
 					"application/json": components["schemas"]["PipelineInfo"];
 				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
 			};
 			/** @description There is no such pipeline or database */
 			404: {
@@ -2001,6 +2087,13 @@ export interface operations {
 					"application/json": components["schemas"]["PipelineInfoShort"][];
 				};
 			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
 			/** @description This dataset doesn't exist */
 			404: {
 				headers: {
@@ -2042,6 +2135,13 @@ export interface operations {
 				content: {
 					"application/json": components["schemas"]["PipelineInfo"];
 				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
 			};
 			/** @description Invalid dataset or pipeline */
 			404: {
@@ -2162,6 +2262,13 @@ export interface operations {
 					"application/json": components["schemas"]["UploadStartResult"];
 				};
 			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
 			/** @description Internal error, check server logs. Should not appear during normal operation. */
 			500: {
 				headers: {
@@ -2197,6 +2304,13 @@ export interface operations {
 				content: {
 					"application/json": components["schemas"]["UploadNewFileResult"];
 				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
 			};
 			/** @description This job id doesn't exist */
 			404: {
@@ -2244,6 +2358,13 @@ export interface operations {
 				};
 				content?: never;
 			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
 			/** @description Job or file id does not exist */
 			404: {
 				headers: {
@@ -2285,12 +2406,17 @@ export interface operations {
 				headers: {
 					[name: string]: unknown;
 				};
-				content: {
-					"application/json": unknown;
-				};
+				content?: never;
 			};
 			/** @description Malformed request or unfinished upload */
 			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
 				headers: {
 					[name: string]: unknown;
 				};

@@ -164,7 +164,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## Daemon cleanup v2
 - [ ] utoipa tags
 - [ ] use memmap2 for files
-- [ ] One integer type, with options
 - [ ] Generic datasets, other dataset types
 - [ ] Helpful error backtraces (anyhow?)
 

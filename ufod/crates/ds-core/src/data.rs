@@ -17,16 +17,13 @@ pub enum MetastoreData {
 	Text(Arc<String>),
 
 	/// An integer
-	Integer(i64),
+	Integer { value: i64, is_non_negative: bool },
 
-	/// A positive integer
-	PositiveInteger(u64),
+	/// A float
+	Float { value: f64, is_non_negative: bool },
 
 	/// A boolean
 	Boolean(bool),
-
-	/// A float
-	Float(f64),
 
 	/// A checksum
 	Hash {
@@ -86,16 +83,13 @@ pub enum MetastoreDataStub {
 	Blob,
 
 	/// An integer
-	Integer,
+	Integer { is_non_negative: bool },
 
-	/// A positive integer
-	PositiveInteger,
+	/// A float
+	Float { is_non_negative: bool },
 
 	/// A boolean
 	Boolean,
-
-	/// A float
-	Float,
 
 	/// A checksum
 	Hash { hash_type: HashType },

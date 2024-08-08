@@ -112,10 +112,9 @@ pub(super) async fn get_item_attr(
 	return match attr_value {
 		MetastoreData::None(_) => StatusCode::OK.into_response(),
 		MetastoreData::Text(t) => t.to_string().into_response(),
-		MetastoreData::Integer(x) => format!("{x}").into_response(),
-		MetastoreData::PositiveInteger(x) => format!("{x}").into_response(),
+		MetastoreData::Integer { value, .. } => format!("{value}").into_response(),
+		MetastoreData::Float { value, .. } => format!("{value}").into_response(),
 		MetastoreData::Boolean(x) => format!("{x}").into_response(),
-		MetastoreData::Float(x) => format!("{x}").into_response(),
 		MetastoreData::Hash { data, .. } => data
 			.iter()
 			.map(|x| format!("{:X?}", x))

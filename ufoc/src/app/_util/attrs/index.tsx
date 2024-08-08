@@ -4,7 +4,6 @@ import { _hashAttrType } from "./hash";
 import { _refAttrType } from "./reference";
 import { _binaryAttrType } from "./binary";
 import { _blobAttrType } from "./blob";
-import { _posintAttrType } from "./positiveinteger";
 import { _floatAttrType } from "./float";
 import { _intAttrType } from "./integer";
 import { components } from "../api/openapi";
@@ -98,7 +97,6 @@ export const attrTypes: attrTypeInfo[] = [
 	_refAttrType,
 	_binaryAttrType,
 	_blobAttrType,
-	_posintAttrType,
 	_floatAttrType,
 	_intAttrType,
 ];

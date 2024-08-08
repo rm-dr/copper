@@ -33,6 +33,9 @@ pub enum MetastoreError {
 	/// We tried to set an attribute with data of a different type
 	TypeMismatch,
 
+	/// We tried to set a non-negative number to a negative value
+	NonNegativeViolated,
+
 	/// A `unique` constraint was violated
 	UniqueViolated,
 
@@ -64,6 +67,7 @@ impl Display for MetastoreError {
 			Self::BadClassHandle => write!(f, "BadClassHandle"),
 			Self::BadClassName(_) => write!(f, "BadClassName"),
 			Self::BadAttrName(_) => write!(f, "BadAttrName"),
+			Self::NonNegativeViolated => write!(f, "NonnegativeViolated"),
 			Self::BadItemIdx => write!(f, "BadItemIdx"),
 			Self::TypeMismatch => write!(f, "TypeMismatch"),
 			Self::UniqueViolated => write!(f, "UniqueViolated"),

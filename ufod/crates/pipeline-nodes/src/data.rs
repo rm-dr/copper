@@ -35,16 +35,12 @@ pub enum UFOData {
 
 	/// An integer
 	#[serde(skip)]
-	Integer(i64),
+	Integer { value: i64, is_non_negative: bool },
 
 	/// A filesystem path.
 	/// This cannot be stored inside a metastore.
 	#[serde(skip)]
 	Path(PathBuf),
-
-	/// A positive integer
-	#[serde(skip)]
-	PositiveInteger(u64),
 
 	/// A boolean
 	#[serde(skip)]
@@ -52,7 +48,7 @@ pub enum UFOData {
 
 	/// A float
 	#[serde(skip)]
-	Float(f64),
+	Float { value: f64, is_non_negative: bool },
 
 	/// A checksum
 	#[serde(skip)]
@@ -104,10 +100,17 @@ impl PipelineData for UFOData {
 			Self::None(t) => *t,
 			Self::Text(_) => UFODataStub::Text,
 			Self::Path(_) => UFODataStub::Path,
-			Self::Integer(_) => UFODataStub::Integer,
-			Self::PositiveInteger(_) => UFODataStub::PositiveInteger,
+			Self::Integer {
+				is_non_negative, ..
+			} => UFODataStub::Integer {
+				is_non_negative: *is_non_negative,
+			},
 			Self::Boolean(_) => UFODataStub::Boolean,
-			Self::Float(_) => UFODataStub::Float,
+			Self::Float {
+				is_non_negative, ..
+			} => UFODataStub::Float {
+				is_non_negative: *is_non_negative,
+			},
 			Self::Hash { format, .. } => UFODataStub::Hash { hash_type: *format },
 			Self::Binary { .. } => UFODataStub::Binary,
 			Self::Blob { .. } => UFODataStub::Blob,
@@ -145,7 +148,6 @@ impl UFOData {
 				}
 			}
 			UFOData::Text(x) => MetastoreData::Text(x.clone()),
-			UFOData::Float(x) => MetastoreData::Float(*x),
 			UFOData::Boolean(x) => MetastoreData::Boolean(*x),
 			UFOData::Hash { format, data } => MetastoreData::Hash {
 				format: *format,
@@ -155,8 +157,20 @@ impl UFOData {
 				mime: format.clone(),
 				data: data.clone(),
 			},
-			UFOData::Integer(x) => MetastoreData::Integer(*x),
-			UFOData::PositiveInteger(x) => MetastoreData::PositiveInteger(*x),
+			UFOData::Integer {
+				value,
+				is_non_negative,
+			} => MetastoreData::Integer {
+				value: *value,
+				is_non_negative: *is_non_negative,
+			},
+			UFOData::Float {
+				value,
+				is_non_negative,
+			} => MetastoreData::Float {
+				value: *value,
+				is_non_negative: *is_non_negative,
+			},
 			UFOData::Reference { class, item } => MetastoreData::Reference {
 				class: *class,
 				item: *item,
@@ -180,16 +194,13 @@ pub enum UFODataStub {
 	Blob,
 
 	/// An integer
-	Integer,
+	Integer { is_non_negative: bool },
 
-	/// A positive integer
-	PositiveInteger,
+	/// A float
+	Float { is_non_negative: bool },
 
 	/// A boolean
 	Boolean,
-
-	/// A float
-	Float,
 
 	/// A checksum
 	Hash { hash_type: HashType },
@@ -210,10 +221,13 @@ impl UFODataStub {
 			Self::Text => MetastoreDataStub::Text,
 			Self::Binary => MetastoreDataStub::Binary,
 			Self::Blob => MetastoreDataStub::Blob,
-			Self::Integer => MetastoreDataStub::Integer,
-			Self::PositiveInteger => MetastoreDataStub::PositiveInteger,
+			Self::Integer { is_non_negative } => MetastoreDataStub::Integer {
+				is_non_negative: *is_non_negative,
+			},
 			Self::Boolean => MetastoreDataStub::Boolean,
-			Self::Float => MetastoreDataStub::Float,
+			Self::Float { is_non_negative } => MetastoreDataStub::Float {
+				is_non_negative: *is_non_negative,
+			},
 			Self::Hash { hash_type } => MetastoreDataStub::Hash {
 				hash_type: *hash_type,
 			},
@@ -230,10 +244,9 @@ impl From<MetastoreDataStub> for UFODataStub {
 			MetastoreDataStub::Text => Self::Text,
 			MetastoreDataStub::Binary => Self::Binary,
 			MetastoreDataStub::Blob => Self::Blob,
-			MetastoreDataStub::Integer => Self::Integer,
-			MetastoreDataStub::PositiveInteger => Self::PositiveInteger,
+			MetastoreDataStub::Integer { is_non_negative } => Self::Integer { is_non_negative },
 			MetastoreDataStub::Boolean => Self::Boolean,
-			MetastoreDataStub::Float => Self::Float,
+			MetastoreDataStub::Float { is_non_negative } => Self::Float { is_non_negative },
 			MetastoreDataStub::Hash { hash_type } => Self::Hash { hash_type },
 			MetastoreDataStub::Reference { class } => Self::Reference { class },
 		}
@@ -255,9 +268,18 @@ impl<'de> Deserialize<'de> for UFODataStub {
 				"binary" => Some(Self::Binary),
 				"blob" => Some(Self::Blob),
 				"boolan" => Some(Self::Boolean),
-				"integer" => Some(Self::Integer),
-				"positiveinteger" => Some(Self::PositiveInteger),
-				"float" => Some(Self::Float),
+				"integer" => Some(Self::Integer {
+					is_non_negative: false,
+				}),
+				"integer::nonnegative" => Some(Self::Integer {
+					is_non_negative: true,
+				}),
+				"float" => Some(Self::Float {
+					is_non_negative: false,
+				}),
+				"float::nonnegative" => Some(Self::Float {
+					is_non_negative: true,
+				}),
 				"hash::MD5" => Some(Self::Hash {
 					hash_type: HashType::MD5,
 				}),
@@ -302,9 +324,18 @@ impl Serialize for UFODataStub {
 			Self::Binary => "binary".into(),
 			Self::Blob => "blob".into(),
 			Self::Boolean => "boolean".into(),
-			Self::Integer => "integer".into(),
-			Self::PositiveInteger => "positiveinteger".into(),
-			Self::Float => "float".into(),
+			Self::Integer {
+				is_non_negative: false,
+			} => "integer".into(),
+			Self::Integer {
+				is_non_negative: true,
+			} => "integer::nonnegative".into(),
+			Self::Float {
+				is_non_negative: false,
+			} => "float".into(),
+			Self::Float {
+				is_non_negative: true,
+			} => "float::nonnegative".into(),
 			Self::Hash { hash_type: format } => match format {
 				HashType::MD5 => "hash::MD5".into(),
 				HashType::SHA256 => "hash::SHA256".into(),
@@ -324,10 +355,19 @@ impl UFODataStub {
 			Self::Binary,
 			Self::Blob,
 			Self::Path,
-			Self::Integer,
-			Self::PositiveInteger,
+			Self::Integer {
+				is_non_negative: false,
+			},
+			Self::Integer {
+				is_non_negative: true,
+			},
 			Self::Boolean,
-			Self::Float,
+			Self::Float {
+				is_non_negative: true,
+			},
+			Self::Float {
+				is_non_negative: false,
+			},
 			Self::Hash {
 				hash_type: HashType::MD5,
 			},

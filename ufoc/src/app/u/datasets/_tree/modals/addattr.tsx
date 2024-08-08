@@ -109,6 +109,17 @@ export function useAddAttrModal(params: {
 				type: newAttrType,
 				class: newAttrParams.class,
 			};
+		} else if (newAttrType === "Integer") {
+			data_type = {
+				type: newAttrType,
+				is_non_negative: false,
+			};
+		} else if (newAttrType === "Float") {
+			data_type = {
+				type: newAttrType,
+				// TODO: add option in ui
+				is_non_negative: false,
+			};
 		} else {
 			data_type = {
 				type: newAttrType,
