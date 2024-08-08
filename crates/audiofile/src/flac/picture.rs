@@ -1,3 +1,5 @@
+//! Decode FLAC picture metadata blocks
+
 use std::{fmt::Display, io::Read, string::FromUtf8Error};
 
 use crate::common::{
@@ -5,10 +7,16 @@ use crate::common::{
 	picturetype::{PictureType, PictureTypeError},
 };
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub enum FlacPictureError {
+	/// We encountered an i/o error while reading a block
 	IoError(std::io::Error),
+
+	/// We tried to decode a string, but found invalid UTF-8
 	FailedStringDecode(FromUtf8Error),
+
+	/// We tried to decode a picture block with an out-of-spec picture type
 	BadPictureType(PictureTypeError),
 }
 
@@ -53,21 +61,36 @@ impl From<FromUtf8Error> for FlacPictureError {
 }
 
 // TODO: enforce flac constraints and write
-pub struct FlacPicture {
+
+/// A picture metadata block in a FLAC file.
+/// This implements [`Read`], which produces this picture's image data.
+pub struct FlacPicture<'a> {
 	picture_type: PictureType,
 	mime: MimeType,
 	description: String,
 	width: u32,
 	height: u32,
-	depth: u32,
+	bit_depth: u32,
 	color_count: u32,
-	img_data: Vec<u8>,
+	img: Box<dyn Read + 'a>,
 }
 
-impl FlacPicture {
+impl<'a> Read for FlacPicture<'a> {
+	/// Read this picture's image data
+	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+		self.img.read(buf)
+	}
+}
+
+impl<'a> FlacPicture<'a> {
+	/// Try to decode a picture block from the given reader.
+	///
+	/// This does NOT read the picture's data. Instead, [`FlacPicture`]
+	/// stores a reader produces this data. Use [`Read`] methods on
+	/// [`FlacPicture`] to get this data.
 	pub fn decode<R>(mut read: R) -> Result<Self, FlacPictureError>
 	where
-		R: Read,
+		R: Read + 'a,
 	{
 		// This is re-used whenever we need to read four bytes
 		let mut block = [0u8; 4];
@@ -105,8 +128,9 @@ impl FlacPicture {
 
 		read.read_exact(&mut block)?;
 		let data_length = u32::from_be_bytes(block);
-		let mut img_data = vec![0u8; data_length.try_into().unwrap()];
-		read.read_exact(&mut img_data)?;
+		//let mut img_data = vec![0u8; data_length.try_into().unwrap()];
+		//read.read_exact(&mut img_data)?;
+		let img = read.take(data_length.into());
 
 		Ok(Self {
 			picture_type,
@@ -114,9 +138,43 @@ impl FlacPicture {
 			description,
 			width,
 			height,
-			depth,
+			bit_depth: depth,
 			color_count,
-			img_data,
+			img: Box::new(img),
 		})
+	}
+}
+
+impl<'a> FlacPicture<'a> {
+	/// Get this picture's IDv3 type
+	pub fn get_type(&self) -> &PictureType {
+		&self.picture_type
+	}
+
+	/// Get the mime type of this image's data
+	pub fn get_mime(&self) -> &MimeType {
+		&self.mime
+	}
+
+	/// Get this image's description
+	pub fn get_description(&self) -> &String {
+		&self.description
+	}
+
+	/// Get this image's dimensions.
+	/// Returns (width, height) in pixels.
+	pub fn get_dimensions(&self) -> (u32, u32) {
+		(self.width, self.height)
+	}
+
+	/// Get the bit depth of this image.
+	pub fn get_bit_depth(&self) -> u32 {
+		self.bit_depth
+	}
+
+	/// Get the number of colors in this image.
+	/// 0 if this image is in a non-indexed format.
+	pub fn get_color_count(&self) -> u32 {
+		self.color_count
 	}
 }
