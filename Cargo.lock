@@ -2822,7 +2822,6 @@ dependencies = [
  "futures",
  "serde",
  "smartstring",
- "ufo-audiofile",
  "ufo-pipeline",
  "ufo-storage",
  "ufo-util",
