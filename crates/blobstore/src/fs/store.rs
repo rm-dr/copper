@@ -1,4 +1,8 @@
-use std::{fs::File, io::Write, path::PathBuf};
+use std::{
+	fs::File,
+	io::Write,
+	path::{Path, PathBuf},
+};
 
 use smartstring::{LazyCompact, SmartString};
 use ufo_util::mime::MimeType;
@@ -67,15 +71,22 @@ pub struct FsBlobStore {
 
 unsafe impl Send for FsBlobStore {}
 
-impl FsBlobStore {
-	pub fn open(root: PathBuf) -> Self {
-		Self { root, idx: 0 }
-	}
-}
-
 impl BlobStore for FsBlobStore {
 	type Handle = FsBlobHandle;
 	type Writer = FsBlobWriter;
+
+	fn create(path: &Path) -> Result<(), ()> {
+		assert!(!path.exists());
+		std::fs::create_dir(&path).unwrap();
+		Ok(())
+	}
+
+	fn open(root: &Path) -> Result<Self, ()> {
+		Ok(Self {
+			root: root.into(),
+			idx: 0,
+		})
+	}
 
 	fn new_blob(&mut self, mime: &MimeType) -> Self::Writer {
 		let i = self.idx;

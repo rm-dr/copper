@@ -1,5 +1,5 @@
 use smartstring::{LazyCompact, SmartString};
-use std::{fmt::Debug, hash::Hash};
+use std::{fmt::Debug, hash::Hash, path::Path};
 use ufo_blobstore::api::BlobStore;
 use ufo_util::mime::MimeType;
 
@@ -88,6 +88,14 @@ impl From<u32> for AttrHandle {
 	fn from(value: u32) -> Self {
 		Self { id: value }
 	}
+}
+
+pub trait MetaDbNew<BlobStoreType: BlobStore>
+where
+	Self: Send + Sized,
+{
+	fn create(db_dir: &Path) -> Result<(), MetaDbError>;
+	fn open(db_dir: &Path) -> Result<Self, MetaDbError>;
 }
 
 pub trait MetaDb<BlobStoreType: BlobStore>

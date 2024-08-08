@@ -1,5 +1,5 @@
 use crate::{
-	api::{AttrHandle, AttributeOptions, ClassHandle, ItemHandle, MetaDb},
+	api::{AttrHandle, AttributeOptions, ClassHandle, ItemHandle, MetaDb, MetaDbNew},
 	data::{MetaDbData, MetaDbDataStub},
 	errors::MetaDbError,
 };
@@ -11,14 +11,11 @@ use sqlx::{
 	query::Query, sqlite::SqliteArguments, Connection, Executor, Row, Sqlite, SqliteConnection,
 };
 use std::{iter, path::Path};
-use ufo_blobstore::{
-	api::{BlobHandle, BlobStore},
-	fs::store::{FsBlobStore, FsBlobWriter},
-};
+use ufo_blobstore::api::{BlobHandle, BlobStore};
 
-pub struct SQLiteMetaDB {
+pub struct SQLiteMetaDB<BlobStoreType: BlobStore> {
 	/// The "large binary storage" backend
-	blobstore: FsBlobStore,
+	blobstore: BlobStoreType,
 
 	/// The path to the database we'll connect to
 	database: SmartString<LazyCompact>,
@@ -28,41 +25,8 @@ pub struct SQLiteMetaDB {
 	conn: Option<SqliteConnection>,
 }
 
-impl SQLiteMetaDB {
-	pub fn connect(db_dir: &Path) -> Result<Self, MetaDbError> {
-		let database = db_dir.join("metadata.sqlite");
-		let blobstore = db_dir.join("blobs");
-		std::fs::create_dir(&blobstore).unwrap();
-
-		let db_addr = format!("sqlite:{}?mode=rwc", database.to_str().unwrap());
-
-		let mut conn = block_on(SqliteConnection::connect(&db_addr))?;
-
-		block_on(sqlx::query(include_str!("./init_db.sql")).execute(&mut conn)).unwrap();
-
-		block_on(
-			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?, ?), (?, ?);")
-				.bind("ufo_version")
-				.bind(env!("CARGO_PKG_VERSION"))
-				.bind("blob_dir")
-				.bind("./blobs")
-				.execute(&mut conn),
-		)
-		.unwrap();
-
-		let blobstore = FsBlobStore::open(blobstore);
-
-		// TODO: load & check metadata, don't destroy db
-		Ok(Self {
-			database: db_addr.into(),
-			conn: Some(conn),
-			blobstore,
-		})
-	}
-}
-
 // SQL helper functions
-impl SQLiteMetaDB {
+impl<BlobStoreType: BlobStore> SQLiteMetaDB<BlobStoreType> {
 	fn get_table_name<'e, 'c, E>(executor: E, class: ClassHandle) -> Result<String, MetaDbError>
 	where
 		E: Executor<'c, Database = Sqlite>,
@@ -109,15 +73,67 @@ impl SQLiteMetaDB {
 	}
 }
 
-impl MetaDb<FsBlobStore> for SQLiteMetaDB {
-	fn new_blob(&mut self, mime: &ufo_util::mime::MimeType) -> FsBlobWriter {
+impl<BlobStoreType: BlobStore> MetaDbNew<BlobStoreType> for SQLiteMetaDB<BlobStoreType> {
+	fn create(db_root: &Path) -> Result<(), MetaDbError> {
+		// `db_root` must exist and be empty
+		if db_root.is_dir() {
+			if db_root.read_dir().unwrap().next().is_some() {
+				panic!("TODO: proper error")
+			}
+		} else if db_root.exists() {
+			panic!()
+		}
+
+		let database = db_root.join("metadata.sqlite");
+		let blob_dir = db_root.join("blobs");
+		BlobStoreType::create(&blob_dir).unwrap();
+
+		let db_addr = format!("sqlite:{}?mode=rwc", database.to_str().unwrap());
+
+		let mut conn = block_on(SqliteConnection::connect(&db_addr))?;
+
+		block_on(sqlx::query(include_str!("./init_db.sql")).execute(&mut conn)).unwrap();
+
+		block_on(
+			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?, ?), (?, ?);")
+				.bind("ufo_version")
+				.bind(env!("CARGO_PKG_VERSION"))
+				.bind("blob_dir")
+				.bind("./blobs")
+				.execute(&mut conn),
+		)
+		.unwrap();
+
+		Ok(())
+	}
+
+	fn open(db_dir: &Path) -> Result<Self, MetaDbError> {
+		let database = db_dir.join("metadata.sqlite");
+		let blobstore = db_dir.join("blobs"); // TODO: path from db
+		let db_addr = format!("sqlite:{}?mode=rw", database.to_str().unwrap());
+		let conn = block_on(SqliteConnection::connect(&db_addr))?;
+
+		// TODO: load & check metadata, don't destroy db
+		Ok(Self {
+			database: db_addr.into(),
+			conn: Some(conn),
+			blobstore: BlobStoreType::open(&blobstore).unwrap(),
+		})
+	}
+}
+
+impl<BlobStoreType: BlobStore> MetaDb<BlobStoreType> for SQLiteMetaDB<BlobStoreType> {
+	fn new_blob(
+		&mut self,
+		mime: &ufo_util::mime::MimeType,
+	) -> <BlobStoreType as BlobStore>::Writer {
 		self.blobstore.new_blob(mime)
 	}
 
 	fn finish_blob(
 		&mut self,
-		blob: <FsBlobStore as BlobStore>::Writer,
-	) -> <FsBlobStore as BlobStore>::Handle {
+		blob: <BlobStoreType as BlobStore>::Writer,
+	) -> <BlobStoreType as BlobStore>::Handle {
 		self.blobstore.finish_blob(blob)
 	}
 
