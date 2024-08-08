@@ -11,7 +11,7 @@ use ufo_node_base::{
 	UFOContext,
 };
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, PipelineData, PipelineNode, PipelineNodeState, RunNodeError},
+	api::{InitNodeError, NodeInfo, PipelineData, Node, NodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -113,7 +113,7 @@ impl ExtractTags {
 	}
 }
 
-impl PipelineNode<UFOData> for ExtractTags {
+impl Node<UFOData> for ExtractTags {
 	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
 		&self.info
 	}
@@ -143,11 +143,11 @@ impl PipelineNode<UFOData> for ExtractTags {
 	fn run(
 		&mut self,
 		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
-	) -> Result<PipelineNodeState, RunNodeError> {
+	) -> Result<NodeState, RunNodeError> {
 		// Push latest data into tag reader
 		match &mut self.data {
 			DataSource::Uninitialized => {
-				return Ok(PipelineNodeState::Pending("No data received"));
+				return Ok(NodeState::Pending("No data received"));
 			}
 
 			DataSource::Binary { data, is_done, .. } => {
@@ -209,9 +209,9 @@ impl PipelineNode<UFOData> for ExtractTags {
 
 			// We should only have one comment block
 			assert!(!self.reader.has_block());
-			return Ok(PipelineNodeState::Done);
+			return Ok(NodeState::Done);
 		}
 
-		return Ok(PipelineNodeState::Pending("Waiting for data"));
+		return Ok(NodeState::Pending("Waiting for data"));
 	}
 }

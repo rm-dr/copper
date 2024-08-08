@@ -7,7 +7,7 @@ use axum::{
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use ufo_pipeline::{
-	api::PipelineNodeState,
+	api::NodeState,
 	labels::{PipelineName, PipelineNodeID},
 };
 use utoipa::ToSchema;
@@ -109,8 +109,8 @@ pub(super) async fn get_runner_status(
 						name: l.clone(),
 						state: match job.get_node_status(l).unwrap() {
 							(true, _) => RunningNodeState::Running,
-							(false, PipelineNodeState::Done) => RunningNodeState::Done,
-							(false, PipelineNodeState::Pending(m)) => {
+							(false, NodeState::Done) => RunningNodeState::Done,
+							(false, NodeState::Pending(m)) => {
 								RunningNodeState::Pending { message: m.into() }
 							}
 						},

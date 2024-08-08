@@ -7,7 +7,7 @@ use ufo_node_base::{
 	UFOContext,
 };
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, PipelineData, PipelineNode, PipelineNodeState, RunNodeError},
+	api::{InitNodeError, NodeInfo, PipelineData, Node, NodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -68,7 +68,7 @@ impl ExtractCovers {
 	}
 }
 
-impl PipelineNode<UFOData> for ExtractCovers {
+impl Node<UFOData> for ExtractCovers {
 	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
 		&self.info
 	}
@@ -98,11 +98,11 @@ impl PipelineNode<UFOData> for ExtractCovers {
 	fn run(
 		&mut self,
 		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
-	) -> Result<PipelineNodeState, RunNodeError> {
+	) -> Result<NodeState, RunNodeError> {
 		// Push latest data into cover reader
 		match &mut self.data {
 			DataSource::Uninitialized => {
-				return Ok(PipelineNodeState::Pending("No data received"));
+				return Ok(NodeState::Pending("No data received"));
 			}
 
 			DataSource::Binary { data, is_done, .. } => {
@@ -149,7 +149,7 @@ impl PipelineNode<UFOData> for ExtractCovers {
 					},
 				},
 			)?;
-			return Ok(PipelineNodeState::Done);
+			return Ok(NodeState::Done);
 		} else if self.reader.is_done() {
 			send_data(
 				0,
@@ -157,9 +157,9 @@ impl PipelineNode<UFOData> for ExtractCovers {
 					data_type: UFODataStub::Bytes,
 				},
 			)?;
-			return Ok(PipelineNodeState::Done);
+			return Ok(NodeState::Done);
 		}
 
-		return Ok(PipelineNodeState::Pending("No pictures yet"));
+		return Ok(NodeState::Pending("No pictures yet"));
 	}
 }

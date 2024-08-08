@@ -3,8 +3,7 @@ use std::{collections::BTreeMap, marker::PhantomData};
 
 use crate::{
 	api::{
-		InitNodeError, NodeInfo, PipelineData, PipelineJobContext, PipelineNode, PipelineNodeState,
-		RunNodeError,
+		InitNodeError, Node, NodeInfo, NodeState, PipelineData, PipelineJobContext, RunNodeError,
 	},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
@@ -93,7 +92,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	}
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> PipelineNode<DataType>
+impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Node<DataType>
 	for Input<DataType, ContextType>
 {
 	fn get_info(&self) -> &dyn NodeInfo<DataType> {
@@ -115,8 +114,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Pipeline
 	fn run(
 		&mut self,
 		send_data: &dyn Fn(usize, DataType) -> Result<(), RunNodeError>,
-	) -> Result<PipelineNodeState, RunNodeError> {
+	) -> Result<NodeState, RunNodeError> {
 		send_data(0, self.value.clone())?;
-		Ok(PipelineNodeState::Done)
+		Ok(NodeState::Done)
 	}
 }

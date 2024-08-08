@@ -9,7 +9,7 @@ use ufo_node_base::{
 	UFOContext,
 };
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, PipelineNode, PipelineNodeState, RunNodeError},
+	api::{InitNodeError, NodeInfo, Node, NodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -80,7 +80,7 @@ impl StripTags {
 	}
 }
 
-impl PipelineNode<UFOData> for StripTags {
+impl Node<UFOData> for StripTags {
 	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
 		&self.info
 	}
@@ -110,11 +110,11 @@ impl PipelineNode<UFOData> for StripTags {
 	fn run(
 		&mut self,
 		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
-	) -> Result<ufo_pipeline::api::PipelineNodeState, RunNodeError> {
+	) -> Result<ufo_pipeline::api::NodeState, RunNodeError> {
 		// Push latest data into metadata stripper
 		match &mut self.data {
 			DataSource::Uninitialized => {
-				return Ok(PipelineNodeState::Pending("No data received"));
+				return Ok(NodeState::Pending("No data received"));
 			}
 
 			DataSource::Binary { data, is_done, .. } => {
@@ -174,9 +174,9 @@ impl PipelineNode<UFOData> for StripTags {
 		if self.strip.is_done() {
 			let mut out = Vec::new();
 			self.strip.read_data(&mut out).unwrap();
-			return Ok(PipelineNodeState::Done);
+			return Ok(NodeState::Done);
 		} else {
-			return Ok(PipelineNodeState::Pending("Waiting for more data"));
+			return Ok(NodeState::Pending("Waiting for more data"));
 		}
 	}
 }

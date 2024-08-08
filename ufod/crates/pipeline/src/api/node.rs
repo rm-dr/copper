@@ -3,7 +3,7 @@ use crate::labels::PipelinePortID;
 
 /// The state of a [`PipelineNode`] at a point in time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PipelineNodeState {
+pub enum NodeState {
 	/// This node has more work to do
 	/// and is waiting to be `run()`.
 	///
@@ -16,13 +16,13 @@ pub enum PipelineNodeState {
 	Done,
 }
 
-impl PipelineNodeState {
-	/// Is this [`PipelineNodeState::Pending`]?
+impl NodeState {
+	/// Is this [`NodeState::Pending`]?
 	pub fn is_pending(&self) -> bool {
 		matches!(self, Self::Pending(_))
 	}
 
-	/// Is this [`PipelineNodeState::Done`]?
+	/// Is this [`NodeState::Done`]?
 	pub fn is_done(&self) -> bool {
 		matches!(self, Self::Done)
 	}
@@ -40,11 +40,11 @@ pub trait NodeInfo<DataType: PipelineData> {
 
 /// An instance of a pipeline node, with some state.
 ///
-/// When a pipeline is run, a [`PipelineNode`] is created for each of its nodes.
+/// When a pipeline is run, a [`Node`] is created for each of its nodes.
 ///
-/// A [`PipelineNode`] is used to run exactly one pipeline instance,
+/// A [`Node`] is used to run exactly one pipeline instance,
 /// and is dropped when that pipeline finishes.
-pub trait PipelineNode<DataType: PipelineData>: Sync + Send {
+pub trait Node<DataType: PipelineData>: Sync + Send {
 	/// If true, run this node in the main loop instead of starting a thread.
 	///
 	/// This should be `true` for nodes that do no heavy computation, and
@@ -62,7 +62,7 @@ pub trait PipelineNode<DataType: PipelineData>: Sync + Send {
 	fn run(
 		&mut self,
 		send_data: &dyn Fn(usize, DataType) -> Result<(), RunNodeError>,
-	) -> Result<PipelineNodeState, RunNodeError>;
+	) -> Result<NodeState, RunNodeError>;
 
 	/// Get this node's info
 	fn get_info(&self) -> &dyn NodeInfo<DataType>;

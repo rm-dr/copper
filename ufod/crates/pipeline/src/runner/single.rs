@@ -15,7 +15,7 @@ use super::{
 	util::{EdgeState, NodeRunState},
 };
 use crate::{
-	api::{PipelineData, PipelineJobContext, PipelineNode, PipelineNodeState, RunNodeError},
+	api::{PipelineData, PipelineJobContext, Node, NodeState, RunNodeError},
 	dispatcher::NodeDispatcher,
 	graph::util::GraphNodeIdx,
 	labels::PipelineNodeID,
@@ -70,7 +70,7 @@ struct NodeInstanceContainer<DataType: PipelineData> {
 
 	/// The node. This will be `None` if the node is done,
 	/// so that its resources are dropped.
-	node: Arc<Mutex<Option<Box<dyn PipelineNode<DataType>>>>>,
+	node: Arc<Mutex<Option<Box<dyn Node<DataType>>>>>,
 }
 
 /// An instance of a single running pipeline
@@ -115,7 +115,7 @@ pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobCon
 		// The node that sent this status
 		GraphNodeIdx,
 		// The status that was sent
-		Result<PipelineNodeState, RunNodeError>,
+		Result<NodeState, RunNodeError>,
 	)>,
 
 	/// A receiver for node status messages
@@ -123,7 +123,7 @@ pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobCon
 		// The node that sent this status
 		GraphNodeIdx,
 		// The status that was sent
-		Result<PipelineNodeState, RunNodeError>,
+		Result<NodeState, RunNodeError>,
 	)>,
 
 	// TODO: remove and write better scheduler
@@ -152,12 +152,12 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 
 	/// Get the current state of all nodes in this job
 	/// Returns `None` if an unknown node name is provided.
-	pub fn get_node_status(&self, node: &PipelineNodeID) -> Option<(bool, PipelineNodeState)> {
+	pub fn get_node_status(&self, node: &PipelineNodeID) -> Option<(bool, NodeState)> {
 		self.node_instances
 			.iter()
 			.find(|x| &x.id == node)
 			.map(|x| match &x.state {
-				NodeRunState::Running => (true, PipelineNodeState::Pending("is running")),
+				NodeRunState::Running => (true, NodeState::Pending("is running")),
 				NodeRunState::NotRunning(x) => (false, *x),
 			})
 	}
@@ -221,7 +221,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 					id: node_data.id.clone(),
 					input_queue: Some(input_queue),
 					last_run: instant_now,
-					state: NodeRunState::NotRunning(PipelineNodeState::Pending("not started")),
+					state: NodeRunState::NotRunning(NodeState::Pending("not started")),
 					node: Arc::new(Mutex::new(Some(node))),
 				}
 			})
@@ -255,8 +255,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		// Contents are (node index, result of `node.run()`)
 		#[allow(clippy::type_complexity)]
 		let (send_status, receive_status): (
-			Sender<(GraphNodeIdx, Result<PipelineNodeState, RunNodeError>)>,
-			Receiver<(GraphNodeIdx, Result<PipelineNodeState, RunNodeError>)>,
+			Sender<(GraphNodeIdx, Result<NodeState, RunNodeError>)>,
+			Receiver<(GraphNodeIdx, Result<NodeState, RunNodeError>)>,
 		) = unbounded();
 
 		Self {

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use smartstring::{LazyCompact, SmartString};
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, PipelineData, PipelineNode, PipelineNodeState, RunNodeError},
+	api::{InitNodeError, NodeInfo, PipelineData, Node, NodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -64,7 +64,7 @@ impl NodeInfo<UFOData> for IfNone {
 	}
 }
 
-impl PipelineNode<UFOData> for IfNone {
+impl Node<UFOData> for IfNone {
 	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
 		self
 	}
@@ -89,9 +89,9 @@ impl PipelineNode<UFOData> for IfNone {
 	fn run(
 		&mut self,
 		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
-	) -> Result<PipelineNodeState, RunNodeError> {
+	) -> Result<NodeState, RunNodeError> {
 		if self.input.is_none() || self.ifnone.is_none() {
-			return Ok(PipelineNodeState::Pending("args not ready"));
+			return Ok(NodeState::Pending("args not ready"));
 		}
 
 		send_data(
@@ -102,6 +102,6 @@ impl PipelineNode<UFOData> for IfNone {
 			},
 		)?;
 
-		Ok(PipelineNodeState::Done)
+		Ok(NodeState::Done)
 	}
 }

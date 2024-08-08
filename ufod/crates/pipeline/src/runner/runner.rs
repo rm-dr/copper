@@ -10,7 +10,7 @@ use tracing::{debug, warn};
 
 use super::single::{PipelineSingleJob, PipelineSingleJobError, SingleJobState};
 use crate::{
-	api::{PipelineData, PipelineJobContext, PipelineNodeState},
+	api::{PipelineData, PipelineJobContext, NodeState},
 	dispatcher::NodeDispatcher,
 	labels::PipelineName,
 	pipeline::pipeline::Pipeline,
@@ -39,7 +39,7 @@ pub struct CompletedJob<DataType: PipelineData> {
 	pub input: BTreeMap<SmartString<LazyCompact>, DataType>,
 
 	/// The state of each node when this pipeline finished running
-	pub node_states: Vec<(bool, PipelineNodeState)>,
+	pub node_states: Vec<(bool, NodeState)>,
 }
 
 /// A failed pipeline job
@@ -55,7 +55,7 @@ pub struct FailedJob<DataType: PipelineData> {
 	pub input: BTreeMap<SmartString<LazyCompact>, DataType>,
 
 	/// The state of each node when this pipeline finished running
-	pub node_states: Vec<(bool, PipelineNodeState)>,
+	pub node_states: Vec<(bool, NodeState)>,
 
 	/// The reason this pipeline failed.
 	pub error: PipelineSingleJobError,

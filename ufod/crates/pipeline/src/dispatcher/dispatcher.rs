@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, marker::PhantomData};
 
 use super::{NodeParameterSpec, NodeParameterValue, RegisterNodeError};
 use crate::{
-	api::{InitNodeError, NodeInfo, PipelineData, PipelineJobContext, PipelineNode},
+	api::{InitNodeError, NodeInfo, PipelineData, PipelineJobContext, Node},
 	nodes::input::{Input, InputInfo, INPUT_NODE_TYPE_NAME},
 };
 
@@ -15,7 +15,7 @@ type NodeInitFnType<DataType, ContextType> = &'static (dyn Fn(
 	&BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
 	// This node's name
 	&str,
-) -> Result<Box<dyn PipelineNode<DataType>>, InitNodeError>
+) -> Result<Box<dyn Node<DataType>>, InitNodeError>
               + Send
               + Sync);
 
@@ -108,7 +108,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		node_type: &str,
 		node_params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
 		node_name: &str,
-	) -> Result<Option<Box<dyn PipelineNode<DataType>>>, InitNodeError> {
+	) -> Result<Option<Box<dyn Node<DataType>>>, InitNodeError> {
 		if let Some(node) = self.nodes.get(node_type) {
 			return Ok(Some((node.node_init)(context, node_params, node_name)?));
 		} else {

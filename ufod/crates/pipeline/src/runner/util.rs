@@ -1,6 +1,6 @@
 //! Pipeline runner utilities
 
-use crate::api::PipelineNodeState;
+use crate::api::NodeState;
 
 #[derive(Debug)]
 pub(super) enum EdgeState {
@@ -22,7 +22,7 @@ pub(super) enum NodeRunState {
 	Running,
 
 	/// This node is not actively running
-	NotRunning(PipelineNodeState),
+	NotRunning(NodeState),
 }
 
 impl NodeRunState {
@@ -33,6 +33,6 @@ impl NodeRunState {
 
 	/// Is this node `NodeRunState::NotRunning(PipelineNodestate::Done)`?
 	pub fn is_done(&self) -> bool {
-		matches!(self, Self::NotRunning(PipelineNodeState::Done))
+		matches!(self, Self::NotRunning(NodeState::Done))
 	}
 }

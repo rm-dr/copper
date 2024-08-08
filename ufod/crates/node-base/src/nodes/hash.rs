@@ -7,7 +7,7 @@ use std::{
 };
 use ufo_ds_core::data::HashType;
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, PipelineData, PipelineNode, PipelineNodeState, RunNodeError},
+	api::{InitNodeError, NodeInfo, PipelineData, Node, NodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -137,7 +137,7 @@ impl NodeInfo<UFOData> for Hash {
 	}
 }
 
-impl PipelineNode<UFOData> for Hash {
+impl Node<UFOData> for Hash {
 	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
 		self
 	}
@@ -160,16 +160,16 @@ impl PipelineNode<UFOData> for Hash {
 	fn run(
 		&mut self,
 		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
-	) -> Result<PipelineNodeState, RunNodeError> {
+	) -> Result<NodeState, RunNodeError> {
 		match &mut self.data {
 			DataSource::Uninitialized => {
-				return Ok(PipelineNodeState::Pending("args not ready"));
+				return Ok(NodeState::Pending("args not ready"));
 			}
 
 			DataSource::File { file, .. } => {
 				self.hasher.as_mut().unwrap().update(file)?;
 				send_data(0, self.hasher.take().unwrap().finish())?;
-				return Ok(PipelineNodeState::Done);
+				return Ok(NodeState::Done);
 			}
 
 			DataSource::Binary { data, is_done, .. } => {
@@ -182,9 +182,9 @@ impl PipelineNode<UFOData> for Hash {
 
 				if *is_done {
 					send_data(0, self.hasher.take().unwrap().finish())?;
-					return Ok(PipelineNodeState::Done);
+					return Ok(NodeState::Done);
 				} else {
-					return Ok(PipelineNodeState::Pending("waiting for data"));
+					return Ok(NodeState::Pending("waiting for data"));
 				}
 			}
 		};

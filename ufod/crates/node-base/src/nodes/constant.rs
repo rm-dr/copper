@@ -1,7 +1,7 @@
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, PipelineData, PipelineNode, PipelineNodeState, RunNodeError},
+	api::{InitNodeError, NodeInfo, PipelineData, Node, NodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -53,7 +53,7 @@ impl NodeInfo<UFOData> for Constant {
 	}
 }
 
-impl PipelineNode<UFOData> for Constant {
+impl Node<UFOData> for Constant {
 	fn get_info(&self) -> &dyn NodeInfo<UFOData> {
 		self
 	}
@@ -73,8 +73,8 @@ impl PipelineNode<UFOData> for Constant {
 	fn run(
 		&mut self,
 		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
-	) -> Result<PipelineNodeState, RunNodeError> {
+	) -> Result<NodeState, RunNodeError> {
 		send_data(0, self.value.clone())?;
-		Ok(PipelineNodeState::Done)
+		Ok(NodeState::Done)
 	}
 }

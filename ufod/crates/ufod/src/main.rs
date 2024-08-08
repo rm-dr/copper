@@ -1,7 +1,7 @@
 use api::RouterState;
 use config::UfodConfig;
 use futures::TryFutureExt;
-use std::{collections::BTreeMap, error::Error, future::IntoFuture, path::PathBuf, sync::Arc};
+use std::{error::Error, future::IntoFuture, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::info;
 use ufo_node_base::{data::UFOData, UFOContext};
@@ -62,99 +62,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		max_active_jobs: 8,
 	});
 
-	// Base nodes
 	{
-		use ufo_node_base::nodes::{
-			AddItem, AddItemInfo, Constant, FindItem, FindItemInfo, Hash, IfNone,
-		};
-
-		runner
-			.mut_dispatcher()
-			.register_node(
-				"Constant",
-				BTreeMap::new(),
-				&|_ctx, params, _| Ok(Box::new(Constant::new(params)?)),
-				&|_ctx, params, _| Ok(Box::new(Constant::new(params)?)),
-			)
-			.unwrap();
-
-		runner
-			.mut_dispatcher()
-			.register_node(
-				"Hash",
-				BTreeMap::new(),
-				&|_ctx, params, _| Ok(Box::new(Hash::new(params)?)),
-				&|_ctx, params, _| Ok(Box::new(Hash::new(params)?)),
-			)
-			.unwrap();
-
-		runner
-			.mut_dispatcher()
-			.register_node(
-				"IfNone",
-				BTreeMap::new(),
-				&|_ctx, params, _| Ok(Box::new(IfNone::new(params)?)),
-				&|_ctx, params, _| Ok(Box::new(IfNone::new(params)?)),
-			)
-			.unwrap();
-
-		runner
-			.mut_dispatcher()
-			.register_node(
-				"AddItem",
-				BTreeMap::new(),
-				&|ctx, params, _| Ok(Box::new(AddItemInfo::new(ctx, params)?)),
-				&|ctx, params, _| Ok(Box::new(AddItem::new(ctx, params)?)),
-			)
-			.unwrap();
-
-		runner
-			.mut_dispatcher()
-			.register_node(
-				"FindItem",
-				BTreeMap::new(),
-				&|ctx, params, _| Ok(Box::new(FindItemInfo::new(ctx, params)?)),
-				&|ctx, params, _| Ok(Box::new(FindItem::new(ctx, params)?)),
-			)
-			.unwrap();
+		// Base nodes
+		use ufo_node_base::nodes::register;
+		register(runner.mut_dispatcher()).unwrap();
 	}
 
-	// Audiofile nodes
 	{
-		use ufo_audiofile::nodes::{
-			ExtractCovers, ExtractCoversInfo, ExtractTags, ExtractTagsInfo, StripTags,
-			StripTagsInfo,
-		};
-
-		runner
-			.mut_dispatcher()
-			.register_node(
-				"StripTags",
-				BTreeMap::new(),
-				&|_ctx, params, _| Ok(Box::new(StripTagsInfo::new(params)?)),
-				&|ctx, params, _| Ok(Box::new(StripTags::new(ctx, params)?)),
-			)
-			.unwrap();
-
-		runner
-			.mut_dispatcher()
-			.register_node(
-				"ExtractCovers",
-				BTreeMap::new(),
-				&|_ctx, params, _| Ok(Box::new(ExtractCoversInfo::new(params)?)),
-				&|ctx, params, _| Ok(Box::new(ExtractCovers::new(ctx, params)?)),
-			)
-			.unwrap();
-
-		runner
-			.mut_dispatcher()
-			.register_node(
-				"ExtractTags",
-				BTreeMap::new(),
-				&|_ctx, params, _| Ok(Box::new(ExtractTagsInfo::new(params)?)),
-				&|ctx, params, _| Ok(Box::new(ExtractTags::new(ctx, params)?)),
-			)
-			.unwrap();
+		// Audiofile nodes
+		use ufo_audiofile::nodes::register;
+		register(runner.mut_dispatcher()).unwrap();
 	}
 
 	// TODO: clone fewer arcs

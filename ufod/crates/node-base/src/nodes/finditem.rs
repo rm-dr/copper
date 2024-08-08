@@ -7,7 +7,7 @@ use ufo_ds_core::{
 };
 use ufo_ds_impl::local::LocalDataset;
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, PipelineData, PipelineNode, PipelineNodeState, RunNodeError},
+	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -136,7 +136,7 @@ impl FindItem {
 	}
 }
 
-impl PipelineNode<UFOData> for FindItem {
+impl Node<UFOData> for FindItem {
 	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
 		&self.info
 	}
@@ -151,9 +151,9 @@ impl PipelineNode<UFOData> for FindItem {
 	fn run(
 		&mut self,
 		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
-	) -> Result<PipelineNodeState, RunNodeError> {
+	) -> Result<NodeState, RunNodeError> {
 		if self.attr_value.is_none() {
-			return Ok(PipelineNodeState::Pending("waiting for input"));
+			return Ok(NodeState::Pending("waiting for input"));
 		}
 
 		let found = block_on(self.dataset.find_item_with_attr(
@@ -181,6 +181,6 @@ impl PipelineNode<UFOData> for FindItem {
 			)?;
 		}
 
-		return Ok(PipelineNodeState::Done);
+		return Ok(NodeState::Done);
 	}
 }

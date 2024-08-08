@@ -16,7 +16,7 @@ use ufo_ds_core::{
 };
 use ufo_ds_impl::local::LocalDataset;
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, PipelineData, PipelineNode, PipelineNodeState, RunNodeError},
+	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -142,7 +142,7 @@ impl AddItem {
 	}
 }
 
-impl PipelineNode<UFOData> for AddItem {
+impl Node<UFOData> for AddItem {
 	fn get_info(&self) -> &dyn NodeInfo<UFOData> {
 		&self.info
 	}
@@ -199,7 +199,7 @@ impl PipelineNode<UFOData> for AddItem {
 	fn run(
 		&mut self,
 		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
-	) -> Result<PipelineNodeState, RunNodeError> {
+	) -> Result<NodeState, RunNodeError> {
 		for i in &mut self.info.data {
 			match i {
 				Some(DataHold::BlobWriting { reader, writer }) => match reader {
@@ -227,7 +227,7 @@ impl PipelineNode<UFOData> for AddItem {
 					}
 				},
 				Some(_) => {}
-				None => return Ok(PipelineNodeState::Pending("waiting for data")),
+				None => return Ok(NodeState::Pending("waiting for data")),
 			}
 		}
 
@@ -299,6 +299,6 @@ impl PipelineNode<UFOData> for AddItem {
 			},
 		}
 
-		Ok(PipelineNodeState::Done)
+		Ok(NodeState::Done)
 	}
 }
