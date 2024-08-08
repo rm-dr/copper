@@ -10,12 +10,11 @@ use crate::{
 	nodes::{PipelineNodeInstance, PipelineNodeType},
 	output::PipelineOutputKind,
 	pipeline::{NodePort, Pipeline},
-	syntax::labels::PIPELINE_EXTERNAL_NODE_NAME,
 };
 
 use super::{
-	errors::PipelinePrepareError,
-	labels::{PipelineNode, PipelineNodeLabel, PipelinePortLabel},
+	errors::{PipelineErrorNode, PipelinePrepareError},
+	labels::{PipelineNodeLabel, PipelinePortLabel},
 	ports::{NodeInput, NodeOutput},
 };
 
@@ -82,10 +81,7 @@ impl PipelineSpec {
 		let output_type = match output {
 			NodeOutput::InlineText { .. } => PipelineDataType::Text,
 
-			NodeOutput::Node {
-				node: PipelineNode::External,
-				port,
-			} => {
+			NodeOutput::Pipeline { port } => {
 				if let Some((_, from_type)) = self
 					.config
 					.input
@@ -96,7 +92,7 @@ impl PipelineSpec {
 					*from_type
 				} else {
 					return Err(PipelinePrepareError::NoNodeOutput {
-						node: PipelineNode::External,
+						node: PipelineErrorNode::Pipeline,
 						output: port.clone(),
 						caused_by: input.clone(),
 					});
@@ -104,7 +100,7 @@ impl PipelineSpec {
 			}
 
 			NodeOutput::Node { node, port } => {
-				let get_node = self.nodes.get(node.to_label_ref().unwrap());
+				let get_node = self.nodes.get(node);
 
 				if get_node.is_none() {
 					return Err(PipelinePrepareError::NoNode {
@@ -117,7 +113,7 @@ impl PipelineSpec {
 				let b = a.find_with_name(port);
 				if b.is_none() {
 					return Err(PipelinePrepareError::NoNodeOutput {
-						node: node.clone(),
+						node: PipelineErrorNode::Named(node.clone()),
 						output: port.clone(),
 						caused_by: input.clone(),
 					});
@@ -129,22 +125,19 @@ impl PipelineSpec {
 		// Find the datatype of the input port we're connecting to.
 		// While doing this, make sure both the input node and port exist.
 		let input_type = match &input {
-			NodeInput::Node {
-				node: PipelineNode::External,
-				port,
-			} => {
+			NodeInput::Pipeline { port } => {
 				if let Some((_, from_type)) = self.config.output.get_inputs().find_with_name(port) {
 					from_type
 				} else {
 					return Err(PipelinePrepareError::NoNodeInput {
-						node: PipelineNode::External,
+						node: PipelineErrorNode::Pipeline,
 						input: port.clone(),
 					});
 				}
 			}
 
 			NodeInput::Node { node, port } => {
-				let get_node = self.nodes.get(node.to_label_ref().unwrap());
+				let get_node = self.nodes.get(node);
 
 				if get_node.is_none() {
 					return Err(PipelinePrepareError::NoNode {
@@ -158,7 +151,7 @@ impl PipelineSpec {
 
 				if b.is_none() {
 					return Err(PipelinePrepareError::NoNodeInput {
-						node: node.clone(),
+						node: PipelineErrorNode::Named(node.clone()),
 						input: port.clone(),
 					});
 				}
@@ -176,7 +169,7 @@ impl PipelineSpec {
 					});
 				}
 			}
-			NodeOutput::Node { .. } => {
+			NodeOutput::Pipeline { .. } | NodeOutput::Node { .. } => {
 				if output_type != input_type {
 					return Err(PipelinePrepareError::TypeMismatch {
 						output: output.clone(),
@@ -195,7 +188,8 @@ impl PipelineSpec {
 		// Current build state
 		nodes: &mut Vec<PipelineNodeInstance>,
 		edges: &mut Vec<(NodePort, NodePort)>,
-		node_name_map: &HashMap<PipelineNode, usize>,
+		node_name_map: &HashMap<PipelineNodeLabel, usize>,
+		external_node_idx: usize,
 
 		in_port: usize,
 		node_idx: usize,
@@ -219,29 +213,37 @@ impl PipelineSpec {
 					PipelineData::Text(text.clone()),
 				)));
 			}
+			NodeOutput::Pipeline { port } => {
+				let out_port = self
+					.config
+					.input
+					.get_outputs()
+					.iter()
+					.enumerate()
+					.find(|(_, (a, _))| a == port)
+					.unwrap()
+					.0;
+				edges.push((
+					NodePort {
+						node_idx: external_node_idx,
+						port: out_port,
+					},
+					NodePort {
+						node_idx,
+						port: in_port,
+					},
+				));
+			}
 			NodeOutput::Node { node, port } => {
-				let out_port = match node {
-					PipelineNode::External => {
-						self.config
-							.input
-							.get_outputs()
-							.iter()
-							.enumerate()
-							.find(|(_, (a, _))| a == port)
-							.unwrap()
-							.0
-					}
-					PipelineNode::Node(x) => {
-						self.nodes
-							.get(x)
-							.unwrap()
-							.node_type
-							.outputs()
-							.find_with_name(port)
-							.unwrap()
-							.0
-					}
-				};
+				let out_port = self
+					.nodes
+					.get(node)
+					.unwrap()
+					.node_type
+					.outputs()
+					.find_with_name(port)
+					.unwrap()
+					.0;
 				edges.push((
 					NodePort {
 						node_idx: *node_name_map.get(node).unwrap(),
@@ -264,29 +266,21 @@ impl PipelineSpec {
 		// Initialize nodes in graph
 		let mut nodes = Vec::new();
 		let mut edges = Vec::new();
-		let mut node_name_map: HashMap<PipelineNode, usize> = HashMap::new();
+		let mut node_name_map: HashMap<PipelineNodeLabel, usize> = HashMap::new();
 		nodes.push(PipelineNodeInstance::ExternalNode);
-		node_name_map.insert(PipelineNode::External, 0);
+		let external_node_idx = 0;
 		for (node_name, node_spec) in &self.nodes {
-			// Make sure we're not using a reserved name
-			let s: &str = node_name.into();
-			if s == PIPELINE_EXTERNAL_NODE_NAME {
-				return Err(PipelinePrepareError::NodeHasReservedName {
-					node: node_name.into(),
-				});
-			}
-
 			for (input_name, out_link) in &node_spec.input {
 				self.check_link(
 					out_link,
 					&NodeInput::Node {
-						node: node_name.into(),
+						node: node_name.clone(),
 						port: input_name.clone(),
 					},
 				)?;
 			}
 
-			node_name_map.insert(node_name.into(), nodes.len());
+			node_name_map.insert(node_name.clone(), nodes.len());
 			nodes.push(node_spec.node_type.build(node_name.into()));
 		}
 
@@ -294,8 +288,7 @@ impl PipelineSpec {
 		for (out_name, out_link) in &self.config.output_map {
 			self.check_link(
 				out_link,
-				&NodeInput::Node {
-					node: PipelineNode::External,
+				&NodeInput::Pipeline {
 					port: out_name.clone(),
 				},
 			)?;
@@ -303,7 +296,7 @@ impl PipelineSpec {
 
 		// Build graph
 		for (node_name, node_spec) in &self.nodes {
-			let node_idx = *node_name_map.get(&node_name.into()).unwrap();
+			let node_idx = *node_name_map.get(&node_name).unwrap();
 			for (input_name, out_link) in node_spec.input.iter() {
 				let in_port = node_spec
 					.node_type
@@ -316,6 +309,7 @@ impl PipelineSpec {
 					&mut nodes,
 					&mut edges,
 					&node_name_map,
+					external_node_idx,
 					in_port,
 					node_idx,
 					out_link,
@@ -338,13 +332,14 @@ impl PipelineSpec {
 				&mut nodes,
 				&mut edges,
 				&node_name_map,
+				external_node_idx,
 				self.config
 					.output
 					.get_inputs()
 					.find_with_name(port_label)
 					.unwrap()
 					.0,
-				*node_name_map.get(&PipelineNode::External).unwrap(),
+				external_node_idx,
 				node_output,
 			)
 		}
@@ -363,7 +358,7 @@ impl PipelineSpec {
 
 			edge_map_out: edge_map,
 			edge_map_in: rev_edge_map,
-			external_node_idx: *node_name_map.get(&PipelineNode::External).unwrap(),
+			external_node_idx,
 
 			config: self.config.clone(),
 		});
