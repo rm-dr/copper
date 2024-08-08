@@ -124,7 +124,7 @@ export function useDeleteAttrModal(params: {
 							variant="light"
 							fullWidth
 							color="red"
-							onMouseDown={reset}
+							onClick={reset}
 							disabled={isLoading}
 						>
 							Cancel

@@ -52,7 +52,11 @@ const SideBar = () => {
 		>
 			<div
 				className={styles.menubutton}
-				onMouseDown={toggle}
+				onMouseDown={(e) => {
+					if (e.button === 0) {
+						toggle();
+					}
+				}}
 				onMouseEnter={() => {
 					setMenuHover(true);
 				}}

@@ -7,7 +7,7 @@ import {
 	IconChevronRightPipe,
 	IconDots,
 	IconSortDescending,
-	IconTrack,
+	IconTrash,
 } from "@tabler/icons-react";
 
 export function ColumnHeader(params: {
@@ -108,7 +108,7 @@ function ColumnMenu(params: {
 						color="red"
 						leftSection={
 							<XIcon
-								icon={IconTrack}
+								icon={IconTrash}
 								style={{ width: rem(14), height: rem(14) }}
 							/>
 						}

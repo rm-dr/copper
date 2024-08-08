@@ -273,7 +273,7 @@ export function useAddAttrModal(params: {
 						variant="light"
 						fullWidth
 						color="red"
-						onMouseDown={close}
+						onClick={close}
 						disabled={isLoading}
 					>
 						Cancel

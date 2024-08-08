@@ -13,11 +13,13 @@ export function PanelSwitch(params: {
 		<div className={styles.panelpart}>
 			<div
 				className={styles.label}
-				onMouseDown={() => {
-					if (params.onChange !== undefined) {
-						params.onChange(!checked);
+				onMouseDown={(e) => {
+					if (e.button === 0) {
+						if (params.onChange !== undefined) {
+							params.onChange(!checked);
+						}
+						setChecked(!checked);
 					}
-					setChecked(!checked);
 				}}
 			>
 				<div>{params.name}</div>

@@ -542,7 +542,11 @@ const ItemTable = (params: {
 							{idx === 0 ? null : (
 								<div
 									style={{ height: "100%" }}
-									onMouseDown={() => resizeStart(idx - 1)}
+									onMouseDown={(e) => {
+										if (e.button === 0) {
+											resizeStart(idx - 1);
+										}
+									}}
 									className={clsx(
 										styles.resize_handle,
 										activeResizeHandle === idx - 1 && styles.active,

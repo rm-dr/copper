@@ -66,8 +66,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Tag node types
 
 ## 📦 UI Cleanup
-- [ ] why is ui so slow?
-- [ ] onmousedown: check button, catch keyboard input
 - [ ] tab all interactables
 - [ ] Next cache config
 - [ ] Font
@@ -75,10 +73,10 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Prettier errors from server (markdown? might be overkill.)
 - [ ] Fade bottom of all scrolls (component)
 - [ ] Loading state for modals
+- [ ] Modal builder
 - [ ] Add attr form
 - [ ] Sidebar & top bar shadow
 - [ ] Item table dynamic height
-- [ ] "No class" tree item
 - [ ] Icons in attr & dataset dropdown (component)
 
 

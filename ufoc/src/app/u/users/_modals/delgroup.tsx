@@ -116,7 +116,7 @@ export function useDeleteGroupModal(params: {
 							variant="light"
 							fullWidth
 							color="red"
-							onMouseDown={reset}
+							onClick={reset}
 							disabled={isLoading}
 						>
 							Cancel

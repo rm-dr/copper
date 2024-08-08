@@ -100,7 +100,7 @@ export function useNewDsModal(onSuccess: () => void) {
 							variant="light"
 							fullWidth
 							color="red"
-							onMouseDown={reset}
+							onClick={reset}
 							disabled={isLoading}
 						>
 							Cancel
