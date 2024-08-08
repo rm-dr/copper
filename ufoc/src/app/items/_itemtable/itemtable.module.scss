@@ -58,6 +58,13 @@
 				background-color: var(--mantine-color-dark-6);
 			}
 		}
+
+		.menuicon {
+			display: flex;
+			width: 1.5rem;
+			height: 1.5rem;
+			align-items: center;
+		}
 	}
 
 	// no border for topmost tr
@@ -74,13 +81,4 @@
 	td:nth-child(n + 2) {
 		border-left: 1px solid var(--mantine-color-dark-5);
 	}
-}
-
-// TODO: rewrite  \/
-.itemtable th span,
-.itemtable td span {
-	white-space: nowrap;
-	text-overflow: ellipsis;
-	overflow: hidden;
-	display: block;
 }
