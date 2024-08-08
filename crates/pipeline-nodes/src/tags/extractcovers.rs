@@ -1,22 +1,24 @@
 use crossbeam::channel::Receiver;
 use std::{io::Seek, sync::Arc};
 use ufo_audiofile::flac::flac_read_pictures;
-use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
+use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 
-use crate::{errors::PipelineError, helpers::ArcVecBuffer, traits::UFOStaticNode, UFOContext};
+use crate::{
+	data::UFOData, errors::PipelineError, helpers::ArcVecBuffer, traits::UFOStaticNode, UFOContext,
+};
 
 pub struct ExtractCovers {
-	data: Option<MetaDbData>,
+	data: Option<UFOData>,
 	buffer: ArcVecBuffer,
-	input_receiver: Receiver<(usize, MetaDbData)>,
+	input_receiver: Receiver<(usize, UFOData)>,
 }
 
 impl ExtractCovers {
 	pub fn new(
 		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, MetaDbData)>,
+		input_receiver: Receiver<(usize, UFOData)>,
 	) -> Self {
 		Self {
 			data: None,
@@ -28,12 +30,12 @@ impl ExtractCovers {
 
 impl PipelineNode for ExtractCovers {
 	type NodeContext = UFOContext;
-	type DataType = MetaDbData;
+	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
+		F: Fn(usize, UFOData) -> Result<(), PipelineError>,
 	{
 		loop {
 			match self.input_receiver.try_recv() {
@@ -64,7 +66,7 @@ impl PipelineNode for ExtractCovers {
 		}
 
 		let (data_type, data) = match self.data.as_mut().unwrap() {
-			MetaDbData::Blob {
+			UFOData::Blob {
 				format: data_type,
 				data,
 			} => (data_type, data),
@@ -77,7 +79,7 @@ impl PipelineNode for ExtractCovers {
 				// We couldn't read a flac metadata header,
 				// probably consumed a bad stream.
 				// TODO: this should be an error
-				send_data(0, MetaDbData::None(MetaDbDataStub::Binary))?;
+				send_data(0, UFOData::None(MetaDbDataStub::Binary))?;
 				return Ok(PipelineNodeState::Done);
 			}
 			(false, false) => return Ok(PipelineNodeState::Pending("no new data")),
@@ -101,13 +103,13 @@ impl PipelineNode for ExtractCovers {
 		if let Some(picture) = picture {
 			send_data(
 				0,
-				MetaDbData::Binary {
+				UFOData::Binary {
 					format: picture.get_mime().clone(),
 					data: Arc::new(picture.take_img_data()),
 				},
 			)?;
 		} else {
-			send_data(0, MetaDbData::None(MetaDbDataStub::Binary))?;
+			send_data(0, UFOData::None(MetaDbDataStub::Binary))?;
 		}
 
 		return Ok(PipelineNodeState::Done);

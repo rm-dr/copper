@@ -1,23 +1,25 @@
 use crossbeam::channel::Receiver;
-use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
+use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
 };
 
-use crate::{errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext};
+use crate::{
+	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
+};
 
 #[derive(Clone)]
 pub struct IfNone {
-	input_receiver: Receiver<(usize, MetaDbData)>,
-	ifnone: Option<MetaDbData>,
-	input: Option<MetaDbData>,
+	input_receiver: Receiver<(usize, UFOData)>,
+	ifnone: Option<UFOData>,
+	input: Option<UFOData>,
 }
 
 impl IfNone {
 	pub fn new(
 		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, MetaDbData)>,
+		input_receiver: Receiver<(usize, UFOData)>,
 	) -> Self {
 		Self {
 			input_receiver,
@@ -29,12 +31,12 @@ impl IfNone {
 
 impl PipelineNode for IfNone {
 	type NodeContext = UFOContext;
-	type DataType = MetaDbData;
+	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		loop {
 			match self.input_receiver.try_recv() {
@@ -70,7 +72,7 @@ impl PipelineNode for IfNone {
 		send_data(
 			0,
 			match self.input.take().unwrap() {
-				MetaDbData::None(_) => self.ifnone.take().unwrap(),
+				UFOData::None(_) => self.ifnone.take().unwrap(),
 				x => x,
 			},
 		)?;

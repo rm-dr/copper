@@ -1,22 +1,24 @@
 use crossbeam::channel::Receiver;
-use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
+use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
 };
 
-use crate::{errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext};
+use crate::{
+	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
+};
 
 #[derive(Clone)]
 pub struct Noop {
 	inputs: Vec<(PipelinePortLabel, MetaDbDataStub, bool)>,
-	input_receiver: Receiver<(usize, MetaDbData)>,
+	input_receiver: Receiver<(usize, UFOData)>,
 }
 
 impl Noop {
 	pub fn new(
 		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, MetaDbData)>,
+		input_receiver: Receiver<(usize, UFOData)>,
 		inputs: Vec<(PipelinePortLabel, MetaDbDataStub)>,
 	) -> Self {
 		Self {
@@ -28,12 +30,12 @@ impl Noop {
 
 impl PipelineNode for Noop {
 	type NodeContext = UFOContext;
-	type DataType = MetaDbData;
+	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		loop {
 			match self.input_receiver.try_recv() {

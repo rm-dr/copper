@@ -2,7 +2,7 @@ use crossbeam::channel::Receiver;
 use serde::Deserialize;
 use serde_with::serde_as;
 use ufo_audiofile::common::tagtype::TagType;
-use ufo_metadb::data::{HashType, MetaDbData, MetaDbDataStub};
+use ufo_metadb::data::{HashType, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeStub},
 	labels::PipelinePortLabel,
@@ -15,6 +15,7 @@ use super::{
 	util::{constant::Constant, ifnone::IfNone, noop::Noop, print::Print},
 };
 use crate::{
+	data::UFOData,
 	input::file::FileReader,
 	output::addtodataset::AddToDataset,
 	tags::{extractcovers::ExtractCovers, striptags::StripTags},
@@ -30,7 +31,7 @@ pub enum UFONodeType {
 	// Utility nodes
 	Print,
 	Constant {
-		value: MetaDbData,
+		value: UFOData,
 	},
 	IfNone {
 		data_type: MetaDbDataStub,
@@ -66,7 +67,7 @@ impl PipelineNodeStub for UFONodeType {
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		name: &str,
 
-		input_receiver: Receiver<(usize, MetaDbData)>,
+		input_receiver: Receiver<(usize, UFOData)>,
 	) -> UFONodeInstance {
 		match self {
 			// Magic

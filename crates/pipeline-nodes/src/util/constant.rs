@@ -1,23 +1,25 @@
 use crossbeam::channel::Receiver;
-use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
+use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::{
 	api::{PipelineData, PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
 };
 
-use crate::{errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext};
+use crate::{
+	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
+};
 
 #[derive(Clone)]
 pub struct Constant {
-	value: MetaDbData,
-	input_receiver: Receiver<(usize, MetaDbData)>,
+	value: UFOData,
+	input_receiver: Receiver<(usize, UFOData)>,
 }
 
 impl Constant {
 	pub fn new(
 		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, MetaDbData)>,
-		value: MetaDbData,
+		input_receiver: Receiver<(usize, UFOData)>,
+		value: UFOData,
 	) -> Self {
 		Self {
 			value,
@@ -28,12 +30,12 @@ impl Constant {
 
 impl PipelineNode for Constant {
 	type NodeContext = UFOContext;
-	type DataType = MetaDbData;
+	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		loop {
 			match self.input_receiver.try_recv() {

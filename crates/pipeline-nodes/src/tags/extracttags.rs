@@ -2,7 +2,7 @@ use crossbeam::channel::Receiver;
 use itertools::Itertools;
 use std::{io::Seek, sync::Arc};
 use ufo_audiofile::{common::tagtype::TagType, flac::flac_read_tags};
-use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
+use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
@@ -10,22 +10,22 @@ use ufo_pipeline::{
 use ufo_util::mime::MimeType;
 
 use crate::{
-	errors::PipelineError, helpers::ArcVecBuffer, nodetype::UFONodeType, traits::UFONode,
-	UFOContext,
+	data::UFOData, errors::PipelineError, helpers::ArcVecBuffer, nodetype::UFONodeType,
+	traits::UFONode, UFOContext,
 };
 
 // TODO: fail after max buffer size
 pub struct ExtractTags {
-	data: Option<MetaDbData>,
+	data: Option<UFOData>,
 	tags: Vec<TagType>,
 	buffer: ArcVecBuffer,
-	input_receiver: Receiver<(usize, MetaDbData)>,
+	input_receiver: Receiver<(usize, UFOData)>,
 }
 
 impl ExtractTags {
 	pub fn new(
 		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, MetaDbData)>,
+		input_receiver: Receiver<(usize, UFOData)>,
 		tags: Vec<TagType>,
 	) -> Self {
 		Self {
@@ -39,12 +39,12 @@ impl ExtractTags {
 
 impl PipelineNode for ExtractTags {
 	type NodeContext = UFOContext;
-	type DataType = MetaDbData;
+	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
+		F: Fn(usize, UFOData) -> Result<(), PipelineError>,
 	{
 		loop {
 			match self.input_receiver.try_recv() {
@@ -75,7 +75,7 @@ impl PipelineNode for ExtractTags {
 		}
 
 		let (data_type, data) = match self.data.as_mut().unwrap() {
-			MetaDbData::Blob {
+			UFOData::Blob {
 				format: data_type,
 				data,
 			} => (data_type, data),
@@ -109,9 +109,9 @@ impl PipelineNode for ExtractTags {
 
 		for (i, tag_type) in self.tags.iter().enumerate() {
 			if let Some(tag_value) = tagger.get_tag(tag_type) {
-				send_data(i, MetaDbData::Text(Arc::new(tag_value)))?;
+				send_data(i, UFOData::Text(Arc::new(tag_value)))?;
 			} else {
-				send_data(i, MetaDbData::None(MetaDbDataStub::Text))?;
+				send_data(i, UFOData::None(MetaDbDataStub::Text))?;
 			}
 		}
 

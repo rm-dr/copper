@@ -1,22 +1,24 @@
 use crossbeam::channel::Receiver;
-use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
+use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
 };
 
-use crate::{errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext};
+use crate::{
+	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
+};
 
 #[derive(Clone)]
 pub struct Print {
-	input_receiver: Receiver<(usize, MetaDbData)>,
+	input_receiver: Receiver<(usize, UFOData)>,
 	has_received: bool,
 }
 
 impl Print {
 	pub fn new(
 		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, MetaDbData)>,
+		input_receiver: Receiver<(usize, UFOData)>,
 	) -> Self {
 		Self {
 			input_receiver,
@@ -27,12 +29,12 @@ impl Print {
 
 impl PipelineNode for Print {
 	type NodeContext = UFOContext;
-	type DataType = MetaDbData;
+	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		loop {
 			match self.input_receiver.try_recv() {
@@ -55,7 +57,7 @@ impl PipelineNode for Print {
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
+		F: Fn(usize, UFOData) -> Result<(), PipelineError>,
 	{
 		if self.has_received {
 			Ok(PipelineNodeState::Done)

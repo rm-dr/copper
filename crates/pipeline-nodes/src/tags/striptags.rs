@@ -1,10 +1,11 @@
 use crossbeam::channel::Receiver;
 use std::{io::Read, sync::Arc};
 use ufo_audiofile::flac::metastrip::{FlacMetaStrip, FlacMetaStripSelector};
-use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
+use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 
 use crate::{
+	data::UFOData,
 	errors::PipelineError,
 	helpers::{ArcVecBuffer, HoldSender},
 	traits::UFOStaticNode,
@@ -20,14 +21,14 @@ pub struct StripTags {
 	is_done: bool,
 	strip: FlacMetaStrip,
 	buffer: ArcVecBuffer,
-	input_receiver: Receiver<(usize, MetaDbData)>,
+	input_receiver: Receiver<(usize, UFOData)>,
 	sender: Option<HoldSender>,
 }
 
 impl StripTags {
 	pub fn new(
 		ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, MetaDbData)>,
+		input_receiver: Receiver<(usize, UFOData)>,
 	) -> Self {
 		Self {
 			blob_channel_capacity: ctx.blob_channel_capacity,
@@ -50,12 +51,12 @@ impl StripTags {
 
 impl PipelineNode for StripTags {
 	type NodeContext = UFOContext;
-	type DataType = MetaDbData;
+	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		loop {
 			match self.input_receiver.try_recv() {
@@ -67,7 +68,7 @@ impl PipelineNode for StripTags {
 					0 => {
 						// Read latest data from receiver
 						let (data_type, data) = match data {
-							MetaDbData::Blob {
+							UFOData::Blob {
 								format: data_type,
 								data,
 							} => (data_type, data),
@@ -81,7 +82,7 @@ impl PipelineNode for StripTags {
 						self.sender = Some(hs);
 						send_data(
 							0,
-							MetaDbData::Blob {
+							UFOData::Blob {
 								format: data_type,
 								data: recv,
 							},

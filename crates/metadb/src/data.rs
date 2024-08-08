@@ -1,48 +1,34 @@
-use async_broadcast::Receiver;
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
+use ufo_blobstore::fs::store::FsBlobHandle;
 use ufo_pipeline::api::{PipelineData, PipelineDataStub};
 use ufo_util::mime::MimeType;
 
 use crate::api::{ClassHandle, ItemHandle};
 
-/// Immutable bits of data.
-///
-/// Cloning [`StorageData`] should be very fast. Consider wrapping
-/// big containers in an [`Arc`].
-///
-/// Any variant that has a "deserialize" implementation
-/// may be used as a parameter in certain nodes.
-/// (for example, the `Constant` node's `value` field)
-#[derive(Debug, Clone, Deserialize)]
-#[serde(untagged)]
+/// Bits of data inside a metadata db.
+#[derive(Debug, Clone)]
 pub enum MetaDbData {
 	/// Typed, unset data
-	#[serde(skip)]
 	None(MetaDbDataStub),
 
 	/// A block of text
 	Text(Arc<String>),
 
 	/// A filesystem path
-	#[serde(skip)]
 	Path(Arc<PathBuf>),
 
 	/// An integer
-	#[serde(skip)]
 	Integer(i64),
 
 	/// A positive integer
-	#[serde(skip)]
 	PositiveInteger(u64),
 
 	/// A float
-	#[serde(skip)]
 	Float(f64),
 
 	/// A checksum
-	#[serde(skip)]
 	Hash {
 		format: HashType,
 		data: Arc<Vec<u8>>,
@@ -50,7 +36,6 @@ pub enum MetaDbData {
 
 	/// Small binary data.
 	/// This will be stored in the metadata db.
-	#[serde(skip)]
 	Binary {
 		/// This data's media type
 		format: MimeType,
@@ -59,18 +44,9 @@ pub enum MetaDbData {
 		data: Arc<Vec<u8>>,
 	},
 
-	/// Big binary data.
-	/// This will be stored in the blob store.
-	#[serde(skip)]
-	Blob {
-		/// This data's media type
-		format: MimeType,
+	/// Big binary data stored in the blob store.
+	Blob { handle: FsBlobHandle },
 
-		/// A receiver that provides data
-		data: Receiver<Arc<Vec<u8>>>,
-	},
-
-	#[serde(skip)]
 	Reference {
 		/// The item class this
 		class: ClassHandle,
@@ -79,9 +55,6 @@ pub enum MetaDbData {
 		item: ItemHandle,
 	},
 }
-
-// TODO: split deserialize?
-// TODO: better debug
 
 impl PipelineData for MetaDbData {
 	type DataStub = MetaDbDataStub;

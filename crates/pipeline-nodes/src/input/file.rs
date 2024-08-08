@@ -1,17 +1,19 @@
 use crossbeam::channel::Receiver;
 use std::{fs::File, io::Read, path::PathBuf, sync::Arc};
-use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
+use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 
-use crate::{errors::PipelineError, helpers::HoldSender, traits::UFOStaticNode, UFOContext};
+use crate::{
+	data::UFOData, errors::PipelineError, helpers::HoldSender, traits::UFOStaticNode, UFOContext,
+};
 
 /// A node that reads data from a file
 pub struct FileReader {
 	blob_fragment_size: usize,
 	blob_channel_capacity: usize,
 
-	input_receiver: Receiver<(usize, MetaDbData)>,
+	input_receiver: Receiver<(usize, UFOData)>,
 
 	path: Option<PathBuf>,
 	file: Option<File>,
@@ -24,7 +26,7 @@ impl FileReader {
 	/// Make a new [`FileReader`]
 	pub fn new(
 		ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, MetaDbData)>,
+		input_receiver: Receiver<(usize, UFOData)>,
 	) -> Self {
 		FileReader {
 			input_receiver,
@@ -42,12 +44,12 @@ impl FileReader {
 
 impl PipelineNode for FileReader {
 	type NodeContext = UFOContext;
-	type DataType = MetaDbData;
+	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		loop {
 			match self.input_receiver.try_recv() {
@@ -58,14 +60,14 @@ impl PipelineNode for FileReader {
 				Ok((port, data)) => match port {
 					0 => {
 						self.path = match data {
-							MetaDbData::Path(p) => Some((*p).clone()),
+							UFOData::Path(p) => Some((*p).clone()),
 							x => panic!("bad data {x:?}"),
 						};
 
 						self.file = Some(File::open(self.path.as_ref().unwrap()).unwrap());
 						send_data(
 							0,
-							MetaDbData::Path(Arc::new(self.path.as_ref().unwrap().clone())),
+							UFOData::Path(Arc::new(self.path.as_ref().unwrap().clone())),
 						)?;
 
 						// Prepare sender
@@ -73,7 +75,7 @@ impl PipelineNode for FileReader {
 						self.sender = Some(hs);
 						send_data(
 							1,
-							MetaDbData::Blob {
+							UFOData::Blob {
 								format: {
 									self.path
 										.as_ref()

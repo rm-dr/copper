@@ -2,13 +2,15 @@ use async_broadcast::TryRecvError;
 use crossbeam::channel::Receiver;
 use sha2::{Digest, Sha256, Sha512};
 use std::sync::Arc;
-use ufo_metadb::data::{HashType, MetaDbData, MetaDbDataStub};
+use ufo_metadb::data::{HashType, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
 };
 
-use crate::{errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext};
+use crate::{
+	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
+};
 
 enum HashComputer {
 	MD5 { context: md5::Context },
@@ -53,7 +55,7 @@ impl HashComputer {
 		}
 	}
 
-	fn finish(self) -> MetaDbData {
+	fn finish(self) -> UFOData {
 		let format = self.hash_type();
 		let v = match self {
 			Self::MD5 { context } => context.compute().to_vec(),
@@ -61,7 +63,7 @@ impl HashComputer {
 			Self::SHA512 { hasher } => hasher.finalize().to_vec(),
 		};
 
-		MetaDbData::Hash {
+		UFOData::Hash {
 			format,
 			data: Arc::new(v),
 		}
@@ -69,15 +71,15 @@ impl HashComputer {
 }
 
 pub struct Hash {
-	data: Option<MetaDbData>,
+	data: Option<UFOData>,
 	hasher: Option<HashComputer>,
-	input_receiver: Receiver<(usize, MetaDbData)>,
+	input_receiver: Receiver<(usize, UFOData)>,
 }
 
 impl Hash {
 	pub fn new(
 		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, MetaDbData)>,
+		input_receiver: Receiver<(usize, UFOData)>,
 		hash_type: HashType,
 	) -> Self {
 		Self {
@@ -90,12 +92,12 @@ impl Hash {
 
 impl PipelineNode for Hash {
 	type NodeContext = UFOContext;
-	type DataType = MetaDbData;
+	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		loop {
 			match self.input_receiver.try_recv() {
@@ -126,12 +128,12 @@ impl PipelineNode for Hash {
 		}
 
 		match self.data.as_mut().unwrap() {
-			MetaDbData::Binary { data, .. } => {
+			UFOData::Binary { data, .. } => {
 				self.hasher.as_mut().unwrap().update(&**data);
 				send_data(0, self.hasher.take().unwrap().finish())?;
 				return Ok(PipelineNodeState::Done);
 			}
-			MetaDbData::Blob { data, .. } => loop {
+			UFOData::Blob { data, .. } => loop {
 				match data.try_recv() {
 					Err(TryRecvError::Closed) => {
 						send_data(0, self.hasher.take().unwrap().finish())?;
