@@ -27,5 +27,9 @@
 		"src/**/*.tsx",
 		".next/types/**/*.ts"
 	],
-	"exclude": ["node_modules"]
+	"exclude": ["node_modules"],
+
+	// Do not check node_modules
+	// (fix for enableProjectDiagnostics in vscode )
+	"skipLibCheck": true
 }

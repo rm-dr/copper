@@ -1,3 +1,6 @@
 {
-    "editor.formatOnSave": true
+	"editor.formatOnSave": true,
+
+	// Force ts to check whole project
+	"typescript.tsserver.experimental.enableProjectDiagnostics": true
 }
