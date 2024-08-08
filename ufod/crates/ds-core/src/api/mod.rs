@@ -6,6 +6,6 @@ pub mod pipe;
 
 pub trait Dataset<PipelineNodeStubType: PipelineNodeStub>
 where
-	Self: blob::Blobstore + meta::Metastore + pipe::Pipestore<PipelineNodeStubType>,
+	Self: blob::Blobstore + meta::Metastore + pipe::Pipestore<PipelineNodeStubType> + Send + Sync,
 {
 }
