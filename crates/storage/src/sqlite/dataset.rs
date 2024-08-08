@@ -3,11 +3,6 @@ use crate::{
 	data::{StorageData, StorageDataStub},
 	errors::DatasetError,
 };
-use base64::{
-	alphabet::Alphabet,
-	engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig},
-	Engine,
-};
 use futures::executor::block_on;
 use itertools::Itertools;
 use smartstring::{LazyCompact, SmartString};
@@ -23,26 +18,13 @@ pub struct SQLiteDataset {
 	/// A connection to a database.
 	/// `None` if disconnected.
 	conn: Option<SqliteConnection>,
-
-	/// Base64 sanitizer for user-provided strings.
-	name_sanitizer: GeneralPurpose,
 }
 
 impl SQLiteDataset {
 	pub fn new(database: &str) -> Self {
-		// Nonstandard base 64
-		let name_sanitizer = GeneralPurpose::new(
-			&Alphabet::new("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-+")
-				.unwrap(),
-			GeneralPurposeConfig::new()
-				.with_encode_padding(false)
-				.with_decode_padding_mode(DecodePaddingMode::RequireNone),
-		);
-
 		Self {
 			database: database.into(),
 			conn: None,
-			name_sanitizer,
 		}
 	}
 
@@ -53,7 +35,7 @@ impl SQLiteDataset {
 
 		block_on(
 			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?, ?);")
-				.bind("created_version")
+				.bind("ufo_version")
 				.bind(env!("CARGO_PKG_VERSION"))
 				.execute(&mut conn),
 		)
@@ -64,30 +46,6 @@ impl SQLiteDataset {
 		// TODO: load & check metadata, don't destroy db
 		Ok(())
 	}
-
-	/// Characters that won't be sanitized in table and column names
-	const ALLOWED_NAME_CHARS: &'static str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-
-	/// Sanitize a user-provided string for use as an sql table or column name.
-	///
-	/// This may still contain a keyword like "JOIN". To prevent problems, always
-	/// put table and column names in quotes when writing queries.
-	#[inline(always)]
-	fn sanitize_name(&self, prefix: &str, name: &str) -> String {
-		let mut all_ok = true;
-		for i in name.chars() {
-			if !Self::ALLOWED_NAME_CHARS.contains(i) {
-				all_ok = false;
-				break;
-			}
-		}
-
-		if all_ok {
-			format!("{prefix}_{name}")
-		} else {
-			format!("{prefix}_{}", self.name_sanitizer.encode(name.as_bytes()))
-		}
-	}
 }
 
 // SQL helper functions
@@ -96,10 +54,9 @@ impl SQLiteDataset {
 	where
 		E: Executor<'c, Database = Sqlite>,
 	{
-		// Find table to modify
-		let table_name: String = {
+		let id: u32 = {
 			let res = block_on(
-				sqlx::query("SELECT table_name FROM meta_classes WHERE id=?;")
+				sqlx::query("SELECT id FROM meta_classes WHERE id=?;")
 					.bind(u32::from(class))
 					.fetch_one(executor),
 			);
@@ -109,11 +66,11 @@ impl SQLiteDataset {
 					return Err(DatasetError::BadClassHandle);
 				}
 				Err(e) => return Err(e.into()),
-				Ok(res) => res.get("table_name"),
+				Ok(res) => res.get("id"),
 			}
 		};
 
-		Ok(table_name)
+		Ok(format!("class_{id}"))
 	}
 
 	fn bind_storage<'a>(
@@ -142,8 +99,6 @@ impl Dataset for SQLiteDataset {
 		data_type: StorageDataStub,
 		options: AttributeOptions,
 	) -> Result<AttrHandle, DatasetError> {
-		let column_name = self.sanitize_name("attr", attr_name);
-
 		// Start transaction
 		let mut t = if let Some(ref mut conn) = self.conn {
 			block_on(conn.begin())?
@@ -157,13 +112,12 @@ impl Dataset for SQLiteDataset {
 				sqlx::query(
 					"
 				INSERT INTO meta_attributes (
-					class_id, column_name, pretty_name, data_type,
+					class_id, pretty_name, data_type,
 					is_unique, is_not_null
-				) VALUES (?, ?, ?, ?, ?, ?);
+				) VALUES (?, ?, ?, ?, ?);
 				",
 				)
 				.bind(u32::from(class))
-				.bind(&column_name)
 				.bind(attr_name)
 				.bind(data_type.to_db_str())
 				.bind(options.unique)
@@ -183,6 +137,7 @@ impl Dataset for SQLiteDataset {
 				Ok(x) => x.last_insert_rowid(),
 			}
 		};
+		let column_name = format!("attr_{new_attr_id}");
 
 		// Find table to modify
 		let table_name = Self::get_table_name(&mut *t, class)?;
@@ -204,15 +159,15 @@ impl Dataset for SQLiteDataset {
 		// Add foreign key if necessary
 		let references = match data_type {
 			StorageDataStub::Reference { class } => {
-				let table_name: String = {
+				let id: u32 = {
 					let res = block_on(
-						sqlx::query("SELECT table_name FROM meta_classes WHERE id=?;")
+						sqlx::query("SELECT id FROM meta_classes WHERE id=?;")
 							.bind(u32::from(class))
 							.fetch_one(&mut *t),
 					)?;
-					res.get("table_name")
+					res.get("id")
 				};
-				format!(" REFERENCES \"{table_name}\"(id)")
+				format!(" REFERENCES \"class_{id}\"(id)")
 			}
 			_ => "".into(),
 		};
@@ -227,7 +182,6 @@ impl Dataset for SQLiteDataset {
 
 		// Add unique constraint if necessary
 		if options.unique {
-			// TODO: unique name (what if renamed?)
 			block_on(
 				sqlx::query(&format!(
 					"CREATE UNIQUE INDEX \"unique_{table_name}_{column_name}\" ON \"{table_name}\"(\"{column_name}\");",
@@ -243,8 +197,6 @@ impl Dataset for SQLiteDataset {
 	}
 
 	fn add_class(&mut self, class_name: &str) -> Result<ClassHandle, DatasetError> {
-		let table_name = self.sanitize_name("class", class_name);
-
 		// Start transaction
 		let mut t = if let Some(ref mut conn) = self.conn {
 			block_on(conn.begin())?
@@ -255,8 +207,7 @@ impl Dataset for SQLiteDataset {
 		// Add metadata
 		let new_class_id = {
 			let res = block_on(
-				sqlx::query("INSERT INTO meta_classes (table_name, pretty_name) VALUES (?, ?);")
-					.bind(&table_name)
+				sqlx::query("INSERT INTO meta_classes (pretty_name) VALUES (?);")
 					.bind(class_name)
 					.execute(&mut *t),
 			);
@@ -273,6 +224,7 @@ impl Dataset for SQLiteDataset {
 				Ok(res) => res.last_insert_rowid(),
 			}
 		};
+		let table_name = format!("class_{new_class_id}");
 
 		// Create new table
 		block_on(
@@ -315,20 +267,20 @@ impl Dataset for SQLiteDataset {
 				let mut attr_names: Vec<String> = Vec::new();
 				for (a, _) in attrs {
 					let res = block_on(
-						sqlx::query("SELECT column_name FROM meta_attributes WHERE id=?;")
+						sqlx::query("SELECT id FROM meta_attributes WHERE id=?;")
 							.bind(u32::from(*a))
 							.fetch_one(&mut *t),
 					);
 
-					let column_name: String = match res {
+					let column_id: u32 = match res {
 						Err(sqlx::Error::RowNotFound) => {
 							return Err(DatasetError::BadClassHandle);
 						}
 						Err(e) => return Err(e.into()),
-						Ok(res) => res.get("column_name"),
+						Ok(res) => res.get("id"),
 					};
 
-					attr_names.push(format!("\"{column_name}\""));
+					attr_names.push(format!("\"attr_{column_id}\""));
 				}
 
 				(
@@ -451,7 +403,7 @@ impl Dataset for SQLiteDataset {
 			let res = block_on(
 				sqlx::query(
 					"
-				SELECT column_name, meta_classes.table_name, is_not_null
+				SELECT meta_classes.id, meta_attributes.id, is_not_null
 				FROM meta_attributes
 				INNER JOIN meta_classes ON meta_classes.id = meta_attributes.class_id
 				WHERE meta_attributes.id=?;
@@ -464,11 +416,16 @@ impl Dataset for SQLiteDataset {
 			match res {
 				Err(sqlx::Error::RowNotFound) => Err(DatasetError::BadAttrHandle),
 				Err(e) => Err(e.into()),
-				Ok(res) => Ok((
-					res.get("table_name"),
-					res.get("column_name"),
-					res.get::<bool, _>("is_not_null"),
-				)),
+				Ok(res) => {
+					let class_id: u32 = res.get("meta_classes.id");
+					let attr_id: u32 = res.get("meta_attributes.id");
+
+					Ok((
+						format!("class_{class_id}"),
+						format!("attr_{attr_id}"),
+						res.get::<bool, _>("is_not_null"),
+					))
+				}
 			}
 		}?;
 

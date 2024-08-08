@@ -26,9 +26,7 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- Better db index names
 - Ifnone general type
-
 - Load and check db metadata
 - elegantly handle duplicate album art
 

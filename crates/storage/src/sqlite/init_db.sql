@@ -8,10 +8,6 @@ CREATE TABLE IF NOT EXISTS meta_meta (
 CREATE TABLE IF NOT EXISTS meta_classes (
 	id INTEGER PRIMARY KEY NOT NULL,
 
-	-- The name of this class' table in the db
-	-- (sanitized)
-	table_name TEXT NOT NULL UNIQUE,
-
 	-- This class' display name
 	pretty_name TEXT NOT NULL
 );
@@ -23,9 +19,6 @@ CREATE TABLE IF NOT EXISTS meta_attributes (
 
 	-- The class this attribute belongs to
 	class_id INTEGER,
-
-	-- The name of this attr's column in its class' table
-	column_name TEXT NOT NULL,
 
 	-- This attr's display name
 	pretty_name TEXT NOT NULL,
@@ -42,8 +35,6 @@ CREATE TABLE IF NOT EXISTS meta_attributes (
 
 	FOREIGN KEY (class_id) REFERENCES meta_classes(id)
 
-	UNIQUE (column_name, class_id) -- Attribute names must be unique within a class
-	-- `column_name` is a function of `pretty_name`, so this is somewhat redundant...
-	-- but we keep the constraint anyway, just in case.
+	-- Attribute names must be unique within a class
 	UNIQUE (pretty_name, class_id)
 );
