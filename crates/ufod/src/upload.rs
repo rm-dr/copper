@@ -1,6 +1,6 @@
 use std::{
-	fs::{File, OpenOptions},
-	io::Write,
+	fs::File,
+	io::{Read, Write},
 	path::PathBuf,
 	sync::Arc,
 	time::Instant,
@@ -43,14 +43,11 @@ struct UploadJob {
 	files: Vec<UploadJobFile>,
 }
 
+#[derive(Clone)]
 struct UploadJobFile {
 	name: SmartString<LazyCompact>,
-	path: PathBuf,
 	file_type: MimeType,
-
-	fragments_received: u32,
 	is_done: bool,
-	hasher: Option<Sha256>,
 }
 
 #[derive(Debug)]
@@ -180,13 +177,10 @@ impl Uploader {
 	) -> Option<PathBuf> {
 		let jobs = self.jobs.lock().await;
 
-		// Try to find the given job
 		let job = jobs.iter().find(|us| us.id == *job_id)?;
-
-		// Try to find the given file
 		let file = job.files.iter().find(|f| f.name == *file_name)?;
 
-		return Some(file.path.clone());
+		return Some(job.dir.join(file.name.as_str()));
 	}
 
 	/// Has the given file been finished?
@@ -199,7 +193,7 @@ impl Uploader {
 
 		let job = jobs.iter().find(|us| us.id == *job_id)?;
 		let file = job.files.iter().find(|f| f.name == *file_name)?;
-		return Some(file.hasher.is_none());
+		return Some(file.is_done);
 	}
 
 	/// Bind the given job to the given pipeline.
@@ -328,33 +322,10 @@ impl Uploader {
 			}
 		};
 
-		// Create the file
-		let file_path = job.dir.join(&file_name);
-		match File::create(&file_path) {
-			Ok(_) => {}
-			Err(e) => {
-				error!(
-					message = "Could not initialize file in upload job",
-					job = ?job.id,
-					error = ?e,
-				);
-
-				return (
-					StatusCode::INTERNAL_SERVER_ERROR,
-					format!("could not create file {file_name} for upload job {upload_job_id}"),
-				)
-					.into_response();
-			}
-		}
-
 		job.files.push(UploadJobFile {
 			name: file_name.clone().into(),
-			path: file_path,
 			file_type: start_info.file_type.clone(),
-
-			fragments_received: 0,
 			is_done: false,
-			hasher: Some(Sha256::new()),
 		});
 
 		info!(
@@ -430,7 +401,14 @@ impl Uploader {
 				.into_response();
 		}
 
-		let mut saw_meta = false;
+		// Release lock.
+		// We don't want to hold this while processing large files.
+		// TODO: don't expire files while we're here
+		let job_dir = job.dir.clone();
+		let file = file.clone();
+		drop(jobs);
+
+		let mut meta: Option<UploadFragmentMetadata> = None;
 		let mut saw_data = false;
 
 		while let Some(field) = multipart.next_field().await.unwrap() {
@@ -438,7 +416,7 @@ impl Uploader {
 
 			match &name[..] {
 				"metadata" => {
-					if saw_meta {
+					if meta.is_some() {
 						warn!(
 							message = "Multiple `metadata` fields in a file fragment",
 							job = ?job_id,
@@ -452,30 +430,7 @@ impl Uploader {
 							.into_response();
 					}
 
-					saw_meta = true;
-					let meta = field.text().await.unwrap();
-					let meta: UploadFragmentMetadata = serde_json::from_str(&meta).unwrap();
-
-					if file.fragments_received != meta.part_idx {
-						warn!(
-							message = "Bad fragment index",
-							job = ?job_id,
-							file_id = ?file_id,
-							expected_idx = file.fragments_received,
-							got_idx = meta.part_idx,
-						);
-
-						return (
-							StatusCode::BAD_REQUEST,
-							format!(
-								"bad fragment index: expected {}, got {}",
-								file.fragments_received, meta.part_idx
-							),
-						)
-							.into_response();
-					}
-
-					file.fragments_received += 1;
+					meta = serde_json::from_str(&field.text().await.unwrap()).unwrap();
 				}
 
 				"fragment" => {
@@ -493,53 +448,68 @@ impl Uploader {
 							.into_response();
 					}
 
+					// TODO: better organize these errors
+					if meta.is_none() {
+						warn!(
+							message = "File fragment received before metadata",
+							job = ?job_id,
+							file_id = ?file_id
+						);
+
+						return (
+							StatusCode::BAD_REQUEST,
+							"File fragment received before metadata",
+						)
+							.into_response();
+					}
+
 					saw_data = true;
+					let m = meta.as_ref().unwrap();
 					let data = field.bytes().await.unwrap();
-					file.hasher.as_mut().unwrap().update(data.clone());
 
-					let f = OpenOptions::new()
-						.create(false)
-						.append(true)
-						.open(&file.path);
+					// TODO: consistently name "frag"
+					let frag_path = job_dir.join(format!("{}-frag-{}", file.name, m.part_idx));
 
-					match f {
-						Ok(mut f) => match f.write(&data) {
-							Ok(_) => {}
-							Err(e) => {
-								error!(
-									message = "Could not write fragment to file",
-									job = ?job_id,
-									file_id = ?file_id,
-									file_path = ?file.path,
-									error = ?e
-								);
-
-								return (
-									StatusCode::INTERNAL_SERVER_ERROR,
-									format!(
-										"could not append to file {} in job {}",
-										file_id, job_id
-									),
-								)
-									.into_response();
-							}
-						},
+					let mut f = match File::create(&frag_path) {
+						Ok(f) => f,
 						Err(e) => {
 							error!(
-								message = "Could not open file to write fragment",
+								message = "Create fragment file",
 								job = ?job_id,
 								file_id = ?file_id,
-								file_path = ?file.path,
+								frag_path = ?frag_path,
 								error = ?e
 							);
 
 							return (
 								StatusCode::INTERNAL_SERVER_ERROR,
-								format!("could not open file {} in job {}", file_id, job_id),
+								format!(
+									"could not create fragment {} of file {} in job {}",
+									m.part_idx, file_id, job_id
+								),
 							)
 								.into_response();
 						}
 					};
+
+					match f.write(&data) {
+						Ok(_) => {}
+						Err(e) => {
+							error!(
+								message = "Could not write fragment to file",
+								job = ?job_id,
+								file_id = ?file_id,
+								frag_path = ?frag_path,
+								error = ?e
+							);
+
+							return (
+								StatusCode::INTERNAL_SERVER_ERROR,
+								format!("could not append to file {} in job {}", file_id, job_id),
+							)
+								.into_response();
+						}
+					}
 				}
 				_ => {
 					warn!(
@@ -601,9 +571,63 @@ impl Uploader {
 			}
 		};
 
-		file.is_done = true;
-		let our_hash = format!("{:X}", file.hasher.take().unwrap().finalize());
+		let final_file_path = job.dir.join(file.name.as_str());
+		let mut final_file = File::create(final_file_path).unwrap();
 
+		let n_frags = finish_data.frag_count;
+		let mut hasher = Sha256::new();
+		for frag_idx in 0..n_frags {
+			let frag_path = job.dir.join(format!("{}-frag-{frag_idx}", file.name));
+			if !frag_path.is_file() {
+				warn!(
+					message = "Tried to finish file with missing fragment",
+					job = ?job_id,
+					file = ?file_id,
+					expected_frag=n_frags,
+					missing_frag=frag_idx
+				);
+
+				return (
+					StatusCode::BAD_REQUEST,
+					format!(
+						"Tried to finish file with missing fragment (idx {})",
+						frag_idx
+					),
+				)
+					.into_response();
+			}
+
+			let mut f = File::open(&frag_path).unwrap();
+			let mut data = Vec::new();
+			f.read_to_end(&mut data).unwrap();
+			hasher.update(&data);
+			final_file.write_all(&data).unwrap();
+			drop(f);
+			std::fs::remove_file(frag_path).unwrap();
+		}
+
+		file.is_done = true;
+		let our_hash = format!("{:X}", hasher.finalize());
+
+		if our_hash != finish_data.hash {
+			warn!(
+				message = "Uploaded hash does not match expected hash",
+				job = ?job_id,
+				file = ?file_id,
+				expected_hash = ?finish_data.hash,
+				got_hash = ?our_hash
+			);
+		}
+		info!(
+			message = "Finished uploading file",
+			job = ?job_id,
+			file = ?file_id,
+			hash = ?our_hash
+		);
+
+		return StatusCode::OK.into_response();
+
+		/*
 		if our_hash != finish_data.hash {
 			warn!(
 				message = "Uploaded hash does not match expected hash",
@@ -631,5 +655,6 @@ impl Uploader {
 
 			return StatusCode::OK.into_response();
 		}
+		*/
 	}
 }
