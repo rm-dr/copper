@@ -30,6 +30,8 @@ impl From<u32> for GroupId {
 pub struct GroupInfo {
 	pub id: GroupId,
 	pub parent: Option<GroupId>,
+
+	#[schema(value_type =String)]
 	pub name: SmartString<LazyCompact>,
 
 	#[serde(skip)]
@@ -37,6 +39,7 @@ pub struct GroupInfo {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(transparent)]
 pub struct UserId {
 	id: u32,
 }
