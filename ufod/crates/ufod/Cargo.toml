@@ -48,3 +48,4 @@ walkdir = { workspace = true }
 serde_with = { workspace = true }
 itertools = { workspace = true }
 argon2 = { workspace = true }
+axum-extra = { workspace = true }

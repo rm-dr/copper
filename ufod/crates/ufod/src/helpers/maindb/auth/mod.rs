@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
 use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-use axum::http::HeaderMap;
+use axum_extra::extract::CookieJar;
 use errors::{CreateGroupError, CreateUserError, DeleteGroupError};
-use itertools::Group;
 use rand::{distributions::Alphanumeric, rngs::OsRng, Rng};
 use sqlx::{Connection, Row, SqliteConnection};
 use tokio::sync::Mutex;
-use tracing::warn;
 
 pub mod errors;
 mod info;
@@ -16,6 +14,7 @@ pub use info::*;
 pub use permissions::*;
 
 const AUTH_TOKEN_LENGTH: usize = 32;
+pub const AUTH_COOKIE_NAME: &'static str = "authtoken";
 
 pub struct AuthProvider {
 	conn: Arc<Mutex<SqliteConnection>>,
@@ -66,32 +65,10 @@ impl AuthProvider {
 }
 
 impl AuthProvider {
-	pub async fn check_headers(
-		&self,
-		headers: &HeaderMap,
-	) -> Result<Option<UserInfo>, sqlx::Error> {
-		let auth = if let Some(h) = headers.get("authorization") {
-			let s = h.to_str();
-			if let Ok(s) = s {
-				s
-			} else {
-				warn!(
-					message = "Failed to check authorization header, it contains unprintable bytes",
-					auth_header = ?h
-				);
-				return Ok(None);
-			}
+	pub async fn check_headers(&self, jar: &CookieJar) -> Result<Option<UserInfo>, sqlx::Error> {
+		let token = if let Some(h) = jar.get(AUTH_COOKIE_NAME) {
+			h.value()
 		} else {
-			return Ok(None);
-		};
-
-		let token = if let Some(s) = auth.strip_prefix("Bearer ") {
-			s
-		} else {
-			warn!(
-				message = "Malformed bearer header",
-				auth_header = ?auth
-			);
 			return Ok(None);
 		};
 

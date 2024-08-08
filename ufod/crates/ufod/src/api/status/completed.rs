@@ -1,9 +1,10 @@
 use axum::{
 	extract::State,
-	http::{HeaderMap, StatusCode},
+	http::StatusCode,
 	response::{IntoResponse, Response},
 	Json,
 };
+use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use ufo_pipeline::labels::PipelineName;
@@ -33,27 +34,24 @@ pub(super) struct CompletedJobStatus {
 	responses(
 		(status = 200, description = "Completed jobs", body=Vec<CompletedJobStatus>),
 		(status = 401, description = "Unauthorized")
-	),
-	security(
-		("bearer" = []),
 	)
 )]
 pub(super) async fn get_runner_completed(
-	headers: HeaderMap,
+	jar: CookieJar,
 	State(state): State<RouterState>,
 ) -> Response {
-	match state.main_db.auth.check_headers(&headers).await {
+	match state.main_db.auth.check_headers(&jar).await {
 		Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
 		Ok(Some(_)) => {}
 		Err(e) => {
 			error!(
-				message = "Could not check auth header",
-				headers = ?headers,
+				message = "Could not check auth cookies",
+				cookies = ?jar,
 				error = ?e
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not check auth header"),
+				format!("Could not check auth cookies"),
 			)
 				.into_response();
 		}

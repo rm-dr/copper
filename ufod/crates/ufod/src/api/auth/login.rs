@@ -1,14 +1,15 @@
 use axum::{
 	extract::State,
-	http::StatusCode,
-	response::{IntoResponse, Response},
+	http::{header::SET_COOKIE, StatusCode},
+	response::{AppendHeaders, IntoResponse, Response},
 	Json,
 };
+use axum_extra::extract::cookie::{Cookie, SameSite};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 use utoipa::ToSchema;
 
-use crate::api::RouterState;
+use crate::{api::RouterState, helpers::maindb::auth::AUTH_COOKIE_NAME};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub(super) struct LoginRequest {
@@ -47,7 +48,20 @@ pub(super) async fn try_login(
 				auth_info = ?x.user,
 				payload = ?payload
 			);
-			return x.token.to_string().into_response();
+
+			let token = x.token.to_string();
+
+			let cookie = Cookie::build((AUTH_COOKIE_NAME, token))
+				.path("/")
+				.secure(true)
+				.http_only(true)
+				.same_site(SameSite::None);
+
+			return (
+				AppendHeaders([(SET_COOKIE, cookie.to_string())]),
+				"Login successful, cookie set",
+			)
+				.into_response();
 		}
 
 		Ok(None) => return StatusCode::BAD_REQUEST.into_response(),
