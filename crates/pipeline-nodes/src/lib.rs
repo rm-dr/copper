@@ -1,3 +1,5 @@
+//! Pipeline node implementations
+
 //#![warn(missing_docs)]
 #![allow(clippy::new_without_default)]
 

@@ -12,18 +12,18 @@ use ufo_storage::{
 
 use crate::{nodetype::UFONodeType, UFOContext, UFONode};
 
-pub struct StorageOutput {
+pub struct AddToDataset {
 	class: ClassHandle,
 	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, StorageDataStub)>,
 	data: Vec<StorageData>,
 }
 
-impl StorageOutput {
+impl AddToDataset {
 	pub fn new(
 		class: ClassHandle,
 		attrs: Vec<(AttrHandle, SmartString<LazyCompact>, StorageDataStub)>,
 	) -> Self {
-		StorageOutput {
+		AddToDataset {
 			class,
 			attrs,
 			data: Vec::new(),
@@ -31,7 +31,7 @@ impl StorageOutput {
 	}
 }
 
-impl PipelineNode for StorageOutput {
+impl PipelineNode for AddToDataset {
 	type NodeContext = UFOContext;
 	type DataType = StorageData;
 
@@ -78,10 +78,10 @@ impl PipelineNode for StorageOutput {
 	}
 }
 
-impl UFONode for StorageOutput {
+impl UFONode for AddToDataset {
 	fn n_inputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
 		match stub {
-			UFONodeType::Dataset { class } => {
+			UFONodeType::AddToDataset { class } => {
 				let class = ctx
 					.dataset
 					.lock()
@@ -107,7 +107,7 @@ impl UFONode for StorageOutput {
 		input_type: StorageDataStub,
 	) -> bool {
 		match stub {
-			UFONodeType::Dataset { .. } => {
+			UFONodeType::AddToDataset { .. } => {
 				Self::input_default_type(stub, ctx, input_idx) == input_type
 			}
 			_ => unreachable!(),
@@ -120,7 +120,7 @@ impl UFONode for StorageOutput {
 		input_name: &PipelinePortLabel,
 	) -> Option<usize> {
 		match stub {
-			UFONodeType::Dataset { class } => {
+			UFONodeType::AddToDataset { class } => {
 				let class = ctx
 					.dataset
 					.lock()
@@ -147,7 +147,7 @@ impl UFONode for StorageOutput {
 		input_idx: usize,
 	) -> StorageDataStub {
 		match stub {
-			UFONodeType::Dataset { class } => {
+			UFONodeType::AddToDataset { class } => {
 				let class = ctx
 					.dataset
 					.lock()
@@ -170,7 +170,7 @@ impl UFONode for StorageOutput {
 
 	fn n_outputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
 		match stub {
-			UFONodeType::Dataset { class } => {
+			UFONodeType::AddToDataset { class } => {
 				let class = ctx
 					.dataset
 					.lock()
@@ -187,7 +187,7 @@ impl UFONode for StorageOutput {
 
 	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> StorageDataStub {
 		match stub {
-			UFONodeType::Dataset { class } => {
+			UFONodeType::AddToDataset { class } => {
 				assert!(output_idx == 0);
 				let mut d = ctx.dataset.lock().unwrap();
 				let class = d.get_class(class).unwrap().unwrap();
@@ -203,7 +203,7 @@ impl UFONode for StorageOutput {
 		output_name: &PipelinePortLabel,
 	) -> Option<usize> {
 		match stub {
-			UFONodeType::Dataset { .. } => match Into::<&str>::into(output_name) {
+			UFONodeType::AddToDataset { .. } => match Into::<&str>::into(output_name) {
 				"added_item" => Some(0),
 				_ => None,
 			},

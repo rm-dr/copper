@@ -6,7 +6,7 @@ use ufo_pipeline::{
 };
 use ufo_storage::data::StorageData;
 
-use crate::{input::file::FileInput, output::storage::StorageOutput, UFOContext};
+use crate::{input::file::FileReader, output::addtodataset::AddToDataset, UFOContext};
 
 use super::{
 	nodetype::UFONodeType,
@@ -61,13 +61,13 @@ pub enum UFONodeInstance {
 	File {
 		node_type: UFONodeType,
 		name: PipelineNodeLabel,
-		node: FileInput,
+		node: FileReader,
 	},
 
 	Dataset {
 		node_type: UFONodeType,
 		name: PipelineNodeLabel,
-		node: StorageOutput,
+		node: AddToDataset,
 	},
 }
 

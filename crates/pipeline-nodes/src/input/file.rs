@@ -9,17 +9,19 @@ use ufo_util::mime::MimeType;
 
 use crate::{UFOContext, UFOStaticNode};
 
-pub struct FileInput {
+/// A node that reads data from a file
+pub struct FileReader {
 	path: Option<PathBuf>,
 }
 
-impl FileInput {
+impl FileReader {
+	/// Make a new [`FileReader`]
 	pub fn new() -> Self {
-		FileInput { path: None }
+		FileReader { path: None }
 	}
 }
 
-impl PipelineNode for FileInput {
+impl PipelineNode for FileReader {
 	type NodeContext = UFOContext;
 	type DataType = StorageData;
 
@@ -70,7 +72,7 @@ impl PipelineNode for FileInput {
 	}
 }
 
-impl UFOStaticNode for FileInput {
+impl UFOStaticNode for FileReader {
 	fn inputs() -> &'static [(&'static str, StorageDataStub)] {
 		&[("path", StorageDataStub::Path)]
 	}

@@ -8,7 +8,7 @@ use ufo_pipeline::{
 };
 use ufo_storage::data::{HashType, StorageData, StorageDataStub};
 
-use crate::{input::file::FileInput, output::storage::StorageOutput, UFONode};
+use crate::{input::file::FileReader, output::addtodataset::AddToDataset, UFONode};
 
 use super::{
 	nodeinstance::UFONodeInstance,
@@ -49,7 +49,7 @@ pub enum UFONodeType {
 
 	// Etc
 	File,
-	Dataset {
+	AddToDataset {
 		class: String,
 	},
 }
@@ -110,9 +110,9 @@ impl PipelineNodeStub for UFONodeType {
 			UFONodeType::File => UFONodeInstance::File {
 				node_type: self.clone(),
 				name: name.into(),
-				node: FileInput::new(),
+				node: FileReader::new(),
 			},
-			UFONodeType::Dataset { class } => {
+			UFONodeType::AddToDataset { class } => {
 				let mut d = ctx.dataset.lock().unwrap();
 				let class = d.get_class(class).unwrap().unwrap();
 				let attrs = d.class_get_attrs(class).unwrap();
@@ -120,7 +120,7 @@ impl PipelineNodeStub for UFONodeType {
 				UFONodeInstance::Dataset {
 					node_type: self.clone(),
 					name: name.into(),
-					node: StorageOutput::new(class, attrs),
+					node: AddToDataset::new(class, attrs),
 				}
 			}
 		}
@@ -136,8 +136,8 @@ impl PipelineNodeStub for UFONodeType {
 			Self::ExtractCovers => ExtractCovers::n_inputs(self, ctx),
 			Self::StripTags => StripTags::n_inputs(self, ctx),
 			Self::ExtractTags { .. } => ExtractTags::n_inputs(self, ctx),
-			Self::File => FileInput::n_inputs(self, ctx),
-			Self::Dataset { .. } => StorageOutput::n_inputs(self, ctx),
+			Self::File => FileReader::n_inputs(self, ctx),
+			Self::AddToDataset { .. } => AddToDataset::n_inputs(self, ctx),
 		}
 	}
 
@@ -162,9 +162,9 @@ impl PipelineNodeStub for UFONodeType {
 			Self::ExtractTags { .. } => {
 				ExtractTags::input_compatible_with(self, ctx, input_idx, input_type)
 			}
-			Self::File => FileInput::input_compatible_with(self, ctx, input_idx, input_type),
-			Self::Dataset { .. } => {
-				StorageOutput::input_compatible_with(self, ctx, input_idx, input_type)
+			Self::File => FileReader::input_compatible_with(self, ctx, input_idx, input_type),
+			Self::AddToDataset { .. } => {
+				AddToDataset::input_compatible_with(self, ctx, input_idx, input_type)
 			}
 		}
 	}
@@ -183,8 +183,8 @@ impl PipelineNodeStub for UFONodeType {
 			Self::ExtractCovers => ExtractCovers::input_default_type(self, ctx, input_idx),
 			Self::StripTags => StripTags::input_default_type(self, ctx, input_idx),
 			Self::ExtractTags { .. } => ExtractTags::input_default_type(self, ctx, input_idx),
-			Self::File => FileInput::input_default_type(self, ctx, input_idx),
-			Self::Dataset { .. } => StorageOutput::input_default_type(self, ctx, input_idx),
+			Self::File => FileReader::input_default_type(self, ctx, input_idx),
+			Self::AddToDataset { .. } => AddToDataset::input_default_type(self, ctx, input_idx),
 		}
 	}
 
@@ -202,8 +202,8 @@ impl PipelineNodeStub for UFONodeType {
 			Self::ExtractCovers => ExtractCovers::input_with_name(self, ctx, input_name),
 			Self::StripTags => StripTags::input_with_name(self, ctx, input_name),
 			Self::ExtractTags { .. } => ExtractTags::input_with_name(self, ctx, input_name),
-			Self::File => FileInput::input_with_name(self, ctx, input_name),
-			Self::Dataset { .. } => StorageOutput::input_with_name(self, ctx, input_name),
+			Self::File => FileReader::input_with_name(self, ctx, input_name),
+			Self::AddToDataset { .. } => AddToDataset::input_with_name(self, ctx, input_name),
 		}
 	}
 
@@ -217,8 +217,8 @@ impl PipelineNodeStub for UFONodeType {
 			Self::ExtractCovers => ExtractCovers::n_outputs(self, ctx),
 			Self::StripTags => StripTags::n_outputs(self, ctx),
 			Self::ExtractTags { .. } => ExtractTags::n_outputs(self, ctx),
-			Self::File => FileInput::n_outputs(self, ctx),
-			Self::Dataset { .. } => StorageOutput::n_outputs(self, ctx),
+			Self::File => FileReader::n_outputs(self, ctx),
+			Self::AddToDataset { .. } => AddToDataset::n_outputs(self, ctx),
 		}
 	}
 
@@ -236,8 +236,8 @@ impl PipelineNodeStub for UFONodeType {
 			Self::ExtractCovers => ExtractCovers::output_type(self, ctx, output_idx),
 			Self::StripTags => StripTags::output_type(self, ctx, output_idx),
 			Self::ExtractTags { .. } => ExtractTags::output_type(self, ctx, output_idx),
-			Self::File => FileInput::output_type(self, ctx, output_idx),
-			Self::Dataset { .. } => StorageOutput::output_type(self, ctx, output_idx),
+			Self::File => FileReader::output_type(self, ctx, output_idx),
+			Self::AddToDataset { .. } => AddToDataset::output_type(self, ctx, output_idx),
 		}
 	}
 
@@ -255,8 +255,8 @@ impl PipelineNodeStub for UFONodeType {
 			Self::ExtractCovers => ExtractCovers::output_with_name(self, ctx, output_name),
 			Self::StripTags => StripTags::output_with_name(self, ctx, output_name),
 			Self::ExtractTags { .. } => ExtractTags::output_with_name(self, ctx, output_name),
-			Self::File => FileInput::output_with_name(self, ctx, output_name),
-			Self::Dataset { .. } => StorageOutput::output_with_name(self, ctx, output_name),
+			Self::File => FileReader::output_with_name(self, ctx, output_name),
+			Self::AddToDataset { .. } => AddToDataset::output_with_name(self, ctx, output_name),
 		}
 	}
 }
