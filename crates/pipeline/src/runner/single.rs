@@ -14,6 +14,16 @@ use crate::{
 	syntax::labels::PipelineNodeLabel,
 };
 
+/// The state of a [`PipelineSingleRunner`]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum SingleRunnerState {
+	/// Nodes are running, not done yet
+	Running,
+
+	/// Pipeline is done, this runner may be dropped
+	Done,
+}
+
 /// An instance of a single running pipeline
 pub(super) struct PipelineSingleRunner<StubType: PipelineNodeStub> {
 	_p: PhantomData<StubType>,
@@ -23,6 +33,9 @@ pub(super) struct PipelineSingleRunner<StubType: PipelineNodeStub> {
 
 	/// The context for this pipeline
 	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+
+	/// The inputs that were provided to this pipeline
+	pipeline_inputs: Vec<<StubType::NodeType as PipelineNode>::DataType>,
 
 	/// Mutable instances of each node in this pipeline
 	node_instances: Vec<(
@@ -82,10 +95,21 @@ pub(super) struct PipelineSingleRunner<StubType: PipelineNodeStub> {
 impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 	/// Make a new [`PipelineSingleRunner`]
 	pub fn new(
+		node_runners: usize,
 		context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 		pipeline: Arc<Pipeline<StubType>>,
-		node_runners: usize,
+		pipeline_inputs: Vec<<StubType::NodeType as PipelineNode>::DataType>,
 	) -> Self {
+		assert!(
+			pipeline_inputs.len()
+				== pipeline
+					.graph
+					.get_node(pipeline.input_node_idx)
+					.1
+					.inputs(context.clone())
+					.len()
+		);
+
 		let node_instances = pipeline
 			.graph
 			.iter_nodes()
@@ -150,6 +174,7 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 		Self {
 			_p: PhantomData,
 			pipeline,
+			pipeline_inputs,
 			context,
 			node_instances,
 			node_status,
@@ -162,54 +187,39 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 		}
 	}
 
-	pub fn run(
-		&mut self,
-		pipeline_inputs: Vec<<StubType::NodeType as PipelineNode>::DataType>,
-	) -> Result<(), PipelineError> {
-		assert!(
-			pipeline_inputs.len()
-				== self
-					.pipeline
-					.graph
-					.get_node(self.pipeline.input_node_idx)
-					.1
-					.inputs(self.context.clone())
-					.len()
-		);
-
-		// Check every node.
+	/// Update this runner: process data and state changes that occured
+	/// since we last called `run()`, and start any nodes that can now be started.
+	///
+	/// This method should be fairly fast, since it holds up the main thread.
+	pub fn run(&mut self) -> Result<SingleRunnerState, PipelineError> {
 		// TODO: write a smarter scheduler.
-		loop {
-			let mut finished_all_outputs = true;
-			for (node, (_, _)) in self.pipeline.clone().graph.iter_nodes_idx() {
-				if !self.node_status[node.as_usize()].is_done() {
-					finished_all_outputs = false;
-				}
+		// Run nodes in a better order, and maybe skip a few.
 
-				self.try_run_node(&pipeline_inputs, node)?;
+		// Handle all changes that occured since we last called `run()`
+		self.handle_all_messages()?;
+
+		// Check every node. Initialize nodes that need to be initialized,
+		// run nodes that need to be run. Nodes might be initialized and
+		// run in the same cycle.
+		let mut all_nodes_done = true;
+		for (node, (_, _)) in self.pipeline.clone().graph.iter_nodes_idx() {
+			if !self.node_status[node.as_usize()].is_done() {
+				all_nodes_done = false;
 			}
 
-			self.handle_all_messages()?;
-
-			// TODO: end condition.
-			// TODO: after moves to END of pipeline node
-			// TODO: handle all messages?
-			// TODO: clean up threads?
-			// TODO: quick node run, no thread
-
-			if finished_all_outputs {
-				return Ok(());
-			}
+			self.try_start_node(node)?;
 		}
+
+		if all_nodes_done {
+			return Ok(SingleRunnerState::Done);
+		}
+
+		return Ok(SingleRunnerState::Running);
 	}
 
 	/// Helper function, written here only for convenience.
-	/// Try to run the node with index `n`.
-	fn try_run_node(
-		&mut self,
-		pipeline_inputs: &Vec<<StubType::NodeType as PipelineNode>::DataType>,
-		node: GraphNodeIdx,
-	) -> Result<(), PipelineError> {
+	/// If we can add the node with index `n` to the thread pool, do so.
+	fn try_start_node(&mut self, node: GraphNodeIdx) -> Result<(), PipelineError> {
 		// Skip nodes we've already run and nodes that are running right now.
 		let n = self.node_status.get(node.as_usize()).unwrap();
 		if n.is_running() || n.is_done() {
@@ -246,7 +256,7 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 
 		let mut prepare_inputs = || {
 			if node == self.pipeline.input_node_idx {
-				pipeline_inputs.clone()
+				self.pipeline_inputs.clone()
 			} else {
 				// Initialize all with None, in case some are disconnected.
 				let node_type = &self.pipeline.graph.get_node(node).1;
@@ -281,9 +291,6 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 		let node_instance = node_instance.clone();
 		let n = n.clone();
 
-		// We MUST handle all status codes before re-running a node.
-		// TODO: clean up scheduler
-
 		// Initialize this node if we need to
 		if self
 			.node_status
@@ -311,34 +318,41 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 			if done {
 				return Ok(());
 			}
-		} else {
-			*self.node_status.get_mut(node.as_usize()).unwrap() = NodeRunState::Running;
 
-			let ctx = self.context.clone();
-			let send_data = self.send_data.clone();
-			let send_status = self.send_status.clone();
-
-			self.pool.execute(move || {
-				println!("Run  {}", n);
-				let mut node_instance = node_instance.lock().unwrap();
-				let res = node_instance.run(ctx, |port, data| {
-					// This should never fail, since we never close the receiver.
-					send_data.send((node, port, data)).unwrap();
-					Ok(())
-				});
-				send_status.send((node, res)).unwrap();
-				println!("Done {}", n);
-			});
+			// Process data and apply state changes
+			// that this node's `init()`` produced.
+			//
+			// This MUST be done before running the node.
+			self.handle_all_messages()?;
 		}
+
+		*self.node_status.get_mut(node.as_usize()).unwrap() = NodeRunState::Running;
+
+		let ctx = self.context.clone();
+		let send_data = self.send_data.clone();
+		let send_status = self.send_status.clone();
+
+		self.pool.execute(move || {
+			println!("Run  {}", n);
+			let mut node_instance = node_instance.lock().unwrap();
+			let res = node_instance.run(ctx, |port, data| {
+				// This should never fail, since we never close the receiver.
+				send_data.send((node, port, data)).unwrap();
+				Ok(())
+			});
+			send_status.send((node, res)).unwrap();
+			println!("Done {}", n);
+		});
 
 		return Ok(());
 	}
 
 	/// Handle all messages nodes have sent up to this point.
+	/// This MUST be done between successive calls of
+	/// `run()` or `init()` on any one node.
 	fn handle_all_messages(&mut self) -> Result<(), PipelineError> {
 		for (node, port, data) in self.receive_data.try_iter() {
-			// Fill every edge that is connected to
-			// this output port of this node
+			// Fill every edge that is connected to this output port of this node
 			for edge_idx in self
 				.pipeline
 				.graph
@@ -364,7 +378,7 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 
 					if status.is_done() {
 						// When a node finishes successfully, mark all
-						// `after` edges that start at it as "ready".
+						// `after` edges that start at that node as "ready".
 						for edge_idx in
 							self.pipeline
 								.graph

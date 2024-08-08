@@ -1,7 +1,7 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{fs::File, io::Read, marker::PhantomData, path::Path, sync::Arc};
 
-use super::single::PipelineSingleRunner;
+use super::single::{PipelineSingleRunner, SingleRunnerState};
 use crate::{
 	api::{PipelineData, PipelineNode, PipelineNodeStub},
 	errors::PipelineError,
@@ -67,8 +67,14 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	) -> Result<(), PipelineError> {
 		let pipeline = self.get_pipeline(pipeline_name).unwrap();
 
-		let mut runner = PipelineSingleRunner::new(context, pipeline, self.node_runners);
-		runner.run(pipeline_inputs)?;
+		let mut runner =
+			PipelineSingleRunner::new(self.node_runners, context, pipeline, pipeline_inputs);
+
+		let mut s = SingleRunnerState::Running;
+		while s == SingleRunnerState::Running {
+			s = runner.run()?;
+		}
+
 		return Ok(());
 	}
 }
