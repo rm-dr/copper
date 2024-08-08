@@ -6,21 +6,19 @@ use std::{
 
 use axum::{
 	extract::State,
-	http::StatusCode,
 	response::IntoResponse,
 	routing::{get, post},
 	Json, Router,
 };
 use ufo_database::{api::UFODatabase, database::Database};
 use ufo_pipeline::{
-	api::PipelineNodeState,
-	labels::PipelineLabel,
+	api::{PipelineNodeState, PipelineNodeStub},
 	runner::runner::{PipelineRunConfig, PipelineRunner},
 };
-use ufo_pipeline_nodes::{data::UFOData, nodetype::UFONodeType, UFOContext};
+use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
 use ufod::{
-	AddJobParams, CompletedJobStatus, RunnerStatus, RunningJobStatus, RunningNodeState,
-	RunningNodeStatus,
+	AddJobParams, AddJobResult, CompletedJobStatus, RunnerStatus, RunningJobStatus,
+	RunningNodeState, RunningNodeStatus,
 };
 
 #[derive(Clone)]
@@ -30,7 +28,6 @@ struct RouterState {
 
 // TODO: openapi
 // TODO: guaranteed unique job id (?)
-// TODO: api response json tagging
 
 #[tokio::main]
 async fn main() {
@@ -109,17 +106,17 @@ async fn get_status(State(state): State<RouterState>) -> impl IntoResponse {
 			let p = job.get_pipeline();
 			RunningJobStatus {
 				job_id: *job_id,
-				pipeline: p.get_name().to_string(),
+				pipeline: p.get_name().clone(),
 				input_exemplar: format!("{:?}", job.get_input().first().unwrap()),
 				node_status: p
 					.iter_node_labels()
 					.map(|l| RunningNodeStatus {
-						name: l.to_string(),
+						name: l.clone(),
 						state: match job.get_node_status(l).unwrap() {
 							(true, _) => RunningNodeState::Running,
 							(false, PipelineNodeState::Done) => RunningNodeState::Done,
 							(false, PipelineNodeState::Pending(m)) => {
-								RunningNodeState::Pending(m.into())
+								RunningNodeState::Pending { message: m.into() }
 							}
 						},
 					})
@@ -128,14 +125,11 @@ async fn get_status(State(state): State<RouterState>) -> impl IntoResponse {
 		})
 		.collect();
 
-	(
-		StatusCode::OK,
-		Json(RunnerStatus {
-			queued_jobs: runner.get_queued_jobs().len(),
-			finished_jobs: runner.get_completed_jobs().len(),
-			running_jobs,
-		}),
-	)
+	return Json(RunnerStatus {
+		queued_jobs: runner.get_queued_jobs().len(),
+		finished_jobs: runner.get_completed_jobs().len(),
+		running_jobs,
+	});
 }
 
 async fn get_completed(State(state): State<RouterState>) -> impl IntoResponse {
@@ -146,13 +140,13 @@ async fn get_completed(State(state): State<RouterState>) -> impl IntoResponse {
 		.iter()
 		.map(|c| CompletedJobStatus {
 			job_id: c.job_id,
-			pipeline: c.pipeline.to_string(),
+			pipeline: c.pipeline.clone(),
 			error: c.error.as_ref().map(|x| x.to_string()),
 			input_exemplar: format!("{:?}", c.input.first().unwrap()),
 		})
 		.collect();
 
-	(StatusCode::OK, Json(completed_jobs))
+	return Json(completed_jobs);
 }
 
 async fn add_job(
@@ -161,15 +155,40 @@ async fn add_job(
 ) -> impl IntoResponse {
 	let mut runner = state.runner.lock().unwrap();
 
-	let pipeline: PipelineLabel = payload.pipeline.into();
-	if runner.get_pipeline(&pipeline).is_none() {
-		return StatusCode::BAD_REQUEST;
+	let pipeline = if let Some(pipeline) = runner.get_pipeline(&payload.pipeline) {
+		pipeline
+	} else {
+		return Json(AddJobResult::BadPipeline {
+			pipeline: payload.pipeline,
+		});
+	};
+
+	let ctx = runner.get_context();
+	let in_node = pipeline.input_node_label();
+	let in_node = pipeline.get_node(in_node);
+
+	// Check number of arguments
+	let expected_inputs = in_node.n_inputs(ctx);
+	if expected_inputs != payload.input.len() {
+		return Json(AddJobResult::InvalidNumberOfArguments {
+			got: payload.input.len(),
+			expected: expected_inputs,
+		});
 	}
 
+	// Check type of each argument
+	for (i, data) in payload.input.iter().enumerate() {
+		if !in_node.input_compatible_with(ctx, 0, data.get_type()) {
+			return Json(AddJobResult::InvalidInputType { bad_input_idx: i });
+		}
+	}
+
+	let pipeline_name = pipeline.get_name().clone();
+
 	runner.add_job(
-		&"audiofile".into(),
-		vec![UFOData::Path(Arc::new(payload.input))],
+		&pipeline_name,
+		payload.input.into_iter().map(|x| x.into()).collect(),
 	);
 
-	StatusCode::CREATED
+	return Json(AddJobResult::Ok);
 }

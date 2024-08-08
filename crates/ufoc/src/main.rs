@@ -11,7 +11,7 @@ use ufo_db_metastore::{
 	sqlite::db::SQLiteMetastore,
 };
 use ufo_db_pipestore::fs::FsPipestore;
-use ufod::{AddJobParams, RunnerStatus, RunningNodeState};
+use ufod::{AddJobParams, PipelineInputData, RunnerStatus, RunningNodeState};
 use url::Url;
 use walkdir::WalkDir;
 
@@ -182,8 +182,8 @@ fn main() -> Result<()> {
 				client
 					.post(cli.host.join("add_job").unwrap())
 					.json(&AddJobParams {
-						pipeline: (&pipeline).into(),
-						input: p.into(),
+						pipeline: pipeline.into(),
+						input: vec![PipelineInputData::Path(p)],
 					})
 					.send()
 					.unwrap();
@@ -195,8 +195,8 @@ fn main() -> Result<()> {
 						client
 							.post(cli.host.join("add_job").unwrap())
 							.json(&AddJobParams {
-								pipeline: (&pipeline).into(),
-								input: entry.path().into(),
+								pipeline: pipeline.clone().into(),
+								input: vec![PipelineInputData::Path(entry.path().into())],
 							})
 							.send()
 							.unwrap();
@@ -279,7 +279,7 @@ fn main() -> Result<()> {
 							match n.state {
 								RunningNodeState::Running => "R".yellow(),
 								RunningNodeState::Done => "D".dark_green(),
-								RunningNodeState::Pending(_) => "#".dark_grey(),
+								RunningNodeState::Pending { .. } => "#".dark_grey(),
 							}
 						))
 						.unwrap();

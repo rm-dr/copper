@@ -83,8 +83,33 @@ impl<StubType: PipelineNodeStub> Pipeline<StubType> {
 		self.graph.iter_nodes().map(|(l, _)| l)
 	}
 
-	/// Get a node by name
+	/// Get this pipeline's name
 	pub fn get_name(&self) -> &PipelineLabel {
 		&self.name
+	}
+
+	/// Get a node by name
+	pub fn get_node(&self, node_label: &PipelineNodeLabel) -> &StubType {
+		let x = &self
+			.graph
+			.iter_nodes()
+			.find(|(l, _)| l == node_label)
+			.unwrap()
+			.1;
+
+		match x {
+			InternalNodeStub::Pipeline { .. } => unreachable!(),
+			InternalNodeStub::User(x) => &x,
+		}
+	}
+
+	/// Get this pipeline's input node's label
+	pub fn input_node_label(&self) -> &PipelineNodeLabel {
+		&self.graph.get_node(self.input_node_idx).0
+	}
+
+	/// Get this pipeline's output node's label
+	pub fn output_node_label(&self) -> &PipelineNodeLabel {
+		&self.graph.get_node(self.input_node_idx).0
 	}
 }

@@ -28,6 +28,7 @@ ufo-pipeline = { workspace = true }
 ufo-pipeline-nodes = { workspace = true }
 ufo-database = { workspace = true }
 ufo-util = { workspace = true }
+ufo-db-metastore = { workspace = true }
 
 serde_json = { workspace = true }
 tokio = { workspace = true }
