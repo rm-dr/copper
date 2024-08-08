@@ -24,14 +24,14 @@ pub(super) struct ClassListRequest {
 pub(super) struct ExtendedClassInfo {
 	/// This class' name
 	#[schema(value_type = String)]
-	name: SmartString<LazyCompact>,
+	pub name: SmartString<LazyCompact>,
 
 	/// This class' unique handle
 	#[schema(value_type = u32)]
-	handle: ClassHandle,
+	pub handle: ClassHandle,
 
 	/// This class' attributes
-	attrs: Vec<AttrInfo>,
+	pub attrs: Vec<AttrInfo>,
 }
 
 /// Get this dataset's classes
@@ -67,13 +67,13 @@ pub(super) async fn list_classes(
 		}
 		Err(e) => {
 			error!(
-				message = "Could not get dataset by name",
+				message = "Could not get dataset",
 				dataset = query.dataset,
 				error = ?e
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset by name: {e}"),
+				format!("Could not get dataset"),
 			)
 				.into_response();
 		}
@@ -89,7 +89,7 @@ pub(super) async fn list_classes(
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get classes: {e}"),
+				format!("Could not get classes"),
 			)
 				.into_response();
 		}

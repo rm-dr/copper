@@ -55,6 +55,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/attr/get": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Find an attribute by name */
+		get: operations["get_attr"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/auth/group/add": {
 		parameters: {
 			query?: never;
@@ -220,6 +237,23 @@ export interface paths {
 		post?: never;
 		/** Delete a class and all data associated with it */
 		delete: operations["del_class"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/class/get": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get class info by id */
+		get: operations["get_class"];
+		put?: never;
+		post?: never;
+		delete?: never;
 		options?: never;
 		head?: never;
 		patch?: never;
@@ -537,13 +571,15 @@ export interface components {
 			/** Format: int32 */
 			id: number;
 		};
+		ClassGetRequest: {
+			/** Format: int32 */
+			class: number;
+			dataset: string;
+		};
 		ClassInfo: {
 			/** Format: int32 */
 			handle: number;
 			name: string;
-		};
-		ClassListRequest: {
-			dataset: string;
 		};
 		/** @description Completed pipeline job status */
 		CompletedJobStatus: {
@@ -605,6 +641,11 @@ export interface components {
 			attr_name: string;
 			/** Format: int32 */
 			class: number;
+			dataset: string;
+		};
+		GetAttrRequest: {
+			/** Format: int32 */
+			attr: number;
 			dataset: string;
 		};
 		GroupId:
@@ -1066,6 +1107,47 @@ export interface operations {
 			};
 		};
 	};
+	get_attr: {
+		parameters: {
+			query: {
+				dataset: string;
+				attr: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Attribute info */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["AttrInfo"];
+				};
+			};
+			/** @description Could not find attribute */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+		};
+	};
 	add_group: {
 		parameters: {
 			query?: never;
@@ -1484,6 +1566,38 @@ export interface operations {
 				};
 				content: {
 					"text/plain": string;
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+		};
+	};
+	get_class: {
+		parameters: {
+			query: {
+				dataset: string;
+				class: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Class info */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ExtendedClassInfo"];
 				};
 			};
 			/** @description Internal server error */
