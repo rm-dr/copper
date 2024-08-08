@@ -9,14 +9,14 @@ use ufo_database::api::UFODatabase;
 use ufo_pipeline::labels::{PipelineName, PipelineNodeID};
 use utoipa::ToSchema;
 
+use super::{PipelineInfoInput, PipelineInfoShort};
 use crate::RouterState;
 
 /// A pipeline specification
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 pub struct PipelineInfo {
-	/// This pipeline's name
-	#[schema(value_type = String)]
-	pub name: PipelineName,
+	#[serde(flatten)]
+	pub short: PipelineInfoShort,
 
 	/// A list of nodes in this pipeline
 	#[schema(value_type = Vec<String>)]
@@ -53,13 +53,17 @@ pub(super) async fn get_pipeline(
 		return StatusCode::NOT_FOUND.into_response();
 	};
 
-	let nodes = pipe.iter_node_ids().cloned().collect::<Vec<_>>();
+	let node_ids = pipe.iter_node_ids().cloned().collect::<Vec<_>>();
+	let input_node_type = pipe.get_node(pipe.input_node_id()).unwrap();
 
 	return (
 		StatusCode::OK,
 		Json(Some(PipelineInfo {
-			name: pipeline_name,
-			nodes,
+			short: PipelineInfoShort {
+				name: pipeline_name,
+				input_type: PipelineInfoInput::node_to_input_type(input_node_type),
+			},
+			nodes: node_ids,
 			input_node: pipe.input_node_id().clone(),
 		})),
 	)

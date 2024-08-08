@@ -1,8 +1,10 @@
 use crate::RouterState;
-use axum::{routing::get, Router};
+use axum::{
+	routing::{get, post},
+	Router,
+};
 use utoipa::OpenApi;
 
-mod apidata;
 mod node;
 mod pipeline;
 mod pipelines;
@@ -16,7 +18,15 @@ use run::*;
 #[derive(OpenApi)]
 #[openapi(
 	paths(get_all_pipelines, get_pipeline, get_pipeline_node, run_pipeline),
-	components(schemas(PipelineInfo, NodeInfo, apidata::ApiData, apidata::ApiDataStub))
+	components(schemas(
+		PipelineInfoShort,
+		PipelineInfoInput,
+		PipelineInfo,
+		NodeInfo,
+		AddJobParams,
+		AddJobResult,
+		AddJobInput,
+	))
 )]
 pub(super) struct PipelineApi;
 

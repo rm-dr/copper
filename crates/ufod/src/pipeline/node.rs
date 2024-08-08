@@ -6,16 +6,11 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use ufo_database::api::UFODatabase;
-use ufo_pipeline::{
-	api::PipelineNodeStub,
-	labels::{PipelineName, PipelineNodeID},
-};
-use ufo_pipeline_nodes::data::UFODataStub;
+use ufo_pipeline::labels::{PipelineName, PipelineNodeID};
+use ufo_pipeline_nodes::nodetype::UFONodeType;
 use utoipa::ToSchema;
 
 use crate::RouterState;
-
-use super::apidata::ApiDataStub;
 
 /// A pipeline node specification
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
@@ -24,8 +19,8 @@ pub(super) struct NodeInfo {
 	#[schema(value_type = String)]
 	pub name: PipelineNodeID,
 
-	/// A list of types each of this node's inputs accepts
-	pub inputs: Vec<Vec<ApiDataStub>>,
+	/// This node's type
+	pub node_type: UFONodeType,
 }
 
 /// Get details about a node in a pipeline
@@ -64,31 +59,11 @@ pub(super) async fn get_pipeline_node(
 		return StatusCode::NOT_FOUND.into_response();
 	};
 
-	let inputs = (0..node.n_inputs(&state.context))
-		.map(|i| {
-			UFODataStub::iter_all()
-				.filter(|stub| node.input_compatible_with(&state.context, i, **stub))
-				.map(|x| match x {
-					UFODataStub::Text => ApiDataStub::Text,
-					UFODataStub::Path => ApiDataStub::Blob,
-					UFODataStub::Binary => todo!(),
-					UFODataStub::Blob => todo!(),
-					UFODataStub::Integer => ApiDataStub::Integer,
-					UFODataStub::PositiveInteger => ApiDataStub::PositiveInteger,
-					UFODataStub::Boolean => ApiDataStub::Boolean,
-					UFODataStub::Float => ApiDataStub::Float,
-					UFODataStub::Hash { .. } => todo!(),
-					UFODataStub::Reference { .. } => todo!(),
-				})
-				.collect()
-		})
-		.collect::<Vec<_>>();
-
 	return (
 		StatusCode::OK,
 		Json(NodeInfo {
 			name: node_id,
-			inputs,
+			node_type: node.clone(),
 		}),
 	)
 		.into_response();
