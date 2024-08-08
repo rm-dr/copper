@@ -14,7 +14,7 @@ mod pipe;
 
 pub struct LocalDataset {
 	/// Database connection
-	conn: Mutex<Option<SqliteConnection>>,
+	conn: Mutex<SqliteConnection>,
 
 	// Blobstore
 	root: PathBuf,
@@ -96,7 +96,7 @@ impl LocalDataset {
 		Ok(Self {
 			idx: Mutex::new(idx_counter),
 			root: blob_dir,
-			conn: Mutex::new(Some(conn)),
+			conn: Mutex::new(conn),
 		})
 	}
 }

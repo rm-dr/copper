@@ -70,11 +70,8 @@ impl Metastore for LocalDataset {
 	) -> Result<AttrHandle, MetastoreError> {
 		// Start transaction
 		let mut conn_lock = self.conn.lock().unwrap();
-		if conn_lock.is_none() {
-			return Err(MetastoreError::NotConnected);
-		}
-		let mut t = block_on(conn_lock.as_mut().unwrap().begin())
-			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+		let mut t =
+			block_on(conn_lock.begin()).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		// Add attribute metadata
 		let new_attr_id = {
@@ -173,11 +170,8 @@ impl Metastore for LocalDataset {
 	fn add_class(&self, class_name: &str) -> Result<ClassHandle, MetastoreError> {
 		// Start transaction
 		let mut conn_lock = self.conn.lock().unwrap();
-		if conn_lock.is_none() {
-			return Err(MetastoreError::NotConnected);
-		}
-		let mut t = block_on(conn_lock.as_mut().unwrap().begin())
-			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+		let mut t =
+			block_on(conn_lock.begin()).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		// Add metadata
 		let new_class_id = {
@@ -223,11 +217,8 @@ impl Metastore for LocalDataset {
 	) -> Result<ItemHandle, MetastoreError> {
 		// Start transaction
 		let mut conn_lock = self.conn.lock().unwrap();
-		if conn_lock.is_none() {
-			return Err(MetastoreError::NotConnected);
-		}
-		let mut t = block_on(conn_lock.as_mut().unwrap().begin())
-			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+		let mut t =
+			block_on(conn_lock.begin()).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		let table_name = Self::get_table_name(&mut *t, class)?;
 
@@ -312,17 +303,13 @@ impl Metastore for LocalDataset {
 		class: ClassHandle,
 		attr_name: &str,
 	) -> Result<Option<AttrHandle>, MetastoreError> {
-		let mut conn_lock = self.conn.lock().unwrap();
-		if conn_lock.is_none() {
-			return Err(MetastoreError::NotConnected);
-		}
-		let conn = conn_lock.as_mut().unwrap();
+		let mut conn = self.conn.lock().unwrap();
 
 		let res = block_on(
 			sqlx::query("SELECT id FROM meta_attributes WHERE class_id=? AND pretty_name=?;")
 				.bind(u32::from(class))
 				.bind(attr_name)
-				.fetch_one(conn),
+				.fetch_one(&mut *conn),
 		);
 
 		return match res {
@@ -333,16 +320,12 @@ impl Metastore for LocalDataset {
 	}
 
 	fn get_class(&self, class_name: &str) -> Result<Option<ClassHandle>, MetastoreError> {
-		let mut conn_lock = self.conn.lock().unwrap();
-		if conn_lock.is_none() {
-			return Err(MetastoreError::NotConnected);
-		}
-		let conn = conn_lock.as_mut().unwrap();
+		let mut conn = self.conn.lock().unwrap();
 
 		let res = block_on(
 			sqlx::query("SELECT id FROM meta_classes WHERE pretty_name=?;")
 				.bind(class_name)
-				.fetch_one(conn),
+				.fetch_one(&mut *conn),
 		);
 
 		return match res {
@@ -371,11 +354,8 @@ impl Metastore for LocalDataset {
 	) -> Result<(), MetastoreError> {
 		// Start transaction
 		let mut conn_lock = self.conn.lock().unwrap();
-		if conn_lock.is_none() {
-			return Err(MetastoreError::NotConnected);
-		}
-		let mut t = block_on(conn_lock.as_mut().unwrap().begin())
-			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+		let mut t =
+			block_on(conn_lock.begin()).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		// Find table and column name to modify
 		let (table_name, column_name, is_not_null): (String, String, bool) = {
@@ -461,11 +441,7 @@ impl Metastore for LocalDataset {
 		&self,
 		class: ClassHandle,
 	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, MetastoreDataStub)>, MetastoreError> {
-		let mut conn_lock = self.conn.lock().unwrap();
-		if conn_lock.is_none() {
-			return Err(MetastoreError::NotConnected);
-		}
-		let conn = conn_lock.as_mut().unwrap();
+		let mut conn = self.conn.lock().unwrap();
 
 		let res = block_on(
 			sqlx::query(
@@ -476,7 +452,7 @@ impl Metastore for LocalDataset {
 			",
 			)
 			.bind(u32::from(class))
-			.fetch_all(conn),
+			.fetch_all(&mut *conn),
 		);
 
 		let res = match res {
@@ -510,16 +486,12 @@ impl Metastore for LocalDataset {
 	}
 
 	fn attr_get_type(&self, attr: AttrHandle) -> Result<MetastoreDataStub, MetastoreError> {
-		let mut conn_lock = self.conn.lock().unwrap();
-		if conn_lock.is_none() {
-			return Err(MetastoreError::NotConnected);
-		}
-		let conn = conn_lock.as_mut().unwrap();
+		let mut conn = self.conn.lock().unwrap();
 
 		let res = block_on(
 			sqlx::query("SELECT data_type FROM meta_attributes WHERE id=?;")
 				.bind(u32::from(attr))
-				.fetch_one(conn),
+				.fetch_one(&mut *conn),
 		);
 
 		return match res {
@@ -540,11 +512,7 @@ impl Metastore for LocalDataset {
 		attr: AttrHandle,
 		mut attr_value: MetastoreData,
 	) -> Result<Option<ItemHandle>, MetastoreError> {
-		let mut conn_lock = self.conn.lock().unwrap();
-		if conn_lock.is_none() {
-			return Err(MetastoreError::NotConnected);
-		}
-		let conn = conn_lock.as_mut().unwrap();
+		let mut conn = self.conn.lock().unwrap();
 
 		// Find table and column name to modify
 		let (table_name, column_name): (String, String) = {
@@ -578,7 +546,7 @@ impl Metastore for LocalDataset {
 		let mut q = sqlx::query(&query_str);
 		q = Self::bind_storage(q, &mut attr_value);
 
-		let res = block_on(q.bind(u32::from(attr)).fetch_one(conn));
+		let res = block_on(q.bind(u32::from(attr)).fetch_one(&mut *conn));
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Ok(None),
 			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
