@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
+use smartstring::{LazyCompact, SmartString};
 use ufo_pipeline::labels::{PipelineLabel, PipelineNodeLabel};
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ServerStatus {
+	pub version: SmartString<LazyCompact>,
+	pub request_body_limit: usize,
+}
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RunnerStatus {

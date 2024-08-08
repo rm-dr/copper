@@ -1,5 +1,5 @@
 use axum::{
-	extract::{DefaultBodyLimit, Path, State},
+	extract::{DefaultBodyLimit, State},
 	response::IntoResponse,
 	routing::{get, post},
 	Json, Router,
@@ -11,18 +11,14 @@ use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
 use ufo_api::{
 	data::{ApiData, ApiDataStub},
-	pipeline::{AddJobParams, AddJobResult, NodeInfo, PipelineInfo},
-	runner::{
-		CompletedJobStatus, RunnerStatus, RunningJobStatus, RunningNodeState, RunningNodeStatus,
-	},
+	pipeline::{AddJobParams, AddJobResult},
 };
 use ufo_database::{api::UFODatabase, database::Database};
 use ufo_db_blobstore::fs::store::FsBlobstore;
 use ufo_db_metastore::sqlite::db::SQLiteMetastore;
 use ufo_db_pipestore::fs::FsPipestore;
 use ufo_pipeline::{
-	api::{PipelineNodeState, PipelineNodeStub},
-	labels::{PipelineLabel, PipelineNodeLabel},
+	api::PipelineNodeStub,
 	runner::runner::{PipelineRunConfig, PipelineRunner},
 };
 use ufo_pipeline_nodes::{
@@ -30,6 +26,9 @@ use ufo_pipeline_nodes::{
 	nodetype::UFONodeType,
 	UFOContext,
 };
+
+mod pipeline;
+mod status;
 
 mod config;
 mod upload;
@@ -84,9 +83,8 @@ async fn main() {
 	);
 
 	// TODO: clone fewer arcs
-
 	let state = RouterState {
-		config,
+		config: Arc::new(config),
 		runner: Arc::new(Mutex::new(runner)),
 		database: Arc::new(database),
 		context: Arc::new(ctx),
@@ -95,19 +93,11 @@ async fn main() {
 
 	let app = Router::new()
 		.route("/", get(root))
-		// Status endpoints
-		.route("/status", get(get_status))
-		.route("/status/completed", get(get_completed))
-		// Pipeline endpoints
-		.route("/pipelines", get(get_all_pipelines))
-		.route("/pipelines/:pipeline_name", get(get_pipeline))
-		.route(
-			"/pipelines/:pipeline_name/:node_name",
-			get(get_pipeline_node),
-		)
-		// Job endpoints
 		.route("/add_job", post(add_job))
+		//
 		.nest("/upload", Uploader::get_router(state.uploader.clone()))
+		.nest("/pipelines", pipeline::router())
+		.nest("/status", status::router())
 		// Finish
 		.layer(TraceLayer::new_for_http())
 		.layer(DefaultBodyLimit::max(state.config.request_body_limit))
@@ -134,143 +124,12 @@ async fn root() -> &'static str {
 	"Hello, World!"
 }
 
-async fn get_status(State(state): State<RouterState>) -> impl IntoResponse {
-	let runner = state.runner.lock().await;
-
-	let running_jobs: Vec<RunningJobStatus> = runner
-		.iter_active_jobs()
-		.map(|(job_id, job)| {
-			let p = job.get_pipeline();
-			RunningJobStatus {
-				job_id: *job_id,
-				pipeline: p.get_name().clone(),
-				input_exemplar: format!("{:?}", job.get_input().first().unwrap()),
-				node_status: p
-					.iter_node_labels()
-					.map(|l| RunningNodeStatus {
-						name: l.clone(),
-						state: match job.get_node_status(l).unwrap() {
-							(true, _) => RunningNodeState::Running,
-							(false, PipelineNodeState::Done) => RunningNodeState::Done,
-							(false, PipelineNodeState::Pending(m)) => {
-								RunningNodeState::Pending { message: m.into() }
-							}
-						},
-					})
-					.collect(),
-			}
-		})
-		.collect();
-
-	return Json(RunnerStatus {
-		queued_jobs: runner.get_queued_jobs().len(),
-		finished_jobs: runner.get_completed_jobs().len(),
-		running_jobs,
-	});
-}
-
-/// Get all pipeline names
-async fn get_all_pipelines(State(state): State<RouterState>) -> impl IntoResponse {
-	return Json(state.database.get_pipestore().all_pipelines().clone());
-}
-
-/// Get details about one pipeline
-async fn get_pipeline(
-	Path(pipeline_name): Path<PipelineLabel>,
-	State(state): State<RouterState>,
-) -> impl IntoResponse {
-	let pipe = if let Some(pipe) = state
-		.database
-		.get_pipestore()
-		.load_pipeline(&pipeline_name, state.context)
-	{
-		pipe
-	} else {
-		return Json(None);
-	};
-
-	let nodes = pipe.iter_node_labels().cloned().collect::<Vec<_>>();
-
-	return Json(Some(PipelineInfo {
-		name: pipeline_name,
-		nodes,
-		input_node: pipe.input_node_label().clone(),
-		output_node: pipe.output_node_label().clone(),
-	}));
-}
-
-/// Get details about a node in one pipeline
-async fn get_pipeline_node(
-	Path((pipeline_name, node_name)): Path<(PipelineLabel, PipelineNodeLabel)>,
-	State(state): State<RouterState>,
-) -> impl IntoResponse {
-	let pipe = if let Some(pipe) = state
-		.database
-		.get_pipestore()
-		.load_pipeline(&pipeline_name, state.context.clone())
-	{
-		pipe
-	} else {
-		return Json(None);
-	};
-
-	let node = if let Some(node) = pipe.get_node(&node_name) {
-		node
-	} else {
-		return Json(None);
-	};
-
-	let inputs = (0..node.n_inputs(&state.context))
-		.map(|i| {
-			UFODataStub::iter_all()
-				.filter(|stub| node.input_compatible_with(&state.context, i, **stub))
-				.map(|x| match x {
-					UFODataStub::Text => ApiDataStub::Text,
-					UFODataStub::Path => ApiDataStub::Blob,
-					UFODataStub::Binary => todo!(),
-					UFODataStub::Blob => todo!(),
-					UFODataStub::Integer => ApiDataStub::Integer,
-					UFODataStub::PositiveInteger => ApiDataStub::PositiveInteger,
-					UFODataStub::Boolean => ApiDataStub::Boolean,
-					UFODataStub::Float => ApiDataStub::Float,
-					UFODataStub::Hash { .. } => todo!(),
-					UFODataStub::Reference { .. } => todo!(),
-				})
-				.collect()
-		})
-		.collect::<Vec<_>>();
-
-	return Json(Some(NodeInfo {
-		name: node_name,
-		inputs,
-	}));
-}
-
-async fn get_completed(State(state): State<RouterState>) -> impl IntoResponse {
-	let runner = state.runner.lock().await;
-
-	let completed_jobs: Vec<CompletedJobStatus> = runner
-		.get_completed_jobs()
-		.iter()
-		.map(|c| CompletedJobStatus {
-			job_id: c.job_id,
-			pipeline: c.pipeline.clone(),
-			error: c.error.as_ref().map(|x| x.to_string()),
-			input_exemplar: format!("{:?}", c.input.first().unwrap()),
-		})
-		.collect();
-
-	return Json(completed_jobs);
-}
-
 async fn add_job(
 	State(state): State<RouterState>,
 	Json(payload): Json<AddJobParams>,
 ) -> impl IntoResponse {
 	let mut runner = state.runner.lock().await;
 	let db = state.database;
-
-	debug!(message="Got request to add job", payload=?payload);
 
 	let pipeline = if let Some(pipeline) = db
 		.get_pipestore()
