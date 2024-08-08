@@ -104,7 +104,7 @@ function RefParams(params: {
 				if (v === null) {
 					params.onChange({ class: null });
 				} else {
-					params.onChange(v);
+					params.onChange({ class: v });
 				}
 			}}
 		/>

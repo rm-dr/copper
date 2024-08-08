@@ -75,7 +75,7 @@ export function EditPanel(params: {
 			return null;
 		}
 
-		for (const a of params.sel.attrs.reverse()) {
+		for (const a of params.sel.attrs.sort((av, bv) => av.idx - bv.idx)) {
 			const d = attrTypes.find((x) => {
 				return x.serialize_as === a.data_type.type;
 			});
@@ -105,7 +105,13 @@ export function EditPanel(params: {
 					{selectedItems.length === 0
 						? null
 						: Object.entries(selectedItems[0].attrs)
-								.sort()
+								.sort(
+									([aa, av], [ba, bv]) =>
+										(av as unknown as components["schemas"]["ItemListData"])
+											.attr.idx -
+										(bv as unknown as components["schemas"]["ItemListData"])
+											.attr.idx,
+								)
 								.map(([_, val]) => {
 									if (val === undefined) {
 										return null; // Unreachable
