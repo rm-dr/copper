@@ -21,6 +21,7 @@ ufo-metadb = { workspace = true }
 ufo-util = { workspace = true }
 ufo-audiofile = { workspace = true }
 ufo-pipeline = { workspace = true }
+ufo-blobstore = { workspace = true }
 
 serde = { workspace = true }
 smartstring = { workspace = true }
