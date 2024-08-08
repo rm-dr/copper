@@ -19,6 +19,10 @@ impl<'a> PipelinePortSpec<'a> {
 		}
 	}
 
+	pub fn is_empty(&self) -> bool {
+		self.len() == 0
+	}
+
 	pub fn find_with_name(&self, name: &PipelinePortLabel) -> Option<(usize, PipelineDataType)> {
 		match self {
 			Self::Static(x) => x
