@@ -2,17 +2,19 @@ use serde::{de::Visitor, Deserialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Display, str::FromStr};
 
+use super::{PipelineNodeLabel, PipelinePortLabel};
+
 /// An output port in the pipeline.
 /// (i.e, a port that produces data.)
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum PipelineOutput {
 	/// A pipeline input
-	Pinput { port: SmartString<LazyCompact> },
+	Pinput { port: PipelinePortLabel },
 
 	/// An output port of a node
 	Node {
-		node: SmartString<LazyCompact>,
-		port: SmartString<LazyCompact>,
+		node: PipelineNodeLabel,
+		port: PipelinePortLabel,
 	},
 
 	/// Inline static text
@@ -23,14 +25,14 @@ impl PipelineOutput {
 	pub fn node_str(&self) -> Option<&str> {
 		match self {
 			Self::Pinput { .. } => Some("in"),
-			Self::Node { node, .. } => Some(node),
+			Self::Node { node, .. } => Some(node.into()),
 			Self::InlineText { .. } => None,
 		}
 	}
 
 	pub fn port_str(&self) -> Option<&str> {
 		match self {
-			Self::Pinput { port } | Self::Node { port, .. } => Some(port),
+			Self::Pinput { port } | Self::Node { port, .. } => Some(port.into()),
 			Self::InlineText { .. } => None,
 		}
 	}
@@ -118,12 +120,12 @@ impl<'de> Deserialize<'de> for PipelineOutput {
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum PipelineInput {
 	/// A pipeline output
-	Poutput { port: SmartString<LazyCompact> },
+	Poutput { port: PipelinePortLabel },
 
 	/// An input port of a node
 	Node {
-		node: SmartString<LazyCompact>,
-		port: SmartString<LazyCompact>,
+		node: PipelineNodeLabel,
+		port: PipelinePortLabel,
 	},
 }
 
@@ -131,13 +133,13 @@ impl PipelineInput {
 	pub fn node_str(&self) -> &str {
 		match self {
 			Self::Poutput { .. } => "out",
-			Self::Node { node, .. } => node,
+			Self::Node { node, .. } => node.into(),
 		}
 	}
 
 	pub fn port_str(&self) -> &str {
 		match self {
-			Self::Poutput { port } | Self::Node { port, .. } => port,
+			Self::Poutput { port } | Self::Node { port, .. } => port.into(),
 		}
 	}
 }

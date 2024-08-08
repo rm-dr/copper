@@ -3,13 +3,13 @@ use lofty::{
 	file::AudioFile,
 	tag::{Accessor, Tag},
 };
-use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::HashMap,
 	io::{Cursor, Read, Seek},
 };
 
 use crate::pipeline::{
+	components::PipelinePortLabel,
 	data::{AudioFormat, BinaryFormat, PipelineData, PipelineDataType},
 	errors::PipelineError,
 };
@@ -60,28 +60,52 @@ impl ExtractTag {
 }
 
 impl PipelineNode for ExtractTag {
-	fn get_inputs() -> &'static [(&'static str, PipelineDataType)] {
-		&[("data", PipelineDataType::Binary)]
+	fn get_input(input: &PipelinePortLabel) -> Option<PipelineDataType> {
+		match AsRef::as_ref(input) {
+			"data" => Some(PipelineDataType::Binary),
+			_ => None,
+		}
 	}
 
-	fn get_outputs() -> &'static [(&'static str, PipelineDataType)] {
-		&[
-			("title", PipelineDataType::Text),
-			("album", PipelineDataType::Text),
-			("artist", PipelineDataType::Text),
-			("genre", PipelineDataType::Text),
-			("comment", PipelineDataType::Text),
-			("track", PipelineDataType::Text),
-			("disk", PipelineDataType::Text),
-			("disk_total", PipelineDataType::Text),
-			("year", PipelineDataType::Text),
+	fn get_output(input: &PipelinePortLabel) -> Option<PipelineDataType> {
+		match AsRef::as_ref(input) {
+			"title" => Some(PipelineDataType::Text),
+			"album" => Some(PipelineDataType::Text),
+			"artist" => Some(PipelineDataType::Text),
+			"genre" => Some(PipelineDataType::Text),
+			"comment" => Some(PipelineDataType::Text),
+			"track" => Some(PipelineDataType::Text),
+			"disk" => Some(PipelineDataType::Text),
+			"disk_total" => Some(PipelineDataType::Text),
+			"year" => Some(PipelineDataType::Text),
+			_ => None,
+		}
+	}
+
+	fn get_inputs() -> impl Iterator<Item = PipelinePortLabel> {
+		["data"].iter().map(|x| (*x).into())
+	}
+
+	fn get_outputs() -> impl Iterator<Item = PipelinePortLabel> {
+		[
+			"title",
+			"album",
+			"artist",
+			"genre",
+			"comment",
+			"track",
+			"disk",
+			"disk_total",
+			"year",
 		]
+		.iter()
+		.map(|x| (*x).into())
 	}
 
 	fn run(
-		inputs: HashMap<SmartString<LazyCompact>, Option<PipelineData>>,
-	) -> Result<HashMap<SmartString<LazyCompact>, Option<PipelineData>>, PipelineError> {
-		let data = inputs.get("data").unwrap();
+		inputs: HashMap<PipelinePortLabel, Option<PipelineData>>,
+	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError> {
+		let data = inputs.get(&"data".into()).unwrap();
 
 		let (data_type, data) = match data.as_ref().unwrap() {
 			PipelineData::Binary {

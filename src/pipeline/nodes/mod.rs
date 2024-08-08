@@ -3,6 +3,7 @@ use smartstring::{LazyCompact, SmartString};
 use std::{collections::HashMap, str::FromStr};
 
 use super::{
+	components::PipelinePortLabel,
 	data::{PipelineData, PipelineDataType},
 	errors::PipelineError,
 };
@@ -12,18 +13,24 @@ pub mod tags;
 
 pub trait PipelineNode {
 	fn run(
-		inputs: HashMap<SmartString<LazyCompact>, Option<PipelineData>>,
-	) -> Result<HashMap<SmartString<LazyCompact>, Option<PipelineData>>, PipelineError>;
+		inputs: HashMap<PipelinePortLabel, Option<PipelineData>>,
+	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError>;
 
-	/// List this node's inputs.
-	/// This is a list of ("output name", output type)
+	/// List the inputs this node provides.
 	/// Input names MUST be unique. This is not enforced!
-	fn get_inputs() -> &'static [(&'static str, PipelineDataType)];
+	fn get_inputs() -> impl Iterator<Item = PipelinePortLabel>;
 
-	/// List this node's outputs.
-	/// This is a list of ("output name", output type)
+	/// List the outputs this node provides.
 	/// Output names MUST be unique. This is not enforced!
-	fn get_outputs() -> &'static [(&'static str, PipelineDataType)];
+	fn get_outputs() -> impl Iterator<Item = PipelinePortLabel>;
+
+	/// Does this pipeline provide the given input port?
+	/// If it does, return its type. If it doesn't, return None.
+	fn get_input(input: &PipelinePortLabel) -> Option<PipelineDataType>;
+
+	/// Does this pipeline provide the given output port?
+	/// If it does, return its type. If it doesn't, return None.
+	fn get_output(output: &PipelinePortLabel) -> Option<PipelineDataType>;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -35,25 +42,39 @@ pub enum PipelineNodes {
 impl PipelineNodes {
 	pub fn run(
 		&self,
-		inputs: HashMap<SmartString<LazyCompact>, Option<PipelineData>>,
-	) -> Result<HashMap<SmartString<LazyCompact>, Option<PipelineData>>, PipelineError> {
+		inputs: HashMap<PipelinePortLabel, Option<PipelineData>>,
+	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError> {
 		match self {
 			Self::ExtractTag => tags::ExtractTag::run(inputs),
 			Self::IfNone => ifnone::IfNone::run(inputs),
 		}
 	}
 
-	pub fn get_inputs(&self) -> &'static [(&'static str, PipelineDataType)] {
+	pub fn get_inputs(&self) -> Box<dyn Iterator<Item = PipelinePortLabel>> {
 		match self {
-			Self::ExtractTag => tags::ExtractTag::get_inputs(),
-			Self::IfNone => ifnone::IfNone::get_inputs(),
+			Self::ExtractTag => Box::new(tags::ExtractTag::get_inputs()),
+			Self::IfNone => Box::new(ifnone::IfNone::get_inputs()),
 		}
 	}
 
-	pub fn get_outputs(&self) -> &'static [(&'static str, PipelineDataType)] {
+	pub fn get_outputs(&self) -> Box<dyn Iterator<Item = PipelinePortLabel>> {
 		match self {
-			Self::ExtractTag => tags::ExtractTag::get_outputs(),
-			Self::IfNone => ifnone::IfNone::get_outputs(),
+			Self::ExtractTag => Box::new(tags::ExtractTag::get_outputs()),
+			Self::IfNone => Box::new(ifnone::IfNone::get_outputs()),
+		}
+	}
+
+	pub fn get_input(&self, input: &PipelinePortLabel) -> Option<PipelineDataType> {
+		match self {
+			Self::ExtractTag => tags::ExtractTag::get_input(input),
+			Self::IfNone => ifnone::IfNone::get_input(input),
+		}
+	}
+
+	pub fn get_output(&self, output: &PipelinePortLabel) -> Option<PipelineDataType> {
+		match self {
+			Self::ExtractTag => tags::ExtractTag::get_output(output),
+			Self::IfNone => ifnone::IfNone::get_output(output),
 		}
 	}
 }

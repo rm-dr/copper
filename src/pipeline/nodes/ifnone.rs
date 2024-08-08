@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
-use smartstring::{LazyCompact, SmartString};
-
 use super::PipelineNode;
 use crate::pipeline::{
+	components::PipelinePortLabel,
 	data::{PipelineData, PipelineDataType},
 	errors::PipelineError,
 };
@@ -11,22 +10,33 @@ use crate::pipeline::{
 pub struct IfNone {}
 
 impl PipelineNode for IfNone {
-	fn get_inputs() -> &'static [(&'static str, PipelineDataType)] {
-		&[
-			("data", PipelineDataType::Text),
-			("ifnone", PipelineDataType::Text),
-		]
+	fn get_input(input: &PipelinePortLabel) -> Option<PipelineDataType> {
+		match AsRef::as_ref(input) {
+			"data" | "ifnone" => Some(PipelineDataType::Text),
+			_ => None,
+		}
 	}
 
-	fn get_outputs() -> &'static [(&'static str, PipelineDataType)] {
-		&[("out", PipelineDataType::Text)]
+	fn get_output(input: &PipelinePortLabel) -> Option<PipelineDataType> {
+		match AsRef::as_ref(input) {
+			"out" => Some(PipelineDataType::Text),
+			_ => None,
+		}
+	}
+
+	fn get_inputs() -> impl Iterator<Item = PipelinePortLabel> {
+		["data", "ifnone"].iter().map(|x| (*x).into())
+	}
+
+	fn get_outputs() -> impl Iterator<Item = PipelinePortLabel> {
+		["out"].iter().map(|x| (*x).into())
 	}
 
 	fn run(
-		mut inputs: HashMap<SmartString<LazyCompact>, Option<PipelineData>>,
-	) -> Result<HashMap<SmartString<LazyCompact>, Option<PipelineData>>, PipelineError> {
-		let ifnone = inputs.remove("ifnone").unwrap();
-		let data = inputs.remove("data").unwrap();
+		mut inputs: HashMap<PipelinePortLabel, Option<PipelineData>>,
+	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError> {
+		let ifnone = inputs.remove(&"ifnone".into()).unwrap();
+		let data = inputs.remove(&"data".into()).unwrap();
 		return Ok(HashMap::from([(
 			"out".into(),
 			data.map(Some).unwrap_or(ifnone),

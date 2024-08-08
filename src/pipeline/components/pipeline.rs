@@ -2,9 +2,10 @@ use std::collections::HashMap;
 
 use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
 use serde::Deserialize;
-use smartstring::{LazyCompact, SmartString};
 
-use super::{PipelineCheckResult, PipelineInput, PipelineOutput};
+use super::{
+	PipelineCheckResult, PipelineInput, PipelineNodeLabel, PipelineOutput, PipelinePortLabel,
+};
 use crate::pipeline::{data::PipelineDataType, nodes::PipelineNodes};
 
 /// Pipeline configuration
@@ -13,15 +14,15 @@ use crate::pipeline::{data::PipelineDataType, nodes::PipelineNodes};
 pub struct PipelineConfig {
 	/// Names and types of pipeline inputs
 	#[serde(default)]
-	pub input: HashMap<SmartString<LazyCompact>, PipelineDataType>,
+	pub input: HashMap<PipelinePortLabel, PipelineDataType>,
 
 	/// Names and types of pipeline outputs
 	#[serde(default)]
-	pub output: HashMap<SmartString<LazyCompact>, PipelineDataType>,
+	pub output: HashMap<PipelinePortLabel, PipelineDataType>,
 
 	/// Map pipeline outputs to the node outputs that produce them
 	#[serde(default)]
-	pub outmap: HashMap<SmartString<LazyCompact>, PipelineOutput>,
+	pub outmap: HashMap<PipelinePortLabel, PipelineOutput>,
 }
 
 /// A pipeline node specification
@@ -34,7 +35,7 @@ pub struct PipelineNodeSpec {
 
 	/// Where this node should read its input from.
 	#[serde(default)]
-	pub input: HashMap<SmartString<LazyCompact>, PipelineOutput>,
+	pub input: HashMap<PipelinePortLabel, PipelineOutput>,
 }
 
 /// A data processing pipeline
@@ -47,7 +48,7 @@ pub struct Pipeline {
 	/// Nodes in this pipeline
 	#[serde(default)]
 	#[serde(rename = "node")]
-	pub nodes: HashMap<SmartString<LazyCompact>, PipelineNodeSpec>,
+	pub nodes: HashMap<PipelineNodeLabel, PipelineNodeSpec>,
 }
 
 // TODO: rename: pipeline inputs are outputs
@@ -84,11 +85,7 @@ impl Pipeline {
 					});
 				}
 				let get_node = get_node.unwrap();
-				let input_spec = get_node
-					.node_type
-					.get_outputs()
-					.iter()
-					.find(|x| x.0 == port);
+				let input_spec = get_node.node_type.get_output(port);
 
 				if input_spec.is_none() {
 					return Some(PipelineCheckResult::NoNodeOutput {
@@ -97,7 +94,7 @@ impl Pipeline {
 						caused_by_input: input,
 					});
 				}
-				input_spec.unwrap().1
+				input_spec.unwrap()
 			}
 			PipelineOutput::Pinput { port } => {
 				if let Some(from_type) = self.pipeline.input.get(port) {
@@ -124,7 +121,7 @@ impl Pipeline {
 					});
 				}
 				let get_node = get_node.unwrap();
-				let input = get_node.node_type.get_inputs().iter().find(|x| x.0 == port);
+				let input = get_node.node_type.get_input(port);
 
 				if input.is_none() {
 					return Some(PipelineCheckResult::NoNodeInput {
@@ -132,7 +129,7 @@ impl Pipeline {
 						input_name: port.clone(),
 					});
 				}
-				input.unwrap().1
+				input.unwrap()
 			}
 			PipelineInput::Poutput { port } => {
 				if let Some(from_type) = self.pipeline.output.get(port) {
@@ -205,7 +202,7 @@ impl Pipeline {
 				match out_link {
 					PipelineOutput::InlineText { .. } => {}
 					PipelineOutput::Node { .. } | PipelineOutput::Pinput { .. } => {
-						deps.add_edge(out_link.node_str().unwrap(), node_name, ());
+						deps.add_edge(out_link.node_str().unwrap(), node_name.into(), ());
 					}
 				}
 			}
