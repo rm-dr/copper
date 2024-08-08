@@ -38,7 +38,7 @@ pub(super) async fn get_server_status(State(state): State<RouterState>) -> Respo
 		StatusCode::OK,
 		Json(ServerStatus {
 			version: env!("CARGO_PKG_VERSION").into(),
-			request_body_limit: state.config.request_body_limit,
+			request_body_limit: state.config.network.request_body_limit,
 		}),
 	)
 		.into_response();

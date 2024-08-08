@@ -4,12 +4,8 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
 
 
 ## 📦 CRUD datasets
-- [ ] Rename set, class, attr
-- [ ] Dataset & class descriptions?
+- [ ] Rename set, class, attr endpoint
 - [ ] Create hash and reference attrs from ui (params)
-- [ ] Show dataset metadata
-  - [ ] size, item count
-  - requires dashboard & item CRUD
 - [ ] Complete class deletion
   - [ ] Delete blobs
   - [ ] Check references
@@ -18,8 +14,8 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
   - [ ] How to handle running jobs?
     - cancel, or let them fail?
     - Same problem with renames. Will that break running jobs?
+    - It shouldn't, jobs are tied to id.
   - [ ] Deletion could take a while. Will our request time out?
-    - loading state
 - [ ] Polish UI: (`/datasets` page)
   - [ ] Dataset & attribute type descriptions
 
@@ -28,11 +24,8 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
 - [ ] async dataset api?
 
 ## 📦 Server.toml
-- [ ] upload fragment size
 - [ ] read blob size
 - [ ] logging
-- [ ] generate default config with docs
-- [ ] `Arc` config to share?
 
 ## 📦 How to fail pipelines?
 - e.g, duplicate album art
@@ -115,6 +108,9 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
 - [ ] Error if full db path doesn't exist (no panic)
 - [ ] Text vs long text datatypes
 
+## 📦 UI Cleanup
+ - Rename `upload` page
+
 ## 📦 Distribution
 - [ ] Docker file & compose
 - [ ] `crates.io`
@@ -150,6 +146,8 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
 - [ ] Show counts & sizes
 - [ ] Job history
 - [ ] Job history graph
+- [ ] Show dataset metadata in dataset page
+  - size, item count
 
 ## Dataset caching
 - [ ] Cache built pipelines
@@ -229,6 +227,7 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
 ## Ui Polish
 - [ ] Better errors in modals
 - [ ] Better `ApiSelector` loading state
+- [ ] Status update shouldn't trigger `ApiSelector` update in upload page
 
 ---------------------------------------------------------------------
 

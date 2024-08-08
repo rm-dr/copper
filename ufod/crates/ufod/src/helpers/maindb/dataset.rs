@@ -52,7 +52,7 @@ impl MainDB {
 		let path = match ds_type {
 			DatasetType::Local => {
 				let path = PathBuf::from(name);
-				LocalDataset::create(&self.config.dataset_dir.join(&path)).unwrap();
+				LocalDataset::create(&self.config.paths.dataset_dir.join(&path)).unwrap();
 				path
 			}
 		};
@@ -130,9 +130,9 @@ impl MainDB {
 		};
 
 		Ok(Some(match entry.ds_type {
-			DatasetType::Local => {
-				Arc::new(LocalDataset::open(&self.config.dataset_dir.join(entry.path)).unwrap())
-			}
+			DatasetType::Local => Arc::new(
+				LocalDataset::open(&self.config.paths.dataset_dir.join(entry.path)).unwrap(),
+			),
 		}))
 	}
 
@@ -159,7 +159,7 @@ impl MainDB {
 
 		match entry.ds_type {
 			DatasetType::Local => {
-				std::fs::remove_dir_all(&self.config.dataset_dir.join(&entry.path)).unwrap();
+				std::fs::remove_dir_all(&self.config.paths.dataset_dir.join(&entry.path)).unwrap();
 			}
 		};
 

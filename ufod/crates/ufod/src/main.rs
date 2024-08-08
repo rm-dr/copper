@@ -1,7 +1,7 @@
 use api::RouterState;
 use config::UfodConfig;
 use futures::executor::block_on;
-use std::{sync::Arc, thread};
+use std::{path::PathBuf, sync::Arc, thread};
 use tokio::sync::Mutex;
 use tracing::info;
 
@@ -27,19 +27,30 @@ async fn main() {
 		.with_ansi(true)
 		.init();
 
-	//let mut f = File::open("./config.toml").unwrap();
-	//let mut config_string = String::new();
-	//f.read_to_string(&mut config_string).unwrap();
-	//let config = toml::from_str(&config_string).unwrap();
-	let config: UfodConfig = Default::default();
+	let config_path: PathBuf = "./data/config.toml".into();
+	if !config_path.exists() {
+		info!(
+			message = "Generating default config because it doesn't exist",
+			config_path = ?config_path
+		);
+		UfodConfig::create_default_config(&config_path).unwrap();
+	} else if !config_path.is_file() {
+		println!(
+			"Config path `{}` isn't a file, cannot start",
+			config_path.to_str().unwrap()
+		);
+		std::process::exit(0);
+	}
+
+	let config = Arc::new(UfodConfig::load_from_file(&config_path).unwrap());
 
 	// Open main database
-	if !config.main_db.exists() {
+	if !config.paths.main_db.exists() {
 		info!(
 			message = "Creating main database because it doesn't exist",
-			main_db_path = ?config.main_db
+			main_db_path = ?config.paths.main_db
 		);
-		MainDB::create(&config.main_db).unwrap();
+		MainDB::create(&config.paths.main_db).unwrap();
 	}
 
 	// TODO: arc config?
@@ -55,12 +66,12 @@ async fn main() {
 	// TODO: clone fewer arcs
 	let state = RouterState {
 		main_db: Arc::new(main_db),
-		config: Arc::new(config),
+		config: config,
 		runner: Arc::new(Mutex::new(runner)),
 		uploader: Arc::new(uploader),
 	};
 
-	let listener = tokio::net::TcpListener::bind(state.config.server_addr.to_string())
+	let listener = tokio::net::TcpListener::bind(state.config.network.server_addr.to_string())
 		.await
 		.unwrap();
 	tracing::debug!("listening on {}", listener.local_addr().unwrap());

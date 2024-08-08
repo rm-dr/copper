@@ -1,13 +1,16 @@
 use futures::executor::block_on;
 use sqlx::{Connection, SqliteConnection};
-use std::{path::Path, sync::Mutex};
+use std::{
+	path::Path,
+	sync::{Arc, Mutex},
+};
 use tracing::{error, info};
 
 use crate::config::UfodConfig;
 
 pub struct MainDB {
 	pub(super) conn: Mutex<SqliteConnection>,
-	pub(super) config: UfodConfig,
+	pub(super) config: Arc<UfodConfig>,
 }
 
 impl MainDB {
@@ -26,23 +29,26 @@ impl MainDB {
 		Ok(())
 	}
 
-	pub fn open(config: UfodConfig) -> Result<Self, sqlx::Error> {
-		let db_addr = format!("sqlite:{}?mode=rw", config.main_db.to_str().unwrap());
+	pub fn open(config: Arc<UfodConfig>) -> Result<Self, sqlx::Error> {
+		let db_addr = format!("sqlite:{}?mode=rw", config.paths.main_db.to_str().unwrap());
 		let conn = block_on(SqliteConnection::connect(&db_addr))?;
 
 		// Initialize dataset dir
-		if !config.dataset_dir.exists() {
+		if !config.paths.dataset_dir.exists() {
 			info!(
 				message = "Creating dataset dir because it doesn't exist",
-				dataset_dir = ?config.dataset_dir
+				dataset_dir = ?config.paths.dataset_dir
 			);
-			std::fs::create_dir_all(&config.dataset_dir).unwrap();
-		} else if !config.dataset_dir.is_dir() {
+			std::fs::create_dir_all(&config.paths.dataset_dir).unwrap();
+		} else if !config.paths.dataset_dir.is_dir() {
 			error!(
 				message = "Dataset dir is not a directory",
-				dataset_dir = ?config.dataset_dir
+				dataset_dir = ?config.paths.dataset_dir
 			);
-			panic!("Dataset dir {:?} is not a directory", config.dataset_dir)
+			panic!(
+				"Dataset dir {:?} is not a directory",
+				config.paths.dataset_dir
+			)
 		}
 
 		Ok(Self {
