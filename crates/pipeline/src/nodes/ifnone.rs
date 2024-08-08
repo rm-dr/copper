@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::pipeline::{data::PipelineData, errors::PipelineError, PipelineStatelessRunner};
+use crate::{data::PipelineData, errors::PipelineError, PipelineStatelessRunner};
 
 pub struct IfNone {}
 

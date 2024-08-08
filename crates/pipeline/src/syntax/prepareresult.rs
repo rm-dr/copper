@@ -4,7 +4,7 @@ use super::{
 	labels::{PipelineNode, PipelinePortLabel},
 	ports::{NodeInput, NodeOutput},
 };
-use crate::pipeline::{data::PipelineDataType, pipeline::Pipeline};
+use crate::{data::PipelineDataType, pipeline::Pipeline};
 
 #[derive(Debug)]
 pub enum PipelinePrepareResult {

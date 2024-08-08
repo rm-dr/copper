@@ -7,7 +7,7 @@ use std::{
 };
 
 use super::Ingest;
-use crate::pipeline::{
+use ufo_pipeline::{
 	data::{AudioFormat, BinaryFormat, PipelineData},
 	syntax::labels::PipelinePortLabel,
 };

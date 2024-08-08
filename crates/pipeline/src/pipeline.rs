@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use super::syntax::labels::PipelinePortLabel;
-use crate::pipeline::{
+use crate::{
 	data::PipelineData, errors::PipelineError, nodes::PipelineNodeInstance, PipelineStatelessRunner,
 };
 

@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
 use serde::Deserialize;
 
-use crate::pipeline::{
+use crate::{
 	data::{PipelineData, PipelineDataType},
 	nodes::{PipelineNodeInstance, PipelineNodeType},
 	pipeline::{NodePort, Pipeline},
@@ -59,7 +59,6 @@ pub struct PipelineSpec {
 	nodes: HashMap<PipelineNodeLabel, PipelineNodeSpec>,
 }
 
-// TODO: pretty errors
 // TODO: warnings (disconnected input)
 // TODO: check for unused nodes
 impl PipelineSpec {

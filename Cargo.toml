@@ -1,11 +1,52 @@
-[package]
-name = "ufo"
+[profile.dev]
+opt-level = 0
+debug = true
+strip = false
+debug-assertions = true
+overflow-checks = true
+lto = false
+panic = "unwind"
+incremental = true
+codegen-units = 256
+rpath = false
+
+
+[profile.release]
+opt-level = 3
+debug = false
+debug-assertions = false
+strip = "symbols"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+incremental = false
+rpath = false
+
+
+[workspace]
+members = ["crates/*"]
+default-members = ["crates/ufo"]
+resolver = "2"
+
+
+[workspace.package]
+keywords = []
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.70"
+categories = []
+authors = []
+homepage = ""
+repository = ""
+license = ""
+documentation = ""
+readme = ""
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
+[workspace.dependencies]
+ufo-pipeline = { path = "crates/pipeline" }
+ufo = { path = "crates/ufo" }
+
 anyhow = "1.0.83"
 itertools = "0.12.1"
 lofty = "0.19.2"
@@ -13,3 +54,6 @@ petgraph = "0.6.5"
 serde = { version = "1.0.201", features = ["serde_derive"] }
 smartstring = { version = "1.0.1", features = ["serde"] }
 toml = "0.8.12"
+
+
+[workspace.lints]

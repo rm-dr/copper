@@ -4,15 +4,13 @@ use anyhow::Result;
 
 mod ingest;
 mod model;
-mod pipeline;
 mod storage;
 
 use storage::StorageBackend;
 
-use crate::{
-	ingest::{file::FileInjest, Ingest},
-	pipeline::syntax::{prepareresult::PipelinePrepareResult, spec::PipelineSpec},
-};
+use crate::ingest::{file::FileInjest, Ingest};
+
+use ufo_pipeline::syntax::{prepareresult::PipelinePrepareResult, spec::PipelineSpec};
 
 fn main() -> Result<()> {
 	let mut x = storage::MemStorageBackend::new();

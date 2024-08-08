@@ -8,7 +8,7 @@ use std::{
 	sync::Arc,
 };
 
-use crate::pipeline::{
+use crate::{
 	data::{AudioFormat, BinaryFormat, PipelineData},
 	errors::PipelineError,
 	PipelineStatelessRunner,

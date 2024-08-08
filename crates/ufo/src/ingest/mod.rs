@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use crate::pipeline::{data::PipelineData, syntax::labels::PipelinePortLabel};
+use ufo_pipeline::{data::PipelineData, syntax::labels::PipelinePortLabel};
 
 pub mod file;
 
