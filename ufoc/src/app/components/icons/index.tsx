@@ -6,10 +6,16 @@ import {
 	IconDatabase,
 	IconDatabaseCog,
 	IconDatabasePlus,
+	IconDatabaseX,
+	IconEdit,
 	IconFile,
 	IconFilePlus,
 	IconFileUpload,
 	IconFileX,
+	IconFolder,
+	IconFolderPlus,
+	IconFolderX,
+	IconFolders,
 	IconGridPattern,
 	IconHexagon,
 	IconHexagonMinus,
@@ -21,6 +27,7 @@ import {
 	IconServer2,
 	IconSettings2,
 	IconSquareAsterisk,
+	IconTableRow,
 	IconTrash,
 	IconUpload,
 	IconX,
@@ -37,8 +44,36 @@ const defaultStyles: CSSProperties | undefined = {
 // This module lets us apply default styling to tabler icons,
 // and makes it easy to replace our icon provider.
 
+export const XIconRow = ({ style }: { style?: CSSProperties }) => {
+	return <IconTableRow style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconFolderPlus = ({ style }: { style?: CSSProperties }) => {
+	return <IconFolderPlus style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconFolderX = ({ style }: { style?: CSSProperties }) => {
+	return <IconFolderX style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconFolder = ({ style }: { style?: CSSProperties }) => {
+	return <IconFolder style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconFolders = ({ style }: { style?: CSSProperties }) => {
+	return <IconFolders style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconEdit = ({ style }: { style?: CSSProperties }) => {
+	return <IconEdit style={{ ...defaultStyles, ...style }} />;
+};
+
 export const XIconSettings = ({ style }: { style?: CSSProperties }) => {
 	return <IconSettings2 style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconDatabaseX = ({ style }: { style?: CSSProperties }) => {
+	return <IconDatabaseX style={{ ...defaultStyles, ...style }} />;
 };
 
 export const XIconDatabasePlus = ({ style }: { style?: CSSProperties }) => {
