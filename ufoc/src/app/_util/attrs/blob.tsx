@@ -9,11 +9,21 @@ export const _blobAttrType: attrTypeInfo = {
 	icon: <XIconAttrBlob />,
 	extra_params: null,
 
-	value_preview: (params) => (
-		<Text c="dimmed" fs="italic">{`Blob ${params.attr.handle} (${ppBytes(
-			params.attr.size,
-		)})`}</Text>
-	),
+	value_preview: (params) => {
+		if (params.attr.value === null) {
+			return (
+				<Text c="dimmed" fs="italic">
+					no value
+				</Text>
+			);
+		} else {
+			return (
+				<Text c="dimmed" fs="italic">{`Blob ${params.attr.handle} (${ppBytes(
+					params.attr.size,
+				)})`}</Text>
+			);
+		}
+	},
 
 	editor: { type: "panel" },
 };

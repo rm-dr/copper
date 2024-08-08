@@ -9,7 +9,13 @@ export const _textAttrType: attrTypeInfo = {
 	extra_params: null,
 
 	value_preview: (params) => {
-		if (params.attr.value == "") {
+		if (params.attr.value == null) {
+			return (
+				<Text c="dimmed" fs="italic">
+					no value
+				</Text>
+			);
+		} else if (params.attr.value == "") {
 			return (
 				<Text c="dimmed" fs="italic">
 					empty string
@@ -17,12 +23,6 @@ export const _textAttrType: attrTypeInfo = {
 			);
 		} else if (params.attr.value.trim() == "") {
 			return <Text c="dimmed">{`""`}</Text>;
-		} else if (params.attr.value == null) {
-			return (
-				<Text c="dimmed" fs="italic">
-					no value
-				</Text>
-			);
 		} else {
 			return params.attr.value;
 		}
@@ -32,7 +32,13 @@ export const _textAttrType: attrTypeInfo = {
 		type: "inline",
 
 		old_value: (params) => {
-			if (params.attr.value == "") {
+			if (params.attr.value == null) {
+				return (
+					<Text c="dimmed" fs="italic">
+						no value
+					</Text>
+				);
+			} else if (params.attr.value == "") {
 				return (
 					<Text c="dimmed" fs="italic">
 						empty string
@@ -40,12 +46,6 @@ export const _textAttrType: attrTypeInfo = {
 				);
 			} else if (params.attr.value.trim() == "") {
 				return <Text c="dimmed">{`""`}</Text>;
-			} else if (params.attr.value == null) {
-				return (
-					<Text c="dimmed" fs="italic">
-						no value
-					</Text>
-				);
 			} else {
 				return params.attr.value;
 			}

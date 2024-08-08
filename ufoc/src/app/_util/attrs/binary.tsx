@@ -9,11 +9,21 @@ export const _binaryAttrType: attrTypeInfo = {
 	icon: <XIconAttrBinary />,
 	extra_params: null,
 
-	value_preview: (params) => (
-		<Text c="dimmed" fs="italic">{`Binary (${ppBytes(
-			params.attr.size,
-		)})`}</Text>
-	),
+	value_preview: (params) => {
+		if (params.attr.size === null) {
+			return (
+				<Text c="dimmed" fs="italic">
+					no value
+				</Text>
+			);
+		} else {
+			return (
+				<Text c="dimmed" fs="italic">{`Binary (${ppBytes(
+					params.attr.size,
+				)})`}</Text>
+			);
+		}
+	},
 
 	editor: { type: "panel" },
 };

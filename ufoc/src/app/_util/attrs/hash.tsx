@@ -11,14 +11,27 @@ export const _hashAttrType: attrTypeInfo = {
 		node: HashParams,
 	},
 
-	value_preview: (params) => (
-		<>
-			<Text c="dimmed" span>{`${params.attr.hash_type}: `}</Text>
-			<Text ff="monospace" span>
-				{params.attr.value}
-			</Text>
-		</>
-	),
+	value_preview: (params) => {
+		if (params.attr.value === null) {
+			return (
+				<>
+					<Text c="dimmed" span>{`${params.attr.hash_type}: `}</Text>
+					<Text c="dimmed" fs="italic" span>
+						no value
+					</Text>
+				</>
+			);
+		} else {
+			return (
+				<>
+					<Text c="dimmed" span>{`${params.attr.hash_type}: `}</Text>
+					<Text ff="monospace" span>
+						{params.attr.value}
+					</Text>
+				</>
+			);
+		}
+	},
 
 	editor: { type: "panel" },
 };

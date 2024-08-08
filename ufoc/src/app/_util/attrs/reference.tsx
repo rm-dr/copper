@@ -12,14 +12,24 @@ export const _refAttrType: attrTypeInfo = {
 		node: RefParams,
 	},
 
-	value_preview: (params) => (
-		<Text c="dimmed">
-			Reference to{" "}
-			<Text c="dimmed" fs="italic" span>
-				{params.attr.class}
-			</Text>
-		</Text>
-	),
+	value_preview: (params) => {
+		if (params.attr.item === null) {
+			return (
+				<Text c="dimmed" fs="italic">
+					no value
+				</Text>
+			);
+		} else {
+			return (
+				<Text c="dimmed">
+					Reference to{" "}
+					<Text c="dimmed" fs="italic" span>
+						{params.attr.class}
+					</Text>
+				</Text>
+			);
+		}
+	},
 
 	editor: { type: "panel" },
 };
