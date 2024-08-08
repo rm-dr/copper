@@ -42,7 +42,7 @@ pub(super) async fn add_dataset(
 	State(state): State<RouterState>,
 	Json(payload): Json<NewDatasetRequest>,
 ) -> Response {
-	match state.main_db.auth.check_headers(&jar).await {
+	match state.main_db.auth.check_cookies(&jar).await {
 		Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
 		Ok(Some(u)) => {
 			if !u.group.permissions.edit_datasets.is_allowed() {

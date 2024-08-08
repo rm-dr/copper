@@ -37,7 +37,7 @@ pub(super) async fn add_user(
 	State(state): State<RouterState>,
 	Json(payload): Json<AdduserRequest>,
 ) -> Response {
-	match state.main_db.auth.check_headers(&jar).await {
+	match state.main_db.auth.check_cookies(&jar).await {
 		Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
 		Ok(Some(u)) => {
 			if !u.group.permissions.edit_users_sub.is_allowed() {

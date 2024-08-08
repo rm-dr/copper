@@ -40,7 +40,7 @@ pub(super) async fn get_server_status(
 	jar: CookieJar,
 	State(state): State<RouterState>,
 ) -> Response {
-	match state.main_db.auth.check_headers(&jar).await {
+	match state.main_db.auth.check_cookies(&jar).await {
 		Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
 		Ok(Some(_)) => {}
 		Err(e) => {

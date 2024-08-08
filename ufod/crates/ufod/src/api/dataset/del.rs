@@ -33,7 +33,7 @@ pub(super) async fn del_dataset(
 	State(state): State<RouterState>,
 	Json(payload): Json<DeleteDatasetRequest>,
 ) -> Response {
-	match state.main_db.auth.check_headers(&jar).await {
+	match state.main_db.auth.check_cookies(&jar).await {
 		Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
 		Ok(Some(u)) => {
 			if !u.group.permissions.edit_datasets.is_allowed() {

@@ -65,7 +65,7 @@ impl AuthProvider {
 }
 
 impl AuthProvider {
-	pub async fn check_headers(&self, jar: &CookieJar) -> Result<Option<UserInfo>, sqlx::Error> {
+	pub async fn check_cookies(&self, jar: &CookieJar) -> Result<Option<UserInfo>, sqlx::Error> {
 		let token = if let Some(h) = jar.get(AUTH_COOKIE_NAME) {
 			h.value()
 		} else {
@@ -79,6 +79,27 @@ impl AuthProvider {
 		}
 
 		return Ok(None);
+	}
+
+	pub async fn terminate_session(&self, jar: &CookieJar) -> Result<Option<AuthToken>, ()> {
+		let token = if let Some(h) = jar.get(AUTH_COOKIE_NAME) {
+			h.value()
+		} else {
+			return Ok(None);
+		};
+
+		let mut active_tokens = self.active_tokens.lock().await;
+		let mut i = 0;
+		let mut x = None;
+		while i < active_tokens.len() {
+			if active_tokens[i].token == token {
+				x = Some(active_tokens.swap_remove(i));
+			} else {
+				i += 1;
+			}
+		}
+
+		return Ok(x);
 	}
 
 	pub async fn try_auth_user(
