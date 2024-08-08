@@ -10,7 +10,7 @@ import { APIclient } from "@/app/_util/api";
 
 export default function Page() {
 	const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
-	const [selectedClass, setSelectedClass] = useState<string | null>(null);
+	const [selectedClass, setSelectedClass] = useState<number | null>(null);
 
 	const select = useSelected();
 
@@ -56,7 +56,7 @@ export default function Page() {
 const PAGE_SIZE = 15;
 
 async function fetchdata(params: {
-	class: string | null;
+	class: number | null;
 	dataset: string | null;
 	maxPage: number;
 
@@ -99,13 +99,13 @@ async function fetchdata(params: {
 
 export type ItemData = {
 	dataset: string | null;
-	class: string | null;
+	class: number | null;
 	loading: boolean;
 	data: components["schemas"]["ItemListItem"][];
 	loadMore: () => void;
 };
 
-function useItemData(params: { dataset: string | null; class: string | null }) {
+function useItemData(params: { dataset: string | null; class: number | null }) {
 	const [loading, setLoading] = useState(true);
 	const [data, setData] = useState<components["schemas"]["ItemListItem"][]>([]);
 	const [maxPage, setMaxPage] = useState(0);

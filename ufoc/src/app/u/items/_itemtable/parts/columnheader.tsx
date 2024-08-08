@@ -12,11 +12,11 @@ import {
 
 export function ColumnHeader(params: {
 	selectedDataset: string | null;
-	selectedClass: string | null;
-	attr: null | string;
+	selectedClass: number | null;
+	attr: number | null;
 	idx: number;
-	columns: { attr: null | string }[];
-	setAttr: (attr: string | null) => void;
+	columns: { attr: number | null }[];
+	setAttr: (attr: number | null) => void;
 	newCol: (at_index: number) => void;
 	delCol: (at_index: number) => void;
 }) {
@@ -56,7 +56,7 @@ export function ColumnHeader(params: {
 function ColumnMenu(params: {
 	disabled: boolean;
 	idx: number;
-	columns: { attr: null | string }[];
+	columns: { attr: null | number }[];
 	newCol: (at_index: number) => void;
 	delCol: (at_index: number) => void;
 }) {

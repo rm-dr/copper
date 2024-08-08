@@ -1,8 +1,9 @@
+import { APIclient } from "@/app/_util/api";
 import { ApiSelector } from "./api";
 
 async function update_attrs(params: {
 	dataset: string | null;
-	class: string | null;
+	class: number | null;
 }) {
 	if (params.dataset === null || params.class === null) {
 		return Promise.resolve(null);
@@ -10,41 +11,34 @@ async function update_attrs(params: {
 
 	// TODO: list attrs endpoint, or take attrs as input?
 	// this is a bit inefficient.
-	const res = await fetch(
-		"/api/class/list?" +
-			new URLSearchParams({
-				dataset: params.dataset,
-			}),
-	);
+	let { data, error } = await APIclient.GET("/class/list", {
+		params: { query: { dataset: params.dataset } },
+	});
 
-	const data: {
-		name: string;
-		attrs: {
-			data_type: {};
-			name: string;
-		}[];
-	}[] = await res.json();
+	if (data === undefined) {
+		throw error;
+	}
 
-	const c = data.find((x) => x.name == params.class);
+	const c = data.find((x) => x.handle == params.class);
 	if (c === undefined) {
 		return Promise.resolve(null);
 	}
 
-	return c.attrs.map(({ name }) => ({
+	return c.attrs.map(({ name, handle }) => ({
 		label: name,
-		value: name,
+		value: handle.toString(),
 		disabled: false,
 	}));
 }
 
 export function AttrSelector(params: {
-	onSelect: (value: string | null) => void;
+	onSelect: (value: number | null) => void;
 	selectedDataset: string | null;
-	selectedClass: string | null;
+	selectedClass: number | null;
 }) {
 	return (
 		<ApiSelector
-			onSelect={params.onSelect}
+			onSelect={(v) => (v === null ? null : params.onSelect(parseInt(v)))}
 			update_params={{
 				dataset: params.selectedDataset,
 				class: params.selectedClass,

@@ -9,15 +9,14 @@ async function update_classes(dataset: string | null) {
 	const { data, error } = await APIclient.GET("/class/list", {
 		params: {
 			query: {
-				dataset
-			}
-		}
-	})
+				dataset,
+			},
+		},
+	});
 
 	if (error !== undefined) {
 		throw error;
 	}
-
 
 	return data.map(({ name, handle }) => {
 		return {
@@ -29,12 +28,12 @@ async function update_classes(dataset: string | null) {
 }
 
 export function ClassSelector(params: {
-	onSelect: (value: string | null) => void;
+	onSelect: (value: number | null) => void;
 	selectedDataset: string | null;
 }) {
 	return (
 		<ApiSelector
-			onSelect={params.onSelect}
+			onSelect={(v) => (v === null ? null : params.onSelect(parseInt(v)))}
 			update_params={params.selectedDataset}
 			update_list={update_classes}
 			messages={{

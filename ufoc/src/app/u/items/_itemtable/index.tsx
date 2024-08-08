@@ -61,7 +61,7 @@ const ItemTable = (params: {
 	const columnUidCounter = useRef(1);
 	const [columns, setColumns] = useState<
 		{
-			attr: null | string;
+			attr: null | number;
 			unique_id: number;
 		}[]
 	>(
@@ -456,7 +456,11 @@ const ItemTable = (params: {
 			</TablePlaceholder>
 		);
 	} else {
-		table_body = params.data.data.map((data_entry: any, data_idx) => {
+		table_body = params.data.data.map((data_entry, data_idx) => {
+			if (data_entry.attrs === undefined) {
+				return null;
+			}
+
 			const selected = params.select.selected.includes(data_idx);
 			return (
 				<tr
@@ -487,8 +491,16 @@ const ItemTable = (params: {
 								</td>
 							);
 						}
+
+						// type hack (TODO: fix)
+						let found_attr = Object.entries(data_entry.attrs).find(
+							([_, x]) => x?.attr.handle === attr,
+						);
+						let found_attr_x =
+							found_attr === undefined ? undefined : found_attr[1];
+
 						const d = attrTypes.find((x) => {
-							return x.serialize_as === data_entry.attrs[attr].type;
+							return x.serialize_as === found_attr_x?.type;
 						});
 						if (d === undefined) {
 							return (
@@ -500,11 +512,14 @@ const ItemTable = (params: {
 							);
 						}
 
+						let v = data_entry.attrs[attr.toString()];
 						return (
 							<td key={`${data_entry.idx}-${c_idx}-${attr}`}>
-								{d.value_preview === undefined
+								{d.value_preview === undefined || v === undefined
 									? null
-									: d.value_preview({ attr: data_entry.attrs[attr] })}
+									: d.value_preview({
+											attr_value: v,
+									  })}
 							</td>
 						);
 					})}

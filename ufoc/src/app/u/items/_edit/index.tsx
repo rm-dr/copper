@@ -4,7 +4,7 @@ import { ItemData, Selected } from "../page";
 import { attrTypes } from "@/app/_util/attrs";
 import { ActionIcon, Button, Text } from "@mantine/core";
 import { ppBytes } from "@/app/_util/ppbytes";
-import { useCallback, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import {
 	IconArrowRight,
 	IconBinary,
@@ -21,10 +21,11 @@ export function useEditPanel(params: { data: ItemData; select: Selected }) {
 	);
 
 	// Select attributes that are the same across all selected items
-	const attr_values = useMemo(() => {
+	const { first_panel, attr_values } = useMemo(() => {
 		let attr_values: {
 			[attr: string]: components["schemas"]["ItemListData"] | null;
 		} = {};
+
 		for (const it of selectedItems) {
 			for (const [attr, val] of Object.entries(it.attrs)) {
 				// This should never happen.
@@ -62,55 +63,54 @@ export function useEditPanel(params: { data: ItemData; select: Selected }) {
 			}
 		}
 
-		return attr_values;
-	}, [selectedItems]);
-
-	const [panelAttr, setPanelAttr] = useState<{
-		name: string;
-		value: any;
-	} | null>(null);
-
-	const on_change_list = useCallback(() => {
-		// TODO: fix panel changing on data load
-		let selected = null;
-
-		/*
-		for (const [attr_name, value] of Object.entries(attr_values).sort()) {
+		let first_panel = null;
+		for (const [_, value] of Object.entries(attr_values).sort()) {
 			const d = attrTypes.find((x) => {
 				return x.serialize_as === (value as { type: string }).type;
 			});
 			// When changing class / dataset, select the first
 			// panel-display attribute (if there is one)
 			if (d?.editor.type === "panel") {
-				selected = {
-					name: attr_name,
-					value,
-				};
+				first_panel = value;
 				break;
 			}
 		}
-		*/
 
+		return { first_panel, attr_values };
+	}, [selectedItems]);
+
+	const [panelAttr, setPanelAttr] = useState<
+		components["schemas"]["ItemListData"] | null
+	>(null);
+
+	// Called whenever we change class or dataset
+	const on_change_list = useCallback(() => {
 		console.log("changelist");
-		setPanelAttr(selected);
+		setPanelAttr(null);
 	}, []);
 
 	const selected_attr_spec = attrTypes.find((x) => {
-		return x.serialize_as === panelAttr?.value.type;
+		return x.serialize_as === panelAttr?.attr.data_type.type;
 	});
 
 	const panel_data =
 		selectedItems.length === 0 ||
 		selected_attr_spec === undefined ||
 		panelAttr === null ||
+		params.data.class === null ||
 		selected_attr_spec.editor.type !== "panel" ||
-		attr_values[panelAttr.name] === null ? null : (
-			<>
+		attr_values[panelAttr.attr.name] === null ? null : (
+			/* Key here is important, it makes sure we get a new panel each time we select an item */
+			<Fragment
+				key={`${params.data.dataset}-${params.data.class}-${selectedItems
+					.map((x) => x.idx)
+					.join(",")}`}
+			>
 				<div className={styles.paneltitle}>
 					<div className={styles.paneltitle_icon}>
 						<XIcon icon={IconBinary} />
 					</div>
-					<div className={styles.paneltitle_name}>{panelAttr.name}</div>
+					<div className={styles.paneltitle_name}>{panelAttr.attr.name}</div>
 				</div>
 				<div className={styles.panelbody}>
 					<a
@@ -119,27 +119,20 @@ export function useEditPanel(params: { data: ItemData; select: Selected }) {
 							"/api/item/attr?" +
 							new URLSearchParams({
 								dataset: params.data.dataset || "",
-								class: params.data.class || "",
-								attr: panelAttr.name || "",
+								class: params.data.class.toString() || "",
+								attr: panelAttr.attr.handle.toString(),
 								item_idx: selectedItems[0].idx.toString(),
 							})
 						}
 						rel="noopener noreferrer"
 						style={{ width: "100%", height: "100%", cursor: "inherit" }}
 					>
-						{/* Key here is important, it makes sure we get a new panel each time we select an item */}
-						<div
-							className={styles.panelimage}
-							key={`${params.data.dataset}-${params.data.class}-${selectedItems
-								.map((x) => x.idx)
-								.join(",")}`}
-						>
+						<div className={styles.panelimage}>
 							{selected_attr_spec.editor.panel_body({
 								dataset: params.data.dataset || "",
-								class: params.data.class || "",
+								class: params.data.class.toString() || "",
 								item_idx: selectedItems[0].idx,
-								attr_name: panelAttr.name,
-								attr_val: panelAttr.value,
+								attr_value: panelAttr,
 							})}
 						</div>
 					</a>
@@ -165,7 +158,7 @@ export function useEditPanel(params: { data: ItemData; select: Selected }) {
 						</ActionIcon>
 					</div>
 				</div>
-			</>
+			</Fragment>
 		);
 
 	const node = (
@@ -180,7 +173,12 @@ export function useEditPanel(params: { data: ItemData; select: Selected }) {
 						? null
 						: Object.entries(selectedItems[0].attrs)
 								.sort()
-								.map(([attr, val]: [string, any]) => {
+								.map(([_, val]) => {
+									if (val === undefined) {
+										// Unreachable
+										return null;
+									}
+
 									const d = attrTypes.find((x) => {
 										return x.serialize_as === val.type;
 									});
@@ -188,16 +186,31 @@ export function useEditPanel(params: { data: ItemData; select: Selected }) {
 										return null;
 									}
 
-									if (attr_values[attr] === null) {
+									// If we haven't selected a panel, select the first panel-able attribute.
+									//
+									// first_panel is set earlier in this component. we can't use val, because
+									// we'll then select the _last_ panel (every iter of `map` will call setPanelAttr).
+									// This is a hack, but it's good enough for now.
+									if (
+										d.editor.type === "panel" &&
+										panelAttr === null &&
+										first_panel !== null
+									) {
+										setPanelAttr(first_panel);
+									}
+
+									if (attr_values[val.attr.handle.toString()] === null) {
 										return (
 											<div
-												key={`${selectedItems
-													.map((x, _) => x.idx)
-													.join(",")}-${attr}`}
+												key={`${selectedItems.map((x, _) => x.idx).join(",")}-${
+													val.attr.name
+												}`}
 												className={styles.editrow}
 											>
 												<div className={styles.editrow_icon}>{d.icon}</div>
-												<div className={styles.editrow_name}>{attr}</div>
+												<div className={styles.editrow_name}>
+													{val.attr.name}
+												</div>
 												<div className={styles.editrow_value_old}>
 													<Text c="dimmed" fs="italic">
 														differs
@@ -214,29 +227,33 @@ export function useEditPanel(params: { data: ItemData; select: Selected }) {
 
 									return (
 										<div
-											key={`${selectedItems
-												.map((_, idx) => idx)
-												.join(",")}-${attr}`}
+											key={`${selectedItems.map((_, idx) => idx).join(",")}-${
+												val.attr.name
+											}`}
 											className={styles.editrow}
 										>
 											<div className={styles.editrow_icon}>{d.icon}</div>
-											<div className={styles.editrow_name}>{attr}</div>
+											<div className={styles.editrow_name}>{val.attr.name}</div>
 											<div className={styles.editrow_value_old}>
 												{d.editor.type === "inline" ? (
-													d.editor.old_value({ attr: val })
+													d.editor.old_value({
+														attr_value: val,
+													})
 												) : (
 													<Button
 														radius="0px"
 														variant={
-															panelAttr?.name === attr ? "filled" : "outline"
+															panelAttr?.attr.handle === val.attr.handle
+																? "filled"
+																: "outline"
 														}
 														fullWidth
 														rightSection={<XIcon icon={IconArrowRight} />}
 														onClick={() => {
-															setPanelAttr({ name: attr, value: val });
+															setPanelAttr(val);
 														}}
 													>
-														{panelAttr?.name === attr
+														{panelAttr?.attr.handle === val.attr.handle
 															? "Shown in panel"
 															: "View in panel"}
 													</Button>
@@ -245,7 +262,7 @@ export function useEditPanel(params: { data: ItemData; select: Selected }) {
 											<div className={styles.editrow_value_new}>
 												{d.editor.type === "inline"
 													? d.editor.new_value({
-															attr: val,
+															attr_value: val,
 															onChange: console.log,
 													  })
 													: null}

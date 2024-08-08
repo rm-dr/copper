@@ -9,7 +9,7 @@ import { IconDatabase } from "@tabler/icons-react";
 export function DatsetPanel(params: {
 	selectedDataset: string | null;
 	setSelectedDataset: (dataset: string | null) => void;
-	setSelectedClass: (class_name: string | null) => void;
+	setSelectedClass: (class_name: number | null) => void;
 }) {
 	return (
 		<>
