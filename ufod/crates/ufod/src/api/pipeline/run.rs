@@ -90,7 +90,7 @@ pub(super) async fn run_pipeline(
 		blob_fragment_size: state.config.blob_fragment_size,
 	});
 
-	let pipe = match dataset.load_pipeline(&pipeline_name, context.clone()) {
+	let pipe = match dataset.load_pipeline(&pipeline_name, context.clone()).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (

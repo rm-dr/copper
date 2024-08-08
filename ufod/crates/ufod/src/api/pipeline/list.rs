@@ -107,7 +107,7 @@ pub(super) async fn list_pipelines(
 
 	// TODO: this is ugly, fix it!
 	// (do while implementing generic datasets)
-	let all_pipes = match <LocalDataset as Pipestore<UFONodeType>>::all_pipelines(&dataset) {
+	let all_pipes = match <LocalDataset as Pipestore<UFONodeType>>::all_pipelines(&dataset).await {
 		Ok(x) => x,
 		Err(e) => {
 			error!(
@@ -125,7 +125,7 @@ pub(super) async fn list_pipelines(
 
 	let mut out = Vec::new();
 	for pipe_name in all_pipes {
-		let pipe = match dataset.load_pipeline(&pipe_name, context.clone()) {
+		let pipe = match dataset.load_pipeline(&pipe_name, context.clone()).await {
 			// This should never fail---all_pipelines must only return valid names.
 			Ok(x) => {
 				let pipe = x.unwrap();

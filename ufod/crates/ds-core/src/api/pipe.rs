@@ -7,16 +7,19 @@ use ufo_pipeline::{
 
 use crate::errors::PipestoreError;
 
+#[allow(async_fn_in_trait)]
 pub trait Pipestore<PipelineNodeStubType: PipelineNodeStub>
 where
 	Self: Send + Sync,
 {
-	fn load_pipeline(
+	async fn load_pipeline(
 		&self,
 		name: &PipelineName,
 		context: Arc<<PipelineNodeStubType::NodeType as PipelineNode>::NodeContext>,
 	) -> Result<Option<Pipeline<PipelineNodeStubType>>, PipestoreError<PipelineNodeStubType>>;
 
 	// TODO: cache list of pipelines?
-	fn all_pipelines(&self) -> Result<Vec<PipelineName>, PipestoreError<PipelineNodeStubType>>;
+	async fn all_pipelines(
+		&self,
+	) -> Result<Vec<PipelineName>, PipestoreError<PipelineNodeStubType>>;
 }

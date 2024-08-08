@@ -86,7 +86,7 @@ pub(super) async fn get_pipeline(
 
 	// TODO: clean up.
 	// We shouldn't need to load a pipeline to get its info
-	match dataset.load_pipeline(&pipeline_name, context) {
+	match dataset.load_pipeline(&pipeline_name, context).await {
 		Ok(Some(pipe)) => {
 			let node_ids = pipe.iter_node_ids().cloned().collect::<Vec<_>>();
 			let input_node_type = pipe.get_node(pipe.input_node_id()).unwrap();
