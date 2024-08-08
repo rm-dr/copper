@@ -5,6 +5,7 @@ use std::io::{Read, Seek, SeekFrom};
 use self::errors::FlacError;
 use crate::{common::vorbiscomment::VorbisComment, FileBlockDecode};
 
+pub mod blockread;
 pub mod blocks;
 pub mod errors;
 pub mod metastrip;
