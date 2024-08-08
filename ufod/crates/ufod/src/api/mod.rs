@@ -14,12 +14,16 @@ mod pipeline;
 mod status;
 pub mod upload;
 
-use crate::{config::UfodConfig, helpers::uploader::Uploader};
+use crate::{
+	config::UfodConfig,
+	helpers::{maindb::MainDB, uploader::Uploader},
+};
 
 #[derive(Clone)]
 pub struct RouterState {
 	pub config: Arc<UfodConfig>,
 	pub runner: Arc<Mutex<PipelineRunner<UFONodeType>>>,
+	pub main_db: Arc<MainDB>,
 	pub database: Arc<dyn Dataset<UFONodeType>>,
 	pub context: Arc<UFOContext>,
 	pub uploader: Arc<Uploader>,

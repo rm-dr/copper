@@ -3,6 +3,7 @@ use config::UfodConfig;
 use futures::executor::block_on;
 use std::{path::PathBuf, sync::Arc, thread};
 use tokio::sync::Mutex;
+use tracing::{error, warn};
 use ufo_ds_impl::local::LocalDataset;
 
 use ufo_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
@@ -12,7 +13,7 @@ mod api;
 mod config;
 
 mod helpers;
-use helpers::uploader::Uploader;
+use helpers::{maindb::MainDB, uploader::Uploader};
 
 // TODO: guaranteed unique pipeline job id (?)
 // delete after timeout (what if uploading takes a while? Multiple big files?)
@@ -53,6 +54,7 @@ async fn main() {
 	// TODO: clone fewer arcs
 	let uploader = Uploader::new(config.upload_dir.clone());
 	let state = RouterState {
+		main_db: Arc::new(main_db),
 		config: Arc::new(config),
 		runner: Arc::new(Mutex::new(runner)),
 		database: database.clone(),

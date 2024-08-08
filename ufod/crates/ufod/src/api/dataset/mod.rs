@@ -10,13 +10,15 @@ use new_dataset::*;
 #[openapi(
 	tags(),
 	paths(new_dataset),
-	components(schemas(NewDataset, NewDatasetParams, LocalDatasetMetadataType))
+	components(schemas(
+		NewDataset,
+		NewDatasetParams,
+		LocalDatasetMetadataType,
+		NewDatasetError
+	))
 )]
 pub(super) struct DatasetApi;
 
 pub(super) fn router() -> Router<RouterState> {
-	Router::new()
-		//.route("/", get(get_server_status))
-		//.route("/runner", get(get_runner_status))
-		.route("/new", post(new_dataset))
+	Router::new().route("/new", post(new_dataset))
 }
