@@ -140,7 +140,7 @@ pub(super) async fn upload(
 						.into_response();
 				}
 
-				// TODO: better organize these errors
+				// TODO: better organize these errors?
 				if meta.is_none() {
 					warn!(
 						message = "File fragment received before metadata",

@@ -104,7 +104,6 @@ export async function uploadBlob(params: {
 			throw Error(`Bad response from server: ${res.status}`);
 		}
 
-		//TODO: handle res errors
 		uploaded_bytes += last_byte - byte_idx;
 		params.onProgress(uploaded_bytes);
 	}

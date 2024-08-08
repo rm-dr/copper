@@ -96,8 +96,6 @@ pub enum UFOData {
 	},
 }
 
-// TODO: better debug
-
 impl PipelineData for UFOData {
 	type DataStubType = UFODataStub;
 

@@ -32,9 +32,6 @@ pub struct RouterState {
 	pub uploader: Arc<Uploader>,
 }
 
-// TODO: guaranteed unique pipeline job id (?)
-// delete after timeout (what if uploading takes a while? Multiple big files?)
-
 // TODO: fix utoipa tags
 #[derive(OpenApi)]
 #[openapi(

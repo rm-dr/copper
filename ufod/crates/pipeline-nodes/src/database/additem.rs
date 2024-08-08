@@ -224,8 +224,6 @@ impl UFONode for AddItem {
 	) -> Result<Option<usize>, UFONodeTypeError> {
 		Ok(match stub {
 			UFONodeType::AddItem { class, .. } => {
-				// TODO: handle missing class errors
-
 				let class = if let Some(c) = ctx.dataset.get_class(&class[..])? {
 					c
 				} else {

@@ -19,8 +19,6 @@ use utoipa::ToSchema;
 
 use crate::helpers::uploader::Uploader;
 
-// TODO: send finish progress
-
 /// Parameters to finish an uploading file
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 pub(super) struct UploadFinish {
