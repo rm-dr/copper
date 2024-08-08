@@ -54,13 +54,10 @@ export type attrTypeInfo = {
 					class: number;
 					item_idx: number;
 					attr_value: components["schemas"]["ItemListData"];
-				}) => ReactElement;
 
-				panel_bottom: (params: {
-					dataset: string;
-					class: number;
-					item_idx: number;
-					attr_value: components["schemas"]["ItemListData"];
+					// If this is true, this is drawn inside another panel.
+					// Exclude extra padding and toolbars.
+					inner?: boolean;
 				}) => ReactElement;
 		  };
 

@@ -50,78 +50,18 @@ export const _refAttrType: attrTypeInfo = {
 
 		panel_body: (params) => {
 			// TODO: show "empty" in row
-
-			return (
-				<>
-					<RefPanelBody
-						dataset={params.dataset}
-						class={params.class}
-						item_idx={params.item_idx}
-						attr_value={params.attr_value}
-					/>
-				</>
-			);
-		},
-
-		panel_bottom: (params) => {
-			if (
-				params.attr_value.type !== "Reference" ||
-				params.attr_value.item === null ||
-				params.attr_value.item === undefined
-			) {
+			if (params.attr_value.type !== "Reference") {
 				return <>Unreachable!</>;
 			}
 
-			// TODO: body and bottom in same fn?
-
 			return (
-				<div
-					style={{
-						display: "flex",
-						flexDirection: "row",
-						alignItems: "center",
-						width: "100%",
-						height: "100%",
-						gap: "0.5rem",
-					}}
-				>
-					<div style={{ flexGrow: 1 }}>
-						<Text c="dimmed" span>
-							Class:
-						</Text>{" "}
-						<Text span>{params.attr_value.class}</Text>
-					</div>
-					<div style={{ flexGrow: 1 }}>
-						{params.attr_value.item === undefined ? (
-							<Text c="dimmed" span>
-								Empty reference
-							</Text>
-						) : (
-							<>
-								<Text c="dimmed" span>
-									Item:
-								</Text>{" "}
-								<Text span>{params.attr_value.item.toString()}</Text>
-							</>
-						)}
-					</div>
-					<div style={{ flexGrow: 1 }}>
-						<Text c="dimmed" span>
-							Showing Attribute:
-						</Text>{" "}
-						<Text span>qq</Text>
-					</div>
-					<div>
-						<ActionIcon variant="filled" color="red">
-							<XIcon icon={IconTrash} style={{ width: "70%", height: "70%" }} />
-						</ActionIcon>
-					</div>
-					<div>
-						<ActionIcon variant="filled">
-							<XIcon icon={IconEdit} style={{ width: "70%", height: "70%" }} />
-						</ActionIcon>
-					</div>
-				</div>
+				<RefPanel
+					dataset={params.dataset}
+					class={params.class}
+					item_idx={params.item_idx}
+					ref_attr_value={params.attr_value}
+					inner={params.inner}
+				/>
 			);
 		},
 	},
@@ -129,74 +69,14 @@ export const _refAttrType: attrTypeInfo = {
 
 function RefPanelBody(params: {
 	dataset: string;
-	class: number;
-	item_idx: number;
-	attr_value: components["schemas"]["ItemListData"];
+	data: RefPanelData;
+	ref_attr_value: Extract<
+		components["schemas"]["ItemListData"],
+		{ type: "Reference" }
+	>;
 }) {
-	const [data, setData] = useState<
-		| {
-				loading: true;
-				error: null;
-				data: null;
-		  }
-		| {
-				loading: false;
-				error: string;
-				data: null;
-		  }
-		| {
-				loading: false;
-				error: null;
-				data: components["schemas"]["ItemListItem"];
-		  }
-	>({
-		loading: true,
-		error: null,
-		data: null,
-	});
-
-	useEffect(() => {
-		if (
-			params.attr_value.type !== "Reference" ||
-			params.attr_value.item === null ||
-			params.attr_value.item === undefined
-		) {
-			return;
-		}
-
-		console.log({
-			dataset: params.dataset,
-			class: params.attr_value.class,
-			item: params.attr_value.item,
-		});
-		APIclient.GET("/item/get", {
-			params: {
-				query: {
-					dataset: params.dataset,
-					class: params.attr_value.class,
-					item: params.attr_value.item,
-				},
-			},
-		}).then(({ data, error }) => {
-			if (error !== undefined) {
-				setData({ loading: false, error, data: null });
-			} else {
-				setData({ loading: false, error: null, data });
-			}
-		});
-	}, [params.attr_value, params.dataset]);
-
-	if (
-		params.attr_value.type !== "Reference" ||
-		params.attr_value.item === null ||
-		params.attr_value.item === undefined
-	) {
-		return <>Unreachable!</>;
-	}
-
-	let body;
-	if (data.loading) {
-		body = (
+	if (params.data.loading) {
+		return (
 			<>
 				<div>
 					<Loader color="dimmed" size="4rem" />
@@ -204,8 +84,8 @@ function RefPanelBody(params: {
 				<div>Loading..</div>
 			</>
 		);
-	} else if (data.error !== null) {
-		body = (
+	} else if (params.data.error !== null) {
+		return (
 			<>
 				<div>
 					<XIcon
@@ -213,13 +93,11 @@ function RefPanelBody(params: {
 						style={{ height: "5rem", color: "var(--mantine-color-red-7)" }}
 					/>
 				</div>
-				<div>Error: {data.error}</div>
+				<div>Error: {params.data.error}</div>
 			</>
 		);
-	} else if (params.attr_value.item === undefined) {
-		// TODO: show "empty" in row
-		// (Don't show panel)
-		body = (
+	} else if (params.ref_attr_value.item === null) {
+		return (
 			<>
 				<div>
 					<XIcon icon={IconAmpersand} style={{ height: "5rem" }} />
@@ -227,47 +105,63 @@ function RefPanelBody(params: {
 				<div>No item selected</div>
 			</>
 		);
+	} else if (params.data.shown_attr === undefined) {
+		return (
+			<>
+				<div>
+					<XIcon icon={IconQuestionMark} style={{ height: "5rem" }} />
+				</div>
+				<div>
+					<Text span>{params.data.class.name}</Text>{" "}
+					<Text c="dimmed" span>
+						has no attributes.
+					</Text>
+				</div>
+			</>
+		);
 	} else {
-		const first_attr = Object.entries(data.data?.attrs).sort(
-			([aa, av], [ba, bv]) =>
-				(av as unknown as components["schemas"]["ItemListData"]).attr.idx -
-				(bv as unknown as components["schemas"]["ItemListData"]).attr.idx,
-		)[0][1];
-		if (first_attr === undefined) {
-			body = (
+		const d = attrTypes.find((x) => {
+			return x.serialize_as === params.data.shown_attr?.attr.data_type.type;
+		});
+
+		const attr_value =
+			params.data.data.attrs[params.data.shown_attr.attr.handle.toString()];
+		if (attr_value === undefined) {
+			return <>Unreachable</>;
+		}
+
+		if (d?.editor.type === "panel") {
+			return (
 				<>
-					<div>
-						<XIcon icon={IconQuestionMark} style={{ height: "5rem" }} />
-					</div>
-					<div>
-						<Text span>{params.class}</Text>{" "}
-						<Text c="dimmed" span>
-							has no attributes.
-						</Text>
-					</div>
+					{d.editor.panel_body({
+						dataset: params.dataset,
+						class: params.data.shown_attr.attr.class as number,
+						item_idx: params.ref_attr_value.item as number,
+						attr_value,
+						inner: true,
+					})}
 				</>
 			);
-		} else {
-			const d = attrTypes.find((x) => {
-				return x.serialize_as === first_attr.attr.data_type.type;
-			});
-
-			const attr_value = data.data.attrs[first_attr.attr.handle.toString()];
-			if (attr_value === undefined) {
-				return <>Unreachable</>;
-			}
-
-			if (d?.editor.type === "panel") {
-				body = d.editor.panel_body({
-					dataset: params.dataset,
-					class: first_attr.attr.class as number,
-					item_idx: params.attr_value.item as number,
-					attr_value,
-				});
-			} else if (d?.editor.type == "inline") {
-				body = "TODO";
-			}
+		} else if (d?.editor.type == "inline") {
+			return <>TODO</>;
 		}
+	}
+}
+
+function RefPanelBottom(params: {
+	dataset: string;
+	data: RefPanelData;
+	ref_attr_value: Extract<
+		components["schemas"]["ItemListData"],
+		{ type: "Reference" }
+	>;
+}) {
+	if (
+		params.data.error !== null ||
+		params.data.loading ||
+		params.data.shown_attr === undefined
+	) {
+		return <></>;
 	}
 
 	return (
@@ -275,13 +169,203 @@ function RefPanelBody(params: {
 			style={{
 				display: "flex",
 				flexDirection: "column",
-				justifyContent: "center",
-				alignItems: "center",
-				color: "var(--mantine-color-dimmed)",
-				height: "100%",
+				alignItems: "flex-start",
+				width: "100%",
+				gap: "0.5rem",
+				backgroundColor: "var(--mantine-color-dark-6)",
+				padding: "0.5rem",
 			}}
 		>
-			{body}
+			<div
+				style={{
+					display: "flex",
+					flexDirection: "row",
+					alignItems: "center",
+					width: "100%",
+					gap: "0.5rem",
+				}}
+			>
+				<div style={{ flexGrow: 1 }}>
+					<Text c="dimmed" span>
+						Class:
+					</Text>{" "}
+					<Text span>{params.data.class.name}</Text>
+				</div>
+				<div style={{ flexGrow: 1 }}>
+					{params.ref_attr_value.item === null ||
+					params.ref_attr_value.item === undefined ? (
+						<Text c="dimmed" span>
+							Empty reference
+						</Text>
+					) : (
+						<>
+							<Text c="dimmed" span>
+								Item:
+							</Text>{" "}
+							<Text span>{params.ref_attr_value.item.toString()}</Text>
+						</>
+					)}
+				</div>
+			</div>
+			<div>
+				<Text c="dimmed" span>
+					Showing Attribute:
+				</Text>{" "}
+				<Text span>
+					{
+						params.data.data.attrs[
+							params.data.shown_attr.attr.handle.toString()
+						]?.attr.name
+					}
+				</Text>
+			</div>
+		</div>
+	);
+}
+
+type RefPanelData =
+	| {
+			loading: true;
+			error: null;
+			data: null;
+			class: null;
+			shown_attr: null;
+	  }
+	| {
+			loading: false;
+			error: string;
+			data: null;
+			class: null;
+			shown_attr: null;
+	  }
+	| {
+			loading: false;
+			error: null;
+			data: components["schemas"]["ItemListItem"];
+			class: components["schemas"]["ClassInfo"];
+			shown_attr: components["schemas"]["ItemListData"] | undefined;
+	  };
+
+function RefPanel(params: {
+	dataset: string;
+	class: number;
+	item_idx: number;
+	ref_attr_value: Extract<
+		components["schemas"]["ItemListData"],
+		{ type: "Reference" }
+	>;
+	inner?: boolean;
+}) {
+	const [data, setData] = useState<RefPanelData>({
+		loading: true,
+		error: null,
+		data: null,
+		class: null,
+		shown_attr: null,
+	});
+
+	useEffect(() => {
+		if (
+			params.ref_attr_value.type !== "Reference" ||
+			params.ref_attr_value.item === null ||
+			params.ref_attr_value.item === undefined
+		) {
+			return;
+		}
+
+		console.log({
+			dataset: params.dataset,
+			class: params.ref_attr_value.class,
+			item: params.ref_attr_value.item,
+		});
+
+		Promise.all([
+			APIclient.GET("/item/get", {
+				params: {
+					query: {
+						dataset: params.dataset,
+						class: params.ref_attr_value.class,
+						item: params.ref_attr_value.item,
+					},
+				},
+			}),
+			APIclient.GET("/class/get", {
+				params: {
+					query: {
+						dataset: params.dataset,
+						class: params.ref_attr_value.class,
+					},
+				},
+			}),
+		]).then(
+			([
+				{ data: i_data, error: i_error },
+				{ data: c_data, error: c_error },
+			]) => {
+				if (i_error !== undefined) {
+					setData({
+						loading: false,
+						error: i_error,
+						data: null,
+						class: null,
+						shown_attr: null,
+					});
+				} else if (c_error !== undefined) {
+					setData({
+						loading: false,
+						error: c_error,
+						data: null,
+						class: null,
+						shown_attr: null,
+					});
+				} else {
+					const shown_attr = Object.entries(i_data.attrs).sort(
+						([aa, av], [ba, bv]) =>
+							(av as unknown as components["schemas"]["ItemListData"]).attr
+								.idx -
+							(bv as unknown as components["schemas"]["ItemListData"]).attr.idx,
+					)[0][1];
+					setData({
+						loading: false,
+						error: null,
+						data: i_data,
+						class: c_data,
+						shown_attr,
+					});
+				}
+			},
+		);
+	}, [params.ref_attr_value, params.dataset]);
+
+	if (
+		params.ref_attr_value.type !== "Reference" ||
+		params.ref_attr_value.item === null ||
+		params.ref_attr_value.item === undefined
+	) {
+		return <>Unreachable!</>;
+	}
+
+	return (
+		<div
+			style={{
+				height: "100%",
+				width: "100%",
+				display: "flex",
+				flexDirection: "column",
+			}}
+		>
+			<div style={{ padding: "0.5rem", flexGrow: 1 }}>
+				<RefPanelBody
+					dataset={params.dataset}
+					data={data}
+					ref_attr_value={params.ref_attr_value}
+				/>
+			</div>
+			<RefPanelBottom
+				dataset={params.dataset}
+				data={data}
+				ref_attr_value={params.ref_attr_value}
+			/>
 		</div>
 	);
 }

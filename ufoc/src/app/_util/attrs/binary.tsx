@@ -78,23 +78,36 @@ export const _binaryAttrType: attrTypeInfo = {
 			}
 
 			return (
-				<a
-					target="_blank"
-					href={data_url}
-					rel="noopener noreferrer"
-					style={{ width: "100%", height: "100%", cursor: "inherit" }}
+				<div
+					style={{
+						height: "100%",
+						width: "100%",
+						display: "flex",
+						flexDirection: "column",
+					}}
 				>
-					{inner}
-				</a>
+					<div
+						style={{
+							width: "100%",
+							flexGrow: 1,
+							padding: params.inner !== true ? "0.5rem" : undefined,
+							cursor: "zoom-in",
+						}}
+					>
+						<a
+							target="_blank"
+							href={data_url}
+							rel="noopener noreferrer"
+							style={{ width: "100%", height: "100%", cursor: "inherit" }}
+						>
+							{inner}
+						</a>
+					</div>
+					{params.inner !== true ? (
+						<_PanelBottom attr_value={params.attr_value} />
+					) : null}
+				</div>
 			);
-		},
-
-		panel_bottom: (params) => {
-			if (params.attr_value.type !== "Binary") {
-				return <>Unreachable!</>;
-			}
-
-			return <_PanelBottom attr_value={params.attr_value} />;
 		},
 	},
 };

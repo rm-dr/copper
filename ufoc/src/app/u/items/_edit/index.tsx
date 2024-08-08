@@ -253,25 +253,13 @@ function EditSubPanel(params: {
 				</div>
 			</div>
 		) : selected_attr_spec === undefined ? null : (
-			<div className={styles.panelbody_inner}>
-				{selected_attr_spec.editor.panel_body({
-					dataset: params.dataset,
-					class: params.class,
-					item_idx: params.selectedItems[0].idx,
-					attr_value: selected_attr_value,
-				})}
-			</div>
+			selected_attr_spec.editor.panel_body({
+				dataset: params.dataset,
+				class: params.class,
+				item_idx: params.selectedItems[0].idx,
+				attr_value: selected_attr_value,
+			})
 		);
-
-	const bottom =
-		selected_attr_value === null || selected_attr_spec === undefined
-			? null
-			: selected_attr_spec.editor.panel_bottom({
-					dataset: params.dataset,
-					class: params.class,
-					item_idx: params.selectedItems[0].idx,
-					attr_value: selected_attr_value,
-			  });
 
 	return (
 		/* Key here is important, it makes sure we get a new panel each time we select an item */
@@ -288,7 +276,6 @@ function EditSubPanel(params: {
 					<div className={styles.paneltitle_name}>{params.panelAttr?.name}</div>
 				</div>
 				<div className={styles.panelbody}>{body}</div>
-				<div className={styles.panelbottom}>{bottom}</div>
 			</div>
 		</Fragment>
 	);
