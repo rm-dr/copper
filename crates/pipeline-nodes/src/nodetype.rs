@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use ufo_audiofile::common::tagtype::TagType;
 use ufo_db_metastore::data::HashType;
@@ -26,7 +26,7 @@ use crate::{
 };
 
 #[serde_as]
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
 pub enum UFONodeType {

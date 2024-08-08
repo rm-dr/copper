@@ -23,7 +23,7 @@ use ufo_util::mime::MimeType;
 ///
 /// Also, some types that exist here cannot exist inside a metastore (for example, `Path`, which
 /// represents a file path that is available when the pipeline is run. This path may vanish later.)
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum UFOData {
 	/// Typed, unset data

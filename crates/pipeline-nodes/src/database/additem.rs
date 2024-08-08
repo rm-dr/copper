@@ -1,7 +1,7 @@
 use core::panic;
 use std::{collections::VecDeque, fmt::Debug, io::Write, sync::Arc};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use ufo_db_blobstore::api::{BlobHandle, Blobstore, BlobstoreTmpWriter};
 use ufo_db_metastore::{
@@ -43,7 +43,7 @@ impl Debug for DataHold {
 	}
 }
 
-#[derive(Debug, Deserialize, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub struct AddItemConfig {
 	#[serde(default)]
 	allow_non_unique: bool,

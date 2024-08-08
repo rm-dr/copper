@@ -1,12 +1,11 @@
 //! Cross-format normalized tag types
 
-use std::str::FromStr;
-
-use serde_with::DeserializeFromStr;
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 use smartstring::{LazyCompact, SmartString};
+use std::{fmt::Display, str::FromStr};
 
 /// A universal tag type
-#[derive(Debug, Hash, PartialEq, Eq, Clone, DeserializeFromStr)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, DeserializeFromStr, SerializeDisplay)]
 pub enum TagType {
 	/// A tag we didn't recognize
 	Other(SmartString<LazyCompact>),
@@ -40,6 +39,12 @@ pub enum TagType {
 	TrackArtist,
 	/// The year this track was released
 	Year,
+}
+
+impl Display for TagType {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", Into::<&str>::into(self))
+	}
 }
 
 // This is a "user-facing" string.
