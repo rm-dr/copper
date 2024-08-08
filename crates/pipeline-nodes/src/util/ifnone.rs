@@ -11,14 +11,14 @@ use crate::{
 #[derive(Clone)]
 pub struct IfNone {
 	ifnone: Option<UFOData>,
-	has_input: bool,
+	input: Option<UFOData>,
 }
 
 impl IfNone {
 	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext) -> Self {
 		Self {
 			ifnone: None,
-			has_input: false,
+			input: None,
 		}
 	}
 }
@@ -35,20 +35,14 @@ impl PipelineNode for IfNone {
 	fn take_input<F>(
 		&mut self,
 		(port, data): (usize, UFOData),
-		send_data: F,
+		_send_data: F,
 	) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		match port {
 			0 => {
-				match data {
-					UFOData::None(_) => self.has_input = true,
-					x => {
-						send_data(0, x)?;
-						return Ok(());
-					}
-				};
+				self.input = Some(data);
 			}
 			1 => {
 				self.ifnone = Some(data);
@@ -66,10 +60,19 @@ impl PipelineNode for IfNone {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		if self.has_input || self.ifnone.is_some() {
-			send_data(0, self.ifnone.take().unwrap())?;
+		if self.input.is_none() || self.ifnone.is_none() {
+			return Ok(PipelineNodeState::Pending("args not ready"));
 		}
-		Ok(PipelineNodeState::Pending("args not ready"))
+
+		send_data(
+			0,
+			match self.input.take().unwrap() {
+				UFOData::None(_) => self.ifnone.take().unwrap(),
+				x => x,
+			},
+		)?;
+
+		Ok(PipelineNodeState::Done)
 	}
 }
 

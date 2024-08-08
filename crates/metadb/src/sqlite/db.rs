@@ -633,7 +633,7 @@ impl MetaDb<FsBlobStore> for SQLiteMetaDB {
 			Err(sqlx::Error::RowNotFound) => Ok(None),
 			Err(e) => Err(e.into()),
 			Ok(res) => {
-				let id = res.get::<u32, _>("data_type");
+				let id = res.get::<u32, _>("id");
 				Ok(Some(id.into()))
 			}
 		};
