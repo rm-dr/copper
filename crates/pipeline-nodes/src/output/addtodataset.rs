@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use smartstring::{LazyCompact, SmartString};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
@@ -91,10 +90,7 @@ impl UFONode for AddToDataset {
 					.unwrap();
 				let attrs = ctx.dataset.lock().unwrap().class_get_attrs(class).unwrap();
 
-				attrs
-					.into_iter()
-					.sorted_by_key(|(_, a, _)| a.clone()) // Guarantee consistent ordering
-					.count()
+				attrs.into_iter().count()
 			}
 			_ => unreachable!(),
 		}
@@ -132,7 +128,6 @@ impl UFONode for AddToDataset {
 
 				attrs
 					.into_iter()
-					.sorted_by_key(|(_, a, _)| a.clone()) // Guarantee consistent ordering
 					.enumerate()
 					.find(|(_, (_, name, _))| PipelinePortLabel::from(name) == *input_name)
 					.map(|(i, _)| i)
@@ -157,12 +152,7 @@ impl UFONode for AddToDataset {
 					.unwrap();
 				let attrs = ctx.dataset.lock().unwrap().class_get_attrs(class).unwrap();
 
-				attrs
-					.into_iter()
-					.sorted_by_key(|(_, a, _)| a.clone()) // Guarantee consistent ordering
-					.nth(input_idx)
-					.unwrap()
-					.2
+				attrs.into_iter().nth(input_idx).unwrap().2
 			}
 			_ => unreachable!(),
 		}

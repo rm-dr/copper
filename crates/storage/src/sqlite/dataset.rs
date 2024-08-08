@@ -525,9 +525,15 @@ impl Dataset for SQLiteDataset {
 		};
 
 		let res = block_on(
-			sqlx::query("SELECT id, pretty_name, data_type FROM meta_attributes WHERE class_id=?;")
-				.bind(u32::from(class))
-				.fetch_all(conn),
+			sqlx::query(
+				"
+			SELECT id, pretty_name, data_type
+			FROM meta_attributes WHERE class_id=?
+			ORDER BY id;
+			",
+			)
+			.bind(u32::from(class))
+			.fetch_all(conn),
 		);
 
 		let res = match res {

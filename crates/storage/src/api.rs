@@ -135,6 +135,8 @@ where
 
 	/// Get all attributes in the given class.
 	/// Returns (attr handle, attr name, attr type)
+	///
+	/// Attribute order MUST be consistent!
 	fn class_get_attrs(
 		&mut self,
 		class: ClassHandle,

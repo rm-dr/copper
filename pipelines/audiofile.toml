@@ -2,7 +2,7 @@
 type = "File"
 
 [output]
-node.type = "Dataset"
+node.type = "AddToDataset"
 node.class = "AudioFile"
 
 input."album" = { node = "tags", output = "Album" }
