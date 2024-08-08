@@ -24,6 +24,13 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
+- Refactor api
+  - do all struct serializations make sense (MimeType)
+  - Clean up "upload" api
+  - Clean up "status" api
+  - Add "add job" api
+  - Redo "pipeline" api (pipeline editor ui first?)
+
 - Use memmap2
 - How and when should we load databases?
   - (nice interop with ufod)
