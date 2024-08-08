@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use ufo_util::data::PipelineData;
 
-use crate::{errors::PipelineError, PipelineStatelessRunner};
+use crate::{errors::PipelineError, PipelineStatelessNode};
 
 #[derive(Clone)]
 pub struct IfNone {}
@@ -18,15 +18,22 @@ impl Default for IfNone {
 	}
 }
 
-impl PipelineStatelessRunner for IfNone {
-	fn run(&self, data: Vec<Arc<PipelineData>>) -> Result<Vec<Arc<PipelineData>>, PipelineError> {
-		let d = data.first().unwrap();
-		let ifnone = data.get(1).unwrap();
-		return Ok(vec![{
+impl PipelineStatelessNode for IfNone {
+	fn run<F>(&self, send_data: F, input: Vec<Arc<PipelineData>>) -> Result<(), PipelineError>
+	where
+		F: Fn(usize, Arc<PipelineData>) -> Result<(), PipelineError>,
+	{
+		let d = input.first().unwrap();
+		let ifnone = input.get(1).unwrap();
+
+		send_data(
+			0,
 			match *d.as_ref() {
 				PipelineData::None(_) => ifnone.clone(),
 				_ => d.clone(),
-			}
-		}]);
+			},
+		)?;
+
+		return Ok(());
 	}
 }

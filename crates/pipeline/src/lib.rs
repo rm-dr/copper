@@ -13,6 +13,17 @@ use errors::PipelineError;
 use std::sync::Arc;
 use ufo_util::data::PipelineData;
 
-pub trait PipelineStatelessRunner {
-	fn run(&self, input: Vec<Arc<PipelineData>>) -> Result<Vec<Arc<PipelineData>>, PipelineError>;
+pub trait PipelineStatelessNode {
+	fn run<F>(
+		&self,
+		// Call this when data is ready.
+		// Arguments are (port idx, data).
+		//
+		// This must be called *exactly once* for each of this port's outputs.
+		// (not enforced, but the pipeline will panic or hang if this is violated.)
+		send_data: F,
+		input: Vec<Arc<PipelineData>>,
+	) -> Result<(), PipelineError>
+	where
+		F: Fn(usize, Arc<PipelineData>) -> Result<(), PipelineError>;
 }

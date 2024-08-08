@@ -1,4 +1,7 @@
-use crossbeam::channel::{unbounded, Receiver, Sender};
+use crossbeam::{
+	channel::{unbounded, Receiver, Sender},
+	select,
+};
 use std::{
 	fmt::Debug,
 	fs::File,
@@ -17,7 +20,7 @@ use crate::{
 		labels::PipelineNodeLabel,
 		spec::{PipelineConfig, PipelineSpec},
 	},
-	PipelineStatelessRunner,
+	PipelineStatelessNode,
 };
 
 #[derive(Clone, Copy)]
@@ -143,10 +146,19 @@ impl Pipeline {
 		let pool = ThreadPool::new(node_threads);
 
 		// Channel for node data. Nodes send their outputs here once they are ready.
+		//
+		// Contents are (node index, port index, data)
 		let (send_data, receive_data): (
-			// (node index, result of `node.run()`)
-			Sender<(usize, Result<Vec<Arc<PipelineData>>, PipelineError>)>,
-			Receiver<(usize, Result<Vec<Arc<PipelineData>>, PipelineError>)>,
+			Sender<(usize, usize, Arc<PipelineData>)>,
+			Receiver<(usize, usize, Arc<PipelineData>)>,
+		) = unbounded();
+
+		// Channel for node status. A node's return status is sent here when it finishes.
+		//
+		// Contents are (node index, result of `node.run()`)
+		let (send_status, receive_status): (
+			Sender<(usize, Result<(), PipelineError>)>,
+			Receiver<(usize, Result<(), PipelineError>)>,
 		) = unbounded();
 
 		// Check every node.
@@ -165,18 +177,37 @@ impl Pipeline {
 					&mut edge_values,
 					node_instances.clone(),
 					send_data.clone(),
+					send_status.clone(),
 				) {
 					return Ok(x);
 				}
 			}
 
-			let (n, out) = receive_data.recv().unwrap();
-			let out = out?;
+			select! {
+				recv(receive_data) -> msg => {
+					let (node, port, data) = msg.unwrap();
 
-			for edge_idx in self.edge_map_out.get(n).unwrap() {
-				let edge = self.edges.get(*edge_idx).unwrap();
-				*edge_values.get_mut(*edge_idx).unwrap() =
-					EdgeValue::Data(out.get(edge.0.port).unwrap().clone());
+					// Fill every edge that is connected to
+					// this output port of this node
+					for edge_idx in self
+						.edge_map_out
+						.get(node)
+						.unwrap()
+						.iter()
+						.filter(|edge_idx| {
+							let edge = self.edges.get(**edge_idx).unwrap();
+							edge.0.port == port
+						})
+					{
+						*edge_values.get_mut(*edge_idx).unwrap() = EdgeValue::Data(data.clone());
+					}
+				}
+
+				recv(receive_status) -> msg => {
+					if let (_node, Err(x)) = msg.unwrap() {
+						return Err(x);
+					}
+				}
 			}
 		}
 	}
@@ -194,7 +225,8 @@ impl Pipeline {
 		node_has_been_run: &mut Vec<bool>,
 		edge_values: &mut Vec<EdgeValue>,
 		node_instances: Arc<Vec<Mutex<PipelineNodeInstance>>>,
-		send_data: Sender<(usize, Result<Vec<Arc<PipelineData>>, PipelineError>)>,
+		send_data: Sender<(usize, usize, Arc<PipelineData>)>,
+		send_status: Sender<(usize, Result<(), PipelineError>)>,
 	) -> Option<Vec<Arc<PipelineData>>> {
 		// Skip nodes we've already run
 		if *node_has_been_run.get(n).unwrap() {
@@ -263,12 +295,19 @@ impl Pipeline {
 			let pool_inputs = inputs.clone();
 			pool.execute(move || {
 				let node = node_instances.get(n).unwrap().lock().unwrap();
-				println!("Running {:?}", node);
-				// TODO: remove (debug)
-				std::thread::sleep(std::time::Duration::from_secs(2));
 
-				// TODO: have nodes send data whenever it's ready
-				send_data.send((n, node.run(pool_inputs))).unwrap();
+				println!("Running {:?}", node);
+
+				let res = node.run(
+					|port, data| {
+						// This should never fail, since we never close the receiver.
+						send_data.send((n, port, data)).unwrap();
+						Ok(())
+					},
+					pool_inputs,
+				);
+
+				send_status.send((n, res)).unwrap();
 				println!("Done {:?}", node);
 			});
 			*node_has_been_run.get_mut(n).unwrap() = true;

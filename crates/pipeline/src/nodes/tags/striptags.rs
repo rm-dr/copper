@@ -5,7 +5,7 @@ use std::{
 use ufo_audiofile::flac::metastrip::FlacMetaStrip;
 use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData};
 
-use crate::{errors::PipelineError, PipelineStatelessRunner};
+use crate::{errors::PipelineError, PipelineStatelessNode};
 
 #[derive(Clone)]
 pub struct StripTags {}
@@ -16,9 +16,12 @@ impl StripTags {
 	}
 }
 
-impl PipelineStatelessRunner for StripTags {
-	fn run(&self, data: Vec<Arc<PipelineData>>) -> Result<Vec<Arc<PipelineData>>, PipelineError> {
-		let data = data.first().unwrap();
+impl PipelineStatelessNode for StripTags {
+	fn run<F>(&self, send_data: F, input: Vec<Arc<PipelineData>>) -> Result<(), PipelineError>
+	where
+		F: Fn(usize, Arc<PipelineData>) -> Result<(), PipelineError>,
+	{
+		let data = input.first().unwrap();
 
 		let (data_type, data) = match data.as_ref() {
 			PipelineData::Binary {
@@ -43,12 +46,14 @@ impl PipelineStatelessRunner for StripTags {
 			_ => return Err(PipelineError::UnsupportedDataType),
 		};
 
-		let mut out = Vec::with_capacity(1);
-		out.push(Arc::new(PipelineData::Binary {
-			format: BinaryFormat::Audio(AudioFormat::Flac),
-			data: stripped,
-		}));
+		send_data(
+			0,
+			Arc::new(PipelineData::Binary {
+				format: BinaryFormat::Audio(AudioFormat::Flac),
+				data: stripped,
+			}),
+		)?;
 
-		return Ok(out);
+		return Ok(());
 	}
 }

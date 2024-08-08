@@ -7,7 +7,7 @@ use super::{
 	tags::{striptags::StripTags, tags::ExtractTags},
 	util::ifnone::IfNone,
 };
-use crate::{errors::PipelineError, portspec::PipelinePortSpec, PipelineStatelessRunner};
+use crate::{errors::PipelineError, portspec::PipelinePortSpec, PipelineStatelessNode};
 
 pub enum PipelineNodeInstance {
 	ExternalNode,
@@ -38,14 +38,20 @@ impl Debug for PipelineNodeInstance {
 	}
 }
 
-impl PipelineStatelessRunner for PipelineNodeInstance {
-	fn run(&self, data: Vec<Arc<PipelineData>>) -> Result<Vec<Arc<PipelineData>>, PipelineError> {
+impl PipelineStatelessNode for PipelineNodeInstance {
+	fn run<F>(&self, send_data: F, input: Vec<Arc<PipelineData>>) -> Result<(), PipelineError>
+	where
+		F: Fn(usize, Arc<PipelineData>) -> Result<(), PipelineError>,
+	{
 		match self {
-			Self::ExternalNode => Ok(Default::default()),
-			Self::ConstantNode(x) => Ok(vec![x.clone()]),
-			Self::ExtractTags { node, .. } => node.run(data),
-			Self::IfNone { node, .. } => node.run(data),
-			Self::StripTags { node, .. } => node.run(data),
+			Self::ExternalNode => Ok(()),
+			Self::ConstantNode(x) => {
+				send_data(0, x.clone())?;
+				Ok(())
+			}
+			Self::ExtractTags { node, .. } => node.run(send_data, input),
+			Self::IfNone { node, .. } => node.run(send_data, input),
+			Self::StripTags { node, .. } => node.run(send_data, input),
 		}
 	}
 }

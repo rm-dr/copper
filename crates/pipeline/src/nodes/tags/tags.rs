@@ -9,7 +9,7 @@ use ufo_audiofile::{
 };
 use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData, PipelineDataType};
 
-use crate::{errors::PipelineError, PipelineStatelessRunner};
+use crate::{errors::PipelineError, PipelineStatelessNode};
 
 #[derive(Clone)]
 pub struct ExtractTags {
@@ -34,9 +34,12 @@ impl ExtractTags {
 	}
 }
 
-impl PipelineStatelessRunner for ExtractTags {
-	fn run(&self, data: Vec<Arc<PipelineData>>) -> Result<Vec<Arc<PipelineData>>, PipelineError> {
-		let data = data.first().unwrap();
+impl PipelineStatelessNode for ExtractTags {
+	fn run<F>(&self, send_data: F, input: Vec<Arc<PipelineData>>) -> Result<(), PipelineError>
+	where
+		F: Fn(usize, Arc<PipelineData>) -> Result<(), PipelineError>,
+	{
+		let data = input.first().unwrap();
 
 		let (data_type, data) = match data.as_ref() {
 			PipelineData::Binary {
@@ -59,15 +62,14 @@ impl PipelineStatelessRunner for ExtractTags {
 		}
 		let tagger = tagger.unwrap();
 
-		let mut out = Vec::with_capacity(self.tags.len());
-		for tag_type in &self.tags {
+		for (i, tag_type) in self.tags.iter().enumerate() {
 			if let Some(tag_value) = tagger.get_tag(tag_type) {
-				out.push(Arc::new(PipelineData::Text(tag_value)))
+				send_data(i, Arc::new(PipelineData::Text(tag_value)))?;
 			} else {
-				out.push(Arc::new(PipelineData::None(PipelineDataType::Text)))
+				send_data(i, Arc::new(PipelineData::None(PipelineDataType::Text)))?;
 			}
 		}
 
-		return Ok(out);
+		return Ok(());
 	}
 }
