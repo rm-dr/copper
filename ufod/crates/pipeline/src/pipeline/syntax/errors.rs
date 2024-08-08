@@ -4,8 +4,9 @@ use std::{error::Error, fmt::Display};
 
 use super::ports::NodeInput;
 use crate::{
-	api::PipelineDataStub,
+	api::PipelineNodeStub,
 	labels::{PipelineName, PipelineNodeID, PipelinePortID},
+	SDataStub, SStubErrorType,
 };
 
 /// A node specification in a [`PipelinePrepareError`]
@@ -26,7 +27,13 @@ pub enum PipelineErrorNode {
 
 /// An error we encounter when a pipeline spec is invalid
 #[derive(Debug)]
-pub enum PipelinePrepareError<DataStubType: PipelineDataStub> {
+pub enum PipelinePrepareError<NodeStubType: PipelineNodeStub> {
+	/// We encountered an error while getting information about a node stub
+	NodeStubError {
+		/// The error we encountered
+		error: SStubErrorType<NodeStubType>,
+	},
+
 	/// We could not open a pipeline spec file
 	CouldNotOpenFile {
 		/// The error we encountered
@@ -88,7 +95,7 @@ pub enum PipelinePrepareError<DataStubType: PipelineDataStub> {
 		output: (PipelineErrorNode, PipelinePortID),
 
 		/// the type of this output
-		output_type: DataStubType,
+		output_type: SDataStub<NodeStubType>,
 
 		/// The input we tried to connect
 		input: NodeInput,
@@ -112,9 +119,12 @@ pub enum PipelinePrepareError<DataStubType: PipelineDataStub> {
 	},
 }
 
-impl<DataStubType: PipelineDataStub> Display for PipelinePrepareError<DataStubType> {
+impl<NodeStubType: PipelineNodeStub> Display for PipelinePrepareError<NodeStubType> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
+			Self::NodeStubError { .. } => {
+				writeln!(f, "PipelinePrepareError: Could not get node stub info")
+			}
 			Self::CouldNotOpenFile { .. } => {
 				writeln!(f, "PipelinePrepareError: Could not open file")
 			}
@@ -181,9 +191,10 @@ impl<DataStubType: PipelineDataStub> Display for PipelinePrepareError<DataStubTy
 	}
 }
 
-impl<DataStubType: PipelineDataStub> Error for PipelinePrepareError<DataStubType> {
+impl<NodeStubType: PipelineNodeStub + 'static> Error for PipelinePrepareError<NodeStubType> {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
+			Self::NodeStubError { error } => Some(error),
 			Self::CouldNotOpenFile { error } => Some(error),
 			Self::CouldNotReadFile { error } => Some(error),
 			Self::CouldNotParseFile { error } => Some(error),

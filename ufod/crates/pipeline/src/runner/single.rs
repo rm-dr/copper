@@ -17,7 +17,7 @@ use crate::{
 	graph::util::GraphNodeIdx,
 	labels::PipelineNodeID,
 	pipeline::pipeline::{Pipeline, PipelineEdgeData},
-	SDataType, SErrorType, SNodeType,
+	SDataType, SNodeErrorType, SNodeType,
 };
 
 /// The state of a [`PipelineSingleRunner`]
@@ -95,7 +95,7 @@ pub struct PipelineSingleJob<NodeStubType: PipelineNodeStub> {
 		// The node that sent this status
 		GraphNodeIdx,
 		// The status that was sent
-		Result<PipelineNodeState, SErrorType<NodeStubType>>,
+		Result<PipelineNodeState, SNodeErrorType<NodeStubType>>,
 	)>,
 
 	/// A receiver for node status messages
@@ -103,7 +103,7 @@ pub struct PipelineSingleJob<NodeStubType: PipelineNodeStub> {
 		// The node that sent this status
 		GraphNodeIdx,
 		// The status that was sent
-		Result<PipelineNodeState, SErrorType<NodeStubType>>,
+		Result<PipelineNodeState, SNodeErrorType<NodeStubType>>,
 	)>,
 
 	// TODO: remove and write better scheduler
@@ -158,6 +158,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 					.get_node(pipeline.input_node_idx)
 					.node_type
 					.n_inputs(&context)
+					.unwrap()
 		);
 
 		let instant_now = Instant::now();
@@ -174,7 +175,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 					}
 				} else {
 					// Send empty data to disconnected inputs
-					let mut port_is_empty = (0..node.node_type.n_inputs(&*context))
+					let mut port_is_empty = (0..node.node_type.n_inputs(&*context).unwrap())
 						.map(|_| true)
 						.collect::<Vec<_>>();
 					for i in pipeline.graph.edges_ending_at(idx) {
@@ -186,7 +187,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 					}
 					for (i, e) in port_is_empty.into_iter().enumerate() {
 						if e {
-							let t = node.node_type.input_default_type(&*context, i);
+							let t = node.node_type.input_default_type(&*context, i).unwrap();
 							input_queue.push_back((i, SDataType::<NodeStubType>::new_empty(t)));
 						}
 					}
@@ -198,7 +199,9 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 					last_run: instant_now,
 					state: NodeRunState::NotRunning(PipelineNodeState::Pending("not started")),
 					node: Arc::new(Mutex::new(Some(
-						node.node_type.build(&context, &node.id.to_string()),
+						node.node_type
+							.build(&context, &node.id.to_string())
+							.unwrap(),
 					))),
 				}
 			})
@@ -234,11 +237,11 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 		let (send_status, receive_status): (
 			Sender<(
 				GraphNodeIdx,
-				Result<PipelineNodeState, SErrorType<NodeStubType>>,
+				Result<PipelineNodeState, SNodeErrorType<NodeStubType>>,
 			)>,
 			Receiver<(
 				GraphNodeIdx,
-				Result<PipelineNodeState, SErrorType<NodeStubType>>,
+				Result<PipelineNodeState, SNodeErrorType<NodeStubType>>,
 			)>,
 		) = unbounded();
 
@@ -265,7 +268,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 	/// This method should be called often, but not too often.
 	/// All computation is done in a thread pool, `run()`'s responsibility
 	/// is to update state and schedule new nodes.
-	pub(super) fn run(&mut self) -> Result<SingleJobState, SErrorType<NodeStubType>> {
+	pub(super) fn run(&mut self) -> Result<SingleJobState, SNodeErrorType<NodeStubType>> {
 		// Run nodes in a better order, and maybe skip a few.
 
 		// Handle all changes that occured since we last called `run()`
@@ -305,7 +308,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 
 	/// Helper function, written here only for convenience.
 	/// If we can add the node with index `n` to the thread pool, do so.
-	fn try_start_node(&mut self, node: GraphNodeIdx) -> Result<(), SErrorType<NodeStubType>> {
+	fn try_start_node(&mut self, node: GraphNodeIdx) -> Result<(), SNodeErrorType<NodeStubType>> {
 		// Skip nodes we've already run and nodes that are running right now.
 		let n = self.node_instances[node.as_usize()].state;
 		if n.is_running() || n.is_done() {
@@ -438,7 +441,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 	/// Handle all messages nodes have sent up to this point.
 	/// This MUST be done between successive calls of
 	/// `run()` on any one node.
-	fn handle_all_messages(&mut self) -> Result<(), SErrorType<NodeStubType>> {
+	fn handle_all_messages(&mut self) -> Result<(), SNodeErrorType<NodeStubType>> {
 		for (node, port, data) in self.receive_data.try_iter() {
 			// Send data to all inputs connected to this output
 			for edge_idx in self.pipeline.graph.edges_starting_at(node) {

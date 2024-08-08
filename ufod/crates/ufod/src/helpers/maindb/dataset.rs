@@ -1,11 +1,14 @@
 use futures::executor::block_on;
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{Connection, Row};
-use std::{fmt::Display, path::PathBuf, str::FromStr};
+use std::{fmt::Display, path::PathBuf, str::FromStr, sync::Arc};
+use ufo_ds_core::api::Dataset;
 use ufo_ds_impl::local::LocalDataset;
+use ufo_pipeline_nodes::nodetype::UFONodeType;
 
 use super::{errors::CreateDatasetError, MainDB};
 
+#[derive(Debug)]
 pub struct DatasetEntry {
 	name: SmartString<LazyCompact>,
 	ds_type: DatasetType,
@@ -121,5 +124,34 @@ impl MainDB {
 				path: x.get::<String, _>("ds_path").into(),
 			})
 			.collect());
+	}
+
+	pub fn get_dataset(
+		&self,
+		dataset_name: &str,
+	) -> Result<Option<Arc<dyn Dataset<UFONodeType>>>, sqlx::Error> {
+		let mut conn = self.conn.lock().unwrap();
+
+		let res = block_on(
+			sqlx::query("SELECT ds_name, ds_type, ds_path FROM datasets WHERE ds_name=?;")
+				.bind(dataset_name)
+				.fetch_one(&mut *conn),
+		);
+
+		let entry = match res {
+			Err(sqlx::Error::RowNotFound) => return Ok(None),
+			Err(e) => return Err(e),
+			Ok(res) => DatasetEntry {
+				name: res.get::<String, _>("ds_name").into(),
+				ds_type: DatasetType::from_str(&res.get::<String, _>("ds_type")).unwrap(),
+				path: res.get::<String, _>("ds_path").into(),
+			},
+		};
+
+		Ok(Some(match entry.ds_type {
+			DatasetType::Local => {
+				Arc::new(LocalDataset::open(&self.config.dataset_dir.join(entry.path)).unwrap())
+			}
+		}))
 	}
 }

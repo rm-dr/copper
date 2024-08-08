@@ -1,24 +1,57 @@
 use crate::RouterState;
-use axum::{routing::post, Router};
+use axum::{
+	routing::{get, post},
+	Router,
+};
 use utoipa::OpenApi;
 
+mod datasets;
 mod new_dataset;
+mod pipeline;
+mod pipelines;
+mod run;
 
+use datasets::*;
 use new_dataset::*;
+use pipeline::*;
+use pipelines::*;
+use run::*;
 
 #[derive(OpenApi)]
 #[openapi(
 	tags(),
-	paths(new_dataset),
+	paths(
+		new_dataset,
+		get_all_pipelines,
+		get_pipeline,
+		run_pipeline,
+		get_all_datasets
+	),
 	components(schemas(
 		NewDataset,
 		NewDatasetParams,
 		LocalDatasetMetadataType,
-		NewDatasetError
+		NewDatasetError,
+		PipelineInfo,
+		PipelineInfoShort,
+		PipelineInfoInput,
+		AddJobResult,
+		AddJobParams,
+		AddJobInput
 	))
 )]
 pub(super) struct DatasetApi;
 
 pub(super) fn router() -> Router<RouterState> {
-	Router::new().route("/new", post(new_dataset))
+	Router::new()
+		//
+		.route("/", get(get_all_datasets))
+		.route("/new", post(new_dataset))
+		//
+		.route("/:dataset_name/pipelines", get(get_all_pipelines))
+		.route("/:dataset_name/pipelines/:pipeline_name", get(get_pipeline))
+		.route(
+			"/:dataset_name/pipelines/:pipeline_name/run",
+			post(run_pipeline),
+		)
 }

@@ -14,7 +14,7 @@ use crate::{
 	data::{UFOData, UFODataStub},
 	errors::PipelineError,
 	helpers::ArcVecBuffer,
-	nodetype::UFONodeType,
+	nodetype::{UFONodeType, UFONodeTypeError},
 	traits::UFONode,
 	UFOContext,
 };
@@ -121,11 +121,11 @@ impl ExtractTags {
 }
 
 impl UFONode for ExtractTags {
-	fn n_inputs(stub: &UFONodeType, _ctx: &UFOContext) -> usize {
-		match stub {
+	fn n_inputs(stub: &UFONodeType, _ctx: &UFOContext) -> Result<usize, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::ExtractTags { .. } => Self::inputs().len(),
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn input_compatible_with(
@@ -133,61 +133,69 @@ impl UFONode for ExtractTags {
 		ctx: &UFOContext,
 		input_idx: usize,
 		input_type: UFODataStub,
-	) -> bool {
-		Self::input_default_type(stub, ctx, input_idx) == input_type
+	) -> Result<bool, UFONodeTypeError> {
+		Ok(Self::input_default_type(stub, ctx, input_idx)? == input_type)
 	}
 
 	fn input_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_name: &PipelinePortID,
-	) -> Option<usize> {
-		match stub {
+	) -> Result<Option<usize>, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::ExtractTags { .. } => Self::inputs()
 				.iter()
 				.enumerate()
 				.find(|(_, (n, _))| PipelinePortID::new(n) == *input_name)
 				.map(|(x, _)| x),
 			_ => unreachable!(),
-		}
+		})
 	}
 
-	fn input_default_type(stub: &UFONodeType, _ctx: &UFOContext, input_idx: usize) -> UFODataStub {
-		match stub {
+	fn input_default_type(
+		stub: &UFONodeType,
+		_ctx: &UFOContext,
+		input_idx: usize,
+	) -> Result<UFODataStub, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::ExtractTags { .. } => Self::inputs().get(input_idx).unwrap().1,
 			_ => unreachable!(),
-		}
+		})
 	}
 
-	fn n_outputs(stub: &UFONodeType, _ctx: &UFOContext) -> usize {
-		match stub {
+	fn n_outputs(stub: &UFONodeType, _ctx: &UFOContext) -> Result<usize, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::ExtractTags { tags } => tags.len(),
 			_ => unreachable!(),
-		}
+		})
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> UFODataStub {
-		match stub {
+	fn output_type(
+		stub: &UFONodeType,
+		_ctx: &UFOContext,
+		output_idx: usize,
+	) -> Result<UFODataStub, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::ExtractTags { tags } => {
 				assert!(output_idx < tags.len());
 				UFODataStub::Text
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn output_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		output_name: &PipelinePortID,
-	) -> Option<usize> {
-		match stub {
+	) -> Result<Option<usize>, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::ExtractTags { tags } => tags
 				.iter()
 				.enumerate()
 				.find(|(_, t)| PipelinePortID::new(Into::<&str>::into(*t)) == *output_name)
 				.map(|(x, _)| x),
 			_ => unreachable!(),
-		}
+		})
 	}
 }

@@ -9,7 +9,7 @@ use ufo_pipeline::{
 use crate::{
 	data::{UFOData, UFODataStub},
 	errors::PipelineError,
-	nodetype::UFONodeType,
+	nodetype::{UFONodeType, UFONodeTypeError},
 	traits::UFONode,
 	UFOContext,
 };
@@ -158,11 +158,11 @@ impl PipelineNode for Hash {
 }
 
 impl UFONode for Hash {
-	fn n_inputs(stub: &UFONodeType, _ctx: &UFOContext) -> usize {
-		match stub {
+	fn n_inputs(stub: &UFONodeType, _ctx: &UFOContext) -> Result<usize, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::Hash { .. } => 1,
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn input_compatible_with(
@@ -170,8 +170,8 @@ impl UFONode for Hash {
 		_ctx: &UFOContext,
 		input_idx: usize,
 		input_type: UFODataStub,
-	) -> bool {
-		match stub {
+	) -> Result<bool, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::Hash { .. } => {
 				assert!(input_idx < 1);
 				match input_type {
@@ -180,42 +180,50 @@ impl UFONode for Hash {
 				}
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn input_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_name: &PipelinePortID,
-	) -> Option<usize> {
-		match stub {
+	) -> Result<Option<usize>, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::Hash { .. } => match input_name.id().as_str() {
 				"data" => Some(0),
 				_ => None,
 			},
 			_ => unreachable!(),
-		}
+		})
 	}
 
-	fn input_default_type(stub: &UFONodeType, _ctx: &UFOContext, input_idx: usize) -> UFODataStub {
-		match stub {
+	fn input_default_type(
+		stub: &UFONodeType,
+		_ctx: &UFOContext,
+		input_idx: usize,
+	) -> Result<UFODataStub, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::Hash { .. } => {
 				assert!(input_idx < 1);
 				UFODataStub::Binary
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
-	fn n_outputs(stub: &UFONodeType, _ctx: &UFOContext) -> usize {
-		match stub {
+	fn n_outputs(stub: &UFONodeType, _ctx: &UFOContext) -> Result<usize, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::Hash { .. } => 1,
 			_ => unreachable!(),
-		}
+		})
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> UFODataStub {
-		match stub {
+	fn output_type(
+		stub: &UFONodeType,
+		_ctx: &UFOContext,
+		output_idx: usize,
+	) -> Result<UFODataStub, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::Hash { hash_type } => {
 				assert!(output_idx == 0);
 				UFODataStub::Hash {
@@ -223,15 +231,15 @@ impl UFONode for Hash {
 				}
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn output_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		output_name: &PipelinePortID,
-	) -> Option<usize> {
-		match stub {
+	) -> Result<Option<usize>, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::Hash { .. } => {
 				if output_name.id().as_str() == "hash" {
 					Some(0)
@@ -240,6 +248,6 @@ impl UFONode for Hash {
 				}
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 }

@@ -10,7 +10,7 @@ use crate::{
 	api::{PipelineNode, PipelineNodeState, PipelineNodeStub},
 	labels::PipelineName,
 	pipeline::pipeline::Pipeline,
-	SDataType, SErrorType,
+	SDataType, SNodeErrorType,
 };
 
 /// Pipeline runner configuration
@@ -55,7 +55,7 @@ pub struct FailedJob<NodeStubType: PipelineNodeStub> {
 	pub node_states: Vec<(bool, PipelineNodeState)>,
 
 	/// The reason this pipeline failed.
-	pub error: SErrorType<NodeStubType>,
+	pub error: SNodeErrorType<NodeStubType>,
 }
 
 /// A prepared data processing pipeline.
@@ -164,7 +164,7 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 	}
 
 	/// Update this runner: process all changes that occured since we last called `run()`,
-	pub fn run(&mut self) -> Result<(), SErrorType<NodeStubType>> {
+	pub fn run(&mut self) -> Result<(), SNodeErrorType<NodeStubType>> {
 		for r in &mut self.active_jobs {
 			if let Some((id, x)) = r {
 				// Update running jobs

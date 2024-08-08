@@ -15,8 +15,8 @@ where
 		&self,
 		name: &PipelineName,
 		context: Arc<<PipelineNodeStubType::NodeType as PipelineNode>::NodeContext>,
-	) -> Result<Option<Pipeline<PipelineNodeStubType>>, PipestoreError>;
+	) -> Result<Option<Pipeline<PipelineNodeStubType>>, PipestoreError<PipelineNodeStubType>>;
 
 	// TODO: cache list of pipelines?
-	fn all_pipelines(&self) -> Result<Vec<PipelineName>, PipestoreError>;
+	fn all_pipelines(&self) -> Result<Vec<PipelineName>, PipestoreError<PipelineNodeStubType>>;
 }

@@ -1,7 +1,9 @@
+use std::{error::Error, fmt::Display};
+
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use ufo_audiofile::common::tagtype::TagType;
-use ufo_ds_core::data::HashType;
+use ufo_ds_core::{data::HashType, errors::MetastoreError};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeStub},
 	labels::{PipelineNodeID, PipelinePortID},
@@ -67,15 +69,48 @@ pub enum UFONodeType {
 	},
 }
 
+#[derive(Debug)]
+pub enum UFONodeTypeError {
+	NoSuchClass(String),
+	NoSuchAttr(String, String),
+	MetastoreError(MetastoreError),
+}
+
+impl Display for UFONodeTypeError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::NoSuchClass(c) => write!(f, "No such class `{c}`"),
+			Self::NoSuchAttr(c, a) => write!(f, "No such attr `{a}` on class `{c}"),
+			Self::MetastoreError(_) => write!(f, "Metastore error"),
+		}
+	}
+}
+
+impl From<MetastoreError> for UFONodeTypeError {
+	fn from(value: MetastoreError) -> Self {
+		Self::MetastoreError(value)
+	}
+}
+
+impl Error for UFONodeTypeError {
+	fn cause(&self) -> Option<&dyn Error> {
+		match self {
+			Self::MetastoreError(e) => Some(e),
+			_ => None,
+		}
+	}
+}
+
 impl PipelineNodeStub for UFONodeType {
 	type NodeType = UFONodeInstance;
+	type ErrorType = UFONodeTypeError;
 
 	fn build(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		name: &str,
-	) -> UFONodeInstance {
-		match self {
+	) -> Result<UFONodeInstance, Self::ErrorType> {
+		Ok(match self {
 			// Magic
 			UFONodeType::Constant { value } => UFONodeInstance::Constant {
 				node_type: self.clone(),
@@ -121,11 +156,15 @@ impl PipelineNodeStub for UFONodeType {
 				node: FileReader::new(ctx),
 			},
 			UFONodeType::AddItem { class, config } => {
-				let class = ctx.dataset.get_class(class).unwrap().unwrap();
+				let class = if let Some(c) = ctx.dataset.get_class(class)? {
+					c
+				} else {
+					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
+				};
+
 				let attrs = ctx
 					.dataset
-					.class_get_attrs(class)
-					.unwrap()
+					.class_get_attrs(class)?
 					.into_iter()
 					.map(|(a, b, c)| (a, b, c.into()))
 					.collect();
@@ -138,20 +177,31 @@ impl PipelineNodeStub for UFONodeType {
 			}
 
 			UFONodeType::FindItem { class, by_attr } => {
-				// TODO: handle errors
-				let class = ctx.dataset.get_class(class).unwrap().unwrap();
-				let attrs = ctx.dataset.get_attr(class, &by_attr).unwrap().unwrap();
+				let class_handle = if let Some(c) = ctx.dataset.get_class(class)? {
+					c
+				} else {
+					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
+				};
+
+				let attrs = if let Some(a) = ctx.dataset.get_attr(class_handle, &by_attr)? {
+					a
+				} else {
+					return Err(UFONodeTypeError::NoSuchAttr(class.clone(), by_attr.clone()));
+				};
 
 				UFONodeInstance::FindItem {
 					node_type: self.clone(),
 					name: PipelineNodeID::new(name),
-					node: FindItem::new(ctx, class, attrs).unwrap(),
+					node: FindItem::new(ctx, class_handle, attrs).unwrap(),
 				}
 			}
-		}
+		})
 	}
 
-	fn n_inputs(&self, ctx: &<Self::NodeType as PipelineNode>::NodeContext) -> usize {
+	fn n_inputs(
+		&self,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+	) -> Result<usize, Self::ErrorType> {
 		match self {
 			Self::Constant { .. } => Constant::n_inputs(self, ctx),
 			Self::IfNone { .. } => IfNone::n_inputs(self, ctx),
@@ -171,7 +221,7 @@ impl PipelineNodeStub for UFONodeType {
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		input_idx: usize,
 		input_type: NDataStub<Self::NodeType>,
-	) -> bool {
+	) -> Result<bool, Self::ErrorType> {
 		match self {
 			Self::Constant { .. } => {
 				Constant::input_compatible_with(self, ctx, input_idx, input_type)
@@ -200,7 +250,7 @@ impl PipelineNodeStub for UFONodeType {
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		input_idx: usize,
-	) -> NDataStub<Self::NodeType> {
+	) -> Result<NDataStub<Self::NodeType>, Self::ErrorType> {
 		match self {
 			Self::Constant { .. } => Constant::input_default_type(self, ctx, input_idx),
 			Self::IfNone { .. } => IfNone::input_default_type(self, ctx, input_idx),
@@ -219,7 +269,7 @@ impl PipelineNodeStub for UFONodeType {
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		input_name: &PipelinePortID,
-	) -> Option<usize> {
+	) -> Result<Option<usize>, Self::ErrorType> {
 		match self {
 			Self::Constant { .. } => Constant::input_with_name(self, ctx, input_name),
 			Self::IfNone { .. } => IfNone::input_with_name(self, ctx, input_name),
@@ -234,7 +284,10 @@ impl PipelineNodeStub for UFONodeType {
 		}
 	}
 
-	fn n_outputs(&self, ctx: &<Self::NodeType as PipelineNode>::NodeContext) -> usize {
+	fn n_outputs(
+		&self,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+	) -> Result<usize, Self::ErrorType> {
 		match self {
 			Self::Constant { .. } => Constant::n_outputs(self, ctx),
 			Self::IfNone { .. } => IfNone::n_outputs(self, ctx),
@@ -253,7 +306,7 @@ impl PipelineNodeStub for UFONodeType {
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		output_idx: usize,
-	) -> NDataStub<Self::NodeType> {
+	) -> Result<NDataStub<Self::NodeType>, Self::ErrorType> {
 		match self {
 			Self::Constant { .. } => Constant::output_type(self, ctx, output_idx),
 			Self::IfNone { .. } => IfNone::output_type(self, ctx, output_idx),
@@ -272,7 +325,7 @@ impl PipelineNodeStub for UFONodeType {
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		output_name: &PipelinePortID,
-	) -> Option<usize> {
+	) -> Result<Option<usize>, Self::ErrorType> {
 		match self {
 			Self::Constant { .. } => Constant::output_with_name(self, ctx, output_name),
 			Self::IfNone { .. } => IfNone::output_with_name(self, ctx, output_name),

@@ -12,7 +12,7 @@ use ufo_pipeline::{
 use crate::{
 	data::{UFOData, UFODataStub},
 	errors::PipelineError,
-	nodetype::UFONodeType,
+	nodetype::{UFONodeType, UFONodeTypeError},
 	traits::UFONode,
 	UFOContext,
 };
@@ -89,11 +89,11 @@ impl PipelineNode for FindItem {
 }
 
 impl UFONode for FindItem {
-	fn n_inputs(stub: &UFONodeType, _ctx: &UFOContext) -> usize {
-		match stub {
+	fn n_inputs(stub: &UFONodeType, _ctx: &UFOContext) -> Result<usize, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::FindItem { .. } => 1,
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn input_compatible_with(
@@ -101,70 +101,95 @@ impl UFONode for FindItem {
 		ctx: &UFOContext,
 		input_idx: usize,
 		input_type: UFODataStub,
-	) -> bool {
-		match stub {
+	) -> Result<bool, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::FindItem { .. } => {
-				Self::input_default_type(stub, ctx, input_idx) == input_type
+				Self::input_default_type(stub, ctx, input_idx)? == input_type
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn input_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_name: &PipelinePortID,
-	) -> Option<usize> {
-		match stub {
+	) -> Result<Option<usize>, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::FindItem { .. } => match input_name.id().as_str() {
 				"attr_value" => Some(0),
 				_ => None,
 			},
 			_ => unreachable!(),
-		}
+		})
 	}
 
-	fn input_default_type(stub: &UFONodeType, ctx: &UFOContext, input_idx: usize) -> UFODataStub {
-		match stub {
+	fn input_default_type(
+		stub: &UFONodeType,
+		ctx: &UFOContext,
+		input_idx: usize,
+	) -> Result<UFODataStub, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::FindItem { class, by_attr } => {
 				assert!(input_idx == 0);
-				let class = ctx.dataset.get_class(&class[..]).unwrap().unwrap();
-				let attr = ctx.dataset.get_attr(class, &by_attr).unwrap().unwrap();
+
+				let class_h = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+					c
+				} else {
+					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
+				};
+
+				let attr = if let Some(a) = ctx.dataset.get_attr(class_h, &by_attr)? {
+					a
+				} else {
+					return Err(UFONodeTypeError::NoSuchAttr(class.clone(), by_attr.clone()));
+				};
+
 				ctx.dataset.attr_get_type(attr).unwrap().into()
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
-	fn n_outputs(stub: &UFONodeType, _ctx: &UFOContext) -> usize {
-		match stub {
+	fn n_outputs(stub: &UFONodeType, _ctx: &UFOContext) -> Result<usize, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::FindItem { .. } => 1,
 			_ => unreachable!(),
-		}
+		})
 	}
 
-	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> UFODataStub {
-		match stub {
+	fn output_type(
+		stub: &UFONodeType,
+		ctx: &UFOContext,
+		output_idx: usize,
+	) -> Result<UFODataStub, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::FindItem { class, .. } => {
 				assert!(output_idx == 0);
-				let class = ctx.dataset.get_class(class).unwrap().unwrap();
+
+				let class = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+					c
+				} else {
+					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
+				};
+
 				UFODataStub::Reference { class }
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn output_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		output_name: &PipelinePortID,
-	) -> Option<usize> {
-		match stub {
+	) -> Result<Option<usize>, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::FindItem { .. } => match output_name.id().as_str() {
 				"found_item" => Some(0),
 				_ => None,
 			},
 			_ => unreachable!(),
-		}
+		})
 	}
 }

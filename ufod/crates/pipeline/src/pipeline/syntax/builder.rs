@@ -55,7 +55,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 		context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
 		name: &PipelineName,
 		spec: PipelineSpec<NodeStubType>,
-	) -> Result<Pipeline<NodeStubType>, PipelinePrepareError<SDataStub<NodeStubType>>> {
+	) -> Result<Pipeline<NodeStubType>, PipelinePrepareError<NodeStubType>> {
 		debug!(message = "Building pipeline", pipeline_name = ?name);
 
 		// Initialize all variables
@@ -187,15 +187,18 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 		input_type: SDataStub<NodeStubType>,
 		// Only used for errors
 		node_id: &PipelineNodeID,
-	) -> Result<bool, PipelinePrepareError<SDataStub<NodeStubType>>> {
+	) -> Result<bool, PipelinePrepareError<NodeStubType>> {
 		Ok({
 			let idx = node_type
 				.input_with_name(&self.context, input_port_id)
+				.map_err(|error| PipelinePrepareError::NodeStubError { error })?
 				.ok_or(PipelinePrepareError::NoNodeInput {
 					node: PipelineErrorNode::Named(node_id.clone()),
 					input: input_port_id.clone(),
 				})?;
-			node_type.input_compatible_with(&self.context, idx, input_type)
+			node_type
+				.input_compatible_with(&self.context, idx, input_type)
+				.map_err(|error| PipelinePrepareError::NodeStubError { error })?
 		})
 	}
 
@@ -209,10 +212,11 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 
 		// Only used for errors
 		node_id: &PipelineNodeID,
-	) -> Result<usize, PipelinePrepareError<SDataStub<NodeStubType>>> {
+	) -> Result<usize, PipelinePrepareError<NodeStubType>> {
 		match node_type {
 			t => t.input_with_name(&self.context, input_port_id),
 		}
+		.map_err(|error| PipelinePrepareError::NodeStubError { error })?
 		.ok_or(PipelinePrepareError::NoNodeInput {
 			node: PipelineErrorNode::Named(node_id.clone()),
 			input: input_port_id.clone(),
@@ -232,16 +236,19 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 
 		// Only used for errors
 		node_id: &PipelineNodeID,
-	) -> Result<(usize, SDataStub<NodeStubType>), PipelinePrepareError<SDataStub<NodeStubType>>> {
+	) -> Result<(usize, SDataStub<NodeStubType>), PipelinePrepareError<NodeStubType>> {
 		match node_type {
 			t => {
-				let idx = t.output_with_name(&self.context, output_port_id).ok_or(
-					PipelinePrepareError::NoNodeOutput {
+				let idx = t
+					.output_with_name(&self.context, output_port_id)
+					.map_err(|error| PipelinePrepareError::NodeStubError { error })?
+					.ok_or(PipelinePrepareError::NoNodeOutput {
 						output: output_port_id.clone(),
 						node: PipelineErrorNode::Named(node_id.clone()),
-					},
-				)?;
-				let output_type = t.output_type(&self.context, idx);
+					})?;
+				let output_type = t
+					.output_type(&self.context, idx)
+					.map_err(|error| PipelinePrepareError::NodeStubError { error })?;
 				Ok((idx, output_type))
 			}
 		}
@@ -254,13 +261,14 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 		in_port: usize,
 		node_idx: GraphNodeIdx,
 		out_link: &NodeOutput<NodeStubType>,
-	) -> Result<(), PipelinePrepareError<SDataStub<NodeStubType>>> {
+	) -> Result<(), PipelinePrepareError<NodeStubType>> {
 		match out_link {
 			NodeOutput::Pipeline { port } => {
 				let out_port = self
 					.spec
 					.input
 					.output_with_name(&self.context, port)
+					.map_err(|error| PipelinePrepareError::NodeStubError { error })?
 					.unwrap();
 				self.graph.borrow_mut().add_edge(
 					self.input_node_idx,
@@ -307,23 +315,36 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 		&self,
 		output: &NodeOutput<NodeStubType>,
 		input: &NodeInput,
-	) -> Result<(), PipelinePrepareError<SDataStub<NodeStubType>>> {
+	) -> Result<(), PipelinePrepareError<NodeStubType>> {
 		// Find the datatype of the output port we're connecting to.
 		// While doing this, make sure both the output node and port exist.
 		let output_type: SDataStub<NodeStubType> = match output {
 			NodeOutput::Inline(node) => {
 				// Inline nodes must have exactly one output
-				if node.n_outputs(&self.context) != 1 {
+				if node
+					.n_outputs(&self.context)
+					.map_err(|error| PipelinePrepareError::NodeStubError { error })?
+					!= 1
+				{
 					return Err(PipelinePrepareError::BadInlineNode {
 						input: input.clone(),
 					});
 				}
 				node.output_type(&self.context, 0)
+					.map_err(|error| PipelinePrepareError::NodeStubError { error })?
 			}
 
 			NodeOutput::Pipeline { port } => {
-				if let Some(idx) = self.spec.input.output_with_name(&self.context, port) {
-					self.spec.input.output_type(&self.context, idx)
+				if let Some(idx) = self
+					.spec
+					.input
+					.output_with_name(&self.context, port)
+					.map_err(|error| PipelinePrepareError::NodeStubError { error })?
+				{
+					self.spec
+						.input
+						.output_type(&self.context, idx)
+						.map_err(|error| PipelinePrepareError::NodeStubError { error })?
 				} else {
 					return Err(PipelinePrepareError::NoNodeOutput {
 						node: PipelineErrorNode::PipelineInput,

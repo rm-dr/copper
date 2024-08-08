@@ -6,7 +6,7 @@ use ufo_pipeline::{
 use crate::{
 	data::{UFOData, UFODataStub},
 	errors::PipelineError,
-	nodetype::UFONodeType,
+	nodetype::{UFONodeType, UFONodeTypeError},
 	traits::UFONode,
 	UFOContext,
 };
@@ -45,11 +45,11 @@ impl PipelineNode for Constant {
 }
 
 impl UFONode for Constant {
-	fn n_inputs(stub: &UFONodeType, _ctx: &UFOContext) -> usize {
-		match stub {
+	fn n_inputs(stub: &UFONodeType, _ctx: &UFOContext) -> Result<usize, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::Constant { .. } => 0,
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn input_compatible_with(
@@ -57,55 +57,59 @@ impl UFONode for Constant {
 		_ctx: &UFOContext,
 		_input_idx: usize,
 		_input_type: UFODataStub,
-	) -> bool {
-		match stub {
+	) -> Result<bool, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::Constant { .. } => false,
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn input_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		_input_name: &PipelinePortID,
-	) -> Option<usize> {
-		match stub {
+	) -> Result<Option<usize>, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::Constant { .. } => None,
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn input_default_type(
 		_stub: &UFONodeType,
 		_ctx: &UFOContext,
 		_input_idx: usize,
-	) -> UFODataStub {
+	) -> Result<UFODataStub, UFONodeTypeError> {
 		unreachable!()
 	}
 
-	fn n_outputs(stub: &UFONodeType, _ctx: &UFOContext) -> usize {
-		match stub {
+	fn n_outputs(stub: &UFONodeType, _ctx: &UFOContext) -> Result<usize, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::Constant { .. } => 1,
 			_ => unreachable!(),
-		}
+		})
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> UFODataStub {
-		match stub {
+	fn output_type(
+		stub: &UFONodeType,
+		_ctx: &UFOContext,
+		output_idx: usize,
+	) -> Result<UFODataStub, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::Constant { value } => {
 				assert!(output_idx == 0);
 				value.as_stub()
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn output_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		output_name: &PipelinePortID,
-	) -> Option<usize> {
-		match stub {
+	) -> Result<Option<usize>, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::ExtractTags { .. } => {
 				if output_name.id().as_str() == "value" {
 					Some(0)
@@ -114,6 +118,6 @@ impl UFONode for Constant {
 				}
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 }

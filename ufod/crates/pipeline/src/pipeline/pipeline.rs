@@ -8,7 +8,7 @@ use crate::{
 	labels::{PipelineName, PipelineNodeID},
 };
 
-use super::syntax::{builder::PipelineBuilder, spec::PipelineSpec};
+use super::syntax::{builder::PipelineBuilder, errors::PipelinePrepareError, spec::PipelineSpec};
 
 /// A node in a pipeline graph
 #[derive(Debug)]
@@ -81,9 +81,9 @@ impl<NodeStubType: PipelineNodeStub> Pipeline<NodeStubType> {
 		pipeline_name: &PipelineName,
 		toml_str: &str,
 		context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
-	) -> Result<Self, ()> {
+	) -> Result<Self, PipelinePrepareError<NodeStubType>> {
 		let spec: PipelineSpec<NodeStubType> = toml::from_str(toml_str).unwrap();
-		let built = PipelineBuilder::build(context, pipeline_name, spec).unwrap();
+		let built = PipelineBuilder::build(context, pipeline_name, spec)?;
 		Ok(built)
 	}
 

@@ -8,7 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use ufo_pipeline::labels::PipelineName;
-use ufo_pipeline_nodes::data::UFOData;
+use ufo_pipeline_nodes::{data::UFOData, UFOContext};
 use utoipa::ToSchema;
 
 use crate::RouterState;
@@ -50,8 +50,9 @@ pub(super) enum AddJobResult {
 /// Start a pipeline job
 #[utoipa::path(
 	post,
-	path = "/{pipeline_name}/run",
+	path = "/{dataset_name}/pipelines/{pipeline_name}/run",
 	params(
+		("dataset_name" = String, description = "Dataset name"),
 		("pipeline_name" = String, description = "Pipeline name"),
 	),
 	responses(
@@ -61,24 +62,29 @@ pub(super) enum AddJobResult {
 )]
 pub(super) async fn run_pipeline(
 	State(state): State<RouterState>,
-	Path(pipeline_name): Path<PipelineName>,
+	Path((dataset_name, pipeline_name)): Path<(String, String)>,
 	Json(payload): Json<AddJobParams>,
 ) -> Response {
-	let mut runner = state.runner.lock().await;
-	let db = state.database;
+	let pipeline_name = PipelineName::new(&pipeline_name);
 
-	let pipeline = if let Some(pipeline) = db
-		.load_pipeline(&pipeline_name, state.context.clone())
-		.unwrap()
-	{
-		// TODO: cache pipelines
-		pipeline
-	} else {
-		return Json(AddJobResult::BadPipeline {
-			pipeline: pipeline_name,
-		})
-		.into_response();
-	};
+	let mut runner = state.runner.lock().await;
+	let ds = state.main_db.get_dataset(&dataset_name).unwrap().unwrap();
+
+	let context = Arc::new(UFOContext {
+		dataset: ds.clone(),
+		blob_fragment_size: 1_000_000,
+	});
+
+	let pipeline =
+		if let Some(pipeline) = ds.load_pipeline(&pipeline_name, context.clone()).unwrap() {
+			// TODO: cache pipelines
+			pipeline
+		} else {
+			return Json(AddJobResult::BadPipeline {
+				pipeline: pipeline_name,
+			})
+			.into_response();
+		};
 
 	let bound_upload_job: Option<SmartString<LazyCompact>>;
 	let inputs = match payload.input {
@@ -112,7 +118,7 @@ pub(super) async fn run_pipeline(
 		}
 	};
 
-	let new_id = runner.add_job(state.context.clone(), Arc::new(pipeline), inputs);
+	let new_id = runner.add_job(context, Arc::new(pipeline), inputs);
 
 	if let Some(j) = bound_upload_job {
 		state

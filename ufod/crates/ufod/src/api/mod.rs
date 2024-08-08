@@ -2,15 +2,13 @@ use axum::{extract::DefaultBodyLimit, routing::get, Router};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
-use ufo_ds_core::api::Dataset;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use ufo_pipeline::runner::runner::PipelineRunner;
-use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
+use ufo_pipeline_nodes::nodetype::UFONodeType;
 
 mod dataset;
-mod pipeline;
 mod status;
 pub mod upload;
 
@@ -24,8 +22,6 @@ pub struct RouterState {
 	pub config: Arc<UfodConfig>,
 	pub runner: Arc<Mutex<PipelineRunner<UFONodeType>>>,
 	pub main_db: Arc<MainDB>,
-	pub database: Arc<dyn Dataset<UFONodeType>>,
-	pub context: Arc<UFOContext>,
 	pub uploader: Arc<Uploader>,
 }
 
@@ -37,7 +33,6 @@ pub struct RouterState {
 #[openapi(
 	nest(
 		(path = "/status", api = status::StatusApi),
-		(path = "/pipelines", api = pipeline::PipelineApi),
 		(path = "/upload", api = upload::UploadApi),
 		(path = "/dataset", api = dataset::DatasetApi)
 	),
@@ -53,7 +48,6 @@ pub(super) fn router(state: RouterState) -> Router {
 		.route("/", get(root))
 		//
 		.nest("/upload", upload::router(state.uploader.clone()))
-		.nest("/pipelines", pipeline::router())
 		.nest("/status", status::router())
 		.nest("/dataset", dataset::router())
 		//

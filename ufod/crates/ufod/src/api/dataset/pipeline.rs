@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::{
 	extract::{Path, State},
 	http::StatusCode,
@@ -6,6 +8,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use ufo_pipeline::labels::{PipelineName, PipelineNodeID};
+use ufo_pipeline_nodes::UFOContext;
 use utoipa::ToSchema;
 
 use super::{PipelineInfoInput, PipelineInfoShort};
@@ -29,8 +32,9 @@ pub struct PipelineInfo {
 /// Get details about a pipeline
 #[utoipa::path(
 	get,
-	path = "/{pipeline_name}",
+	path = "/{dataset_name}/pipelines/{pipeline_name}",
 	params(
+		("dataset_name" = String, description = "Dataset name"),
 		("pipeline_name" = String, description = "Pipeline name"),
 	),
 	responses(
@@ -39,12 +43,23 @@ pub struct PipelineInfo {
 	),
 )]
 pub(super) async fn get_pipeline(
-	Path(pipeline_name): Path<PipelineName>,
+	Path((dataset_name, pipeline_name)): Path<(String, String)>,
 	State(state): State<RouterState>,
 ) -> Response {
+	let pipeline_name = PipelineName::new(&pipeline_name);
+	let dataset = state.main_db.get_dataset(&dataset_name).unwrap().unwrap();
+
+	let context = Arc::new(UFOContext {
+		dataset: dataset.clone(),
+		blob_fragment_size: 1_000_000,
+	});
+
 	let pipe = if let Some(pipe) = state
-		.database
-		.load_pipeline(&pipeline_name, state.context)
+		.main_db
+		.get_dataset(&dataset_name)
+		.unwrap()
+		.unwrap()
+		.load_pipeline(&pipeline_name, context)
 		.unwrap()
 	{
 		pipe

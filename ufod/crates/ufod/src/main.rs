@@ -1,13 +1,12 @@
 use api::RouterState;
 use config::UfodConfig;
 use futures::executor::block_on;
-use std::{path::PathBuf, sync::Arc, thread};
+use std::{sync::Arc, thread};
 use tokio::sync::Mutex;
 use tracing::info;
-use ufo_ds_impl::local::LocalDataset;
 
 use ufo_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
-use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
+use ufo_pipeline_nodes::nodetype::UFONodeType;
 
 mod api;
 mod config;
@@ -47,14 +46,6 @@ async fn main() {
 	let main_db = MainDB::open(config.clone()).unwrap();
 	let uploader = Uploader::open(config.clone());
 
-	//LocalDataset::create(&PathBuf::from("./data/db")).unwrap();
-	let database = Arc::new(LocalDataset::open(&PathBuf::from("./data/db")).unwrap());
-
-	let ctx = UFOContext {
-		dataset: database.clone(),
-		blob_fragment_size: 1_000_000,
-	};
-
 	// Prep runner
 	let runner: PipelineRunner<UFONodeType> = PipelineRunner::new(PipelineRunConfig {
 		node_threads: 2,
@@ -66,8 +57,6 @@ async fn main() {
 		main_db: Arc::new(main_db),
 		config: Arc::new(config),
 		runner: Arc::new(Mutex::new(runner)),
-		database: database.clone(),
-		context: Arc::new(ctx),
 		uploader: Arc::new(uploader),
 	};
 

@@ -20,7 +20,7 @@ use ufo_pipeline::{
 use crate::{
 	data::{UFOData, UFODataStub},
 	errors::PipelineError,
-	nodetype::UFONodeType,
+	nodetype::{UFONodeType, UFONodeTypeError},
 	traits::UFONode,
 	UFOContext,
 };
@@ -187,16 +187,20 @@ impl PipelineNode for AddItem {
 }
 
 impl UFONode for AddItem {
-	fn n_inputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
-		match stub {
+	fn n_inputs(stub: &UFONodeType, ctx: &UFOContext) -> Result<usize, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = ctx.dataset.get_class(&class[..]).unwrap().unwrap();
-				let attrs = ctx.dataset.class_get_attrs(class).unwrap();
+				let class = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+					c
+				} else {
+					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
+				};
 
+				let attrs = ctx.dataset.class_get_attrs(class)?;
 				attrs.into_iter().count()
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn input_compatible_with(
@@ -204,25 +208,31 @@ impl UFONode for AddItem {
 		ctx: &UFOContext,
 		input_idx: usize,
 		input_type: UFODataStub,
-	) -> bool {
-		match stub {
+	) -> Result<bool, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::AddItem { .. } => {
-				Self::input_default_type(stub, ctx, input_idx) == input_type
+				Self::input_default_type(stub, ctx, input_idx)? == input_type
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn input_with_name(
 		stub: &UFONodeType,
 		ctx: &UFOContext,
 		input_name: &PipelinePortID,
-	) -> Option<usize> {
-		match stub {
+	) -> Result<Option<usize>, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = ctx.dataset.get_class(&class[..]).unwrap().unwrap();
-				let attrs = ctx.dataset.class_get_attrs(class).unwrap();
+				// TODO: handle missing class errors
 
+				let class = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+					c
+				} else {
+					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
+				};
+
+				let attrs = ctx.dataset.class_get_attrs(class)?;
 				attrs
 					.into_iter()
 					.enumerate()
@@ -230,54 +240,77 @@ impl UFONode for AddItem {
 					.map(|(i, _)| i)
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
-	fn input_default_type(stub: &UFONodeType, ctx: &UFOContext, input_idx: usize) -> UFODataStub {
-		match stub {
+	fn input_default_type(
+		stub: &UFONodeType,
+		ctx: &UFOContext,
+		input_idx: usize,
+	) -> Result<UFODataStub, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = ctx.dataset.get_class(&class[..]).unwrap().unwrap();
-				let attrs = ctx.dataset.class_get_attrs(class).unwrap();
+				let class = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+					c
+				} else {
+					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
+				};
 
+				let attrs = ctx.dataset.class_get_attrs(class)?;
 				attrs.into_iter().nth(input_idx).unwrap().2.into()
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
-	fn n_outputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
-		match stub {
+	fn n_outputs(stub: &UFONodeType, ctx: &UFOContext) -> Result<usize, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = ctx.dataset.get_class(&class[..]).unwrap().unwrap();
-				let attrs = ctx.dataset.class_get_attrs(class).unwrap();
+				let class = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+					c
+				} else {
+					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
+				};
+
+				let attrs = ctx.dataset.class_get_attrs(class)?;
 				attrs.into_iter().count()
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
-	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> UFODataStub {
-		match stub {
+	fn output_type(
+		stub: &UFONodeType,
+		ctx: &UFOContext,
+		output_idx: usize,
+	) -> Result<UFODataStub, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::AddItem { class, .. } => {
 				assert!(output_idx == 0);
-				let class = ctx.dataset.get_class(class).unwrap().unwrap();
+
+				let class = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+					c
+				} else {
+					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
+				};
+
 				UFODataStub::Reference { class }
 			}
 			_ => unreachable!(),
-		}
+		})
 	}
 
 	fn output_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		output_name: &PipelinePortID,
-	) -> Option<usize> {
-		match stub {
+	) -> Result<Option<usize>, UFONodeTypeError> {
+		Ok(match stub {
 			UFONodeType::AddItem { .. } => match output_name.id().as_str() {
 				"added_item" => Some(0),
 				_ => None,
 			},
 			_ => unreachable!(),
-		}
+		})
 	}
 }

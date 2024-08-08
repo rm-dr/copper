@@ -15,7 +15,7 @@ impl<PipelineNodeStubType: PipelineNodeStub> Pipestore<PipelineNodeStubType> for
 		&self,
 		name: &PipelineName,
 		context: Arc<<PipelineNodeStubType::NodeType as PipelineNode>::NodeContext>,
-	) -> Result<Option<Pipeline<PipelineNodeStubType>>, PipestoreError> {
+	) -> Result<Option<Pipeline<PipelineNodeStubType>>, PipestoreError<PipelineNodeStubType>> {
 		let mut conn = self.conn.lock().unwrap();
 
 		let res = block_on(
@@ -35,12 +35,12 @@ impl<PipelineNodeStubType: PipelineNodeStub> Pipestore<PipelineNodeStubType> for
 			Ok(res) => res.get::<String, _>("pipeline_data"),
 		};
 
-		return Ok(Some(
-			Pipeline::from_toml_str(name, &pipe_spec, context).unwrap(),
-		));
+		return Ok(Some(Pipeline::<PipelineNodeStubType>::from_toml_str(
+			name, &pipe_spec, context,
+		)?));
 	}
 
-	fn all_pipelines(&self) -> Result<Vec<PipelineName>, PipestoreError> {
+	fn all_pipelines(&self) -> Result<Vec<PipelineName>, PipestoreError<PipelineNodeStubType>> {
 		let mut conn = self.conn.lock().unwrap();
 
 		let res = block_on(
