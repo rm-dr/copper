@@ -263,7 +263,16 @@ fn main() -> Result<()> {
 			}
 
 			println!("{:?}", input);
-			println!("{:?}", api.add_job(AddJobParams { pipeline, input }));
+			/*
+			println!(
+				"{:?}",
+				api.add_job(AddJobParams {
+					pipeline,
+					input,
+					bound_upload_job: uploadjob.map(|x| x.get_job_id().clone())
+				})
+			);
+			*/
 		}
 
 		Commands::WatchJobs => {
