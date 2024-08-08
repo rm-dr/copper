@@ -67,7 +67,8 @@ pub(super) async fn run_pipeline(
 	let mut runner = state.runner.lock().await;
 	let db = state.database;
 
-	let pipeline = if let Some(pipeline) = db.load_pipeline(&pipeline_name, state.context) {
+	let pipeline = if let Some(pipeline) = db.load_pipeline(&pipeline_name, state.context).unwrap()
+	{
 		// TODO: cache pipelines
 		pipeline
 	} else {

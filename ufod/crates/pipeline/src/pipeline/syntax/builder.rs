@@ -53,10 +53,10 @@ pub(in super::super) struct PipelineBuilder<NodeStubType: PipelineNodeStub> {
 impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 	pub fn build(
 		context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
-		name: &str,
+		name: &PipelineName,
 		spec: PipelineSpec<NodeStubType>,
 	) -> Result<Pipeline<NodeStubType>, PipelinePrepareError<SDataStub<NodeStubType>>> {
-		debug!(message = "Building pipeline", pipeline_name = name,);
+		debug!(message = "Building pipeline", pipeline_name = ?name);
 
 		// Initialize all variables
 		let builder = {
@@ -69,7 +69,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 			});
 
 			Self {
-				name: PipelineName::new(name),
+				name: name.clone(),
 				context,
 				spec,
 				graph: RefCell::new(graph),
@@ -83,7 +83,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 
 		// Make sure every node's inputs are valid,
 		// create the corresponding edges in the graph.
-		trace!(message = "Checking inputs", pipeline_name = name);
+		trace!(message = "Checking inputs", pipeline_name = ?name);
 		{
 			for (node_id, node_spec) in &builder.spec.nodes {
 				for (input_name, out_link) in &node_spec.inputs {
@@ -98,7 +98,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 			}
 		}
 
-		trace!(message = "Making nodes", pipeline_name = name);
+		trace!(message = "Making nodes", pipeline_name = ?name);
 		// Add nodes to the graph
 		for (node_name, node_spec) in builder.spec.nodes.iter() {
 			// If this is a normal node, just add it.
@@ -124,7 +124,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 				.insert(node_name.clone(), n);
 		}
 
-		trace!(message = "Making `after` edges", pipeline_name = name);
+		trace!(message = "Making `after` edges", pipeline_name = ?name);
 		// Make sure all "after" edges are valid and create them in the graph.
 		for (node_name, node_spec) in &builder.spec.nodes {
 			for after_name in node_spec.after.iter().unique() {
@@ -148,7 +148,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 			}
 		}
 
-		trace!(message = "Making `ptp` edges", pipeline_name = name);
+		trace!(message = "Making `ptp` edges", pipeline_name = ?name);
 		// Make sure all "port to port" edges are valid and create them in the graph.
 		{
 			for (node_name, node_spec) in &builder.spec.nodes {
@@ -164,7 +164,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 			}
 		}
 
-		trace!(message = "Looking for cycles", pipeline_name = name);
+		trace!(message = "Looking for cycles", pipeline_name = ?name);
 		// Make sure our graph doesn't have any cycles
 		if builder.graph.borrow().has_cycle() {
 			return Err(PipelinePrepareError::HasCycle);

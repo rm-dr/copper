@@ -78,7 +78,7 @@ pub struct Pipeline<NodeStubType: PipelineNodeStub> {
 impl<NodeStubType: PipelineNodeStub> Pipeline<NodeStubType> {
 	/// Load a pipeline from a TOML string
 	pub fn from_toml_str(
-		pipeline_name: &str,
+		pipeline_name: &PipelineName,
 		toml_str: &str,
 		context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
 	) -> Result<Self, ()> {

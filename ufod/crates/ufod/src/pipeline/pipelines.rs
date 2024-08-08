@@ -47,11 +47,13 @@ pub(super) async fn get_all_pipelines(State(state): State<RouterState>) -> impl 
 		state
 			.database
 			.all_pipelines()
+			.unwrap()
 			.iter()
 			.map(|pipe_name| {
 				let pipe = state
 					.database
 					.load_pipeline(&pipe_name, state.context.clone())
+					.unwrap()
 					.unwrap();
 				let input_node_type = pipe.get_node(pipe.input_node_id()).unwrap();
 

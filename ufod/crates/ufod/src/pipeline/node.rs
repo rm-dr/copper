@@ -45,6 +45,7 @@ pub(super) async fn get_pipeline_node(
 	let pipe = if let Some(pipe) = state
 		.database
 		.load_pipeline(&pipeline_name, state.context.clone())
+		.unwrap()
 	{
 		pipe
 	} else {

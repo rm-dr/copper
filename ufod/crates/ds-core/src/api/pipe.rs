@@ -5,6 +5,8 @@ use ufo_pipeline::{
 	pipeline::pipeline::Pipeline,
 };
 
+use crate::errors::MetastoreError;
+
 pub trait Pipestore<PipelineNodeStubType: PipelineNodeStub>
 where
 	Self: Send + Sync,
@@ -13,7 +15,8 @@ where
 		&self,
 		name: &PipelineName,
 		context: Arc<<PipelineNodeStubType::NodeType as PipelineNode>::NodeContext>,
-	) -> Option<Pipeline<PipelineNodeStubType>>;
+	) -> Result<Option<Pipeline<PipelineNodeStubType>>, MetastoreError>;
 
-	fn all_pipelines(&self) -> &Vec<PipelineName>;
+	// TODO: cache list of pipelines?
+	fn all_pipelines(&self) -> Result<Vec<PipelineName>, MetastoreError>;
 }

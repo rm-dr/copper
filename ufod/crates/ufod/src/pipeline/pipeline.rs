@@ -42,7 +42,11 @@ pub(super) async fn get_pipeline(
 	Path(pipeline_name): Path<PipelineName>,
 	State(state): State<RouterState>,
 ) -> Response {
-	let pipe = if let Some(pipe) = state.database.load_pipeline(&pipeline_name, state.context) {
+	let pipe = if let Some(pipe) = state
+		.database
+		.load_pipeline(&pipeline_name, state.context)
+		.unwrap()
+	{
 		pipe
 	} else {
 		return StatusCode::NOT_FOUND.into_response();
