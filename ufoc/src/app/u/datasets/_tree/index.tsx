@@ -1,40 +1,33 @@
 import styles from "./tree.module.scss";
 import { Panel, PanelTitle } from "@/app/components/panel";
-
 import {
 	XIconDatabase,
 	XIconDatabasePlus,
 	XIconDatabaseX,
+	XIconDots,
+	XIconEdit,
+	XIconFolder,
+	XIconFolderPlus,
+	XIconPlus,
 	XIconSettings,
+	XIconTrash,
 	XIconX,
 } from "@/app/components/icons";
-import { Button, Loader, Text } from "@mantine/core";
+import { ActionIcon, Button, Loader, Menu, Text, rem } from "@mantine/core";
 import { ReactNode, useCallback, useEffect, useState } from "react";
-import { DatasetList } from "./parts/dataset";
-import { useNewDsModal } from "./parts/modals/addds";
+import { useNewDsModal } from "./modals/addds";
+import { useTree, TreeNode } from "@/app/components/tree";
+import { datasetTypes } from "@/app/_util/datasets";
+import { attrTypes } from "@/app/_util/attrs";
+import { useDeleteAttrModal } from "./modals/delattr";
+import { useAddAttrModal } from "./modals/addattr";
+import { useDeleteClassModal } from "./modals/delclass";
+import { useAddClassModal } from "./modals/addclass";
+import { useDeleteDatasetModal } from "./modals/delds";
 
-export type TreeData = {
+export type TreeState = {
 	error: boolean;
 	loading: boolean;
-
-	datasets:
-		| null
-		| {
-				// Dataset info
-				name: string;
-				type: string;
-				open: boolean;
-				classes: {
-					// Classes in this dataset
-					name: string;
-					open: boolean;
-					attrs: {
-						// Attrs in this class
-						name: string;
-						type: string;
-					}[];
-				}[];
-		  }[];
 };
 
 const Wrapper = (params: { children: ReactNode }) => {
@@ -62,18 +55,16 @@ const Wrapper = (params: { children: ReactNode }) => {
 };
 
 export function TreePanel(params: {}) {
-	const [treeData, setTreeData] = useState<TreeData>({
-		datasets: null,
+	const [treeState, setTreeState] = useState<TreeState>({
 		error: false,
 		loading: true,
 	});
 
+	const { node: DatasetTree, data: treeData, setTreeData } = useTree();
+
 	const update_tree = useCallback(() => {
-		setTreeData((td) => {
+		setTreeState((td) => {
 			return {
-				// Keep old data so we can preserve
-				// open state
-				...td,
 				error: false,
 				loading: true,
 			};
@@ -98,11 +89,9 @@ export function TreePanel(params: {}) {
 						return {
 							name: dataset,
 							type: ds_type,
-							open: false,
 							classes: data.map((x) => {
 								return {
 									name: x.name,
-									open: false,
 									attrs: x.attrs.map((y) => {
 										return {
 											name: y.name,
@@ -116,69 +105,95 @@ export function TreePanel(params: {}) {
 				);
 			})
 			.then((data) => {
-				setTreeData((t) => {
-					const td = { ...t };
-					let d = data.map((x) => {
-						// Was this dataset opened in the previous treedata?
-						let is_open = false;
-						let d_idx: number | undefined = undefined;
-						if (td.datasets !== null) {
-							d_idx = td.datasets.findIndex((y) => {
-								return y.name == x.name;
-							});
-							if (d_idx != -1) {
-								is_open = td.datasets[d_idx].open;
-							} else {
-								d_idx = undefined;
-							}
-						}
+				console.log(data);
 
-						return {
-							...x,
-							open: is_open,
-							classes: x.classes.map((y) => {
-								// Was this class opened in the last treedata?
-								let is_open = false;
-								if (td.datasets !== null && d_idx !== undefined) {
-									let c_idx = td.datasets[d_idx].classes.findIndex((z) => {
-										return z.name == y.name;
-									});
-									if (c_idx !== -1) {
-										is_open = td.datasets[d_idx].classes[c_idx].open;
-									}
-								}
-
-								return { ...y, open: is_open };
-							}),
-						};
+				const tree_data: TreeNode[] = [];
+				for (let di = 0; di < data.length; di++) {
+					const d = data[di];
+					let d_type = datasetTypes.find((x) => x.serialize_as === d.type);
+					const d_node = tree_data.push({
+						icon: d_type?.icon,
+						text: d.name,
+						right: (
+							<DatasetMenu dataset_name={d.name} onSuccess={update_tree} />
+						),
+						icon_tooltip: {
+							content: d_type?.pretty_name,
+							position: "left",
+						},
+						selectable: false,
+						uid: `dataset-${d.name}`,
+						parent: null,
+						can_have_children: true,
 					});
 
-					return {
-						datasets: d,
-						error: false,
-						loading: false,
-					};
+					for (let ci = 0; ci < d.classes.length; ci++) {
+						const c = d.classes[ci];
+						const c_node = tree_data.push({
+							icon: <XIconFolder />,
+							text: c.name,
+							right: (
+								<ClassMenu
+									dataset_name={d.name}
+									class_name={c.name}
+									onSuccess={update_tree}
+								/>
+							),
+							selectable: false,
+							uid: `dataset-${d.name}-class-${c.name}`,
+							parent: d_node - 1,
+							can_have_children: true,
+						});
+
+						for (let ai = 0; ai < c.attrs.length; ai++) {
+							const a = c.attrs[ai];
+							let a_type = attrTypes.find((x) => x.serialize_as === a.type);
+							tree_data.push({
+								icon: a_type?.icon,
+								text: a.name,
+								right: (
+									<AttrMenu
+										dataset_name={d.name}
+										class_name={c.name}
+										attr_name={a.name}
+										onSuccess={update_tree}
+									/>
+								),
+								icon_tooltip: {
+									content: a_type?.pretty_name,
+									position: "left",
+								},
+								selectable: false,
+								uid: `dataset-${d.name}-class-${c.name}-attr-${a.name}`,
+								parent: c_node - 1,
+								can_have_children: false,
+							});
+						}
+					}
+				}
+
+				setTreeData(tree_data);
+				setTreeState({
+					error: false,
+					loading: false,
 				});
 			})
 			.catch(() => {
-				setTreeData({
-					datasets: null,
+				setTreeState({
 					error: true,
 					loading: false,
 				});
 			});
-	}, []);
+	}, [setTreeData]);
+
+	const { open: openModal, modal: newDsModal } = useNewDsModal(update_tree);
 
 	useEffect(() => {
 		update_tree();
 	}, [update_tree]);
 
-	const { open: openModal, modal: newDsModal } = useNewDsModal(() => {
-		update_tree();
-	});
-
 	let tree;
-	if (treeData.loading) {
+	if (treeState.loading) {
 		tree = (
 			<Wrapper>
 				<div
@@ -196,7 +211,7 @@ export function TreePanel(params: {}) {
 				</Text>
 			</Wrapper>
 		);
-	} else if (treeData.error) {
+	} else if (treeState.error) {
 		tree = (
 			<Wrapper>
 				<XIconX
@@ -210,21 +225,7 @@ export function TreePanel(params: {}) {
 				</Text>
 			</Wrapper>
 		);
-	} else if (treeData.datasets === null) {
-		tree = (
-			<Wrapper>
-				<XIconX
-					style={{
-						height: "5rem",
-						color: "var(--mantine-color-red-7)",
-					}}
-				/>
-				<Text size="lg" c="red">
-					Error: invalid state
-				</Text>
-			</Wrapper>
-		);
-	} else if (treeData.datasets.length === 0) {
+	} else if (treeData.length === 0) {
 		tree = (
 			<Wrapper>
 				<XIconDatabaseX
@@ -239,13 +240,7 @@ export function TreePanel(params: {}) {
 			</Wrapper>
 		);
 	} else {
-		tree = (
-			<DatasetList
-				update_tree={update_tree}
-				datasets={treeData.datasets}
-				setTreeData={setTreeData}
-			/>
-		);
+		tree = DatasetTree;
 	}
 
 	return (
@@ -272,8 +267,178 @@ export function TreePanel(params: {}) {
 				</Button>
 
 				<PanelTitle icon={<XIconDatabase />} title={"Datasets"} />
-				{tree}
+				<div className={styles.dataset_list}>{tree}</div>
 			</Panel>
+		</>
+	);
+}
+
+function DatasetMenu(params: { dataset_name: string; onSuccess: () => void }) {
+	const { open: openDelete, modal: modalDelete } = useDeleteDatasetModal({
+		dataset_name: params.dataset_name,
+		onSuccess: params.onSuccess,
+	});
+
+	const { open: openAddClass, modal: modalAddClass } = useAddClassModal({
+		dataset_name: params.dataset_name,
+		onSuccess: params.onSuccess,
+	});
+
+	return (
+		<>
+			{modalDelete}
+			{modalAddClass}
+			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
+				<Menu.Target>
+					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
+						<XIconDots style={{ width: "70%", height: "70%" }} />
+					</ActionIcon>
+				</Menu.Target>
+
+				<Menu.Dropdown>
+					<Menu.Label>Dataset</Menu.Label>
+					<Menu.Item
+						leftSection={
+							<XIconEdit style={{ width: rem(14), height: rem(14) }} />
+						}
+					>
+						Rename
+					</Menu.Item>
+					<Menu.Item
+						leftSection={
+							<XIconFolderPlus style={{ width: rem(14), height: rem(14) }} />
+						}
+						onClick={openAddClass}
+					>
+						Add class
+					</Menu.Item>
+					<Menu.Divider />
+
+					<Menu.Label>Danger zone</Menu.Label>
+					<Menu.Item
+						color="red"
+						leftSection={
+							<XIconTrash style={{ width: rem(14), height: rem(14) }} />
+						}
+						onClick={openDelete}
+					>
+						Delete this dataset
+					</Menu.Item>
+				</Menu.Dropdown>
+			</Menu>
+		</>
+	);
+}
+
+function ClassMenu(params: {
+	dataset_name: string;
+	class_name: string;
+	onSuccess: () => void;
+}) {
+	const { open: openDelete, modal: modalDelete } = useDeleteClassModal({
+		dataset_name: params.dataset_name,
+		class_name: params.class_name,
+		onSuccess: params.onSuccess,
+	});
+
+	const { open: openAddAttr, modal: modalAddAttr } = useAddAttrModal({
+		dataset_name: params.dataset_name,
+		class_name: params.class_name,
+		onSuccess: params.onSuccess,
+	});
+
+	return (
+		<>
+			{modalDelete}
+			{modalAddAttr}
+			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
+				<Menu.Target>
+					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
+						<XIconDots style={{ width: "70%", height: "70%" }} />
+					</ActionIcon>
+				</Menu.Target>
+
+				<Menu.Dropdown>
+					<Menu.Label>Class</Menu.Label>
+					<Menu.Item
+						leftSection={
+							<XIconEdit style={{ width: rem(14), height: rem(14) }} />
+						}
+					>
+						Rename
+					</Menu.Item>
+					<Menu.Item
+						leftSection={
+							<XIconPlus style={{ width: rem(14), height: rem(14) }} />
+						}
+						onClick={openAddAttr}
+					>
+						Add attribute
+					</Menu.Item>
+					<Menu.Divider />
+
+					<Menu.Label>Danger zone</Menu.Label>
+					<Menu.Item
+						color="red"
+						leftSection={
+							<XIconTrash style={{ width: rem(14), height: rem(14) }} />
+						}
+						onClick={openDelete}
+					>
+						Delete this class
+					</Menu.Item>
+				</Menu.Dropdown>
+			</Menu>
+		</>
+	);
+}
+
+function AttrMenu(params: {
+	dataset_name: string;
+	class_name: string;
+	attr_name: string;
+	onSuccess: () => void;
+}) {
+	const { open: openDelAttr, modal: modalDelAttr } = useDeleteAttrModal({
+		dataset_name: params.dataset_name,
+		class_name: params.class_name,
+		attr_name: params.attr_name,
+		onSuccess: params.onSuccess,
+	});
+
+	return (
+		<>
+			{modalDelAttr}
+			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
+				<Menu.Target>
+					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
+						<XIconDots style={{ width: "70%", height: "70%" }} />
+					</ActionIcon>
+				</Menu.Target>
+
+				<Menu.Dropdown>
+					<Menu.Label>Attribute</Menu.Label>
+					<Menu.Item
+						leftSection={
+							<XIconEdit style={{ width: rem(14), height: rem(14) }} />
+						}
+					>
+						Rename
+					</Menu.Item>
+					<Menu.Divider />
+
+					<Menu.Label>Danger zone</Menu.Label>
+					<Menu.Item
+						color="red"
+						leftSection={
+							<XIconTrash style={{ width: rem(14), height: rem(14) }} />
+						}
+						onClick={openDelAttr}
+					>
+						Delete this attribute
+					</Menu.Item>
+				</Menu.Dropdown>
+			</Menu>
 		</>
 	);
 }

@@ -6,7 +6,13 @@
 	}
 }
 
-.tree_entry.clickable:hover {
+.tree_entry.expanded {
+	.tree_entry_arrow {
+		transform: rotate(0deg);
+	}
+}
+
+.tree_entry:hover {
 	.tree_entry_left {
 		background-color: var(--mantine-color-dark-5);
 		.tree_entry_left_icon {
@@ -18,12 +24,6 @@
 	}
 	.tree_entry_right {
 		background-color: var(--mantine-color-dark-6);
-	}
-}
-
-.tree_entry.expanded {
-	.tree_entry_arrow {
-		transform: rotate(0deg);
 	}
 }
 

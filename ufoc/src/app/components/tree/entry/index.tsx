@@ -12,39 +12,42 @@ export function TreeEntry(params: {
 	right: ReactNode;
 
 	is_selected: boolean;
-	is_clickable: boolean;
-	expanded?: boolean;
+	is_expanded: boolean;
+	selectable: boolean;
+	expandable: boolean;
 
-	onClick?: () => void;
+	onExpandClick?: () => void;
+	onSelectClick?: () => void;
 }) {
 	return (
 		<div
 			className={clsx(
 				styles.tree_entry,
-				params.is_clickable && styles.clickable,
 				params.is_selected && styles.selected,
-				params.expanded === true && styles.expanded,
+				params.is_expanded && styles.expanded,
 			)}
 		>
 			<div
 				className={styles.tree_entry_arrow}
 				onMouseDown={(e) => {
-					if (e.button == 0 && params.is_clickable) {
-						if (params.onClick !== undefined) {
-							params.onClick();
+					// Arrow click aways toggles expanded
+					if (e.button == 0 && params.expandable) {
+						if (params.onExpandClick !== undefined) {
+							params.onExpandClick();
 						}
 					}
 				}}
 			>
-				{params.expanded === undefined ? null : <XIconListArrow />}
+				{!params.expandable ? null : <XIconListArrow />}
 			</div>
 
 			<div
 				className={styles.tree_entry_left}
+				// Icon click aways toggles expanded
 				onMouseDown={(e) => {
-					if (e.button == 0 && params.is_clickable) {
-						if (params.onClick !== undefined) {
-							params.onClick();
+					if (e.button == 0 && params.expandable) {
+						if (params.onExpandClick !== undefined) {
+							params.onExpandClick();
 						}
 					}
 				}}
@@ -68,10 +71,17 @@ export function TreeEntry(params: {
 
 			<div
 				className={styles.tree_entry_text}
+				// Body click can toggle expanded or select
 				onMouseDown={(e) => {
-					if (e.button == 0 && params.is_clickable) {
-						if (params.onClick !== undefined) {
-							params.onClick();
+					if (e.button == 0) {
+						if (params.selectable) {
+							if (params.onSelectClick !== undefined) {
+								params.onSelectClick();
+							}
+						} else if (params.expandable) {
+							if (params.onExpandClick !== undefined) {
+								params.onExpandClick();
+							}
 						}
 					}
 				}}
