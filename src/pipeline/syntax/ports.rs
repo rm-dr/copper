@@ -48,7 +48,9 @@ impl FromStr for NodeOutput {
 		})
 	}
 }
+
 struct PipelineOutputVisitor;
+
 impl<'de> Visitor<'de> for PipelineOutputVisitor {
 	type Value = NodeOutput;
 

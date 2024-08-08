@@ -3,7 +3,7 @@ use smartstring::{LazyCompact, SmartString};
 use std::fmt::Display;
 
 /// Reserved name for a pipeline's input node
-pub const PIPELINE_NODE_NAME: &str = "pipeline";
+pub const PIPELINE_EXTERNAL_NODE_NAME: &str = "pipeline";
 
 /// A node label in a pipeline
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -21,10 +21,10 @@ pub enum PipelineNode {
 impl PipelineNode {
 	/// Convert this into a [`PipelineNodeLabel`].
 	/// Returns `None` if this is a [`PipelineNode::External`].
-	pub fn to_label(self) -> Option<PipelineNodeLabel> {
+	pub fn to_label(&self) -> Option<PipelineNodeLabel> {
 		match self {
 			Self::External => None,
-			Self::Node(x) => Some(x),
+			Self::Node(x) => Some(x.clone()),
 		}
 	}
 
@@ -50,7 +50,7 @@ impl Display for PipelineNode {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::Node(x) => x.fmt(f),
-			Self::External => write!(f, "{}", PIPELINE_NODE_NAME),
+			Self::External => write!(f, "{}", PIPELINE_EXTERNAL_NODE_NAME),
 		}
 	}
 }
@@ -71,14 +71,14 @@ impl AsRef<str> for PipelineNode {
 	fn as_ref(&self) -> &str {
 		match self {
 			Self::Node(x) => x.into(),
-			Self::External => PIPELINE_NODE_NAME,
+			Self::External => PIPELINE_EXTERNAL_NODE_NAME,
 		}
 	}
 }
 
 impl From<&str> for PipelineNode {
 	fn from(s: &str) -> Self {
-		if s == PIPELINE_NODE_NAME {
+		if s == PIPELINE_EXTERNAL_NODE_NAME {
 			PipelineNode::External
 		} else {
 			PipelineNode::Node(s.into())
@@ -96,7 +96,7 @@ impl From<PipelineNode> for SmartString<LazyCompact> {
 	fn from(value: PipelineNode) -> Self {
 		match value {
 			PipelineNode::Node(x) => x.into(),
-			PipelineNode::External => PIPELINE_NODE_NAME.into(),
+			PipelineNode::External => PIPELINE_EXTERNAL_NODE_NAME.into(),
 		}
 	}
 }
@@ -105,7 +105,7 @@ impl From<&PipelineNode> for SmartString<LazyCompact> {
 	fn from(value: &PipelineNode) -> Self {
 		match value {
 			PipelineNode::Node(x) => x.into(),
-			PipelineNode::External => PIPELINE_NODE_NAME.into(),
+			PipelineNode::External => PIPELINE_EXTERNAL_NODE_NAME.into(),
 		}
 	}
 }
@@ -114,12 +114,12 @@ impl<'a> From<&'a PipelineNode> for &'a str {
 	fn from(value: &'a PipelineNode) -> Self {
 		match value {
 			PipelineNode::Node(x) => x.into(),
-			PipelineNode::External => PIPELINE_NODE_NAME,
+			PipelineNode::External => PIPELINE_EXTERNAL_NODE_NAME,
 		}
 	}
 }
 
-/// A port label in a pipeline pipeline
+/// A node label in a pipeline pipeline
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Deserialize)]
 pub struct PipelineNodeLabel(SmartString<LazyCompact>);
 

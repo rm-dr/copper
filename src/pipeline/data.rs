@@ -21,7 +21,7 @@ pub enum BinaryFormat {
 	Blob,
 
 	/// Plain text
-	Text,
+	// Text,
 
 	/// An audio file
 	Audio(AudioFormat),

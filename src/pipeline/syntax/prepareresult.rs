@@ -4,13 +4,12 @@ use super::{
 	labels::{PipelineNode, PipelinePortLabel},
 	ports::{NodeInput, NodeOutput},
 };
-use crate::pipeline::data::PipelineDataType;
+use crate::pipeline::{data::PipelineDataType, pipeline::Pipeline};
 
-/// The result of a [`Pipeline::check()`].
 #[derive(Debug)]
-pub enum PipelineCheckResult {
-	/// This pipeline is good to go.
-	Ok,
+pub enum PipelinePrepareResult {
+	/// All good, here's your pipeline
+	Ok(Pipeline),
 
 	/// We tried to create a node with a reserved name
 	NodeHasReservedName { node: SmartString<LazyCompact> },
@@ -52,5 +51,5 @@ pub enum PipelineCheckResult {
 	},
 
 	/// This graph has a cycle containing `node`
-	HasCycle { node: PipelineNode },
+	HasCycle,
 }
