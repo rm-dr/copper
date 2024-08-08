@@ -98,9 +98,12 @@ impl Hash {
 			panic!()
 		}
 
-		let hash_type: HashType = if let Some(value) = params.get("value") {
+		let hash_type: HashType = if let Some(value) = params.get("hash_type") {
 			match value {
-				NodeParameterValue::String(hash_type) => serde_json::from_str(hash_type).unwrap(),
+				NodeParameterValue::String(hash_type) => {
+					// TODO: direct from_str
+					serde_json::from_str(&format!("\"{hash_type}\"")).unwrap()
+				}
 				_ => panic!(),
 			}
 		} else {

@@ -56,7 +56,7 @@ impl AddItem {
 		ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
 	) -> Self {
-		if params.len() != 3 {
+		if params.len() != 2 {
 			panic!()
 		}
 
@@ -89,35 +89,9 @@ impl AddItem {
 			panic!()
 		};
 
-		let mut attrs: Vec<AttrInfo> = Vec::new();
-		if let Some(taglist) = params.get("tags") {
-			match taglist {
-				NodeParameterValue::List(list) => {
-					for t in list {
-						match t {
-							NodeParameterValue::String(s) => {
-								let x = block_on(ctx.dataset.get_attr_by_name(class, s));
-								match x {
-									Ok(Some(x)) => attrs.push(x),
-									Ok(None) => {
-										panic!()
-									}
-									Err(_) => {
-										panic!()
-									}
-								}
-							}
-							_ => panic!(),
-						}
-					}
-				}
-				_ => panic!(),
-			}
-		} else {
-			panic!()
-		}
-
+		let attrs: Vec<AttrInfo> = block_on(ctx.dataset.class_get_attrs(class)).unwrap();
 		let data = attrs.iter().map(|_| None).collect();
+
 		AddItem {
 			inputs: attrs
 				.iter()
