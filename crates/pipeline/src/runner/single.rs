@@ -4,8 +4,12 @@ use std::{
 	sync::{Arc, Mutex},
 };
 use threadpool::ThreadPool;
+use tracing::debug;
 
-use super::util::{EdgeState, NodeRunState};
+use super::{
+	runner::PipelineRunConfig,
+	util::{EdgeState, NodeRunState},
+};
 use crate::{
 	api::{PipelineData, PipelineNode, PipelineNodeState, PipelineNodeStub},
 	errors::PipelineError,
@@ -93,10 +97,10 @@ pub(super) struct PipelineSingleRunner<StubType: PipelineNodeStub> {
 	)>,
 }
 
-impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
+impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 	/// Make a new [`PipelineSingleRunner`]
 	pub fn new(
-		node_runners: usize,
+		config: &'a PipelineRunConfig,
 		context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 		pipeline: Arc<Pipeline<StubType>>,
 		pipeline_inputs: Vec<SDataType<StubType>>,
@@ -181,7 +185,7 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 
 		// Threadpool we'll use to run nodes
 		let pool = threadpool::Builder::new()
-			.num_threads(node_runners)
+			.num_threads(config.node_threads)
 			.thread_name("Pipeline node runner".into())
 			.build();
 
@@ -287,7 +291,12 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 		let send_status = self.send_status.clone();
 
 		self.pool.execute(move || {
-			println!("Run  {}", n);
+			debug!(
+				source = "pipeline",
+				summary = "Starting node",
+				node = n.to_string()
+			);
+
 			// Panics if mutex is locked. This is intentional, only one thread should have this at a time.
 			// We use a mutex only for interior mutability.
 			let mut node_instance_opt = node_instance.lock().unwrap();
@@ -299,6 +308,12 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 			});
 
 			if let Err(res) = res {
+				debug!(
+					source = "pipeline",
+					summary = "Node finished with error",
+					node = n.to_string(),
+					error=?res
+				);
 				send_status.send((node, Err(res))).unwrap();
 			} else {
 				let res = node_instance.run(&*ctx, |port, data| {
@@ -306,7 +321,13 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 					send_data.send((node, port, data)).unwrap();
 					Ok(())
 				});
-				println!("Done {} {res:?}", n);
+
+				debug!(
+					source = "pipeline",
+					summary = "Node finished",
+					node = n.to_string(),
+					status=?res.as_ref().unwrap()
+				);
 				send_status.send((node, res)).unwrap();
 			}
 		});

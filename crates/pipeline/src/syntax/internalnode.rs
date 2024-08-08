@@ -47,7 +47,7 @@ impl<StubType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<StubType>
 	) -> Self::NodeType {
 		match self {
 			Self::Pipeline { .. } => unreachable!(),
-			Self::User(n) => StubType::build(n, ctx, name, input_receiver),
+			Self::User(n) => n.build(ctx, name, input_receiver),
 		}
 	}
 

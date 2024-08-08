@@ -13,26 +13,32 @@ use crate::{
 	SDataStub, SDataType,
 };
 
+/// Pipeline runner configuration
+pub struct PipelineRunConfig {
+	/// The number of threads to use to run nodes in each pipeline
+	pub node_threads: usize,
+}
+
 /// A prepared data processing pipeline.
 /// This is guaranteed to be correct:
 /// no dependency cycles, no port type mismatch, etc
 pub struct PipelineRunner<StubType: PipelineNodeStub> {
 	_p: PhantomData<StubType>,
 	pipelines: Vec<Arc<Pipeline<StubType>>>,
-	node_runners: usize,
 	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+	config: PipelineRunConfig,
 }
 
 impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	/// Initialize a new runner
 	pub fn new(
+		config: PipelineRunConfig,
 		context: <StubType::NodeType as PipelineNode>::NodeContext,
-		node_runners: usize,
 	) -> Self {
 		Self {
 			_p: PhantomData,
 			pipelines: Vec::new(),
-			node_runners,
+			config,
 			context: Arc::new(context),
 		}
 	}
@@ -79,7 +85,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		let pipeline = self.get_pipeline(pipeline_name).unwrap();
 
 		let mut runner = PipelineSingleRunner::new(
-			self.node_runners,
+			&self.config,
 			self.context.clone(),
 			pipeline,
 			pipeline_inputs,

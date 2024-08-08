@@ -15,7 +15,11 @@ pub struct Constant {
 }
 
 impl Constant {
-	pub fn new(input_receiver: Receiver<(usize, MetaDbData)>, value: MetaDbData) -> Self {
+	pub fn new(
+		_ctx: &<Self as PipelineNode>::NodeContext,
+		input_receiver: Receiver<(usize, MetaDbData)>,
+		value: MetaDbData,
+	) -> Self {
 		Self {
 			value,
 			input_receiver,

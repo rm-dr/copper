@@ -23,7 +23,11 @@ pub struct Hash {
 }
 
 impl Hash {
-	pub fn new(input_receiver: Receiver<(usize, MetaDbData)>, hash_type: HashType) -> Self {
+	pub fn new(
+		_ctx: &<Self as PipelineNode>::NodeContext,
+		input_receiver: Receiver<(usize, MetaDbData)>,
+		hash_type: HashType,
+	) -> Self {
 		Self {
 			data: None,
 			hash_type,

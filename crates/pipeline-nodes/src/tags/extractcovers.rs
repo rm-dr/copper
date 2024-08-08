@@ -20,7 +20,10 @@ pub struct ExtractCovers {
 }
 
 impl ExtractCovers {
-	pub fn new(input_receiver: Receiver<(usize, MetaDbData)>) -> Self {
+	pub fn new(
+		_ctx: &<Self as PipelineNode>::NodeContext,
+		input_receiver: Receiver<(usize, MetaDbData)>,
+	) -> Self {
 		Self {
 			data: None,
 			buffer: ArcVecBuffer::new(),

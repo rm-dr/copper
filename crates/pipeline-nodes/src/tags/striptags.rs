@@ -18,6 +18,9 @@ use crate::{
 };
 
 pub struct StripTags {
+	blob_channel_capacity: usize,
+	_blob_fragment_size: usize,
+
 	data: Option<MetaDbData>,
 
 	buffer: ArcVecBuffer,
@@ -26,8 +29,14 @@ pub struct StripTags {
 }
 
 impl StripTags {
-	pub fn new(input_receiver: Receiver<(usize, MetaDbData)>) -> Self {
+	pub fn new(
+		ctx: &<Self as PipelineNode>::NodeContext,
+		input_receiver: Receiver<(usize, MetaDbData)>,
+	) -> Self {
 		Self {
+			blob_channel_capacity: ctx.blob_channel_capacity,
+			_blob_fragment_size: ctx.blob_fragment_size,
+
 			data: None,
 			sender: None,
 			buffer: ArcVecBuffer::new(),
@@ -118,7 +127,7 @@ impl PipelineNode for StripTags {
 
 		// If we haven't made a sender yet, make one
 		if self.sender.is_none() {
-			let (hs, recv) = HoldSender::new(2);
+			let (hs, recv) = HoldSender::new(self.blob_channel_capacity);
 			self.sender = Some(hs);
 
 			send_data(

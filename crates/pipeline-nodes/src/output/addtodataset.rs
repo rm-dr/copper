@@ -21,6 +21,7 @@ pub struct AddToDataset {
 
 impl AddToDataset {
 	pub fn new(
+		_ctx: &<Self as PipelineNode>::NodeContext,
 		input_receiver: Receiver<(usize, MetaDbData)>,
 		class: ClassHandle,
 		attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,

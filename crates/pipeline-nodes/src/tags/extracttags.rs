@@ -21,7 +21,11 @@ pub struct ExtractTags {
 }
 
 impl ExtractTags {
-	pub fn new(input_receiver: Receiver<(usize, MetaDbData)>, tags: Vec<TagType>) -> Self {
+	pub fn new(
+		_ctx: &<Self as PipelineNode>::NodeContext,
+		input_receiver: Receiver<(usize, MetaDbData)>,
+		tags: Vec<TagType>,
+	) -> Self {
 		Self {
 			data: None,
 			tags: tags.into_iter().unique().collect(),

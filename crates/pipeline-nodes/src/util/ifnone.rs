@@ -16,7 +16,10 @@ pub struct IfNone {
 }
 
 impl IfNone {
-	pub fn new(input_receiver: Receiver<(usize, MetaDbData)>) -> Self {
+	pub fn new(
+		_ctx: &<Self as PipelineNode>::NodeContext,
+		input_receiver: Receiver<(usize, MetaDbData)>,
+	) -> Self {
 		Self {
 			input_receiver,
 			ifnone: None,

@@ -15,7 +15,10 @@ pub struct Print {
 }
 
 impl Print {
-	pub fn new(input_receiver: Receiver<(usize, MetaDbData)>) -> Self {
+	pub fn new(
+		_ctx: &<Self as PipelineNode>::NodeContext,
+		input_receiver: Receiver<(usize, MetaDbData)>,
+	) -> Self {
 		Self {
 			input_receiver,
 			has_received: false,

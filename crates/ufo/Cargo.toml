@@ -31,3 +31,6 @@ ufo-blobstore = { workspace = true }
 anyhow = { workspace = true }
 smartstring = { workspace = true }
 serde = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+nu-ansi-term = { workspace = true }

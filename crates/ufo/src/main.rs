@@ -3,15 +3,26 @@ use std::{
 	path::{Path, PathBuf},
 	sync::{Arc, Mutex},
 };
+
 use ufo_metadb::{
 	api::{AttributeOptions, MetaDb},
 	data::{HashType, MetaDbData, MetaDbDataStub},
 	sqlite::db::SQLiteMetaDB,
 };
-use ufo_pipeline::runner::runner::PipelineRunner;
+use ufo_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
 use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
 
+//mod log;
+
 fn main() -> Result<()> {
+	tracing_subscriber::fmt()
+		.with_env_filter("ufo_pipeline=debug")
+		.without_time()
+		.with_ansi(false)
+		//.with_max_level(Level::DEBUG)
+		//.event_format(log::LogFormatter::new(true))
+		.init();
+
 	let d = PathBuf::from("./db");
 	std::fs::create_dir(&d).unwrap();
 
@@ -85,10 +96,13 @@ fn main() -> Result<()> {
 
 	let ctx = UFOContext {
 		dataset: Arc::new(Mutex::new(dataset)),
+		blob_channel_capacity: 10,
+		blob_fragment_size: 1_000_000,
 	};
 
 	// Prep runner
-	let mut runner: PipelineRunner<UFONodeType> = PipelineRunner::new(ctx.clone(), 4);
+	let mut runner: PipelineRunner<UFONodeType> =
+		PipelineRunner::new(PipelineRunConfig { node_threads: 4 }, ctx.clone());
 	runner.add_pipeline(
 		ctx.clone(),
 		Path::new("pipelines/cover.toml"),

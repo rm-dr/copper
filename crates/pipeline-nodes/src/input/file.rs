@@ -11,15 +11,8 @@ use crate::{helpers::HoldSender, traits::UFOStaticNode, UFOContext};
 
 /// A node that reads data from a file
 pub struct FileReader {
-	/// Read blocks of at most this many bytes.
-	/// All blocks will have this size, except
-	/// for the last (which may be smaller).
-	read_block_length: usize,
-
-	/// Store at most this many blocks of data.
-	/// After reading this many, wait for them
-	/// to be consumed.
-	channel_size: usize,
+	blob_fragment_size: usize,
+	blob_channel_capacity: usize,
 
 	input_receiver: Receiver<(usize, MetaDbData)>,
 
@@ -32,11 +25,14 @@ pub struct FileReader {
 
 impl FileReader {
 	/// Make a new [`FileReader`]
-	pub fn new(input_receiver: Receiver<(usize, MetaDbData)>) -> Self {
+	pub fn new(
+		ctx: &<Self as PipelineNode>::NodeContext,
+		input_receiver: Receiver<(usize, MetaDbData)>,
+	) -> Self {
 		FileReader {
 			input_receiver,
-			channel_size: 2,
-			read_block_length: 1_000_000,
+			blob_channel_capacity: ctx.blob_channel_capacity,
+			blob_fragment_size: ctx.blob_fragment_size,
 
 			path: None,
 			file: None,
@@ -75,7 +71,7 @@ impl PipelineNode for FileReader {
 						)?;
 
 						// Prepare sender
-						let (hs, recv) = HoldSender::new(self.channel_size);
+						let (hs, recv) = HoldSender::new(self.blob_channel_capacity);
 						self.sender = Some(hs);
 						send_data(
 							1,
@@ -125,11 +121,11 @@ impl PipelineNode for FileReader {
 
 		loop {
 			// Read a segment of our file
-			let mut read_buf = Vec::with_capacity(self.read_block_length);
+			let mut read_buf = Vec::with_capacity(self.blob_fragment_size);
 			self.file
 				.as_mut()
 				.unwrap()
-				.take(self.read_block_length.try_into().unwrap())
+				.take(self.blob_fragment_size.try_into().unwrap())
 				.read_to_end(&mut read_buf)
 				.unwrap();
 

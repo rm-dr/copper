@@ -16,6 +16,7 @@ pub struct Noop {
 
 impl Noop {
 	pub fn new(
+		_ctx: &<Self as PipelineNode>::NodeContext,
 		input_receiver: Receiver<(usize, MetaDbData)>,
 		inputs: Vec<(PipelinePortLabel, MetaDbDataStub)>,
 	) -> Self {
