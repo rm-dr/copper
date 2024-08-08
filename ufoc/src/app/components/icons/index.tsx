@@ -1,5 +1,6 @@
 import {
 	IconAdjustmentsAlt,
+	IconBinary,
 	IconBinaryTree,
 	IconCheck,
 	IconChevronDown,
@@ -8,9 +9,11 @@ import {
 	IconDatabaseCog,
 	IconDatabasePlus,
 	IconDatabaseX,
+	IconDecimal,
 	IconDots,
 	IconEdit,
 	IconFile,
+	IconFileDigit,
 	IconFilePlus,
 	IconFileUpload,
 	IconFileX,
@@ -20,7 +23,10 @@ import {
 	IconFolders,
 	IconGridPattern,
 	IconHexagon,
+	IconHexagon3,
 	IconHexagonMinus,
+	IconHexagonPlus,
+	IconLetterCase,
 	IconList,
 	IconMenu2,
 	IconPlus,
@@ -45,6 +51,30 @@ const defaultStyles: CSSProperties | undefined = {
 
 // This module lets us apply default styling to tabler icons,
 // and makes it easy to replace our icon provider.
+
+export const XIconAttrText = ({ style }: { style?: CSSProperties }) => {
+	return <IconLetterCase style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconAttrBinary = ({ style }: { style?: CSSProperties }) => {
+	return <IconBinary style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconAttrBlob = ({ style }: { style?: CSSProperties }) => {
+	return <IconFileDigit style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconAttrInt = ({ style }: { style?: CSSProperties }) => {
+	return <IconHexagon3 style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconAttrPosInt = ({ style }: { style?: CSSProperties }) => {
+	return <IconHexagonPlus style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconAttrFloat = ({ style }: { style?: CSSProperties }) => {
+	return <IconDecimal style={{ ...defaultStyles, ...style }} />;
+};
 
 export const XIconDots = ({ style }: { style?: CSSProperties }) => {
 	return <IconDots style={{ ...defaultStyles, ...style }} />;

@@ -2,6 +2,12 @@ import styles from "./tree.module.scss";
 import { Panel, PanelSection } from "../../components/panel";
 
 import {
+	XIconAttrBinary,
+	XIconAttrBlob,
+	XIconAttrFloat,
+	XIconAttrInt,
+	XIconAttrPosInt,
+	XIconAttrText,
 	XIconDatabase,
 	XIconDatabasePlus,
 	XIconDatabaseX,
@@ -14,8 +20,8 @@ import { ReactNode, useCallback, useEffect, useState } from "react";
 import { DatasetList } from "./parts/dataset";
 import { useNewDsModal } from "./parts/newdsmodal";
 
-// Dataset types the server supports.
-export const dsTypes = [
+// Dataset types we support
+export const datasetTypes = [
 	{
 		// Pretty name to display to user
 		pretty_name: "Local",
@@ -28,8 +34,63 @@ export const dsTypes = [
 
 		// Extra parameter elements for this dataset
 		// (Currently unused. We'll need this later.)
-		extra_params: <></>,
+		extra_params: null,
 	},
+];
+
+// Attr types we support
+export const attrTypes = [
+	{
+		// Pretty name to display to user
+		pretty_name: "Text",
+
+		// The name of this data type in ufo's api
+		serialize_as: "Text",
+
+		// Icon to use for attrs of this type
+		icon: <XIconAttrText />,
+
+		// Extra parameter elements for this type
+		// (Currently unused. We'll need this later.)
+		extra_params: null,
+	},
+
+	{
+		pretty_name: "Binary",
+		serialize_as: "Binary",
+		icon: <XIconAttrBinary />,
+		extra_params: null,
+	},
+
+	{
+		pretty_name: "Blob",
+		serialize_as: "Blob",
+		icon: <XIconAttrBlob />,
+		extra_params: null,
+	},
+
+	{
+		pretty_name: "Integer",
+		serialize_as: "Integer",
+		icon: <XIconAttrInt />,
+		extra_params: null,
+	},
+
+	{
+		pretty_name: "Positive Integer",
+		serialize_as: "PositiveInteger",
+		icon: <XIconAttrPosInt />,
+		extra_params: null,
+	},
+
+	{
+		pretty_name: "Float",
+		serialize_as: "Float",
+		icon: <XIconAttrFloat />,
+		extra_params: null,
+	},
+
+	// Hash and Reference need extra params
 ];
 
 export type TreeData = {

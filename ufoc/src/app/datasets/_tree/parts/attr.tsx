@@ -9,6 +9,7 @@ import { TreeEntry } from "../tree_entry";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { TreeModal } from "../tree_modal";
+import { attrTypes } from "..";
 
 export function AttrList(params: {
 	update_tree: () => void;
@@ -30,13 +31,24 @@ export function AttrList(params: {
 			}}
 		>
 			{params.attrs.map(({ name: attr_name, type: attr_type }) => {
+				// Find attr icon
+				let d = attrTypes.find((x) => {
+					return x.serialize_as === attr_type;
+				});
+				let icon;
+				if (d === undefined) {
+					icon = null;
+				} else {
+					icon = d.icon;
+				}
+
 				return (
 					<TreeEntry
 						key={`dataset-${params.dataset}-class-${params.class}-attr-${attr_type}`}
 						is_clickable={true}
 						is_selected={false}
 						onClick={() => {}}
-						icon={<XIconRow />}
+						icon={icon}
 						icon_text={attr_name}
 						text={""}
 						left_width={"6rem"}

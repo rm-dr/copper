@@ -6,9 +6,7 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
 ## 📦 CRUD datasets
 - [ ] Rename set, class, attr
 - [ ] Dataset & class descriptions?
-- [ ] Load attr from api
-  - [ ] clean up attr type definitions in daemon
-- [ ] Show icon for attr types
+- [ ] Create hash and reference attrs from ui (params)
 - [ ] Show dataset metadata
   - [ ] size, item count
   - requires dashboard & item CRUD
@@ -118,6 +116,7 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
 - [ ] Check serializations
 - [ ] Force nonempty set, attr, class names
 - [ ] Error if full db path doesn't exist (no panic)
+- [ ] Text vs long text datatypes
 
 ## 📦 Distribution
 - [ ] Docker file & compose

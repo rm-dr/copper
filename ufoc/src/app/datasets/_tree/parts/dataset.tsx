@@ -6,7 +6,7 @@ import {
 } from "@/app/components/icons";
 import { ActionIcon, Button, Menu, Text, TextInput, rem } from "@mantine/core";
 
-import { TreeData, dsTypes } from "..";
+import { TreeData, datasetTypes } from "..";
 import { Dispatch, SetStateAction, useState } from "react";
 
 import styles from "../tree.module.scss";
@@ -45,7 +45,7 @@ export function DatasetList(params: {
 					idx,
 				) => {
 					// Find dataset icon
-					let d = dsTypes.find((x) => {
+					let d = datasetTypes.find((x) => {
 						return x.serialize_as === dataset_type;
 					});
 					let icon;

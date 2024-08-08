@@ -2,7 +2,7 @@ import { Button, Select, Text, TextInput } from "@mantine/core";
 import { TreeModal } from "../tree_modal";
 import { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
-import { dsTypes } from "..";
+import { datasetTypes } from "..";
 
 export function useNewDsModal(onSuccess: () => void) {
 	const [opened, { open, close }] = useDisclosure(false);
@@ -46,7 +46,7 @@ export function useNewDsModal(onSuccess: () => void) {
 					required={true}
 					style={{ marginTop: "1rem" }}
 					placeholder="select dataset type"
-					data={dsTypes.map((x) => {
+					data={datasetTypes.map((x) => {
 						return x.pretty_name;
 					})}
 					error={errorMessage.type !== null}

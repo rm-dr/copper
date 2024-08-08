@@ -15,7 +15,7 @@ import {
 	rem,
 } from "@mantine/core";
 import { Dispatch, SetStateAction, useState } from "react";
-import { TreeData } from "..";
+import { TreeData, attrTypes } from "..";
 import { AttrList } from "./attr";
 import { TreeEntry } from "../tree_entry";
 import { useDisclosure } from "@mantine/hooks";
@@ -331,7 +331,7 @@ export function useAddAttrModal(params: {
 					required={true}
 					style={{ marginTop: "1rem" }}
 					placeholder={"select attr type"}
-					data={["Text", "Binary", "Blob", "Integer"]}
+					data={attrTypes.map((x) => x.pretty_name)}
 					error={errorMessage.type !== null}
 					onChange={(val) => {
 						setNewAttrType(val);
