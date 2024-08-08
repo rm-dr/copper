@@ -4,7 +4,9 @@ import styles from "./page.module.scss";
 import { DatsetPanel } from "./_datasets";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { ItemTablePanel } from "./_itemtable";
-import { EditPanel } from "./_edit";
+import { useEditPanel } from "./_edit";
+import { components } from "@/app/_util/api/openapi";
+import { APIclient } from "@/app/_util/api";
 
 export default function Page() {
 	const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
@@ -15,6 +17,11 @@ export default function Page() {
 	const { itemdata, resetitemdata } = useItemData({
 		dataset: selectedDataset,
 		class: selectedClass,
+	});
+
+	const { node: editPanel, on_change_list } = useEditPanel({
+		data: itemdata,
+		select,
 	});
 
 	return (
@@ -29,23 +36,19 @@ export default function Page() {
 						setSelectedDataset={(v) => {
 							resetitemdata();
 							setSelectedDataset(v);
+							on_change_list();
 							select.clear();
 						}}
 						setSelectedClass={(v) => {
 							resetitemdata();
 							setSelectedClass(v);
+							on_change_list();
 							select.clear();
 						}}
 					/>
 				</div>
 			</div>
-			<div className={styles.wrap_bottom}>
-				<EditPanel
-					data={itemdata}
-					select={select}
-					class_attrs={itemdata.data.length === 0 ? [] : itemdata.data[0].attrs}
-				/>
-			</div>
+			<div className={styles.wrap_bottom}>{editPanel}</div>
 		</main>
 	);
 }
@@ -58,9 +61,7 @@ async function fetchdata(params: {
 	maxPage: number;
 
 	setLoading: (loading: boolean) => void;
-	setData: Dispatch<
-		SetStateAction<{ idx: number; attrs: { [attr: string]: any } }[]>
-	>;
+	setData: Dispatch<SetStateAction<components["schemas"]["ItemListItem"][]>>;
 }) {
 	// TODO: data isn't loaded if more than PAGE_SIZE items fit on the screen
 	params.setLoading(true);
@@ -70,21 +71,28 @@ async function fetchdata(params: {
 	}
 
 	for (let page = 0; page <= params.maxPage; page++) {
-		const res = await fetch(
-			"/api/item/list?" +
-				new URLSearchParams({
+		const { data, error } = await APIclient.GET("/item/list", {
+			params: {
+				query: {
 					dataset: params.dataset,
 					class: params.class,
-					page_size: PAGE_SIZE.toString(),
-					start_at: (page * PAGE_SIZE).toString(),
-				}).toString(),
-		);
-		const json = await res.json();
-		params.setData((d) => [
-			...d.slice(0, page * PAGE_SIZE),
-			...json.items,
-			...d.slice(page * PAGE_SIZE + PAGE_SIZE),
-		]);
+					page_size: PAGE_SIZE,
+					start_at: page * PAGE_SIZE,
+				},
+			},
+		});
+
+		if (error !== undefined) {
+			params.setData([]);
+			params.setLoading(false);
+			return;
+		} else {
+			params.setData((d) => [
+				...d.slice(0, page * PAGE_SIZE),
+				...data.items,
+				...d.slice(page * PAGE_SIZE + PAGE_SIZE),
+			]);
+		}
 	}
 	params.setLoading(false);
 }
@@ -93,15 +101,13 @@ export type ItemData = {
 	dataset: string | null;
 	class: string | null;
 	loading: boolean;
-	data: { idx: number; attrs: { [attr: string]: any } }[];
+	data: components["schemas"]["ItemListItem"][];
 	loadMore: () => void;
 };
 
 function useItemData(params: { dataset: string | null; class: string | null }) {
 	const [loading, setLoading] = useState(true);
-	const [data, setData] = useState<
-		{ idx: number; attrs: { [attr: string]: any } }[]
-	>([]);
+	const [data, setData] = useState<components["schemas"]["ItemListItem"][]>([]);
 	const [maxPage, setMaxPage] = useState(0);
 
 	useEffect(() => {

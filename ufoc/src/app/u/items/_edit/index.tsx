@@ -4,7 +4,7 @@ import { ItemData, Selected } from "../page";
 import { attrTypes } from "@/app/_util/attrs";
 import { ActionIcon, Button, Text } from "@mantine/core";
 import { ppBytes } from "@/app/_util/ppbytes";
-import { useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
 	IconArrowRight,
 	IconBinary,
@@ -13,29 +13,71 @@ import {
 	IconUpload,
 } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
+import { components } from "@/app/_util/api/openapi";
 
-export function EditPanel(params: {
-	data: ItemData;
-	select: Selected;
-	class_attrs: { [attr: string]: any };
-}) {
-	const selectedItem =
-		params.select.selected[0] === undefined
-			? undefined
-			: params.data.data[params.select.selected[0]];
+export function useEditPanel(params: { data: ItemData; select: Selected }) {
+	const selectedItems = params.data.data.filter((_, idx) =>
+		params.select.selected.includes(idx),
+	);
+
+	// Select attributes that are the same across all selected items
+	const attr_values = useMemo(() => {
+		let attr_values: {
+			[attr: string]: components["schemas"]["ItemListData"] | null;
+		} = {};
+		for (const it of selectedItems) {
+			for (const [attr, val] of Object.entries(it.attrs)) {
+				// This should never happen.
+				// Hack to satisfy ts
+				if (val === undefined) {
+					continue;
+				}
+
+				const ex = attr_values[attr];
+				if (ex === undefined) {
+					attr_values[attr] = val;
+				} else if (ex !== null) {
+					let existing =
+						ex.type === "Reference"
+							? ex.item
+							: ex.type === "Blob"
+							? ex.handle
+							: ex.type === "Binary"
+							? ex.size // TODO: use handle
+							: ex.value;
+
+					let check =
+						val.type === "Reference"
+							? val.item
+							: val.type === "Blob"
+							? val.handle
+							: val.type === "Binary"
+							? val.size // TODO: use handle
+							: val.value;
+
+					if (existing !== check) {
+						attr_values[attr] = null;
+					}
+				}
+			}
+		}
+
+		return attr_values;
+	}, [selectedItems]);
 
 	const [panelAttr, setPanelAttr] = useState<{
 		name: string;
 		value: any;
 	} | null>(null);
 
-	useEffect(() => {
+	const on_change_list = useCallback(() => {
+		// TODO: fix panel changing on data load
 		let selected = null;
-		for (const [attr_name, value] of Object.entries(
-			params.class_attrs,
-		).sort()) {
+
+		/*
+		for (const [attr_name, value] of Object.entries(attr_values).sort()) {
 			const d = attrTypes.find((x) => {
-				return x.serialize_as === value.type;
+				return x.serialize_as === (value as { type: string }).type;
 			});
 			// When changing class / dataset, select the first
 			// panel-display attribute (if there is one)
@@ -47,19 +89,22 @@ export function EditPanel(params: {
 				break;
 			}
 		}
+		*/
 
+		console.log("changelist");
 		setPanelAttr(selected);
-	}, [params.data.class, params.data.dataset, params.class_attrs]);
+	}, []);
 
 	const selected_attr_spec = attrTypes.find((x) => {
 		return x.serialize_as === panelAttr?.value.type;
 	});
 
 	const panel_data =
-		selectedItem === undefined ||
+		selectedItems.length === 0 ||
 		selected_attr_spec === undefined ||
 		panelAttr === null ||
-		selected_attr_spec.editor.type !== "panel" ? null : (
+		selected_attr_spec.editor.type !== "panel" ||
+		attr_values[panelAttr.name] === null ? null : (
 			<>
 				<div className={styles.paneltitle}>
 					<div className={styles.paneltitle_icon}>
@@ -76,7 +121,7 @@ export function EditPanel(params: {
 								dataset: params.data.dataset || "",
 								class: params.data.class || "",
 								attr: panelAttr.name || "",
-								item_idx: selectedItem.idx.toString(),
+								item_idx: selectedItems[0].idx.toString(),
 							})
 						}
 						rel="noopener noreferrer"
@@ -85,12 +130,14 @@ export function EditPanel(params: {
 						{/* Key here is important, it makes sure we get a new panel each time we select an item */}
 						<div
 							className={styles.panelimage}
-							key={`${params.data.dataset}-${params.data.class}-${selectedItem.idx}`}
+							key={`${params.data.dataset}-${params.data.class}-${selectedItems
+								.map((x) => x.idx)
+								.join(",")}`}
 						>
 							{selected_attr_spec.editor.panel_body({
 								dataset: params.data.dataset || "",
 								class: params.data.class || "",
-								item_idx: selectedItem.idx,
+								item_idx: selectedItems[0].idx,
 								attr_name: panelAttr.name,
 								attr_val: panelAttr.value,
 							})}
@@ -121,7 +168,7 @@ export function EditPanel(params: {
 			</>
 		);
 
-	return (
+	const node = (
 		<>
 			<Panel
 				panel_id={styles.panel_edititem as string}
@@ -129,9 +176,9 @@ export function EditPanel(params: {
 				title={"Edit items"}
 			>
 				<div className={styles.edit_container_rows}>
-					{selectedItem === undefined
+					{selectedItems.length === 0
 						? null
-						: Object.entries(selectedItem.attrs)
+						: Object.entries(selectedItems[0].attrs)
 								.sort()
 								.map(([attr, val]: [string, any]) => {
 									const d = attrTypes.find((x) => {
@@ -141,9 +188,35 @@ export function EditPanel(params: {
 										return null;
 									}
 
+									if (attr_values[attr] === null) {
+										return (
+											<div
+												key={`${selectedItems
+													.map((x, _) => x.idx)
+													.join(",")}-${attr}`}
+												className={styles.editrow}
+											>
+												<div className={styles.editrow_icon}>{d.icon}</div>
+												<div className={styles.editrow_name}>{attr}</div>
+												<div className={styles.editrow_value_old}>
+													<Text c="dimmed" fs="italic">
+														differs
+													</Text>
+												</div>
+												<div className={styles.editrow_value_new}>
+													<Text c="dimmed" fs="italic">
+														differs
+													</Text>
+												</div>
+											</div>
+										);
+									}
+
 									return (
 										<div
-											key={`${selectedItem.idx}-${attr}`}
+											key={`${selectedItems
+												.map((_, idx) => idx)
+												.join(",")}-${attr}`}
 											className={styles.editrow}
 										>
 											<div className={styles.editrow_icon}>{d.icon}</div>
@@ -185,4 +258,9 @@ export function EditPanel(params: {
 			</Panel>
 		</>
 	);
+
+	return {
+		node,
+		on_change_list,
+	};
 }

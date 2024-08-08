@@ -24,16 +24,22 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Rename set, class, attrs
 
 ## 📦 CRUD items
-- [ ] get fragment size from server config
-- [ ] UI item CRUD
-  - [ ] Delete items
-  - [ ] Bottom panel (edit items)
-  - [ ] Sort by attrs
-  - [ ] List number of selected items
+- [ ] List number of selected items
+- [ ] Polish
+  - [ ] Clean up table logic
+  - [ ] Select first panel-able attr automatically
   - [ ] Initial layout for table
+- [ ] Manage ui items
+  - [ ] Delete items
+  - [ ] Sort by attrs
   - [ ] Class exemplar
   - [ ] Multi-select and edit
   - [ ] Better reference panel
+- [ ] Edit ui items
+  - [ ] Edit items even if they differ
+  - [ ] Show "changed" indicator
+  - [ ] "Commit" button
+
 
 ## 📦 Database migrations
 - old dbs should not be destroyed
@@ -104,6 +110,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] one tostr implementation
 - [ ] stream big files in `/items/attr`
 - [ ] `std::fs::read` when reading whole file
+- [ ] Cleanup all server arch (never block async)
 
 ## 📦 Logging cleanup
 - [ ] logging everywhere
