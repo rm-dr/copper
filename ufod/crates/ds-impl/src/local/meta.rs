@@ -10,7 +10,7 @@ use ufo_ds_core::{
 		meta::{AttributeOptions, Metastore},
 	},
 	data::{MetastoreData, MetastoreDataStub},
-	errors::{BlobstoreError, MetastoreError},
+	errors::MetastoreError,
 	handles::{AttrHandle, ClassHandle, ItemHandle},
 };
 

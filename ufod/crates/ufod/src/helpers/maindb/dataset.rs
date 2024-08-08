@@ -112,6 +112,17 @@ impl MainDB {
 		&self,
 		dataset_name: &str,
 	) -> Result<Option<Arc<dyn Dataset<UFONodeType>>>, sqlx::Error> {
+		// If this dataset is already open, we have nothing to do
+		if let Some(ds) = self
+			.open_datasets
+			.lock()
+			.unwrap()
+			.iter()
+			.find(|x| x.0 == dataset_name)
+		{
+			return Ok(Some(ds.1.clone()));
+		}
+
 		let mut conn = self.conn.lock().unwrap();
 
 		let res = block_on(
@@ -130,14 +141,31 @@ impl MainDB {
 			},
 		};
 
+		let ds =
+			Arc::new(LocalDataset::open(&self.config.paths.dataset_dir.join(entry.path)).unwrap());
+
+		self.open_datasets
+			.lock()
+			.unwrap()
+			.push((entry.name.clone(), ds.clone()));
+
 		Ok(Some(match entry.ds_type {
-			DatasetType::Local => Arc::new(
-				LocalDataset::open(&self.config.paths.dataset_dir.join(entry.path)).unwrap(),
-			),
+			DatasetType::Local => ds,
 		}))
 	}
 
 	pub fn del_dataset(&self, dataset_name: &str) -> Result<(), sqlx::Error> {
+		// If this dataset is already open, close it
+		let mut ods_lock = self.open_datasets.lock().unwrap();
+		if let Some((idx, _)) = ods_lock
+			.iter()
+			.enumerate()
+			.find(|(_, x)| x.0 == dataset_name)
+		{
+			ods_lock.swap_remove(idx);
+		}
+		drop(ods_lock);
+
 		// Start transaction
 		let mut conn_lock = self.conn.lock().unwrap();
 		let mut t = block_on(conn_lock.begin())?;

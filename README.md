@@ -8,16 +8,21 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 CRUD datasets
 - [ ] Rename set, class, attr endpoint
-- [ ] Clean up blobstore tmp dirs
 - [ ] Loading state for modals
+
+## 📦 Server.toml
+- [ ] read blob size
+
+## 📦 Better dataset names
+- Store name in db, use idx as fs path?
+
+## 📦 Database migrations
+- old dbs should not be destroyed
 
 ## 📦 Dataset locks
 - [ ] delete dataset while pipeline is running?
   - Jobs should automatically fail (dataset id?)
 - [ ] async dataset api?
-
-## 📦 Server.toml
-- [ ] read blob size
 
 ## 📦 How to fail pipelines?
 - e.g, duplicate album art
@@ -60,7 +65,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Multiple covers (take first for now)
   - [ ] Cover inside comment
 - [ ] IDv3 complete implementation
-
+- [ ] Tag node types
 
 ## 📦 UI Cleanup
 - [ ] why is ui so slow?
@@ -80,9 +85,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Warn when closing window if uploading
 - [ ] View and edit queue (?)
 
-## 📦 Better dataset names
-- Store name in db, use idx as fs path?
-
 ## 📦 Pipeline editor
 - redo serialize/deserialize pipeline spec
 - show error when class ref is invalid (if class was deleted)
@@ -90,13 +92,9 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## 📦 Pipeline argument nodes
 - already in upload ui, just need node implementation
 
-## 📦 Database migrations
-- old dbs should not be destroyed
-
 ## 📦 Daemon cleanup
 - [ ] Rename "fragment", "item class", "database", etc (glossary)
 - [ ] clone fewer arcs
-- [ ] logging everywhere
 - [ ] fix all panics/unwraps
 - [ ] Remove petgraph (write cycle detection algo)
 - [ ] Log to file (basic)
@@ -111,6 +109,10 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Clippy
 - [ ] What if we panic when an unfinished blob is dropped? (log)
 - [ ] Structs for big returns in dataset api
+
+## 📦 Logging cleanup
+- [ ] logging everywhere
+- [ ] well-defined log levels
 
 ## 📦 UI Cleanup
  - Rename `upload` page

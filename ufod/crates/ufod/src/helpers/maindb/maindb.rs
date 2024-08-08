@@ -1,16 +1,21 @@
 use futures::executor::block_on;
+use smartstring::{LazyCompact, SmartString};
 use sqlx::{Connection, SqliteConnection};
 use std::{
 	path::Path,
 	sync::{Arc, Mutex},
 };
 use tracing::{error, info};
+use ufo_ds_core::api::Dataset;
+use ufo_pipeline_nodes::nodetype::UFONodeType;
 
 use crate::config::UfodConfig;
 
 pub struct MainDB {
 	pub(super) conn: Mutex<SqliteConnection>,
 	pub(super) config: Arc<UfodConfig>,
+
+	pub(super) open_datasets: Mutex<Vec<(SmartString<LazyCompact>, Arc<dyn Dataset<UFONodeType>>)>>,
 }
 
 impl MainDB {
@@ -54,6 +59,7 @@ impl MainDB {
 		Ok(Self {
 			conn: Mutex::new(conn),
 			config,
+			open_datasets: Mutex::new(Vec::new()),
 		})
 	}
 }
