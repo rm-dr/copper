@@ -14,9 +14,9 @@ fn main() -> Result<()> {
 	let mut dataset = {
 		let mut d = MemDataset::new();
 		let x = d.add_class("AudioFile").unwrap();
-		d.add_attr(x, "artist", PipelineDataType::Text).unwrap();
 		d.add_attr(x, "album", PipelineDataType::Text).unwrap();
-		//d.add_attr(x, "albm", PipelineDataType::Text).unwrap();
+		d.add_attr(x, "artist", PipelineDataType::Text).unwrap();
+		d.add_attr(x, "albm", PipelineDataType::Text).unwrap();
 		d
 	};
 	println!("{:#?}", dataset);
@@ -34,9 +34,13 @@ fn main() -> Result<()> {
 	let o = pipe.run(input)?;
 
 	match &pipe.get_config().output {
-		PipelineOutputKind::DataSet { class_name } => {
-			let c = dataset.get_class(class_name).unwrap();
-			let mut e = StorageOutput::new(&mut dataset, c);
+		PipelineOutputKind::DataSet { attrs } => {
+			let c = dataset.get_class("AudioFile").unwrap();
+			let mut e = StorageOutput::new(
+				&mut dataset,
+				c,
+				attrs.iter().map(|(a, b)| (a.into(), *b)).collect(),
+			);
 			e.export(o.iter().map(|x| x.as_ref().map(|x| x.as_ref())).collect())?;
 		}
 	}

@@ -1,11 +1,14 @@
-[config]
-input.type = "File"
+[config.input]
+type = "File"
 
-output.type = "DataSet"
-output.class = "AudioFile"
+[config.output]
+type = "DataSet"
+attr."album" = "text"
+attr."artist" = "text"
 
-output_map."album" = "if_none.out"
-output_map."artist" = "tags.artist"
+[config.output_map]
+"album" = "if_none.out"
+"artist" = "tags.artist"
 
 
 [node."tags"]

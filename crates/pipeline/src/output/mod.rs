@@ -1,5 +1,6 @@
 use crate::syntax::labels::PipelinePortLabel;
 use serde::Deserialize;
+use serde_with::serde_as;
 use ufo_util::data::{PipelineData, PipelineDataType};
 
 pub mod storage;
@@ -11,13 +12,15 @@ pub trait PipelineOutput {
 	fn export(&mut self, data: Vec<Option<&PipelineData>>) -> Result<(), Self::ErrorKind>;
 }
 
+#[serde_as]
 #[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
 pub enum PipelineOutputKind {
 	DataSet {
-		#[serde(rename = "class")]
-		class_name: String,
+		#[serde(rename = "attr")]
+		#[serde_as(as = "serde_with::Map<_, _>")]
+		attrs: Vec<(PipelinePortLabel, PipelineDataType)>,
 	},
 }
 
@@ -25,10 +28,7 @@ impl PipelineOutputKind {
 	pub fn get_inputs(&self) -> Vec<(PipelinePortLabel, PipelineDataType)> {
 		match self {
 			// Order must match
-			Self::DataSet { .. } => vec![
-				("artist".into(), PipelineDataType::Text),
-				("album".into(), PipelineDataType::Text),
-			],
+			Self::DataSet { attrs: attr, .. } => attr.clone(),
 		}
 	}
 }
