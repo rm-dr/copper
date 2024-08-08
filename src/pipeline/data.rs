@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
-use std::str::FromStr;
+use std::{fmt::Debug, str::FromStr};
 
 // TODO: binary format contains data?
 // TODO: Stream data?
@@ -29,10 +29,19 @@ pub enum BinaryFormat {
 
 /// A bit of data inside a pipeline.
 /// These are instances of [`PipelineDataType`].
-#[derive(Debug)]
+#[derive(Clone)]
 pub enum PipelineData {
 	Text(String),
 	Binary { format: BinaryFormat, data: Vec<u8> },
+}
+
+impl Debug for PipelineData {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::Text(s) => write!(f, "Text({})", s),
+			Self::Binary { format, .. } => write!(f, "Binary({:?})", format),
+		}
+	}
 }
 
 /// A data type inside a pipeline.

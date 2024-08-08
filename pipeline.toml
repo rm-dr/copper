@@ -21,6 +21,6 @@ input.data = "in.data"
 
 [node.if_none]
 type = "IfNone"
-input.data = "tags.artist"
+input.data = "tags.album"
 #input.data = "if_none.out"
 input.ifnone = { "text" = "Unknown" }
