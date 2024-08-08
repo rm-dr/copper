@@ -93,8 +93,9 @@ pub enum FlacBlock {
 	Padding(FlacPaddingBlock),
 	Application(FlacApplicationBlock),
 	SeekTable(FlacSeektableBlock),
-	VorbisComment(VorbisComment),
+	VorbisComment(FlacCommentBlock),
 	CueSheet(FlacCuesheetBlock),
+	AudioFrame(Vec<u8>),
 }
 
 /// An error produced by a [`FlacBlockReader`]
@@ -250,7 +251,7 @@ impl FlacBlockReader {
 									FlacBlock::SeekTable(FlacSeektableBlock::decode(&data)?)
 								}
 								FlacMetablockType::VorbisComment => {
-									FlacBlock::VorbisComment(VorbisComment::decode(&data)?)
+									FlacBlock::VorbisComment(FlacCommentBlock::decode(&data)?)
 								}
 							};
 
@@ -722,46 +723,44 @@ mod tests {
 					$stripped_hash:literal
 				) => {
 			paste! {
-				#[test]
-				pub fn [<blockread_small_ $file_name>]() {
-					for _ in 0..5 {
-						test_blockread(
-							$file_path,
-							Some(1..256),
-							$in_hash,
-							$result,
-							$audio_hash
-						)
-					}
-				}
-
-				#[test]
-				pub fn [<blockread_large_ $file_name>]() {
-					for _ in 0..5 {
-						test_blockread(
-							$file_path,
-							Some(5_000..100_000),
-							$in_hash,
-							$result,
-							$audio_hash
-						)
-					}
-				}
-
-				#[test]
-				pub fn [<blockread_strip_ $file_name>]() {
-					for _ in 0..5 {
-						test_strip(
-							$file_path,
-							Some(5_000..100_000),
-							$in_hash,
-							$stripped_hash
-						)
-					}
-				}
-					}
+			#[test]
+			pub fn [<blockread_small_ $file_name>]() {
+				for _ in 0..5 {
+					test_blockread(
+						$file_path,
+						Some(1..256),
+						$in_hash,
+						$result,
+						$audio_hash
+					)
 				}
 			}
+
+			#[test]
+			pub fn [<blockread_large_ $file_name>]() {
+				for _ in 0..5 {
+					test_blockread(
+						$file_path,
+						Some(5_000..100_000),
+						$in_hash,
+						$result,
+						$audio_hash
+					)
+				}
+			}
+
+			#[test]
+			pub fn [<blockread_strip_ $file_name>]() {
+				for _ in 0..5 {
+					test_strip(
+						$file_path,
+						Some(5_000..100_000),
+						$in_hash,
+						$stripped_hash
+					)
+				}
+			}
+				}
 		};
 	}
 
