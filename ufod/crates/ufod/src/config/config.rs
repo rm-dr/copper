@@ -47,10 +47,7 @@ impl UfodConfig {
 	/// since this method makes sure paths are valid
 	pub fn load_from_file(config_path: &Path) -> Result<Self, Box<dyn Error>> {
 		let config_path = std::fs::canonicalize(config_path)?;
-
-		let mut f = File::open(&config_path)?;
-		let mut config_string = String::new();
-		f.read_to_string(&mut config_string)?;
+		let config_string = std::fs::read_to_string(&config_path)?;
 		let mut config: Self = toml::from_str(&config_string)?;
 
 		// Now, adjust paths so that they are relative to the config file
@@ -121,7 +118,7 @@ impl Default for UfodLoggingConfig {
 		Self {
 			sqlx: Default::default(),
 			http: Default::default(),
-			pipeline: Default::default(),
+			pipeline: LogLevel::Debug,
 
 			// This can get noisy, so default to a higher level
 			all: LogLevel::Warn,
