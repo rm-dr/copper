@@ -2,7 +2,7 @@ import { FloatingPosition } from "@mantine/core";
 import { Fragment, ReactNode, useCallback, useEffect, useState } from "react";
 import { TreeEntry } from "./entry";
 
-export type TreeNode = {
+export type TreeNode<D> = {
 	// How to draw this node
 	icon: ReactNode;
 	text: string;
@@ -26,10 +26,13 @@ export type TreeNode = {
 	// an "expand" arrow, and ignore all nodes that have
 	// this node as a parent
 	can_have_children: boolean;
+
+	// Extra data for this node. Not used by the tree.
+	data: D;
 };
 
-export function useTree() {
-	let [data, setData] = useState<TreeNode[]>([]);
+export function useTree<D>(params: { defaultOpen?: boolean }) {
+	let [data, setData] = useState<TreeNode<D>[]>([]);
 	let [opened, setOpened] = useState<Set<string>>(new Set([]));
 	let [selected, setSelected] = useState<string | null>(null);
 
@@ -39,9 +42,11 @@ export function useTree() {
 			parent={null}
 			opened={opened}
 			selected={selected}
+			defaultOpen={params.defaultOpen === true}
 			select_node={setSelected}
 			set_opened={(uid, open) => {
-				if (open) {
+				const post_open = params.defaultOpen === true ? !open : open;
+				if (post_open) {
 					setOpened((o) => {
 						const s = new Set(o);
 						s.add(uid);
@@ -58,7 +63,7 @@ export function useTree() {
 		/>
 	);
 
-	const setTreeData = useCallback((data: TreeNode[]) => {
+	const setTreeData = useCallback((data: TreeNode<D>[]) => {
 		// Note that we don't de-select anything when data
 		// changes. This is intentional.
 		setOpened((o) => {
@@ -74,12 +79,13 @@ export function useTree() {
 		setData(data);
 	}, []);
 
-	return { node, data, setTreeData };
+	return { node, data, setTreeData, selected };
 }
 
-function BuildTree(params: {
+function BuildTree<D>(params: {
 	parent: number | null;
-	data: TreeNode[];
+	data: TreeNode<D>[];
+	defaultOpen: boolean;
 
 	opened: Set<string>;
 	selected: string | null;
@@ -92,7 +98,9 @@ function BuildTree(params: {
 				return null;
 			}
 
-			const is_open = params.opened.has(node.uid);
+			const is_open = params.defaultOpen
+				? !params.opened.has(node.uid)
+				: params.opened.has(node.uid);
 			const has_children =
 				node.can_have_children && params.data.some((x) => x.parent === idx);
 
@@ -109,6 +117,7 @@ function BuildTree(params: {
 							parent={idx}
 							data={params.data}
 							opened={params.opened}
+							defaultOpen={params.defaultOpen}
 							selected={params.selected}
 							select_node={params.select_node}
 							set_opened={params.set_opened}

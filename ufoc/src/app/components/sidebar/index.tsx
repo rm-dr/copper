@@ -4,7 +4,12 @@ import Link from "next/link";
 import React, { useState } from "react";
 
 import styles from "./sidebar.module.scss";
-import { XIconDatabaseCog, XIconItems, XIconUpload } from "../icons";
+import {
+	XIconDatabaseCog,
+	XIconItems,
+	XIconUpload,
+	XIconUsers,
+} from "../icons";
 import { useDisclosure } from "@mantine/hooks";
 import { Burger, Tooltip } from "@mantine/core";
 import clsx from "clsx";
@@ -30,6 +35,11 @@ const SideBar = () => {
 			name: "View items",
 			icon: <XIconItems />,
 			link: "/u/items",
+		},
+		{
+			name: "Manage users",
+			icon: <XIconUsers />,
+			link: "/u/users",
 		},
 	];
 

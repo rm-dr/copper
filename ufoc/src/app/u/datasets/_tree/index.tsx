@@ -25,7 +25,7 @@ import { useDeleteClassModal } from "./modals/delclass";
 import { useAddClassModal } from "./modals/addclass";
 import { useDeleteDatasetModal } from "./modals/delds";
 
-export type TreeState = {
+type TreeState = {
 	error: boolean;
 	loading: boolean;
 };
@@ -60,8 +60,9 @@ export function TreePanel(params: {}) {
 		loading: true,
 	});
 
-	const { node: DatasetTree, data: treeData, setTreeData } = useTree();
+	const { node: DatasetTree, data: treeData, setTreeData } = useTree({});
 
+	// TODO: move to function
 	const update_tree = useCallback(() => {
 		setTreeState((td) => {
 			return {
@@ -107,7 +108,7 @@ export function TreePanel(params: {}) {
 			.then((data) => {
 				console.log(data);
 
-				const tree_data: TreeNode[] = [];
+				const tree_data: TreeNode<null>[] = [];
 				for (let di = 0; di < data.length; di++) {
 					const d = data[di];
 					let d_type = datasetTypes.find((x) => x.serialize_as === d.type);
@@ -125,6 +126,7 @@ export function TreePanel(params: {}) {
 						uid: `dataset-${d.name}`,
 						parent: null,
 						can_have_children: true,
+						data: null,
 					});
 
 					for (let ci = 0; ci < d.classes.length; ci++) {
@@ -143,6 +145,7 @@ export function TreePanel(params: {}) {
 							uid: `dataset-${d.name}-class-${c.name}`,
 							parent: d_node - 1,
 							can_have_children: true,
+							data: null,
 						});
 
 						for (let ai = 0; ai < c.attrs.length; ai++) {
@@ -167,6 +170,7 @@ export function TreePanel(params: {}) {
 								uid: `dataset-${d.name}-class-${c.name}-attr-${a.name}`,
 								parent: c_node - 1,
 								can_have_children: false,
+								data: null,
 							});
 						}
 					}
