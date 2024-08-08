@@ -2,7 +2,7 @@
 
 use std::{
 	collections::VecDeque,
-	io::{Cursor, ErrorKind, Read, Seek, Write},
+	io::{Cursor, Read, Seek},
 };
 
 use super::{errors::FlacError, metablocktype::FlacMetablockType};
@@ -102,7 +102,9 @@ impl FlacMetaStripSelector {
 #[derive(Debug, Clone, Copy)]
 enum FlacMetaStripBlockType {
 	MagicBits,
-	BlockHeader,
+	BlockHeader {
+		is_first: bool,
+	},
 	MetaBlock {
 		header: [u8; 4],
 		keep_this_block: bool,
@@ -117,8 +119,11 @@ impl FlacMetaStripBlockType {
 }
 
 /// A buffered flac metadata stripper.
-/// `Write` flac data into this struct,
-/// `Read` the same flac data but with metadata removed.
+/// Use `push` to add flac data into this struct,
+/// `Read` the same flac data but with the specified blocks removed.
+///
+/// This struct does not validate the content of the blocks it produces;
+/// it only validates their structure (e.g, is length correct?).
 pub struct FlacMetaStrip {
 	// Which blocks should we keep?
 	selector: FlacMetaStripSelector,
@@ -146,11 +151,17 @@ pub struct FlacMetaStrip {
 
 	// Flac data with removed blocks goes here.
 	output_buffer: VecDeque<u8>,
+}
 
-	// If we encounter an error, it will be stored here.
-	// If error is not none, this whole struct is poisoned.
-	// `Read` and `Write` will do nothing.
-	error: Option<FlacError>,
+impl Read for FlacMetaStrip {
+	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+		let n_to_read = buf.len().min(self.output_buffer.len());
+		let x = Read::by_ref(&mut self.output_buffer)
+			.take(n_to_read.try_into().unwrap())
+			.read(buf)?;
+
+		return Ok(x);
+	}
 }
 
 impl FlacMetaStrip {
@@ -165,30 +176,13 @@ impl FlacMetaStrip {
 			last_kept_block: None,
 			current_block_length: 0,
 			output_buffer: VecDeque::new(),
-			error: None,
 		}
 	}
 
-	/// If this struct has encountered an error, get it.
-	pub fn get_error(&self) -> &Option<FlacError> {
-		&self.error
-	}
-
-	/// If this struct has encountered an error, take it.
-	/// When this is called, the state of this struct is reset.
-	pub fn take_error(&mut self) -> Option<FlacError> {
-		let x = self.error.take();
-		*self = Self::new(self.selector);
-		return x;
-	}
-}
-
-impl Write for FlacMetaStrip {
-	fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-		if self.error.is_some() {
-			return Err(ErrorKind::InvalidData.into());
-		}
-
+	/// Pass the given data through this metadata stripper.
+	/// Output data is stored in an internal buffer, and should be accessed
+	/// through `Read`.
+	pub fn read_data(&mut self, buf: &[u8]) -> Result<usize, FlacError> {
 		let mut buf = Cursor::new(buf);
 		let mut written: usize = 0;
 
@@ -229,12 +223,8 @@ impl Write for FlacMetaStrip {
 							// We just read the last metadata block.
 							// Append last_kept_block and prepare to read audio data
 							if let Some((header, block)) = self.last_kept_block.take() {
-								let x = FlacMetablockType::parse_header(&header[..]);
-								if let Err(e) = x {
-									self.error = Some(e);
-									return Ok(0);
-								}
-								let (block_type, length, _) = x.unwrap();
+								let (block_type, length, _) =
+									FlacMetablockType::parse_header(&header[..])?;
 								self.output_buffer
 									.extend(block_type.make_header(true, length));
 								self.output_buffer.extend(block);
@@ -245,7 +235,8 @@ impl Write for FlacMetaStrip {
 							// We have another metadata block to read,
 							// prepare to read the header.
 							self.current_block_total_length = 4;
-							self.current_block_type = FlacMetaStripBlockType::BlockHeader;
+							self.current_block_type =
+								FlacMetaStripBlockType::BlockHeader { is_first: false };
 						}
 					}
 
@@ -253,28 +244,26 @@ impl Write for FlacMetaStrip {
 						assert!(self.current_block.len() == 4);
 						assert!(self.current_block_length == 4);
 						if self.current_block != [0x66, 0x4C, 0x61, 0x43] {
-							self.error = Some(FlacError::BadMagicBytes);
-							return Ok(0);
+							return Err(FlacError::BadMagicBytes);
 						};
 						self.output_buffer.extend(&self.current_block);
 						self.current_block_total_length = 4;
-						self.current_block_type = FlacMetaStripBlockType::BlockHeader;
+						self.current_block_type =
+							FlacMetaStripBlockType::BlockHeader { is_first: true };
 					}
 
-					FlacMetaStripBlockType::BlockHeader => {
+					FlacMetaStripBlockType::BlockHeader { is_first } => {
 						assert!(self.current_block.len() == 4);
 						assert!(self.current_block_length == 4);
-						let x = FlacMetablockType::parse_header(&self.current_block[..]);
+						let (block_type, length, is_last) =
+							FlacMetablockType::parse_header(&self.current_block[..])?;
 
-						if let Err(e) = x {
-							self.error = Some(e);
-							return Ok(0);
+						if is_first && block_type != FlacMetablockType::Streaminfo {
+							return Err(FlacError::BadFirstBlock);
 						}
 
-						let (block_type, length, is_last) = x.unwrap();
 						self.done_with_meta = is_last;
 						self.current_block_total_length = length.try_into().unwrap();
-
 						self.current_block_type = FlacMetaStripBlockType::MetaBlock {
 							header: self.current_block[..].try_into().unwrap(),
 							keep_this_block: self.selector.select(block_type),
@@ -322,30 +311,6 @@ impl Write for FlacMetaStrip {
 			}
 		}
 	}
-
-	fn flush(&mut self) -> std::io::Result<()> {
-		if self.error.is_some() {
-			return Err(ErrorKind::InvalidData.into());
-		}
-
-		return Ok(());
-	}
-}
-
-impl Read for FlacMetaStrip {
-	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-		if self.error.is_some() {
-			return Err(ErrorKind::InvalidData.into());
-		}
-
-		let n_to_read = buf.len().min(self.output_buffer.len());
-
-		let x = Read::by_ref(&mut self.output_buffer)
-			.take(n_to_read.try_into().unwrap())
-			.read(buf)?;
-
-		return Ok(x);
-	}
 }
 
 #[cfg(test)]
@@ -355,39 +320,28 @@ mod tests {
 	use sha2::{Digest, Sha256};
 	use std::{
 		fs::File,
+		io::Write,
 		path::{Path, PathBuf},
 	};
 
-	// Reference implementation:
-	// metaflac --remove-all --dont-use-padding <file>
-
-	fn strip_test_file(
+	fn strip_test(
+		selector: FlacMetaStripSelector,
 		test_file_path: &Path,
 		in_hash: &str,
 		out_hash: &str,
 		save_to: Option<&Path>,
-	) -> Result<(), (std::io::Error, Option<FlacError>)> {
-		let mut file = File::open(test_file_path).unwrap();
+	) -> Result<(), Option<FlacError>> {
+		let file_data = std::fs::read(test_file_path).unwrap();
 
 		// Make sure input file is correct
 		let mut hasher = Sha256::new();
-		std::io::copy(&mut file, &mut hasher).unwrap();
-		file.seek(std::io::SeekFrom::Start(0)).unwrap();
+		hasher.update(&file_data);
 		let result = format!("{:x}", hasher.finalize());
 		assert_eq!(result, in_hash);
 
-		let mut strip = FlacMetaStrip::new(
-			FlacMetaStripSelector::new()
-				.keep_streaminfo(true)
-				.keep_seektable(true)
-				.keep_cuesheet(true),
-		);
+		let mut strip = FlacMetaStrip::new(selector);
 
-		let r = std::io::copy(&mut file, &mut strip);
-		if let Err(r) = r {
-			return Err((r, strip.error));
-		}
-
+		strip.read_data(&file_data)?;
 		let mut read_buf = Vec::new();
 		strip.read_to_end(&mut read_buf).unwrap();
 
@@ -406,15 +360,112 @@ mod tests {
 		return Ok(());
 	}
 
+	fn strip_all(
+		test_file_path: &Path,
+		in_hash: &str,
+		out_hash: &str,
+		save_to: Option<&Path>,
+	) -> Result<(), Option<FlacError>> {
+		strip_test(
+			FlacMetaStripSelector::new().keep_streaminfo(true),
+			test_file_path,
+			in_hash,
+			out_hash,
+			save_to,
+		)
+	}
+
+	fn strip_most(
+		test_file_path: &Path,
+		in_hash: &str,
+		out_hash: &str,
+		save_to: Option<&Path>,
+	) -> Result<(), Option<FlacError>> {
+		strip_test(
+			FlacMetaStripSelector::new()
+				.keep_streaminfo(true)
+				.keep_seektable(true)
+				.keep_cuesheet(true),
+			test_file_path,
+			in_hash,
+			out_hash,
+			save_to,
+		)
+	}
+
+	/*
+		"Strip all" tests
+
+		Reference implementation:
+		`metaflac --remove-all --dont-use-padding <file>`
+	*/
+
+	/*
+	// TODO: count audio data samples.
+	// This test should pass.
+	// Also, add a "truncated" test file
+
 	#[test]
-	fn strip_faulty_10() {
+	fn strip_all_faulty_05() {
+		let res = strip_all(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_faulty/05 - wrong total number of samples.flac"),
+			"92f98457511f2f9413445f2fb3e236ae92eab86c38e0082dfbe9dd96d01ba92c",
+			"unreachable-will-error",
+			None,
+		);
+
+		// This file is missing a STREAMINFO block
+		match res {
+			Err(Some(FlacError::TODO)) => {}
+			e => panic!("Unexpected result {e:?}"),
+		}
+	}
+	*/
+
+	#[test]
+	fn strip_all_faulty_06() {
+		let res = strip_all(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_faulty/06 - missing streaminfo metadata block.flac"),
+			"53aed5e7fde7a652b82ba06a8382b2612b02ebbde7b0d2016276644d17cc76cd",
+			"unreachable-will-error",
+			None,
+		);
+
+		// This file is missing a STREAMINFO block
+		match res {
+			Err(Some(FlacError::BadFirstBlock)) => {}
+			e => panic!("Unexpected result {e:?}"),
+		}
+	}
+
+	#[test]
+	fn strip_all_faulty_07() {
+		let res = strip_all(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_faulty/07 - other metadata blocks preceding streaminfo metadata block.flac"),
+			"6d46725991ba5da477187fde7709ea201c399d00027257c365d7301226d851ea",
+			"unreachable-will-error",
+			None,
+		);
+
+		// This file has a STREAMINFO block, but it isn't first
+		match res {
+			Err(Some(FlacError::BadFirstBlock)) => {}
+			e => panic!("Unexpected result {e:?}"),
+		}
+	}
+
+	#[test]
+	fn strip_all_faulty_10() {
 		// This file has an invalid vorbis comment block, but that doesn't matter.
 		// We strip the block, and the resulting file is valid.
 		// TODO: should this succeed? Maybe we should check blocks as we strip them?
 		//
 		// The hash 4b994f82dc1699a58e2b127058b37374220ee41dc294d4887ac14f056291a1b0
 		// was generated by `metaflac` after manually fixing the single-byte error.
-		strip_test_file(
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_faulty/10 - invalid vorbis comment metadata block.flac"),
 			"c79b0514a61634035a5653c5493797bbd1fcc78982116e4d429630e9e462d29b",
@@ -425,8 +476,8 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_faulty_11() {
-		let res = strip_test_file(
+	fn strip_all_faulty_11() {
+		let res = strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_faulty/11 - incorrect metadata block length.flac"),
 			"3732151ba8c4e66a785165aa75a444aad814c16807ddc97b793811376acacfd6",
@@ -434,20 +485,16 @@ mod tests {
 			None,
 		);
 
-		assert!(res.is_err(), "Expected error result, got {res:?}");
-		let (write_err, flac_err) = res.unwrap_err();
-
 		// This file has a bad block length, which results in us reading garbage data
-		assert_eq!(write_err.kind(), std::io::ErrorKind::WriteZero);
-		match flac_err {
-			Some(FlacError::BadMetablockType(127)) => {}
-			e => panic!("Unexpected error {e:?}"),
+		match res {
+			Err(Some(FlacError::BadMetablockType(127))) => {}
+			e => panic!("Unexpected result {e:?}"),
 		}
 	}
 
 	#[test]
-	fn strip_subset_45() {
-		strip_test_file(
+	fn strip_all_subset_45() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/45 - no total number of samples set.flac"),
 			"336a18eb7a78f7fc0ab34980348e2895bc3f82db440a2430d9f92e996f889f9a",
@@ -458,8 +505,8 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_subset_46() {
-		strip_test_file(
+	fn strip_all_subset_46() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/46 - no min-max framesize set.flac"),
 			"9dc39732ce17815832790901b768bb50cd5ff0cd21b28a123c1cabc16ed776cc",
@@ -470,8 +517,8 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_subset_47() {
-		strip_test_file(
+	fn strip_all_subset_47() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/47 - only STREAMINFO.flac"),
 			"9a62c79f634849e74cb2183f9e3a9bd284f51e2591c553008d3e6449967eef85",
@@ -482,8 +529,8 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_subset_48() {
-		strip_test_file(
+	fn strip_all_subset_48() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/48 - Extremely large SEEKTABLE.flac"),
 			"4417aca6b5f90971c50c28766d2f32b3acaa7f9f9667bd313336242dae8b2531",
@@ -494,8 +541,8 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_subset_49() {
-		strip_test_file(
+	fn strip_all_subset_49() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/49 - Extremely large PADDING.flac"),
 			"7bc44fa2754536279fde4f8fb31d824f43b8d0b3f93d27d055d209682914f20e",
@@ -506,8 +553,8 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_subset_50() {
-		strip_test_file(
+	fn strip_all_subset_50() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/50 - Extremely large PICTURE.flac"),
 			"1f04f237d74836104993a8072d4223e84a5d3bd76fbc44555c221c7e69a23594",
@@ -518,8 +565,8 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_subset_51() {
-		strip_test_file(
+	fn strip_all_subset_51() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/51 - Extremely large VORBISCOMMENT.flac"),
 			"033160e8124ed287b0b5d615c94ac4139477e47d6e4059b1c19b7141566f5ef9",
@@ -530,8 +577,8 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_subset_52() {
-		strip_test_file(
+	fn strip_all_subset_52() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/52 - Extremely large APPLICATION.flac"),
 			"0e45a4f8dbef15cbebdd8dfe690d8ae60e0c6abb596db1270a9161b62a7a3f1c",
@@ -542,8 +589,8 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_subset_53() {
-		strip_test_file(
+	fn strip_all_subset_53() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/53 - CUESHEET with very many indexes.flac"),
 			"513fad18578f3225fae5de1bda8f700415be6fd8aa1e7af533b5eb796ed2d461",
@@ -553,8 +600,8 @@ mod tests {
 		.unwrap()
 	}
 	#[test]
-	fn strip_subset_54() {
-		strip_test_file(
+	fn strip_all_subset_54() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/54 - 1000x repeating VORBISCOMMENT.flac"),
 			"b68dc6644784fac35aa07581be8603a360d1697e07a2265d7eb24001936fd247",
@@ -565,8 +612,8 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_subset_55() {
-		strip_test_file(
+	fn strip_all_subset_55() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/55 - file 48-53 combined.flac"),
 			"a756b460df79b7cc492223f80cda570e4511f2024e5fa0c4d505ba51b86191f6",
@@ -577,8 +624,8 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_subset_56() {
-		strip_test_file(
+	fn strip_all_subset_56() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/56 - JPG PICTURE.flac"),
 			"5cebe7a3710cf8924bd2913854e9ca60b4cd53cfee5a3af0c3c73fddc1888963",
@@ -589,8 +636,8 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_subset_57() {
-		strip_test_file(
+	fn strip_all_subset_57() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/57 - PNG PICTURE.flac"),
 			"c6abff7f8bb63c2821bd21dd9052c543f10ba0be878e83cb419c248f14f72697",
@@ -601,8 +648,8 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_subset_58() {
-		strip_test_file(
+	fn strip_all_subset_58() {
+		strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/58 - GIF PICTURE.flac"),
 			"7c2b1a963a665847167a7275f9924f65baeb85c21726c218f61bf3f803f301c8",
@@ -613,8 +660,270 @@ mod tests {
 	}
 
 	#[test]
-	fn strip_subset_59() {
-		strip_test_file(
+	fn strip_all_subset_59() {
+		strip_all(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/59 - AVIF PICTURE.flac"),
+			"7395d02bf8d9533dc554cce02dee9de98c77f8731a45f62d0a243bd0d6f9a45c",
+			"d5215e16c6b978fc2c3e6809e1e78981497cb8514df297c5169f3b4a28fd875c",
+			None,
+		)
+		.unwrap()
+	}
+
+	/*
+		"Strip most" tests
+
+
+		Reference implementation:
+		```
+		metaflac
+			--remove
+			--block-type=PADDING,APPLICATION,VORBIS_COMMENT,PICTURE
+			--dont-use-padding
+			<file>
+		```
+	*/
+
+	#[test]
+	fn strip_most_faulty_06() {
+		let res = strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_faulty/06 - missing streaminfo metadata block.flac"),
+			"53aed5e7fde7a652b82ba06a8382b2612b02ebbde7b0d2016276644d17cc76cd",
+			"unreachable-will-error",
+			None,
+		);
+
+		// This file is missing a STREAMINFO block
+		match res {
+			Err(Some(FlacError::BadFirstBlock)) => {}
+			e => panic!("Unexpected result {e:?}"),
+		}
+	}
+
+	#[test]
+	fn strip_most_faulty_07() {
+		let res = strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_faulty/07 - other metadata blocks preceding streaminfo metadata block.flac"),
+			"6d46725991ba5da477187fde7709ea201c399d00027257c365d7301226d851ea",
+			"unreachable-will-error",
+			None,
+		);
+
+		// This file has a bad block length, which results in us reading garbage data
+		match res {
+			Err(Some(FlacError::BadFirstBlock)) => {}
+			e => panic!("Unexpected result {e:?}"),
+		}
+	}
+
+	#[test]
+	fn strip_most_faulty_10() {
+		// This file has an invalid vorbis comment block, but that doesn't matter.
+		// We strip the block, and the resulting file is valid.
+		// TODO: should this succeed? Maybe we should check blocks as we strip them?
+		//
+		// The hash 4b994f82dc1699a58e2b127058b37374220ee41dc294d4887ac14f056291a1b0
+		// was generated by `metaflac` after manually fixing the single-byte error.
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_faulty/10 - invalid vorbis comment metadata block.flac"),
+			"c79b0514a61634035a5653c5493797bbd1fcc78982116e4d429630e9e462d29b",
+			"4b994f82dc1699a58e2b127058b37374220ee41dc294d4887ac14f056291a1b0",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_faulty_11() {
+		let res = strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_faulty/11 - incorrect metadata block length.flac"),
+			"3732151ba8c4e66a785165aa75a444aad814c16807ddc97b793811376acacfd6",
+			"unreachable-will-error",
+			None,
+		);
+
+		// This file has a bad block length, which results in us reading garbage data
+		match res {
+			Err(Some(FlacError::BadMetablockType(127))) => {}
+			e => panic!("Unexpected result {e:?}"),
+		}
+	}
+
+	#[test]
+	fn strip_most_subset_45() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/45 - no total number of samples set.flac"),
+			"336a18eb7a78f7fc0ab34980348e2895bc3f82db440a2430d9f92e996f889f9a",
+			"31631ac227ebe2689bac7caa1fa964b47e71a9f1c9c583a04ea8ebd9371508d0",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_subset_46() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/46 - no min-max framesize set.flac"),
+			"9dc39732ce17815832790901b768bb50cd5ff0cd21b28a123c1cabc16ed776cc",
+			"9e57cd77f285fc31f87fa4e3a31ab8395d68d5482e174c8e0d0bba9a0c20ba27",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_subset_47() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/47 - only STREAMINFO.flac"),
+			"9a62c79f634849e74cb2183f9e3a9bd284f51e2591c553008d3e6449967eef85",
+			"9a62c79f634849e74cb2183f9e3a9bd284f51e2591c553008d3e6449967eef85",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_subset_48() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/48 - Extremely large SEEKTABLE.flac"),
+			"4417aca6b5f90971c50c28766d2f32b3acaa7f9f9667bd313336242dae8b2531",
+			"abc9a0c40a29c896bc6e1cc0b374db1c8e157af716a5a3c43b7db1591a74c4e8",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_subset_49() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/49 - Extremely large PADDING.flac"),
+			"7bc44fa2754536279fde4f8fb31d824f43b8d0b3f93d27d055d209682914f20e",
+			"a2283bbacbc4905ad3df1bf9f43a0ea7aa65cf69523d84a7dd8eb54553cc437e",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_subset_50() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/50 - Extremely large PICTURE.flac"),
+			"1f04f237d74836104993a8072d4223e84a5d3bd76fbc44555c221c7e69a23594",
+			"20df129287d94f9ae5951b296d7f65fcbed92db423ba7db4f0d765f1f0a7e18c",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_subset_51() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/51 - Extremely large VORBISCOMMENT.flac"),
+			"033160e8124ed287b0b5d615c94ac4139477e47d6e4059b1c19b7141566f5ef9",
+			"c0ca6c6099b5d9ec53d6bb370f339b2b1570055813a6cd3616fac2db83a2185e",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_subset_52() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/52 - Extremely large APPLICATION.flac"),
+			"0e45a4f8dbef15cbebdd8dfe690d8ae60e0c6abb596db1270a9161b62a7a3f1c",
+			"cc4a0afb95ec9bcde8ee33f13951e494dc4126a9a3a668d79c80ce3c14a3acd9",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_subset_53() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/53 - CUESHEET with very many indexes.flac"),
+			"513fad18578f3225fae5de1bda8f700415be6fd8aa1e7af533b5eb796ed2d461",
+			"57c5b945e14c6fcd06916d6a57e5b036d67ff35757893c24ed872007aabbcf4b",
+			None,
+		)
+		.unwrap()
+	}
+	#[test]
+	fn strip_most_subset_54() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/54 - 1000x repeating VORBISCOMMENT.flac"),
+			"b68dc6644784fac35aa07581be8603a360d1697e07a2265d7eb24001936fd247",
+			"5c8b92b83c0fa17821add38263fa323d1c66cfd2ee57aca054b50bd05b9df5c2",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_subset_55() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/55 - file 48-53 combined.flac"),
+			"a756b460df79b7cc492223f80cda570e4511f2024e5fa0c4d505ba51b86191f6",
+			"401038fce06aff5ebdc7a5f2fc01fa491cbf32d5da9ec99086e414b2da3f8449",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_subset_56() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/56 - JPG PICTURE.flac"),
+			"5cebe7a3710cf8924bd2913854e9ca60b4cd53cfee5a3af0c3c73fddc1888963",
+			"31a38d59db2010790b7abf65ec0cc03f2bbe1fed5952bc72bee4ca4d0c92e79f",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_subset_57() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/57 - PNG PICTURE.flac"),
+			"c6abff7f8bb63c2821bd21dd9052c543f10ba0be878e83cb419c248f14f72697",
+			"3328201dd56289b6c81fa90ff26cb57fa9385cb0db197e89eaaa83efd79a58b1",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_subset_58() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_subset/58 - GIF PICTURE.flac"),
+			"7c2b1a963a665847167a7275f9924f65baeb85c21726c218f61bf3f803f301c8",
+			"4cd771e27870e2a586000f5b369e0426183a521b61212302a2f5802b046910b2",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
+	fn strip_most_subset_59() {
+		strip_most(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/59 - AVIF PICTURE.flac"),
 			"7395d02bf8d9533dc554cce02dee9de98c77f8731a45f62d0a243bd0d6f9a45c",

@@ -37,8 +37,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 Audiofile library
 - [ ] Tests
-  - [ ] Basic read
-  - [ ] Striptags integrity check
   - [ ] Malformed file integrity check
     - Out-of-spec, but blocks ok
     - blocks don't align
@@ -49,6 +47,8 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Cover inside comment
 - [ ] IDv3 complete implementation
 - [ ] Tag node types
+- Later:
+- [ ] Metastrip: detect end of file & malformed data (parse frames)
 
 ## 📦 Better uploads
 - [ ] Upload in parallel

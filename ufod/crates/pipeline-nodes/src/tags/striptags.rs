@@ -1,7 +1,4 @@
-use std::{
-	io::{Read, Write},
-	sync::Arc,
-};
+use std::{io::Read, sync::Arc};
 use ufo_audiofile::flac::metastrip::{FlacMetaStrip, FlacMetaStripSelector};
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
@@ -63,7 +60,7 @@ impl PipelineNode for StripTags {
 
 				assert!(!self.is_done);
 				self.is_done = is_last;
-				self.strip.write_all(&fragment)?;
+				self.strip.read_data(&fragment)?;
 			}
 			_ => unreachable!(),
 		}
@@ -76,16 +73,9 @@ impl PipelineNode for StripTags {
 	{
 		// Read a segment of our file
 		let mut read_buf = Vec::with_capacity(self.blob_fragment_size);
-		match Read::by_ref(&mut self.strip)
+		Read::by_ref(&mut self.strip)
 			.take(self.blob_fragment_size.try_into().unwrap())
-			.read_to_end(&mut read_buf)
-		{
-			Ok(n) => n,
-			Err(e) => match self.strip.take_error() {
-				Some(x) => return Err(x.into()),
-				None => return Err(e.into()),
-			},
-		};
+			.read_to_end(&mut read_buf)?;
 		assert!(read_buf.len() <= self.blob_fragment_size);
 		let empty = read_buf.is_empty();
 

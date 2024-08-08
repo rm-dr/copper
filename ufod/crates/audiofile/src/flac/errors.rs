@@ -15,6 +15,9 @@ pub enum FlacError {
 	/// FLAC does not start with 0x66 0x4C 0x61 0x43
 	BadMagicBytes,
 
+	/// The first metablock isn't StreamInfo
+	BadFirstBlock,
+
 	/// We got an invalid metadata block type
 	BadMetablockType(u8),
 
@@ -36,6 +39,7 @@ impl Display for FlacError {
 		match self {
 			Self::IoError(_) => write!(f, "io error while reading flac"),
 			Self::BadMagicBytes => write!(f, "flac signature is missing or malformed"),
+			Self::BadFirstBlock => write!(f, "first metablock isn't streaminfo"),
 			Self::BadMetablockType(x) => write!(f, "invalid flac metablock type `{x}`"),
 			Self::VorbisComment(_) => write!(f, "error while decoding vorbis comment"),
 			Self::FailedStringDecode(_) => write!(f, "error while decoding string"),
