@@ -333,11 +333,18 @@ async fn add_job(
 				if j.is_none() {
 					panic!();
 				}
+				let j = j.unwrap();
 
-				let p = state
+				if !state
 					.uploader
-					.get_job_file_path(j.unwrap(), &file_name)
-					.await;
+					.has_file_been_finished(j, &file_name)
+					.await
+					.unwrap()
+				{
+					panic!("unfinished file!")
+				}
+
+				let p = state.uploader.get_job_file_path(j, &file_name).await;
 
 				if let Some(p) = p {
 					UFOData::Path(p)
