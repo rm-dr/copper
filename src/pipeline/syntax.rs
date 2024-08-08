@@ -1,12 +1,9 @@
 use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
-use serde::{
-	de::{self},
-	Deserialize, Deserializer,
-};
+use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::HashMap, fmt::Display};
+use std::collections::HashMap;
 
-use super::{nodes::PipelineNodes, PipelineDataType, PortLink};
+use super::{nodes::PipelineNodes, PipelineDataType, PipelineInput, PipelineOutput};
 
 #[derive(Debug, Deserialize)]
 pub struct Pipeline {
@@ -32,7 +29,7 @@ pub enum PipelineCheckResult {
 	/// We tried to connect this node from `caused_by_input`.
 	NoNode {
 		node: SmartString<LazyCompact>,
-		caused_by_input: PortLink,
+		caused_by_input: PipelineInput,
 	},
 
 	/// `node` has no input named `input_name`.
@@ -47,14 +44,14 @@ pub enum PipelineCheckResult {
 	NoNodeOutput {
 		node: PipelineNodeSpec,
 		output_name: SmartString<LazyCompact>,
-		caused_by_input: PortLink,
+		caused_by_input: PipelineInput,
 	},
 
 	/// This pipeline has no input named `input_name`.
 	/// We tried to connect to this input from `caused_by_input`.
 	NoPipelineInput {
 		pipeline_input_name: SmartString<LazyCompact>,
-		caused_by_input: PortLink,
+		caused_by_input: PipelineInput,
 	},
 
 	/// This pipeline has no output named `output_name`.
@@ -64,13 +61,16 @@ pub enum PipelineCheckResult {
 
 	/// We tried to connect `input` to `output`,
 	/// but their types don't match.
-	TypeMismatch { output: PortLink, input: PortLink },
+	TypeMismatch {
+		output: PipelineOutput,
+		input: PipelineInput,
+	},
 
 	/// We tried to connect an inline type to `input`,
 	/// but their types don't match.
 	InlineTypeMismatch {
 		inline_type: PipelineDataType,
-		input: PortLink,
+		input: PipelineInput,
 	},
 
 	/// This graph has a cycle containing `node`
@@ -80,7 +80,6 @@ pub enum PipelineCheckResult {
 // TODO: rename: pipeline inputs are outputs
 // TODO: pretty errors
 // TODO: warnings (disconnected input)
-// TODO: rework `PipelineLink`
 // TODO: check for unused nodes
 // TODO: add name to nodespec
 impl Pipeline {
@@ -94,51 +93,52 @@ impl Pipeline {
 	/// - The input node exists
 	/// - The input node has the specified port
 	/// - The input and output ports have matching types
-	fn check_link(&self, output: &PipelineLink, input: PortLink) -> Option<PipelineCheckResult> {
+	fn check_link(
+		&self,
+		output: &PipelineOutput,
+		input: PipelineInput,
+	) -> Option<PipelineCheckResult> {
 		// Find the datatype of the output port we're connecting to.
 		// While doing this, make sure both the output node and port exist.
 		let output_type = match output {
-			PipelineLink::InlineText { .. } => PipelineDataType::Text,
-			PipelineLink::Link(link) => match link {
-				PortLink::Node { node, port } => {
-					let get_node = self.nodes.get(node);
+			PipelineOutput::InlineText { .. } => PipelineDataType::Text,
+			PipelineOutput::Node { node, port } => {
+				let get_node = self.nodes.get(node);
 
-					if get_node.is_none() {
-						return Some(PipelineCheckResult::NoNode {
-							node: node.clone(),
-							caused_by_input: input,
-						});
-					}
-					let node = get_node.unwrap();
-					let input_spec = node.node_type.get_outputs().iter().find(|x| x.0 == port);
+				if get_node.is_none() {
+					return Some(PipelineCheckResult::NoNode {
+						node: node.clone(),
+						caused_by_input: input,
+					});
+				}
+				let node = get_node.unwrap();
+				let input_spec = node.node_type.get_outputs().iter().find(|x| x.0 == port);
 
-					if input_spec.is_none() {
-						return Some(PipelineCheckResult::NoNodeOutput {
-							node: node.clone(),
-							output_name: port.clone(),
-							caused_by_input: input,
-						});
-					}
-					input_spec.unwrap().1
+				if input_spec.is_none() {
+					return Some(PipelineCheckResult::NoNodeOutput {
+						node: node.clone(),
+						output_name: port.clone(),
+						caused_by_input: input,
+					});
 				}
-				PortLink::Pinput { port } => {
-					if let Some(from_type) = self.pipeline.input.get(port) {
-						*from_type
-					} else {
-						return Some(PipelineCheckResult::NoPipelineInput {
-							pipeline_input_name: port.clone(),
-							caused_by_input: input,
-						});
-					}
+				input_spec.unwrap().1
+			}
+			PipelineOutput::Pinput { port } => {
+				if let Some(from_type) = self.pipeline.input.get(port) {
+					*from_type
+				} else {
+					return Some(PipelineCheckResult::NoPipelineInput {
+						pipeline_input_name: port.clone(),
+						caused_by_input: input,
+					});
 				}
-				PortLink::Poutput { .. } => unreachable!("an output was connected to an output!"),
-			},
+			}
 		};
 
 		// Find the datatype of the input port we're connecting to.
 		// While doing this, make sure both the input node and port exist.
 		let input_type = match &input {
-			PortLink::Node { node, port } => {
+			PipelineInput::Node { node, port } => {
 				let get_node = self.nodes.get(node);
 
 				if get_node.is_none() {
@@ -158,7 +158,7 @@ impl Pipeline {
 				}
 				input.unwrap().1
 			}
-			PortLink::Poutput { port } => {
+			PipelineInput::Poutput { port } => {
 				if let Some(from_type) = self.pipeline.output.get(port) {
 					*from_type
 				} else {
@@ -167,12 +167,11 @@ impl Pipeline {
 					});
 				}
 			}
-			PortLink::Pinput { .. } => unreachable!("an input was connected to an input!"),
 		};
 
 		// Check types
 		match output {
-			PipelineLink::InlineText { .. } => {
+			PipelineOutput::InlineText { .. } => {
 				if input_type != PipelineDataType::Text {
 					return Some(PipelineCheckResult::InlineTypeMismatch {
 						inline_type: PipelineDataType::Text,
@@ -180,10 +179,10 @@ impl Pipeline {
 					});
 				}
 			}
-			PipelineLink::Link(link) => {
+			PipelineOutput::Pinput { .. } | PipelineOutput::Node { .. } => {
 				if output_type != input_type {
 					return Some(PipelineCheckResult::TypeMismatch {
-						output: link.clone(),
+						output: output.clone(),
 						input,
 					});
 				}
@@ -199,7 +198,7 @@ impl Pipeline {
 			for (input_name, out_link) in &node_spec.input {
 				if let Some(err) = self.check_link(
 					out_link,
-					PortLink::Node {
+					PipelineInput::Node {
 						node: node_name.clone(),
 						port: input_name.clone(),
 					},
@@ -213,7 +212,7 @@ impl Pipeline {
 		for (out_name, out_link) in &self.pipeline.outmap {
 			if let Some(err) = self.check_link(
 				out_link,
-				PortLink::Poutput {
+				PipelineInput::Poutput {
 					port: out_name.clone(),
 				},
 			) {
@@ -222,18 +221,16 @@ impl Pipeline {
 		}
 
 		// Build graph...
+		// We don't need to create nodes explicitly,
+		// since `add_edge` does this automatically.
 		let mut deps = GraphMap::<&str, (), Directed>::new();
-		self.nodes.iter().for_each(|(node_name, _)| {
-			deps.add_node(node_name);
-		});
-
 		for (node_name, node_spec) in &self.nodes {
-			for (_input_name, out_link) in &node_spec.input {
+			for out_link in node_spec.input.values() {
 				match out_link {
-					PipelineLink::Link(link) => {
-						deps.add_edge(link.node_str(), node_name, ());
+					PipelineOutput::InlineText { .. } => {}
+					PipelineOutput::Node { .. } | PipelineOutput::Pinput { .. } => {
+						deps.add_edge(out_link.node_str().unwrap(), node_name, ());
 					}
-					_ => {}
 				}
 			}
 		}
@@ -264,7 +261,7 @@ pub struct PipelineConfig {
 
 	/// Map pipeline outputs to the node outputs that produce them
 	#[serde(default)]
-	pub outmap: HashMap<SmartString<LazyCompact>, PipelineLink>,
+	pub outmap: HashMap<SmartString<LazyCompact>, PipelineOutput>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -275,52 +272,5 @@ pub struct PipelineNodeSpec {
 
 	/// Where this node should read its input from.
 	#[serde(default)]
-	pub input: HashMap<SmartString<LazyCompact>, PipelineLink>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
-pub enum PipelineLink {
-	/// Inline static text
-	InlineText { text: String },
-
-	/// Get data from another node's output
-	#[serde(deserialize_with = "parse_link")]
-	Link(PortLink),
-}
-
-impl Display for PipelineLink {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::InlineText { text } => write!(f, "InlineText(\"{text}\")"),
-			Self::Link(link) => write!(f, "Portlink({link})"),
-		}
-	}
-}
-
-// TODO: handle "in" links
-// TODO: type for "in" links?
-fn parse_link<'de, D>(deserializer: D) -> Result<PortLink, D::Error>
-where
-	D: Deserializer<'de>,
-{
-	let addr_str = SmartString::<LazyCompact>::deserialize(deserializer)?;
-	let mut i = addr_str.split('.');
-	let a = i.next();
-	let b = i.next();
-
-	if a.is_none() || b.is_none() || i.next().is_some() {
-		return Err(de::Error::custom("bad link format"));
-	}
-	let a = a.unwrap();
-	let b = b.unwrap();
-
-	Ok(match a {
-		"in" => PortLink::Pinput { port: b.into() },
-		"out" => PortLink::Poutput { port: b.into() },
-		_ => PortLink::Node {
-			node: a.into(),
-			port: b.into(),
-		},
-	})
+	pub input: HashMap<SmartString<LazyCompact>, PipelineOutput>,
 }
