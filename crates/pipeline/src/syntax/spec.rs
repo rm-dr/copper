@@ -1,7 +1,7 @@
 //! A user-provided pipeline specification
 
 use itertools::Itertools;
-use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
+use petgraph::{algo::toposort, graph::Node, graphmap::GraphMap, Directed};
 use serde::{de::DeserializeOwned, Deserialize};
 use serde_with::{self, serde_as};
 use smartstring::{LazyCompact, SmartString};
@@ -19,19 +19,17 @@ use crate::{
 	portspec::PipelinePortSpec,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
+#[serde(tag = "type")]
+#[serde(deny_unknown_fields)]
+#[serde(bound = "StubType: DeserializeOwned")]
 pub(crate) enum InternalNodeStub<StubType: PipelineNodeStub> {
-	Pipeline { pipeline: String },
-	User(StubType),
-}
+	Pipeline {
+		pipeline: String,
+	},
 
-impl<'de, StubType: PipelineNodeStub> Deserialize<'de> for InternalNodeStub<StubType> {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where
-		D: serde::Deserializer<'de>,
-	{
-		StubType::deserialize(deserializer).map(Self::User)
-	}
+	#[serde(untagged)]
+	User(StubType),
 }
 
 impl<StubType: PipelineNodeStub> Debug for InternalNodeStub<StubType> {
@@ -52,7 +50,7 @@ impl<StubType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<StubType>
 		name: &str,
 	) -> Self::NodeType {
 		match self {
-			Self::Pipeline { .. } => panic!(),
+			Self::Pipeline { .. } => unreachable!(),
 			Self::User(n) => StubType::build(n, ctx, name),
 		}
 	}
@@ -62,7 +60,7 @@ impl<StubType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<StubType>
 		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
 	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
 		match self {
-			Self::Pipeline { .. } => panic!(),
+			Self::Pipeline { .. } => unreachable!(),
 			Self::User(n) => n.inputs(ctx),
 		}
 	}
@@ -72,7 +70,7 @@ impl<StubType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<StubType>
 		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
 	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
 		match self {
-			Self::Pipeline { .. } => panic!(),
+			Self::Pipeline { .. } => unreachable!(),
 			Self::User(n) => n.outputs(ctx),
 		}
 	}
@@ -121,6 +119,76 @@ pub(crate) struct PipelineSpec<StubType: PipelineNodeStub> {
 // TODO: warnings (disconnected input)
 // TODO: check for unused nodes
 impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
+	#[inline(always)]
+	fn get_input(
+		ctx: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+		pipelines: &Vec<(SmartString<LazyCompact>, Arc<Pipeline<StubType>>)>,
+		node_type: &InternalNodeStub<StubType>,
+
+		node_name: &PipelineNodeLabel,
+		input_name: &PipelinePortLabel,
+	) -> Result<(usize,<<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub), PipelinePrepareError<<<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>>{
+		match node_type {
+			// `Pipeline` nodes don't know what inputs they provide,
+			// we need to find them ourselves.
+			InternalNodeStub::Pipeline { pipeline } => {
+				let p = pipelines
+					.iter()
+					.find(|(x, _)| x == pipeline)
+					.map(|(_, x)| x.clone())
+					.ok_or(PipelinePrepareError::NoSuchPipeline {
+						node: node_name.clone(),
+						pipeline: pipeline.clone(),
+					})?;
+				p.graph
+					.get_node(p.input_node_idx)
+					.1
+					.inputs(ctx.clone())
+					.find_with_name(input_name)
+			}
+			t => t.inputs(ctx.clone()).find_with_name(input_name),
+		}
+		.ok_or(PipelinePrepareError::NoNodeInput {
+			node: PipelineErrorNode::Named(node_name.clone()),
+			input: input_name.clone(),
+		})
+	}
+
+	#[inline(always)]
+	fn get_output(
+		ctx: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+		pipelines: &Vec<(SmartString<LazyCompact>, Arc<Pipeline<StubType>>)>,
+		node_type: &InternalNodeStub<StubType>,
+
+		node_name: &PipelineNodeLabel,
+		output_name: &PipelinePortLabel,
+	) -> Result<(usize,<<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub), PipelinePrepareError<<<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>>{
+		match node_type {
+			// `Pipeline` nodes don't know what inputs they provide,
+			// we need to find them ourselves.
+			InternalNodeStub::Pipeline { pipeline } => {
+				let p = pipelines
+					.iter()
+					.find(|(x, _)| x == pipeline)
+					.map(|(_, x)| x.clone())
+					.ok_or(PipelinePrepareError::NoSuchPipeline {
+						node: node_name.clone(),
+						pipeline: pipeline.clone(),
+					})?;
+				p.graph
+					.get_node(p.output_node_idx)
+					.1
+					.outputs(ctx.clone())
+					.find_with_name(output_name)
+			}
+			t => t.outputs(ctx.clone()).find_with_name(output_name),
+		}
+		.ok_or(PipelinePrepareError::NoNodeOutput {
+			output: output_name.clone(),
+			node: PipelineErrorNode::Named(node_name.clone()),
+		})
+	}
+
 	/// Check a link from `output` to `input`.
 	/// Returns [`PipelineCheckResult::Ok`] if everything is ok, and an error otherwise.
 	///
@@ -137,7 +205,7 @@ impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 
 		output: &NodeOutput<StubType>,
 		input: &NodeInput,
-	) -> Result<(), PipelinePrepareError> {
+	) -> Result<(), PipelinePrepareError<<<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>>{
 		// Find the datatype of the output port we're connecting to.
 		// While doing this, make sure both the output node and port exist.
 		let output_type: <<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub = match output {
@@ -161,7 +229,6 @@ impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 					return Err(PipelinePrepareError::NoNodeOutput {
 						node: PipelineErrorNode::PipelineInput,
 						output: port.clone(),
-						caused_by: input.clone(),
 					});
 				}
 			}
@@ -176,36 +243,7 @@ impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 					});
 				}
 				let get_node = get_node.unwrap();
-				// TODO: this should be a function
-				let b = match &get_node.node_type {
-					InternalNodeStub::Pipeline { pipeline } => {
-						// `Pipeline` nodes don't know what outputs they provide,
-						// we need to find them ourselves.
-						let p = pipelines
-							.iter()
-							.find(|(x, _)| x == pipeline)
-							.map(|(_, x)| x.clone())
-							.ok_or(PipelinePrepareError::NoSuchPipeline {
-								node: node.clone(),
-								pipeline: pipeline.clone(),
-							})?;
-						p.graph
-							.get_node(p.output_node_idx)
-							.1
-							.outputs(ctx.clone())
-							.find_with_name(port)
-					}
-					t => t.outputs(ctx.clone()).find_with_name(port),
-				};
-
-				if b.is_none() {
-					return Err(PipelinePrepareError::NoNodeOutput {
-						node: PipelineErrorNode::Named(node.clone()),
-						output: port.clone(),
-						caused_by: input.clone(),
-					});
-				}
-				b.unwrap().1
+				Self::get_output(ctx.clone(), pipelines, &get_node.node_type, node, port)?.1
 			}
 		};
 
@@ -238,34 +276,7 @@ impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 					});
 				}
 				let get_node = get_node.unwrap();
-				let b = match &get_node.node_type {
-					// `Pipeline` nodes don't know what inputs they provide,
-					// we need to find them ourselves.
-					InternalNodeStub::Pipeline { pipeline } => {
-						let p = pipelines
-							.iter()
-							.find(|(x, _)| x == pipeline)
-							.map(|(_, x)| x.clone())
-							.ok_or(PipelinePrepareError::NoSuchPipeline {
-								node: node.clone(),
-								pipeline: pipeline.clone(),
-							})?;
-						p.graph
-							.get_node(p.input_node_idx)
-							.1
-							.inputs(ctx.clone())
-							.find_with_name(port)
-					}
-					t => t.inputs(ctx.clone()).find_with_name(port),
-				};
-
-				if b.is_none() {
-					return Err(PipelinePrepareError::NoNodeInput {
-						node: PipelineErrorNode::Named(node.clone()),
-						input: port.clone(),
-					});
-				}
-				b.unwrap().1
+				Self::get_input(ctx, pipelines, &get_node.node_type, node, port)?.1
 			}
 		};
 
@@ -281,8 +292,10 @@ impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 						(PipelineErrorNode::PipelineInput, port.clone())
 					}
 				},
+				output_type,
 
 				input: input.clone(),
+				input_type,
 			});
 		}
 
@@ -294,7 +307,9 @@ impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 	fn add_to_graph(
 		&self,
 		ctx: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
-		// Current build state
+		pipelines: &Vec<(SmartString<LazyCompact>, Arc<Pipeline<StubType>>)>,
+
+	// Current build state
 		graph: &mut Graph<(PipelineNodeLabel, InternalNodeStub<StubType>), PipelineEdge>,
 		node_output_name_map: &HashMap<PipelineNodeLabel, GraphNodeIdx>,
 		input_node_idx: GraphNodeIdx,
@@ -302,7 +317,7 @@ impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 		in_port: usize,
 		node_idx: GraphNodeIdx,
 		out_link: &NodeOutput<StubType>,
-	) {
+	) -> Result<(), PipelinePrepareError<<<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>>{
 		match out_link {
 			NodeOutput::Pipeline { port } => {
 				let out_port = self
@@ -324,15 +339,14 @@ impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 				graph.add_edge(x, node_idx, PipelineEdge::PortToPort((0, in_port)));
 			}
 			NodeOutput::Node { node, port } => {
-				let out_port = self
-					.nodes
-					.get(node)
-					.unwrap()
-					.node_type
-					.outputs(ctx.clone())
-					.find_with_name(port)
-					.unwrap()
-					.0;
+				let out_port = Self::get_output(
+					ctx,
+					pipelines,
+					&self.nodes.get(node).unwrap().node_type,
+					node,
+					port,
+				)?
+				.0;
 				graph.add_edge(
 					*node_output_name_map.get(node).unwrap(),
 					node_idx,
@@ -340,6 +354,8 @@ impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 				);
 			}
 		}
+
+		Ok(())
 	}
 
 	/// Check this pipeline spec's structure and use it to build a
@@ -348,9 +364,9 @@ impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 		self,
 		ctx: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 		pipeline_name: String,
-		// TODO: pipeline name type
+	// TODO: pipeline name type
 		pipelines: &Vec<(SmartString<LazyCompact>, Arc<Pipeline<StubType>>)>,
-	) -> Result<Pipeline<StubType>, PipelinePrepareError> {
+	) -> Result<Pipeline<StubType>, PipelinePrepareError<<<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>>{
 		let mut node_output_name_map: HashMap<PipelineNodeLabel, GraphNodeIdx> = HashMap::new();
 		let mut node_input_name_map: HashMap<PipelineNodeLabel, GraphNodeIdx> = HashMap::new();
 
@@ -468,38 +484,25 @@ impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 		for (node_name, node_spec) in &self.nodes {
 			let node_idx = *node_input_name_map.get(node_name).unwrap();
 			for (input_name, out_link) in node_spec.inputs.iter() {
-				let in_port = match &node_spec.node_type {
-					// `Pipeline` nodes don't know what inputs they provide,
-					// we need to find them ourselves.
-					InternalNodeStub::Pipeline { pipeline } => {
-						let p = pipelines
-							.iter()
-							.find(|(x, _)| x == pipeline)
-							.map(|(_, x)| x.clone())
-							.ok_or(PipelinePrepareError::NoSuchPipeline {
-								node: node_name.clone(),
-								pipeline: pipeline.clone(),
-							})?;
-						p.graph
-							.get_node(p.input_node_idx)
-							.1
-							.inputs(ctx.clone())
-							.find_with_name(input_name)
-					}
-					t => t.inputs(ctx.clone()).find_with_name(input_name),
-				}
-				.unwrap()
+				let in_port = Self::get_input(
+					ctx.clone(),
+					pipelines,
+					&node_spec.node_type,
+					node_name,
+					input_name,
+				)?
 				.0;
 
 				self.add_to_graph(
 					ctx.clone(),
+					pipelines,
 					&mut graph,
 					&node_output_name_map,
 					input_node_idx,
 					in_port,
 					node_idx,
 					out_link,
-				);
+				)?;
 			}
 		}
 
@@ -520,6 +523,7 @@ impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 		for (port_label, node_output) in &self.output.inputs {
 			self.add_to_graph(
 				ctx.clone(),
+				pipelines,
 				&mut graph,
 				&node_output_name_map,
 				input_node_idx,
@@ -531,7 +535,7 @@ impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 					.0,
 				output_node_idx,
 				node_output,
-			)
+			)?;
 		}
 
 		return Ok(Pipeline {

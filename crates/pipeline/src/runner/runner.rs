@@ -41,7 +41,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		ctx: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 		path: &Path,
 		pipeline_name: String,
-	) -> Result<(), PipelinePrepareError> {
+	) -> Result<(), PipelinePrepareError<<<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>>{
 		let mut f =
 			File::open(path).map_err(|error| PipelinePrepareError::CouldNotOpenFile { error })?;
 

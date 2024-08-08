@@ -53,11 +53,11 @@ input."data" = { pipeline = "data" }
 node.type = "ExtractCovers"
 input."data" = { pipeline = "data" }
 
-#[node."add_cover"]
-#node.type = "Pipeline"
-#node.pipeline = "cover"
-#input."cover_data" = { node = "extract_cover", output = "cover_data" }
+[node."add_cover"]
+node.type = "Pipeline"
+node.pipeline = "cover"
+input."cover_data" = { node = "extract_cover", output = "cover_data" }
 
-#[node."print"]
-#node.type = "Print"
-#input."data" = { node = "add_cover", output = "added_item" }
+[node."print"]
+node.type = "Print"
+input."data" = { node = "add_cover", output = "added_item" }

@@ -2,6 +2,8 @@
 
 use std::{error::Error, fmt::Display};
 
+use crate::api::PipelineDataStub;
+
 use super::{
 	labels::{PipelineNodeLabel, PipelinePortLabel},
 	ports::NodeInput,
@@ -23,7 +25,7 @@ pub enum PipelineErrorNode {
 
 /// An error we encounter when a pipeline spec is invalid
 #[derive(Debug)]
-pub enum PipelinePrepareError {
+pub enum PipelinePrepareError<DataStub: PipelineDataStub> {
 	/// We could not open a pipeline spec file
 	CouldNotOpenFile {
 		/// The error we encountered
@@ -74,8 +76,8 @@ pub enum PipelinePrepareError {
 		node: PipelineErrorNode,
 		/// The output name that doesn't exist
 		output: PipelinePortLabel,
-		/// The node input we tried to connect to `output`
-		caused_by: NodeInput,
+		// The node input we tried to connect to `output`
+		//caused_by: NodeInput,
 	},
 
 	/// We tried to connect `input` to `output`,
@@ -83,9 +85,11 @@ pub enum PipelinePrepareError {
 	TypeMismatch {
 		/// The output we tried to connect
 		output: (PipelineErrorNode, PipelinePortLabel),
+		output_type: DataStub,
 
 		/// The input we tried to connect
 		input: NodeInput,
+		input_type: DataStub,
 	},
 
 	/// We tried to use a node with multiple outputs inline
@@ -106,7 +110,7 @@ pub enum PipelinePrepareError {
 	},
 }
 
-impl Display for PipelinePrepareError {
+impl<DataStub: PipelineDataStub> Display for PipelinePrepareError<DataStub> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::CouldNotOpenFile { .. } => {
@@ -145,17 +149,22 @@ impl Display for PipelinePrepareError {
 			Self::NoNodeOutput {
 				node,
 				output,
-				caused_by,
+				//caused_by,
 			} => {
 				writeln!(
 					f,
-					"PipelinePrepareError: Node `{node:?}` has no output `{output}`. Caused by `{caused_by:?}`."
+					"PipelinePrepareError: Node `{node:?}` has no output `{output}`."
 				)
 			}
-			Self::TypeMismatch { output, input } => {
+			Self::TypeMismatch {
+				output,
+				input,
+				input_type,
+				output_type,
+			} => {
 				writeln!(
 					f,
-					"PipelinePrepareError: `{output:?}` and `{input:?}` have different types."
+					"PipelinePrepareError: `{output:?}` ({output_type:?}) and `{input:?}` ({input_type:?}) have different types."
 				)
 			}
 			Self::HasCycle => {
@@ -171,7 +180,7 @@ impl Display for PipelinePrepareError {
 	}
 }
 
-impl Error for PipelinePrepareError {
+impl<DataStub: PipelineDataStub> Error for PipelinePrepareError<DataStub> {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::CouldNotOpenFile { error } => Some(error),

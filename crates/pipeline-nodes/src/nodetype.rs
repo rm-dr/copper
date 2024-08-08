@@ -147,7 +147,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::Print => PipelinePortSpec::VecOwned(vec![(
 				"data".into(),
 				UFODataStub::Reference {
-					class: ClassHandle::from(1),
+					class: ClassHandle::from(2),
 				},
 			)]),
 
