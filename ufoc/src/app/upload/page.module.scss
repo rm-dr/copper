@@ -1,7 +1,7 @@
-// TODO: replace with global
-$color-entry-hover: var(--mantine-color-dark-7);
-
 .main {
+	// TODO: replace with global
+	--color-entry-hover: var(--mantine-color-dark-7);
+
 	display: grid;
 
 	grid-template-columns: 25rem 25rem auto;
