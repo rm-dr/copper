@@ -25,18 +25,25 @@ export type attrTypeInfo = {
 	// How to display the value of this attr
 	// in the item table. This should be compact
 	// and non-interactive.
-	value_preview?: (params: { attr: any }) => ReactElement;
+	value_preview: (params: { attr: any }) => ReactElement;
 
-	// How to display the old value of attr
-	// in the editor. `attr` param is the object
-	// returned by the api.
-	old_value?: (params: { attr: any }) => ReactElement;
+	editor:
+		| {
+				type: "inline";
+				// How to display the old value of attr
+				// in the editor. `attr` param is the object
+				// returned by the api.
+				old_value: (params: { attr: any }) => ReactElement;
 
-	// Inline value editor
-	new_value?: (params: {
-		attr: any;
-		onChange: (value: any) => void;
-	}) => ReactElement;
+				// Inline value editor
+				new_value: (params: {
+					attr: any;
+					onChange: (value: any) => void;
+				}) => ReactElement;
+		  }
+		| {
+				type: "panel";
+		  };
 
 	// TODO: fix these types (no any)
 

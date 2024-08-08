@@ -19,6 +19,8 @@ export const _hashAttrType: attrTypeInfo = {
 			</Text>
 		</>
 	),
+
+	editor: { type: "panel" },
 };
 
 function checkHash(params: {

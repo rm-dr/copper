@@ -28,36 +28,40 @@ export const _textAttrType: attrTypeInfo = {
 		}
 	},
 
-	old_value: (params) => {
-		if (params.attr.value == "") {
-			return (
-				<Text c="dimmed" fs="italic">
-					empty string
-				</Text>
-			);
-		} else if (params.attr.value.trim() == "") {
-			return <Text c="dimmed">{`""`}</Text>;
-		} else if (params.attr.value == null) {
-			return (
-				<Text c="dimmed" fs="italic">
-					no value
-				</Text>
-			);
-		} else {
-			return params.attr.value;
-		}
-	},
+	editor: {
+		type: "inline",
 
-	new_value: (params) => {
-		return (
-			<Textarea
-				radius="0px"
-				placeholder="no value"
-				autosize
-				minRows={1}
-				defaultValue={params.attr.value}
-				onChange={params.onChange}
-			/>
-		);
+		old_value: (params) => {
+			if (params.attr.value == "") {
+				return (
+					<Text c="dimmed" fs="italic">
+						empty string
+					</Text>
+				);
+			} else if (params.attr.value.trim() == "") {
+				return <Text c="dimmed">{`""`}</Text>;
+			} else if (params.attr.value == null) {
+				return (
+					<Text c="dimmed" fs="italic">
+						no value
+					</Text>
+				);
+			} else {
+				return params.attr.value;
+			}
+		},
+
+		new_value: (params) => {
+			return (
+				<Textarea
+					radius="0px"
+					placeholder="no value"
+					autosize
+					minRows={1}
+					defaultValue={params.attr.value}
+					onChange={params.onChange}
+				/>
+			);
+		},
 	},
 };

@@ -38,13 +38,16 @@ export function EditPanel(params: { data: ItemData; select: Selected }) {
 											<div className={styles.editrow_icon}>{d.icon}</div>
 											<div className={styles.editrow_name}>{attr}</div>
 											<div className={styles.editrow_value_old}>
-												{d.old_value !== undefined
-													? d.old_value({ attr: val })
+												{d.editor.type === "inline"
+													? d.editor.old_value({ attr: val })
 													: null}
 											</div>
 											<div className={styles.editrow_value_new}>
-												{d.new_value !== undefined
-													? d.new_value({ attr: val, onChange: console.log })
+												{d.editor.type === "inline"
+													? d.editor.new_value({
+															attr: val,
+															onChange: console.log,
+													  })
 													: null}
 											</div>
 										</div>

@@ -20,6 +20,8 @@ export const _refAttrType: attrTypeInfo = {
 			</Text>
 		</Text>
 	),
+
+	editor: { type: "panel" },
 };
 
 function checkRef(params: {

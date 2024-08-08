@@ -14,4 +14,6 @@ export const _binaryAttrType: attrTypeInfo = {
 			params.attr.size,
 		)})`}</Text>
 	),
+
+	editor: { type: "panel" },
 };
