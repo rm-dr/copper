@@ -1,20 +1,25 @@
+use crossbeam::channel::Receiver;
+use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
-use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 
-use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
+use crate::{nodetype::UFONodeType, traits::UFONode, UFOContext};
 
 #[derive(Clone)]
 pub struct Print {
-	input: Option<MetaDbData>,
+	input_receiver: Receiver<(usize, MetaDbData)>,
+	has_received: bool,
 }
 
 impl Print {
-	pub fn new() -> Self {
-		Self { input: None }
+	pub fn new(input_receiver: Receiver<(usize, MetaDbData)>) -> Self {
+		Self {
+			input_receiver,
+			has_received: false,
+		}
 	}
 }
 
@@ -22,18 +27,23 @@ impl PipelineNode for Print {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
 
-	fn init<F>(
-		&mut self,
-		_ctx: &Self::NodeContext,
-		mut input: Vec<Self::DataType>,
-		_send_data: F,
-	) -> Result<PipelineNodeState, PipelineError>
+	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
 	{
-		assert!(input.len() == 1);
-		self.input = input.pop();
-		Ok(PipelineNodeState::Pending)
+		loop {
+			match self.input_receiver.try_recv() {
+				Err(crossbeam::channel::TryRecvError::Disconnected)
+				| Err(crossbeam::channel::TryRecvError::Empty) => {
+					break Ok(());
+				}
+				Ok((port, data)) => {
+					assert!(port == 0);
+					println!("{data:?}");
+					self.has_received = true;
+				}
+			}
+		}
 	}
 
 	fn run<F>(
@@ -44,8 +54,11 @@ impl PipelineNode for Print {
 	where
 		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
 	{
-		println!("{:?}", self.input);
-		Ok(PipelineNodeState::Done)
+		if self.has_received {
+			Ok(PipelineNodeState::Done)
+		} else {
+			Ok(PipelineNodeState::Pending)
+		}
 	}
 }
 

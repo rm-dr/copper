@@ -1,19 +1,26 @@
+use crossbeam::channel::Receiver;
 use serde::Deserialize;
 use serde_with::serde_as;
 use ufo_audiofile::common::tagtype::TagType;
+use ufo_metadb::data::{HashType, MetaDbData, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeStub},
 	labels::PipelinePortLabel,
 	NDataStub,
 };
-use ufo_metadb::data::{HashType, MetaDbData, MetaDbDataStub};
 
 use super::{
 	nodeinstance::UFONodeInstance,
-	tags::{extractcovers::ExtractCovers, extracttags::ExtractTags, striptags::StripTags},
-	util::{constant::Constant, hash::Hash, ifnone::IfNone, noop::Noop, print::Print},
+	tags::extracttags::ExtractTags,
+	util::{constant::Constant, ifnone::IfNone, noop::Noop, print::Print},
 };
-use crate::{helpers::UFONode, input::file::FileReader, output::addtodataset::AddToDataset};
+use crate::{
+	input::file::FileReader,
+	output::addtodataset::AddToDataset,
+	tags::{extractcovers::ExtractCovers, striptags::StripTags},
+	traits::UFONode,
+	util::hash::Hash,
+};
 
 #[serde_as]
 #[derive(Debug, Deserialize, Clone)]
@@ -58,56 +65,59 @@ impl PipelineNodeStub for UFONodeType {
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		name: &str,
+
+		input_receiver: Receiver<(usize, MetaDbData)>,
 	) -> UFONodeInstance {
 		match self {
 			// Magic
 			UFONodeType::Constant { value } => UFONodeInstance::Constant {
 				node_type: self.clone(),
-				node: Constant::new(value.clone()),
+				node: Constant::new(input_receiver, value.clone()),
 			},
 
 			// Util
 			UFONodeType::IfNone { .. } => UFONodeInstance::IfNone {
 				node_type: self.clone(),
 				name: name.into(),
-				node: IfNone::new(),
+				node: IfNone::new(input_receiver),
 			},
 			UFONodeType::Noop { inputs } => UFONodeInstance::Noop {
 				node_type: self.clone(),
 				name: name.into(),
-				node: Noop::new(inputs.clone()),
+				node: Noop::new(input_receiver, inputs.clone()),
 			},
 			UFONodeType::Print => UFONodeInstance::Print {
 				node_type: self.clone(),
 				name: name.into(),
-				node: Print::new(),
+				node: Print::new(input_receiver),
 			},
+
 			UFONodeType::Hash { hash_type } => UFONodeInstance::Hash {
 				node_type: self.clone(),
 				name: name.into(),
-				node: Hash::new(*hash_type),
+				node: Hash::new(input_receiver, *hash_type),
 			},
 
 			// Audio
 			UFONodeType::StripTags => UFONodeInstance::StripTags {
 				node_type: self.clone(),
 				name: name.into(),
-				node: StripTags::new(),
+				node: StripTags::new(input_receiver),
 			},
 			UFONodeType::ExtractTags { tags } => UFONodeInstance::ExtractTags {
 				node_type: self.clone(),
 				name: name.into(),
-				node: ExtractTags::new(tags.clone()),
+				node: ExtractTags::new(input_receiver, tags.clone()),
 			},
 			UFONodeType::ExtractCovers => UFONodeInstance::ExtractCovers {
 				node_type: self.clone(),
 				name: name.into(),
-				node: ExtractCovers::new(),
+				node: ExtractCovers::new(input_receiver),
 			},
 			UFONodeType::File => UFONodeInstance::File {
 				node_type: self.clone(),
 				name: name.into(),
-				node: FileReader::new(),
+				node: FileReader::new(input_receiver),
 			},
 			UFONodeType::AddToDataset { class } => {
 				let mut d = ctx.dataset.lock().unwrap();
@@ -117,7 +127,7 @@ impl PipelineNodeStub for UFONodeType {
 				UFONodeInstance::Dataset {
 					node_type: self.clone(),
 					name: name.into(),
-					node: AddToDataset::new(class, attrs),
+					node: AddToDataset::new(input_receiver, class, attrs),
 				}
 			}
 		}

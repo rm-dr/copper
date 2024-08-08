@@ -14,6 +14,7 @@ input."genre" = { node = "tags", output = "Genre" }
 input."ISRC" = { node = "tags", output = "ISRC" }
 input."lyrics" = { node = "if_none", output = "out" }
 input."audio_data" = { node = "strip", output = "out" }
+input."cover_art" = { node = "add_cover", output = "added_item" }
 
 
 [node."tags"]

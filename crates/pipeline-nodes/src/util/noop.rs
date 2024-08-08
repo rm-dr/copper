@@ -1,20 +1,28 @@
+use crossbeam::channel::Receiver;
+use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
-use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 
-use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
+use crate::{nodetype::UFONodeType, traits::UFONode, UFOContext};
 
 #[derive(Clone)]
 pub struct Noop {
-	inputs: Vec<(PipelinePortLabel, MetaDbDataStub)>,
+	inputs: Vec<(PipelinePortLabel, MetaDbDataStub, bool)>,
+	input_receiver: Receiver<(usize, MetaDbData)>,
 }
 
 impl Noop {
-	pub fn new(inputs: Vec<(PipelinePortLabel, MetaDbDataStub)>) -> Self {
-		Self { inputs }
+	pub fn new(
+		input_receiver: Receiver<(usize, MetaDbData)>,
+		inputs: Vec<(PipelinePortLabel, MetaDbDataStub)>,
+	) -> Self {
+		Self {
+			inputs: inputs.into_iter().map(|(a, b)| (a, b, false)).collect(),
+			input_receiver,
+		}
 	}
 }
 
@@ -22,20 +30,40 @@ impl PipelineNode for Noop {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
 
-	fn init<F>(
+	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
+	where
+		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
+	{
+		loop {
+			match self.input_receiver.try_recv() {
+				Err(crossbeam::channel::TryRecvError::Disconnected)
+				| Err(crossbeam::channel::TryRecvError::Empty) => {
+					break Ok(());
+				}
+				Ok((port, data)) => {
+					assert!(port < self.inputs.len());
+					assert!(!self.inputs[port].2);
+					self.inputs[port].2 = true;
+					send_data(port, data)?;
+				}
+			}
+		}
+	}
+
+	fn run<F>(
 		&mut self,
 		_ctx: &Self::NodeContext,
-		input: Vec<Self::DataType>,
-		send_data: F,
+		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		assert!(input.len() == self.inputs.len());
-		for (i, v) in input.into_iter().enumerate() {
-			send_data(i, v)?;
+		for (_, _, b) in &self.inputs {
+			if !b {
+				return Ok(PipelineNodeState::Pending);
+			}
 		}
-		Ok(PipelineNodeState::Done)
+		return Ok(PipelineNodeState::Done);
 	}
 }
 

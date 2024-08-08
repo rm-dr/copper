@@ -1,18 +1,27 @@
+use crossbeam::channel::Receiver;
+use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
-use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 
-use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
+use crate::{nodetype::UFONodeType, traits::UFONode, UFOContext};
 
 #[derive(Clone)]
-pub struct IfNone {}
+pub struct IfNone {
+	input_receiver: Receiver<(usize, MetaDbData)>,
+	ifnone: Option<MetaDbData>,
+	input: Option<MetaDbData>,
+}
 
 impl IfNone {
-	pub fn new() -> Self {
-		Self {}
+	pub fn new(input_receiver: Receiver<(usize, MetaDbData)>) -> Self {
+		Self {
+			input_receiver,
+			ifnone: None,
+			input: None,
+		}
 	}
 }
 
@@ -20,24 +29,46 @@ impl PipelineNode for IfNone {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
 
-	fn init<F>(
+	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
+	where
+		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
+	{
+		loop {
+			match self.input_receiver.try_recv() {
+				Err(crossbeam::channel::TryRecvError::Disconnected)
+				| Err(crossbeam::channel::TryRecvError::Empty) => {
+					break Ok(());
+				}
+				Ok((port, data)) => match port {
+					0 => {
+						self.input = Some(data);
+					}
+					1 => {
+						self.ifnone = Some(data);
+					}
+					_ => unreachable!(),
+				},
+			}
+		}
+	}
+
+	fn run<F>(
 		&mut self,
 		_ctx: &Self::NodeContext,
-		mut input: Vec<Self::DataType>,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		assert!(input.len() == 2);
-		let ifnone = input.pop().unwrap();
-		let input = input.pop().unwrap();
+		if self.input.is_none() || self.ifnone.is_none() {
+			return Ok(PipelineNodeState::Pending);
+		}
 
 		send_data(
 			0,
-			match input {
-				MetaDbData::None(_) => ifnone,
-				_ => input,
+			match self.input.take().unwrap() {
+				MetaDbData::None(_) => self.ifnone.take().unwrap(),
+				x => x,
 			},
 		)?;
 

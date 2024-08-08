@@ -1,25 +1,31 @@
+use crossbeam::channel::Receiver;
 use std::{
-	io::{Cursor, Read},
+	io::{Read, Seek},
 	sync::Arc,
 };
 use ufo_audiofile::flac::flac_read_pictures;
+use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
-use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 use ufo_util::mime::MimeType;
 
-use crate::{helpers::UFOStaticNode, UFOContext};
+use crate::{helpers::ArcVecBuffer, traits::UFOStaticNode, UFOContext};
 
-#[derive(Clone)]
 pub struct ExtractCovers {
 	data: Option<MetaDbData>,
+	buffer: ArcVecBuffer,
+	input_receiver: Receiver<(usize, MetaDbData)>,
 }
 
 impl ExtractCovers {
-	pub fn new() -> Self {
-		Self { data: None }
+	pub fn new(input_receiver: Receiver<(usize, MetaDbData)>) -> Self {
+		Self {
+			data: None,
+			buffer: ArcVecBuffer::new(),
+			input_receiver,
+		}
 	}
 }
 
@@ -27,18 +33,24 @@ impl PipelineNode for ExtractCovers {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
 
-	fn init<F>(
-		&mut self,
-		_ctx: &Self::NodeContext,
-		mut input: Vec<Self::DataType>,
-		_send_data: F,
-	) -> Result<PipelineNodeState, PipelineError>
+	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
 	{
-		assert!(input.len() == 1);
-		self.data = Some(input.pop().unwrap());
-		Ok(PipelineNodeState::Pending)
+		loop {
+			match self.input_receiver.try_recv() {
+				Err(crossbeam::channel::TryRecvError::Disconnected)
+				| Err(crossbeam::channel::TryRecvError::Empty) => {
+					break Ok(());
+				}
+				Ok((port, data)) => match port {
+					0 => {
+						self.data = Some(data);
+					}
+					_ => unreachable!("bad input port {port}"),
+				},
+			}
+		}
 	}
 
 	fn run<F>(
@@ -49,18 +61,34 @@ impl PipelineNode for ExtractCovers {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		let (data_type, data) = match self.data.as_ref().unwrap() {
-			MetaDbData::Binary {
+		if self.data.is_none() {
+			return Ok(PipelineNodeState::Pending);
+		}
+
+		let (data_type, data) = match self.data.as_mut().unwrap() {
+			MetaDbData::Blob {
 				format: data_type,
 				data,
 			} => (data_type, data),
 			_ => panic!("bad data {:#?}", self.data),
 		};
 
-		let data_read = Cursor::new(&**data);
+		let (changed, done) = self.buffer.recv_all(data);
+		match (changed, done) {
+			(false, true) => unreachable!(),
+			(false, false) => return Ok(PipelineNodeState::Pending),
+			(true, true) | (true, false) => {}
+		}
+
+		self.buffer.seek(std::io::SeekFrom::Start(0)).unwrap();
 		let (cover_data, cover_format): (Vec<u8>, MimeType) = match data_type {
 			MimeType::Flac => {
-				let mut r = flac_read_pictures(data_read).unwrap().unwrap();
+				let r = flac_read_pictures(&mut self.buffer).unwrap();
+				if r.is_none() {
+					return Ok(PipelineNodeState::Pending);
+				};
+				let mut r = r.unwrap();
+
 				let mut x = Vec::new();
 				r.read_to_end(&mut x).unwrap();
 				(x, r.get_mime().clone())
@@ -83,7 +111,7 @@ impl PipelineNode for ExtractCovers {
 
 impl UFOStaticNode for ExtractCovers {
 	fn inputs() -> &'static [(&'static str, ufo_metadb::data::MetaDbDataStub)] {
-		&[("data", MetaDbDataStub::Binary)]
+		&[("data", MetaDbDataStub::Blob)]
 	}
 
 	fn outputs() -> &'static [(&'static str, MetaDbDataStub)] {

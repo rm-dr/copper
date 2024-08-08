@@ -1,25 +1,34 @@
+use async_broadcast::TryRecvError;
+use crossbeam::channel::Receiver;
 use sha2::{Digest, Sha256, Sha512};
 use std::sync::Arc;
+use ufo_metadb::data::{HashType, MetaDbData, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
-use ufo_metadb::data::{HashType, MetaDbData, MetaDbDataStub};
 
-use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
+use crate::{nodetype::UFONodeType, traits::UFONode, UFOContext};
 
 #[derive(Clone)]
 pub struct Hash {
 	data: Option<MetaDbData>,
 	hash_type: HashType,
+
+	// TODO: write directly to hasher
+	buffer: Vec<u8>,
+
+	input_receiver: Receiver<(usize, MetaDbData)>,
 }
 
 impl Hash {
-	pub fn new(hash_type: HashType) -> Self {
+	pub fn new(input_receiver: Receiver<(usize, MetaDbData)>, hash_type: HashType) -> Self {
 		Self {
 			data: None,
 			hash_type,
+			buffer: Vec::new(),
+			input_receiver,
 		}
 	}
 }
@@ -28,18 +37,24 @@ impl PipelineNode for Hash {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
 
-	fn init<F>(
-		&mut self,
-		_ctx: &Self::NodeContext,
-		mut input: Vec<Self::DataType>,
-		_send_data: F,
-	) -> Result<PipelineNodeState, PipelineError>
+	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
 	{
-		assert!(input.len() == 1);
-		self.data = Some(input.pop().unwrap());
-		Ok(PipelineNodeState::Pending)
+		loop {
+			match self.input_receiver.try_recv() {
+				Err(crossbeam::channel::TryRecvError::Disconnected)
+				| Err(crossbeam::channel::TryRecvError::Empty) => {
+					break Ok(());
+				}
+				Ok((port, data)) => match port {
+					0 => {
+						self.data = Some(data);
+					}
+					_ => unreachable!("bad input port {port}"),
+				},
+			}
+		}
 	}
 
 	fn run<F>(
@@ -50,23 +65,75 @@ impl PipelineNode for Hash {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		let data = match self.data.as_ref().unwrap() {
-			MetaDbData::Binary { data, .. } => data,
-			_ => panic!("bad data type"),
-		};
+		if self.data.is_none() {
+			return Ok(PipelineNodeState::Pending);
+		}
 
-		let result = match self.hash_type {
-			HashType::MD5 => md5::compute(&**data).to_vec(),
-			HashType::SHA256 => {
-				let mut hasher = Sha256::new();
-				hasher.update(&**data);
-				hasher.finalize().to_vec()
-			}
-			HashType::SHA512 => {
-				let mut hasher = Sha512::new();
-				hasher.update(&**data);
-				hasher.finalize().to_vec()
-			}
+		let result = match self.data.as_mut().unwrap() {
+			MetaDbData::Binary { data, .. } => match self.hash_type {
+				HashType::MD5 => md5::compute(&**data).to_vec(),
+				HashType::SHA256 => {
+					let mut hasher = Sha256::new();
+					hasher.update(&**data);
+					hasher.finalize().to_vec()
+				}
+				HashType::SHA512 => {
+					let mut hasher = Sha512::new();
+					hasher.update(&**data);
+					hasher.finalize().to_vec()
+				}
+			},
+			MetaDbData::Blob { data, .. } => match self.hash_type {
+				HashType::MD5 => loop {
+					match data.try_recv() {
+						Err(TryRecvError::Closed) => {
+							let mut context = md5::Context::new();
+							context.consume(&self.buffer);
+							break context.compute().to_vec();
+						}
+						Err(TryRecvError::Empty) => {
+							return Ok(PipelineNodeState::Pending);
+						}
+						Err(_) => panic!(),
+						Ok(x) => {
+							self.buffer.extend(&*x);
+						}
+					}
+				},
+				HashType::SHA256 => loop {
+					match data.try_recv() {
+						Err(TryRecvError::Closed) => {
+							let mut hasher = Sha256::new();
+							hasher.update(&self.buffer);
+							break hasher.finalize().to_vec();
+						}
+						Err(TryRecvError::Empty) => {
+							return Ok(PipelineNodeState::Pending);
+						}
+						Err(_) => panic!(),
+						Ok(x) => {
+							self.buffer.extend(&*x);
+						}
+					}
+				},
+				HashType::SHA512 => loop {
+					match data.try_recv() {
+						Err(TryRecvError::Closed) => {
+							let mut hasher = Sha256::new();
+							hasher.update(&self.buffer);
+							break hasher.finalize().to_vec();
+						}
+						Err(TryRecvError::Empty) => {
+							return Ok(PipelineNodeState::Pending);
+						}
+						Err(_) => panic!(),
+						Ok(x) => {
+							self.buffer.extend(&*x);
+						}
+					}
+				},
+			},
+			_ => todo!(),
 		};
 
 		send_data(
@@ -81,27 +148,30 @@ impl PipelineNode for Hash {
 	}
 }
 
-impl Hash {
-	fn inputs() -> &'static [(&'static str, MetaDbDataStub)] {
-		&[("data", MetaDbDataStub::Binary)]
-	}
-}
-
 impl UFONode for Hash {
 	fn n_inputs(stub: &UFONodeType, _ctx: &UFOContext) -> usize {
 		match stub {
-			UFONodeType::Hash { .. } => Self::inputs().len(),
+			UFONodeType::Hash { .. } => 1,
 			_ => unreachable!(),
 		}
 	}
 
 	fn input_compatible_with(
 		stub: &UFONodeType,
-		ctx: &UFOContext,
+		_ctx: &UFOContext,
 		input_idx: usize,
 		input_type: MetaDbDataStub,
 	) -> bool {
-		Self::input_default_type(stub, ctx, input_idx) == input_type
+		match stub {
+			UFONodeType::Hash { .. } => {
+				assert!(input_idx < 1);
+				match input_type {
+					MetaDbDataStub::Blob | MetaDbDataStub::Binary => true,
+					_ => false,
+				}
+			}
+			_ => unreachable!(),
+		}
 	}
 
 	fn input_with_name(
@@ -110,11 +180,10 @@ impl UFONode for Hash {
 		input_name: &PipelinePortLabel,
 	) -> Option<usize> {
 		match stub {
-			UFONodeType::Hash { .. } => Self::inputs()
-				.iter()
-				.enumerate()
-				.find(|(_, (n, _))| PipelinePortLabel::from(*n) == *input_name)
-				.map(|(x, _)| x),
+			UFONodeType::Hash { .. } => match Into::<&str>::into(input_name) {
+				"data" => Some(0),
+				_ => None,
+			},
 			_ => unreachable!(),
 		}
 	}
@@ -125,7 +194,10 @@ impl UFONode for Hash {
 		input_idx: usize,
 	) -> MetaDbDataStub {
 		match stub {
-			UFONodeType::Hash { .. } => Self::inputs().get(input_idx).unwrap().1,
+			UFONodeType::Hash { .. } => {
+				assert!(input_idx < 1);
+				MetaDbDataStub::Binary
+			}
 			_ => unreachable!(),
 		}
 	}

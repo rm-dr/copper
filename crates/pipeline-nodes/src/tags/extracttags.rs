@@ -1,44 +1,33 @@
+use crossbeam::channel::Receiver;
 use itertools::Itertools;
-use std::{
-	io::{Cursor, Read, Seek},
-	sync::Arc,
-};
-use ufo_audiofile::{
-	common::{tagtype::TagType, vorbiscomment::VorbisComment},
-	flac::flac_read_tags,
-};
+use std::{io::Seek, sync::Arc};
+use ufo_audiofile::{common::tagtype::TagType, flac::flac_read_tags};
+use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
-use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 use ufo_util::mime::MimeType;
 
-use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
+use crate::{helpers::ArcVecBuffer, nodetype::UFONodeType, traits::UFONode, UFOContext};
 
-#[derive(Clone)]
+// TODO: fail after max buffer size
 pub struct ExtractTags {
 	data: Option<MetaDbData>,
 	tags: Vec<TagType>,
+	buffer: ArcVecBuffer,
+	input_receiver: Receiver<(usize, MetaDbData)>,
 }
 
 impl ExtractTags {
-	pub fn new(tags: Vec<TagType>) -> Self {
+	pub fn new(input_receiver: Receiver<(usize, MetaDbData)>, tags: Vec<TagType>) -> Self {
 		Self {
 			data: None,
 			tags: tags.into_iter().unique().collect(),
+			buffer: ArcVecBuffer::new(),
+			input_receiver,
 		}
-	}
-}
-
-impl ExtractTags {
-	fn parse_flac<R>(read: R) -> Result<VorbisComment, PipelineError>
-	where
-		R: Read + Seek,
-	{
-		let tags = flac_read_tags(read).unwrap();
-		return Ok(tags.unwrap());
 	}
 }
 
@@ -46,18 +35,24 @@ impl PipelineNode for ExtractTags {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
 
-	fn init<F>(
-		&mut self,
-		_ctx: &Self::NodeContext,
-		mut input: Vec<Self::DataType>,
-		_send_data: F,
-	) -> Result<PipelineNodeState, PipelineError>
+	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
 	{
-		assert!(input.len() == 1);
-		self.data = Some(input.pop().unwrap());
-		Ok(PipelineNodeState::Pending)
+		loop {
+			match self.input_receiver.try_recv() {
+				Err(crossbeam::channel::TryRecvError::Disconnected)
+				| Err(crossbeam::channel::TryRecvError::Empty) => {
+					break Ok(());
+				}
+				Ok((port, data)) => match port {
+					0 => {
+						self.data = Some(data);
+					}
+					_ => unreachable!(),
+				},
+			}
+		}
 	}
 
 	fn run<F>(
@@ -68,20 +63,42 @@ impl PipelineNode for ExtractTags {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		let (data_type, data) = match self.data.as_ref().unwrap() {
-			MetaDbData::Binary {
+		if self.data.is_none() {
+			return Ok(PipelineNodeState::Pending);
+		}
+
+		let (data_type, data) = match self.data.as_mut().unwrap() {
+			MetaDbData::Blob {
 				format: data_type,
 				data,
 			} => (data_type, data),
 			_ => panic!(),
 		};
 
-		let mut data_read = Cursor::new(&**data);
+		let (changed, done) = self.buffer.recv_all(data);
+		match (changed, done) {
+			(false, true) => unreachable!(),
+			(false, false) => return Ok(PipelineNodeState::Pending),
+			(true, true) | (true, false) => {}
+		}
+
+		self.buffer.seek(std::io::SeekFrom::Start(0)).unwrap();
 		let tagger = match data_type {
-			MimeType::Flac => Self::parse_flac(&mut data_read),
+			MimeType::Flac => {
+				let r = flac_read_tags(&mut self.buffer);
+				if r.is_err() {
+					return Ok(PipelineNodeState::Pending);
+				}
+				r.unwrap()
+			}
 			MimeType::Mp3 => unimplemented!(),
 			_ => return Err(PipelineError::UnsupportedDataType),
-		}?;
+		};
+
+		if tagger.is_none() {
+			return Ok(PipelineNodeState::Pending);
+		}
+		let tagger = tagger.unwrap();
 
 		for (i, tag_type) in self.tags.iter().enumerate() {
 			if let Some(tag_value) = tagger.get_tag(tag_type) {
@@ -97,7 +114,7 @@ impl PipelineNode for ExtractTags {
 
 impl ExtractTags {
 	fn inputs() -> &'static [(&'static str, MetaDbDataStub)] {
-		&[("data", MetaDbDataStub::Binary)]
+		&[("data", MetaDbDataStub::Blob)]
 	}
 }
 

@@ -4,6 +4,7 @@
 #![allow(clippy::new_without_default)]
 
 mod helpers;
+mod traits;
 
 pub mod input;
 pub mod output;

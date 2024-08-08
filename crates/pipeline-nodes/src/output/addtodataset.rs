@@ -1,31 +1,36 @@
+use crossbeam::channel::Receiver;
 use smartstring::{LazyCompact, SmartString};
+use ufo_metadb::{
+	api::{AttrHandle, ClassHandle},
+	data::{MetaDbData, MetaDbDataStub},
+};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
-use ufo_metadb::{
-	api::{AttrHandle, ClassHandle},
-	data::{MetaDbData, MetaDbDataStub},
-};
 
-use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
+use crate::{nodetype::UFONodeType, traits::UFONode, UFOContext};
 
 pub struct AddToDataset {
 	class: ClassHandle,
 	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
-	data: Vec<MetaDbData>,
+	data: Vec<Option<MetaDbData>>,
+	input_receiver: Receiver<(usize, MetaDbData)>,
 }
 
 impl AddToDataset {
 	pub fn new(
+		input_receiver: Receiver<(usize, MetaDbData)>,
 		class: ClassHandle,
 		attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
 	) -> Self {
+		let data = attrs.iter().map(|_| None).collect();
 		AddToDataset {
+			input_receiver,
 			class,
 			attrs,
-			data: Vec::new(),
+			data,
 		}
 	}
 }
@@ -34,18 +39,22 @@ impl PipelineNode for AddToDataset {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
 
-	fn init<F>(
-		&mut self,
-		_ctx: &Self::NodeContext,
-		input: Vec<Self::DataType>,
-		_send_data: F,
-	) -> Result<PipelineNodeState, PipelineError>
+	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
 	{
-		assert!(input.len() == self.attrs.len());
-		self.data = input;
-		Ok(PipelineNodeState::Pending)
+		loop {
+			match self.input_receiver.try_recv() {
+				Err(crossbeam::channel::TryRecvError::Disconnected)
+				| Err(crossbeam::channel::TryRecvError::Empty) => {
+					break Ok(());
+				}
+				Ok((port, data)) => {
+					assert!(port < self.attrs.len());
+					self.data[port] = Some(data);
+				}
+			}
+		}
 	}
 
 	fn run<F>(
@@ -56,14 +65,17 @@ impl PipelineNode for AddToDataset {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
+		if self.data.iter().any(|x| x.is_none()) {
+			return Ok(PipelineNodeState::Pending);
+		}
+
 		let mut d = ctx.dataset.lock().unwrap();
 
 		let mut attrs = Vec::new();
-		for ((attr, _, _), data) in self.attrs.iter().zip(self.data.iter()) {
-			attrs.push((*attr, data.clone()));
+		for ((attr, _, _), data) in self.attrs.iter().zip(self.data.iter_mut()) {
+			attrs.push((*attr, data.take().unwrap()));
 		}
-
-		let item = d.add_item(self.class, &attrs).unwrap();
+		let item = d.add_item(self.class, attrs).unwrap();
 
 		send_data(
 			0,

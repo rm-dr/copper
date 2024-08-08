@@ -6,12 +6,18 @@ use ufo_pipeline::{
 	labels::PipelineNodeLabel,
 };
 
-use crate::{input::file::FileReader, output::addtodataset::AddToDataset, UFOContext};
+use crate::{
+	input::file::FileReader,
+	output::addtodataset::AddToDataset,
+	tags::{extractcovers::ExtractCovers, striptags::StripTags},
+	util::hash::Hash,
+	UFOContext,
+};
 
 use super::{
 	nodetype::UFONodeType,
-	tags::{extractcovers::ExtractCovers, extracttags::ExtractTags, striptags::StripTags},
-	util::{constant::Constant, hash::Hash, ifnone::IfNone, noop::Noop, print::Print},
+	tags::extracttags::ExtractTags,
+	util::{constant::Constant, ifnone::IfNone, noop::Noop, print::Print},
 };
 
 pub enum UFONodeInstance {
@@ -91,31 +97,25 @@ impl Debug for UFONodeInstance {
 impl PipelineNode for UFONodeInstance {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
-
-	fn init<F>(
-		&mut self,
-		ctx: &Self::NodeContext,
-		input: Vec<Self::DataType>,
-		send_data: F,
-	) -> Result<PipelineNodeState, PipelineError>
+	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		match self {
+			Self::Dataset { node, .. } => node.take_input(send_data),
+			Self::File { node, .. } => node.take_input(send_data),
+
 			// Utility
-			Self::Constant { node, .. } => node.init(ctx, input, send_data),
-			Self::IfNone { node, .. } => node.init(ctx, input, send_data),
-			Self::Noop { node, .. } => node.init(ctx, input, send_data),
-			Self::Print { node, .. } => node.init(ctx, input, send_data),
-			Self::Hash { node, .. } => node.init(ctx, input, send_data),
+			Self::Constant { node, .. } => node.take_input(send_data),
+			Self::IfNone { node, .. } => node.take_input(send_data),
+			Self::Noop { node, .. } => node.take_input(send_data),
+			Self::Print { node, .. } => node.take_input(send_data),
+			Self::Hash { node, .. } => node.take_input(send_data),
 
 			// Audio
-			Self::ExtractTags { node, .. } => node.init(ctx, input, send_data),
-			Self::StripTags { node, .. } => node.init(ctx, input, send_data),
-			Self::ExtractCovers { node, .. } => node.init(ctx, input, send_data),
-
-			Self::Dataset { node, .. } => node.init(ctx, input, send_data),
-			Self::File { node, .. } => node.init(ctx, input, send_data),
+			Self::ExtractTags { node, .. } => node.take_input(send_data),
+			Self::StripTags { node, .. } => node.take_input(send_data),
+			Self::ExtractCovers { node, .. } => node.take_input(send_data),
 		}
 	}
 
