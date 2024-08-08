@@ -40,7 +40,7 @@ pub enum PipelineData {
 	Binary { data_type: ItemType, data: Vec<u8> },
 }
 
-#[derive(Debug, DeserializeFromStr, PartialEq, Eq)]
+#[derive(Debug, DeserializeFromStr, PartialEq, Eq, Clone, Copy)]
 pub enum PipelineDataType {
 	Text,
 	Binary,
