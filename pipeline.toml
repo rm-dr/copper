@@ -1,0 +1,25 @@
+[pipeline]
+# "in" is a reserved name
+input."data" = "binary"
+
+# "out" is a reserved name
+output."album" = "text"
+output."artist" = "text"
+
+# Output edges
+outmap."album" = "if_none.out"
+outmap."artist" = "tags.artist"
+
+
+[node."tags"]
+type = "ExtractTag"
+input.data = "in.data"
+
+#[node."getcover"]
+#type = "CoverExtract"
+#input.data = "fs.data"
+
+[node.if_none]
+type = "IfNone"
+input.data = "tags.artist"
+input.ifnone = { "text" = "Unknown" }

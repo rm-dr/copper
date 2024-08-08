@@ -1,20 +1,21 @@
 use std::{
+	collections::HashMap,
 	fs::File,
 	io::{Read, Seek},
 };
 
 use anyhow::Result;
 
-mod extract;
 mod model;
+mod pipeline;
 mod storage;
 
 use model::ItemReader;
 use storage::StorageBackend;
 
 use crate::{
-	extract::Extractor,
 	model::{AudioItemType, ItemType},
+	pipeline::{nodes::PipelineNode, syntax, PipelineData},
 };
 
 struct FileReader(File);
@@ -45,9 +46,19 @@ fn main() -> Result<()> {
 		.unwrap();
 
 	f.rewind()?;
+
+	let mut data = Vec::new();
+	f.read_to_end(&mut data)?;
+
 	println!(
 		"{:#?}",
-		extract::TagExtractor::extract(ItemType::Audio(AudioItemType::Flac), &mut f)?
+		pipeline::nodes::tags::ExtractTag::run(HashMap::from([(
+			"data".to_string(),
+			PipelineData::Binary {
+				data_type: ItemType::Audio(AudioItemType::Flac),
+				data
+			}
+		)]))?
 	);
 
 	let f = File::open("data/top.mp3").unwrap();
@@ -57,12 +68,27 @@ fn main() -> Result<()> {
 		.unwrap();
 
 	f.rewind()?;
+	let mut data = Vec::new();
+	f.read_to_end(&mut data)?;
+
 	println!(
 		"{:#?}",
-		extract::TagExtractor::extract(ItemType::Audio(AudioItemType::Mp3), &mut f)?
+		pipeline::nodes::tags::ExtractTag::run(HashMap::from([(
+			"data".to_string(),
+			PipelineData::Binary {
+				data_type: ItemType::Audio(AudioItemType::Mp3),
+				data
+			}
+		)]))?
 	);
 
 	println!("{:?}", x.get_item(i).unwrap());
+
+	let mut f = File::open("pipeline.toml").unwrap();
+	let mut s: String = Default::default();
+	f.read_to_string(&mut s)?;
+	let config: syntax::Pipeline = toml::from_str(&s)?;
+	println!("{:#?}", config);
 
 	Ok(())
 }
