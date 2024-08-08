@@ -33,7 +33,6 @@ use new::*;
 	components(schemas(
 		NewDataset,
 		NewDatasetParams,
-		LocalDatasetMetadataType,
 		NewDatasetError,
 		PipelineInfo,
 		PipelineInfoShort,

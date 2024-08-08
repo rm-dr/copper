@@ -29,15 +29,7 @@ pub(super) struct NewDataset {
 #[serde(tag = "type")]
 pub(super) enum NewDatasetParams {
 	/// A dataset stored locally
-	LocalDataset {
-		metadata_type: LocalDatasetMetadataType,
-	},
-}
-
-/// How a local dataset should store its metadata
-#[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub(super) enum LocalDatasetMetadataType {
-	Sqlite,
+	LocalDataset,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
@@ -64,7 +56,7 @@ pub(super) async fn new_dataset(
 	debug!(message = "Making new dataset", new_params=?new_params);
 
 	match new_params.params {
-		NewDatasetParams::LocalDataset { .. } => {
+		NewDatasetParams::LocalDataset => {
 			let res = state
 				.main_db
 				.new_dataset(&new_params.name, DatasetType::Local);
