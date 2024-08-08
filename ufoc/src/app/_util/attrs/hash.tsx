@@ -95,11 +95,13 @@ function HashForm(params: {
 	const form = useForm<{
 		hash_type: components["schemas"]["HashType"] | null;
 		new_attr_name: string | null;
+		is_unique: boolean;
 	}>({
 		mode: "uncontrolled",
 		initialValues: {
 			hash_type: null,
 			new_attr_name: null,
+			is_unique: false,
 		},
 		validate: {
 			hash_type: (value) =>
@@ -146,7 +148,7 @@ function HashForm(params: {
 							hash_type: values.hash_type,
 						},
 						options: {
-							unique: false,
+							unique: values.is_unique,
 						},
 					},
 				}).then(({ data, error }) => {

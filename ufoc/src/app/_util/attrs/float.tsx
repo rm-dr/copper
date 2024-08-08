@@ -81,11 +81,13 @@ export function FloatForm(params: {
 	const form = useForm<{
 		new_attr_name: string | null;
 		is_non_negative: boolean;
+		is_unique: boolean;
 	}>({
 		mode: "uncontrolled",
 		initialValues: {
 			new_attr_name: null,
 			is_non_negative: false,
+			is_unique: false,
 		},
 		validate: {
 			new_attr_name: (value) =>
@@ -127,7 +129,7 @@ export function FloatForm(params: {
 							is_non_negative: values.is_non_negative,
 						},
 						options: {
-							unique: false,
+							unique: values.is_unique,
 						},
 					},
 				}).then(({ data, error }) => {

@@ -514,11 +514,13 @@ function RefForm(params: {
 	const form = useForm<{
 		new_attr_name: string | null;
 		reference_target_class: string | null;
+		is_unique: boolean;
 	}>({
 		mode: "uncontrolled",
 		initialValues: {
 			new_attr_name: null,
 			reference_target_class: null,
+			is_unique: false,
 		},
 		validate: {
 			new_attr_name: (value) =>
@@ -565,7 +567,7 @@ function RefForm(params: {
 							class: parseInt(values.reference_target_class),
 						},
 						options: {
-							unique: false,
+							unique: values.is_unique,
 						},
 					},
 				}).then(({ data, error }) => {
