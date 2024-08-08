@@ -1,9 +1,19 @@
+use std::fmt::Debug;
+
 use crate::flac::errors::{FlacDecodeError, FlacEncodeError};
 
 /// An audio frame in a flac file
 pub struct FlacAudioFrame {
 	/// The audio frame
 	pub data: Vec<u8>,
+}
+
+impl Debug for FlacAudioFrame {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("FlacAudioFrame")
+			.field("data_len", &self.data.len())
+			.finish()
+	}
 }
 
 impl FlacAudioFrame {

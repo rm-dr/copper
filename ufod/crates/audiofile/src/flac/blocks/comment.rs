@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::{
 	common::vorbiscomment::VorbisComment,
 	flac::errors::{FlacDecodeError, FlacEncodeError},
@@ -9,6 +11,14 @@ use super::{FlacMetablockDecode, FlacMetablockEncode, FlacMetablockHeader, FlacM
 pub struct FlacCommentBlock {
 	/// The vorbis comment stored inside this block
 	pub comment: VorbisComment,
+}
+
+impl Debug for FlacCommentBlock {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("FlacCommentBlock")
+			.field("comment", &self.comment)
+			.finish()
+	}
 }
 
 impl FlacMetablockDecode for FlacCommentBlock {

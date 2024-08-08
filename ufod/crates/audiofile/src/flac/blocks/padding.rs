@@ -1,8 +1,11 @@
+use std::fmt::Debug;
+
 use crate::flac::errors::{FlacDecodeError, FlacEncodeError};
 
 use super::{FlacMetablockDecode, FlacMetablockEncode, FlacMetablockHeader, FlacMetablockType};
 
 /// A padding block in a FLAC file.
+#[derive(Debug)]
 pub struct FlacPaddingBlock {
 	/// The length of this padding, in bytes.
 	pub size: usize,

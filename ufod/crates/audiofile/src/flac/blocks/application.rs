@@ -1,5 +1,8 @@
 use crate::flac::errors::{FlacDecodeError, FlacEncodeError};
-use std::io::{Cursor, Read};
+use std::{
+	fmt::Debug,
+	io::{Cursor, Read},
+};
 
 use super::{FlacMetablockDecode, FlacMetablockEncode, FlacMetablockHeader, FlacMetablockType};
 
@@ -10,6 +13,15 @@ pub struct FlacApplicationBlock {
 
 	/// The application data
 	pub data: Vec<u8>,
+}
+
+impl Debug for FlacApplicationBlock {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("FlacApplicationBlock")
+			.field("application_id", &self.application_id)
+			.field("data_len", &self.data.len())
+			.finish()
+	}
 }
 
 impl FlacMetablockDecode for FlacApplicationBlock {

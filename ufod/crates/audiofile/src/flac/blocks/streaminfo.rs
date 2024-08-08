@@ -5,6 +5,7 @@ use crate::flac::errors::{FlacDecodeError, FlacEncodeError};
 use super::{FlacMetablockDecode, FlacMetablockEncode, FlacMetablockHeader, FlacMetablockType};
 
 /// A streaminfo block in a flac file
+#[derive(Debug)]
 pub struct FlacStreaminfoBlock {
 	/// The minimum block size (in samples) used in the stream.
 	pub min_block_size: u32,

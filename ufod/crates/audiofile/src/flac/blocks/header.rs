@@ -1,4 +1,6 @@
 //! FLAC metablock headers. See spec.
+use std::fmt::Debug;
+
 use crate::flac::errors::{FlacDecodeError, FlacEncodeError};
 
 // TODO: enfoce length limits
@@ -34,7 +36,7 @@ impl FlacMetablockType {
 }
 
 /// The header of a flac metadata block
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct FlacMetablockHeader {
 	/// The type of block this is
 	pub block_type: FlacMetablockType,

@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::flac::errors::{FlacDecodeError, FlacEncodeError};
 
 use super::{FlacMetablockDecode, FlacMetablockEncode, FlacMetablockHeader, FlacMetablockType};
@@ -6,6 +8,14 @@ use super::{FlacMetablockDecode, FlacMetablockEncode, FlacMetablockHeader, FlacM
 pub struct FlacCuesheetBlock {
 	/// The seek table
 	pub data: Vec<u8>,
+}
+
+impl Debug for FlacCuesheetBlock {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("FlacAudioFrame")
+			.field("data_len", &self.data.len())
+			.finish()
+	}
 }
 
 impl FlacMetablockDecode for FlacCuesheetBlock {
