@@ -5,7 +5,7 @@ use crate::common::vorbiscomment::VorbisComment;
 
 pub mod errors;
 pub mod metablocktype;
-pub mod metastripper;
+pub mod metastrip;
 pub mod picture;
 pub mod streaminfo;
 

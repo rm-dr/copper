@@ -37,6 +37,10 @@ where
 	// The number of bytes in the new file's metadata
 	// (including magic bytes)
 	new_meta_len: u64,
+
+	// The number of bytes in the new file
+	// (including metadata)
+	new_total_len: u64,
 }
 
 impl<R: Read + Seek> FlacMetaStrip<R> {
@@ -77,13 +81,55 @@ impl<R: Read + Seek> FlacMetaStrip<R> {
 			}
 		}
 
+		let x = read.seek(SeekFrom::End(0))?;
+
 		Ok(Self {
 			read,
 			blocks,
 			position: 0,
 			new_meta_len,
 			old_meta_len,
+			new_total_len: x - old_meta_len + new_meta_len,
 		})
+	}
+}
+
+// TODO: test this implementation
+impl<R: Read + Seek> Seek for FlacMetaStrip<R> {
+	fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+		match pos {
+			SeekFrom::Current(x) => {
+				let p: u64 = x.abs().try_into().unwrap();
+				if x >= 0 {
+					self.position += p;
+				} else {
+					if p < self.position {
+						return Err(std::io::Error::new(
+							std::io::ErrorKind::InvalidInput,
+							"invalid seek to a negative or overflowing position",
+						));
+					}
+					self.position -= p;
+				}
+			}
+			SeekFrom::Start(x) => self.position = x,
+			SeekFrom::End(x) => {
+				let p: u64 = x.abs().try_into().unwrap();
+				if x >= 0 {
+					self.position = self.new_total_len + p;
+				} else {
+					if p < self.new_total_len {
+						return Err(std::io::Error::new(
+							std::io::ErrorKind::InvalidInput,
+							"invalid seek to a negative or overflowing position",
+						));
+					}
+					self.position = self.new_total_len - p;
+				}
+			}
+		}
+
+		Ok(self.position)
 	}
 }
 
