@@ -5,7 +5,7 @@ use std::{cell::RefCell, collections::HashMap, marker::PhantomData};
 use tracing::{debug, trace};
 
 use super::{
-	errors::{PipelineErrorNode, PipelinePrepareError},
+	errors::PipelinePrepareError,
 	ports::{NodeInput, NodeOutput},
 	spec::PipelineSpec,
 };
@@ -175,7 +175,7 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 						.iter()
 						.find_position(|(name, _)| name == input_name)
 						.ok_or(PipelinePrepareError::NoNodeInput {
-							node: PipelineErrorNode::Named(node_name.clone()),
+							node: node_name.clone(),
 							input: input_name.clone(),
 						})?;
 
@@ -282,7 +282,10 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				.outputs()
 				.iter()
 				.find(|(name, _)| *name == output.port)
-				.unwrap()
+				.ok_or(PipelinePrepareError::NoNodeOutput {
+					node: output.node.clone(),
+					output: output.port.clone(),
+				})?
 				.1
 		};
 
@@ -310,21 +313,19 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				})?;
 
 			node_info
-				.outputs()
+				.inputs()
 				.iter()
-				.find(|(name, _)| *name == output.port)
-				.unwrap()
+				.find(|(name, _)| *name == input.port)
+				.ok_or(PipelinePrepareError::NoNodeInput {
+					node: input.node.clone(),
+					input: input.port.clone(),
+				})?
 				.1
 		};
 
 		if !output_type.is_subset_of(&input_type) {
 			return Err(PipelinePrepareError::TypeMismatch {
-				output: {
-					(
-						PipelineErrorNode::Named(output.node.clone()),
-						output.port.clone(),
-					)
-				},
+				output: (output.node.clone(), output.port.clone()),
 				output_type,
 				input: input.clone(),
 			});

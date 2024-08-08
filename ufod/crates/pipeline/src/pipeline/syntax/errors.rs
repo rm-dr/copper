@@ -10,22 +10,6 @@ use crate::{
 	labels::{PipelineName, PipelineNodeID, PipelinePortID},
 };
 
-/// A node specification in a [`PipelinePrepareError`]
-#[derive(Debug)]
-pub enum PipelineErrorNode {
-	/// The pipeline's output node
-	PipelineOutput,
-
-	/// The pipeline's input node
-	PipelineInput,
-
-	/// An inline node
-	Inline,
-
-	/// A named node created by the user
-	Named(PipelineNodeID),
-}
-
 /// An error we encounter when a pipeline spec is invalid
 #[derive(Debug)]
 pub enum PipelinePrepareError<DataType: PipelineData> {
@@ -68,7 +52,7 @@ pub enum PipelinePrepareError<DataType: PipelineData> {
 	/// This is triggered when we specify an input that doesn't exist.
 	NoNodeInput {
 		/// The node we tried to reference
-		node: PipelineErrorNode,
+		node: PipelineNodeID,
 		/// The input name that doesn't exist
 		input: PipelinePortID,
 	},
@@ -76,7 +60,7 @@ pub enum PipelinePrepareError<DataType: PipelineData> {
 	/// `node` has no output named `output`.
 	NoNodeOutput {
 		/// The node we tried to connect to
-		node: PipelineErrorNode,
+		node: PipelineNodeID,
 		/// The output name that doesn't exist
 		output: PipelinePortID,
 		// The node input we tried to connect to `output`
@@ -87,7 +71,7 @@ pub enum PipelinePrepareError<DataType: PipelineData> {
 	/// but their types don't match.
 	TypeMismatch {
 		/// The output we tried to connect
-		output: (PipelineErrorNode, PipelinePortID),
+		output: (PipelineNodeID, PipelinePortID),
 
 		/// the type of this output
 		output_type: <DataType as PipelineData>::DataStubType,
