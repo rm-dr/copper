@@ -4,6 +4,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
+use axum_extra::extract::CookieJar;
 use tracing::error;
 use ufo_ds_core::{api::meta::Metastore, errors::MetastoreError};
 
@@ -22,9 +23,15 @@ use crate::api::RouterState;
 	),
 )]
 pub(super) async fn add_class(
+	jar: CookieJar,
 	State(state): State<RouterState>,
 	Json(payload): Json<ClassSelect>,
 ) -> Response {
+	match state.main_db.auth.auth_or_logout(&jar).await {
+		Err(x) => return x,
+		Ok(_) => {}
+	}
+
 	// TODO: ONE function to check name?
 	if payload.class == "" {
 		return (

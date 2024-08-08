@@ -7,6 +7,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
+use axum_extra::extract::CookieJar;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -99,9 +100,15 @@ pub(super) enum ItemListData {
 	),
 )]
 pub(super) async fn list_item(
+	jar: CookieJar,
 	State(state): State<RouterState>,
 	Query(query): Query<ItemListRequest>,
 ) -> Response {
+	match state.main_db.auth.auth_or_logout(&jar).await {
+		Err(x) => return x,
+		Ok(_) => {}
+	}
+
 	// TODO: configure max page size
 	if query.page_size > 100 {
 		return (

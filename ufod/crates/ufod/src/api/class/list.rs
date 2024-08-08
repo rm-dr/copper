@@ -5,6 +5,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
+use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use tracing::error;
@@ -61,9 +62,15 @@ pub(super) struct AttrInfo {
 	),
 )]
 pub(super) async fn list_classes(
+	jar: CookieJar,
 	State(state): State<RouterState>,
 	Query(query): Query<ClassInfoRequest>,
 ) -> Response {
+	match state.main_db.auth.auth_or_logout(&jar).await {
+		Err(x) => return x,
+		Ok(_) => {}
+	}
+
 	let dataset = match state.main_db.dataset.get_dataset(&query.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {

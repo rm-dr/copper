@@ -9,7 +9,7 @@ import { APIclient } from "@/app/_util/api";
 import { components } from "@/app/_util/api/openapi";
 
 export function useAddUserModal(params: {
-	group: components["schemas"]["GroupInfo"];
+	group?: components["schemas"]["GroupInfo"];
 	onChange: () => void;
 }) {
 	const [opened, { open, close }] = useDisclosure(false);
@@ -62,6 +62,10 @@ export function useAddUserModal(params: {
 				</div>
 				<form
 					onSubmit={form.onSubmit((values) => {
+						if (params.group === undefined) {
+							return;
+						}
+
 						setLoading(true);
 						setErrorMessage(null);
 
@@ -72,7 +76,7 @@ export function useAddUserModal(params: {
 
 						APIclient.POST("/auth/user/add", {
 							body: {
-								group: params.group?.id,
+								group: params.group.id,
 								username: values.username,
 								password: values.password,
 							},

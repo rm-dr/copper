@@ -1,8 +1,7 @@
 import styles from "./users.module.scss";
 import { Panel, PanelTitle } from "@/app/components/panel";
-import { ActionIcon, Button, Menu, Switch, Text, rem } from "@mantine/core";
+import { ActionIcon, Button, Menu, Text, rem } from "@mantine/core";
 import { TreeNode } from "@/app/components/tree";
-import { GroupData, UserInfo } from "../_grouptree";
 import { ReactNode } from "react";
 import { useAddUserModal } from "../_modals/adduser";
 import { useDeleteUserModal } from "../_modals/deluser";
@@ -13,7 +12,6 @@ import {
 	IconEdit,
 	IconList,
 	IconLock,
-	IconSettings2,
 	IconTrash,
 	IconUser,
 	IconUserOff,
@@ -21,6 +19,7 @@ import {
 	IconUsers,
 	IconUsersGroup,
 } from "@tabler/icons-react";
+import { components } from "@/app/_util/api/openapi";
 
 const Wrapper = (params: { children: ReactNode }) => {
 	return (
@@ -47,7 +46,7 @@ const Wrapper = (params: { children: ReactNode }) => {
 };
 
 export function UsersPanel(params: {
-	data: TreeNode<GroupData>[];
+	data: TreeNode<components["schemas"]["ListgroupInfo"]>[];
 	selected: string | null;
 	onChange: () => void;
 }) {
@@ -55,7 +54,7 @@ export function UsersPanel(params: {
 
 	let g =
 		params.selected === null
-			? null
+			? undefined
 			: params.data.find((x) => x.uid === params.selected);
 
 	const { open: openModal, modal: addUserModal } = useAddUserModal({
@@ -100,7 +99,7 @@ export function UsersPanel(params: {
 			</Wrapper>
 		);
 	} else {
-		userlist = g?.data.users.map((x) => {
+		userlist = g?.data.users.map((x: any) => {
 			return (
 				<div key={`${x.id}`} className={styles.user_entry}>
 					<div className={styles.user_entry_icon}>
@@ -143,6 +142,8 @@ export function UsersPanel(params: {
 					</div>
 				</div>
 
+				{/*
+				TODO: implement when we do permissions
 				<PanelTitle
 					icon={<XIcon icon={IconSettings2} />}
 					title={"Permissions"}
@@ -175,6 +176,7 @@ export function UsersPanel(params: {
 						</div>
 					</div>
 				</div>
+				*/}
 
 				<PanelTitle icon={<XIcon icon={IconList} />} title={"Manage users"} />
 				<Button
@@ -197,7 +199,10 @@ export function UsersPanel(params: {
 	);
 }
 
-function UserMenu(params: { user: UserInfo; onChange: () => void }) {
+function UserMenu(params: {
+	user: components["schemas"]["UserInfo"];
+	onChange: () => void;
+}) {
 	const { open: openDelUserModal, modal: delUserModal } = useDeleteUserModal({
 		user: params.user,
 		onChange: params.onChange,

@@ -5,6 +5,7 @@ use axum::{
 	http::{header, StatusCode},
 	response::{AppendHeaders, IntoResponse, Response},
 };
+use axum_extra::extract::CookieJar;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tokio_util::io::ReaderStream;
@@ -35,9 +36,15 @@ pub(super) struct ItemAttrRequest {
 	),
 )]
 pub(super) async fn get_item_attr(
+	jar: CookieJar,
 	State(state): State<RouterState>,
 	Query(query): Query<ItemAttrRequest>,
 ) -> Response {
+	match state.main_db.auth.auth_or_logout(&jar).await {
+		Err(x) => return x,
+		Ok(_) => {}
+	}
+
 	let dataset = match state.main_db.dataset.get_dataset(&query.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {

@@ -4,6 +4,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
+use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error};
 use ufo_ds_core::{
@@ -39,9 +40,15 @@ pub(super) struct NewClassAttrParams {
 	),
 )]
 pub(super) async fn add_attr(
+	jar: CookieJar,
 	State(state): State<RouterState>,
 	Json(payload): Json<NewClassAttrParams>,
 ) -> Response {
+	match state.main_db.auth.auth_or_logout(&jar).await {
+		Err(x) => return x,
+		Ok(_) => {}
+	}
+
 	debug!(
 		message = "Making a new attribute",
 		payload = ?payload

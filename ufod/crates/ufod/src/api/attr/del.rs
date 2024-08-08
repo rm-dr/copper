@@ -4,6 +4,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
+use axum_extra::extract::CookieJar;
 use tracing::error;
 use ufo_ds_core::api::meta::Metastore;
 
@@ -22,9 +23,15 @@ use crate::api::RouterState;
 	),
 )]
 pub(super) async fn del_attr(
+	jar: CookieJar,
 	State(state): State<RouterState>,
 	Json(payload): Json<AttrSelect>,
 ) -> Response {
+	match state.main_db.auth.auth_or_logout(&jar).await {
+		Err(x) => return x,
+		Ok(_) => {}
+	}
+
 	let dataset = match state
 		.main_db
 		.dataset

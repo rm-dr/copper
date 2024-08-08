@@ -17,6 +17,11 @@ Poor man's issue tracker. Good enough for now, this team isn't very big.
 Projects marked with a 📦 are prerequisites for `v0.1.0` release.
 The goal is a *minimal* working version: robust, usable, but possibly slow and missing fancy features.
 
+## 📦 API endpoints
+- [ ] Rename users & groups
+- [ ] Change user password
+- [ ] Change self password
+- [ ] Rename set, class, attrs
 
 ## 📦 CRUD items
 - [ ] get fragment size from server config
@@ -29,16 +34,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Class exemplar
   - [ ] Multi-select and edit
   - [ ] Better reference panel
-
-## 📦 Authentication
-- [ ] Rename users & groups
-- [ ] Change user password
-- [ ] Change self password
-- [ ] Edit permissions
-- [ ] Dataset permissions (per group)
-- [ ] Hide datasets/groups (view permission)
-- [ ] Clean up permission model
-- [ ] Permissions everywhere (api)
 
 ## 📦 Database migrations
 - old dbs should not be destroyed
@@ -60,7 +55,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 UI Cleanup
 - [ ] tab all interactables
-- [ ] Next cache config
 - [ ] Font
 - [ ] Panel width. Center, or change page background?
 - [ ] Prettier errors from server (markdown? might be overkill.)
@@ -69,7 +63,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Modal builder
 - [ ] Add attr form
 - [ ] Sidebar & top bar shadow
-- [ ] Item table dynamic height
 - [ ] Icons in attr & dataset dropdown (component)
 - [ ] "No items" element in item table doesn't span columns
 
@@ -273,15 +266,18 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Better `ApiSelector` loading state
 - [ ] Status update shouldn't trigger `ApiSelector` update in upload page
 - [ ] Reorder attributes & classes
-- [ ] Rename set, class, attrs
 - [ ] Close dataset menu when dropdown closed
 - [ ] Preview panel data on hover
 - [ ] Audio player waveform
 - [ ] More panel types: video, pdf
 ---------------------------------------------------------------------
 
-## Faster main db
-- mysql?
+## Expand authentication
+- [ ] item ownership (delete what I created)
+- [ ] Dataset permissions (per group)
+- [ ] Hide datasets/groups (view permission)
+- [ ] Clean up permission model (make a lib)
+
 
 ## Other datasets
 - mysql + ?

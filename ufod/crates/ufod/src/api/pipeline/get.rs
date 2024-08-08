@@ -4,6 +4,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
+use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::error;
@@ -43,9 +44,15 @@ pub(super) struct PipelineInfo {
 	),
 )]
 pub(super) async fn get_pipeline(
+	jar: CookieJar,
 	State(state): State<RouterState>,
 	Query(query): Query<PipelineSelect>,
 ) -> Response {
+	match state.main_db.auth.auth_or_logout(&jar).await {
+		Err(x) => return x,
+		Ok(_) => {}
+	}
+
 	let pipeline_name = PipelineName::new(&query.pipeline);
 
 	let dataset = match state.main_db.dataset.get_dataset(&query.dataset).await {

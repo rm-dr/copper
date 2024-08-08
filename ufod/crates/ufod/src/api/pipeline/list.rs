@@ -7,6 +7,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
+use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
@@ -67,9 +68,15 @@ impl PipelineInfoInput {
 )]
 
 pub(super) async fn list_pipelines(
+	jar: CookieJar,
 	State(state): State<RouterState>,
 	Query(query): Query<PipelineListRequest>,
 ) -> Response {
+	match state.main_db.auth.auth_or_logout(&jar).await {
+		Err(x) => return x,
+		Ok(_) => {}
+	}
+
 	let dataset = match state.main_db.dataset.get_dataset(&query.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
