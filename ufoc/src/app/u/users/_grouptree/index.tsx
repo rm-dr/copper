@@ -2,16 +2,17 @@ import styles from "./grouptree.module.scss";
 import { Panel } from "@/app/components/panel";
 
 import {
+	XIconDatabaseX,
 	XIconDots,
 	XIconEdit,
 	XIconGroup,
-	XIconLock,
 	XIconPlus,
 	XIconTrash,
+	XIconX,
 } from "@/app/components/icons";
 import { useTree, TreeNode } from "@/app/components/tree";
-import { useCallback, useEffect, useState } from "react";
-import { ActionIcon, Menu, rem } from "@mantine/core";
+import { ReactNode, useCallback, useEffect, useState } from "react";
+import { ActionIcon, Loader, Menu, Text, rem } from "@mantine/core";
 
 type TreeState = {
 	error: boolean;
@@ -35,6 +36,31 @@ export type GroupInfo = {
 export type GroupData = {
 	group_info: GroupInfo;
 	users: UserInfo[];
+};
+
+const Wrapper = (params: { children: ReactNode }) => {
+	return (
+		<div
+			style={{
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+				width: "100%",
+				marginTop: "2rem",
+				marginBottom: "2rem",
+				userSelect: "none",
+			}}
+		>
+			<div
+				style={{
+					display: "block",
+					textAlign: "center",
+				}}
+			>
+				{params.children}
+			</div>
+		</div>
+	);
 };
 
 export function useGroupTreePanel() {
@@ -89,9 +115,22 @@ export function useGroupTreePanel() {
 					});
 				}
 
-				console.log(out);
-
 				setTreeData(out);
+
+				setTreeState((td) => {
+					return {
+						error: false,
+						loading: false,
+					};
+				});
+			})
+			.catch(() => {
+				setTreeState((td) => {
+					return {
+						error: false,
+						loading: false,
+					};
+				});
 			});
 	}, [setTreeData]);
 
@@ -99,13 +138,50 @@ export function useGroupTreePanel() {
 		update_tree();
 	}, [update_tree]);
 
+	let tree;
+	if (treeState.loading) {
+		tree = (
+			<Wrapper>
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						height: "5rem",
+					}}
+				>
+					<Loader color="dimmed" size="4rem" />
+				</div>
+				<Text size="lg" c="dimmed">
+					Loading...
+				</Text>
+			</Wrapper>
+		);
+	} else if (treeState.error) {
+		tree = (
+			<Wrapper>
+				<XIconX
+					style={{
+						height: "5rem",
+						color: "var(--mantine-color-red-7)",
+					}}
+				/>
+				<Text size="lg" c="red">
+					Could not fetch groups
+				</Text>
+			</Wrapper>
+		);
+	} else {
+		tree = GroupTree;
+	}
+
 	const node = (
 		<Panel
 			panel_id={styles.panel_grouptree}
 			icon={<XIconGroup />}
 			title={"Manage Groups"}
 		>
-			<div className={styles.grouptree_container}>{GroupTree}</div>
+			<div className={styles.grouptree_container}>{tree}</div>
 		</Panel>
 	);
 

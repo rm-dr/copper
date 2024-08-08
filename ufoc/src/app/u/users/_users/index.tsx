@@ -37,6 +37,7 @@ const Wrapper = (params: { children: ReactNode }) => {
 				justifyContent: "center",
 				width: "100%",
 				height: "100%",
+				userSelect: "none",
 			}}
 		>
 			<div
