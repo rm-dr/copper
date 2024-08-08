@@ -183,6 +183,7 @@ impl PipelineSpec {
 	}
 
 	/// Connect `out_link` to port index `in_port` of node `node_idx`.
+	#[allow(clippy::too_many_arguments)]
 	fn add_to_graph(
 		&self,
 		// Current build state
@@ -296,7 +297,7 @@ impl PipelineSpec {
 
 		// Build graph
 		for (node_name, node_spec) in &self.nodes {
-			let node_idx = *node_name_map.get(&node_name).unwrap();
+			let node_idx = *node_name_map.get(node_name).unwrap();
 			for (input_name, out_link) in node_spec.input.iter() {
 				let in_port = node_spec
 					.node_type

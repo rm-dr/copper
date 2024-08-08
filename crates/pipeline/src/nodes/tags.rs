@@ -24,7 +24,7 @@ pub enum TagType {
 	DiskNumber,
 	DiskTotal,
 	Genre,
-	ISRC,
+	Isrc,
 	Lyrics,
 	TrackNumber,
 	TrackTitle,
@@ -39,7 +39,7 @@ impl TagType {
 			| Self::AlbumArtist
 			| Self::Comment
 			| Self::Genre
-			| Self::ISRC
+			| Self::Isrc
 			| Self::Lyrics
 			| Self::TrackTitle
 			| Self::TrackArtist => PipelineDataType::Text,
@@ -60,7 +60,7 @@ impl TagType {
 			Self::DiskNumber => ItemKey::DiscNumber,
 			Self::DiskTotal => ItemKey::DiscNumber,
 			Self::Genre => ItemKey::Genre,
-			Self::ISRC => ItemKey::Isrc,
+			Self::Isrc => ItemKey::Isrc,
 			Self::Lyrics => ItemKey::Lyrics,
 			Self::TrackNumber => ItemKey::TrackNumber,
 			Self::TrackTitle => ItemKey::TrackTitle,
@@ -83,7 +83,7 @@ impl Display for TagType {
 			Self::DiskNumber => write!(f, "DiskNumber"),
 			Self::DiskTotal => write!(f, "DiskTotal"),
 			Self::Genre => write!(f, "Genre"),
-			Self::ISRC => write!(f, "ISRC"),
+			Self::Isrc => write!(f, "ISRC"),
 			Self::Lyrics => write!(f, "Lyrics"),
 			Self::TrackNumber => write!(f, "TrackNumber"),
 			Self::TrackTitle => write!(f, "Title"),
@@ -107,7 +107,7 @@ impl FromStr for TagType {
 			"DiskNumber" => Self::DiskNumber,
 			"DiskTotal" => Self::DiskTotal,
 			"Genre" => Self::Genre,
-			"ISRC" => Self::ISRC,
+			"ISRC" => Self::Isrc,
 			"Lyrics" => Self::Lyrics,
 			"TrackNumber" => Self::TrackNumber,
 			"Title" => Self::TrackTitle,
