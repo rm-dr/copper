@@ -260,27 +260,44 @@ impl FlacBlockReader {
 
 					if data.len() > 2 {
 						// Look for a frame sync header in the data we read
-						let first_byte = if last_read_size + 2 > data.len() {
-							1
+
+						let first_byte = if data.len() - last_read_size < 2 {
+							2
 						} else {
-							data.len() - (last_read_size + 2)
+							(data.len() - last_read_size) + 2
 						};
 
-						for i in first_byte..(data.len() - 2) {
-							if data[i] == 0b1111_1111 && data[i + 1] & 0b1111_1100 == 0b1111_1000 {
+						// `i` is the index of the first byte *after* the sync sequence.
+						//
+						// This may seem odd, but it makes the odd edge case easier to handle:
+						// If we instead have `i` be the index of the first byte *of* the frame sequence,
+						// dealing with the case where `data` contained half the sync sequence before
+						// reading is tricky.
+						for i in first_byte..data.len() {
+							if data[i - 2] == 0b1111_1111
+								&& data[i - 1] & 0b1111_1100 == 0b1111_1000
+							{
 								// We found another frame sync header. Split at this index.
 								if self.selector.pick_audio {
 									self.output_blocks
-										.push_back(FlacBlock::AudioFrame(Vec::from(&data[0..i])));
+										.push_back(FlacBlock::AudioFrame(Vec::from(
+											&data[0..i - 2],
+										)));
 								}
 
-								// Backtrack to the first bit of this new sync sequence
-								buf.seek(std::io::SeekFrom::Current(
+								// Backtrack to the first bit AFTER this new sync sequence
+								let e = buf.seek(std::io::SeekFrom::Current(
 									-i64::try_from(data.len() - i).unwrap(),
-								))?;
+								));
 
-								self.current_block =
-									Some(FlacBlockType::AudioData { data: Vec::new() });
+								if e.is_err() {
+									println!("{} {}", data.len() - i, buf.position());
+									return Err(e.unwrap_err().into());
+								}
+
+								self.current_block = Some(FlacBlockType::AudioData {
+									data: Vec::from(&data[i - 2..i]),
+								});
 								continue 'outer;
 							}
 						}
@@ -294,6 +311,9 @@ impl FlacBlockReader {
 
 	/// Finish reading data.
 	/// This tells the reader that it has received the entire stream.
+	///
+	/// `finish()` should be called exactly once once we have finished each stream.
+	/// Finishing twice or pushing data to a finished reader results in a panic.
 	pub fn finish(&mut self) -> Result<(), FlacError> {
 		match self.current_block.take() {
 			None => {
@@ -318,7 +338,7 @@ impl FlacBlockReader {
 				return Ok(());
 			}
 
-			// All other blocks have a known length, and
+			// All other blocks have a known length and
 			// are finished automatically.
 			_ => return Err(FlacError::MalformedBlock),
 		}
