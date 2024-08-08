@@ -1,5 +1,6 @@
 //! Error helpers for pipeline spec parsing
 
+use smartstring::{LazyCompact, SmartString};
 use std::{error::Error, fmt::Display};
 
 use crate::{
@@ -106,7 +107,7 @@ pub enum PipelinePrepareError<DataStub: PipelineDataStub> {
 		/// The Pipeline node with a bad pipeline
 		node: PipelineNodeLabel,
 		/// The bad pipeline
-		pipeline: String,
+		pipeline: SmartString<LazyCompact>,
 	},
 }
 

@@ -1,3 +1,4 @@
+use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
 use std::fmt::Debug;
 
 use super::{
@@ -130,5 +131,18 @@ where
 		self.iter_edges()
 			.enumerate()
 			.map(|(a, b)| (GraphEdgeIdx(a), b))
+	}
+
+	/// Returns `true` if this graph has a cycle.
+	#[inline]
+	pub fn has_cycle(&self) -> bool {
+		let mut fake_graph = GraphMap::<usize, (), Directed>::new();
+		for (from, to, _) in self.iter_edges() {
+			// TODO: write custom cycle detection algorithm,
+			// print all nodes that the cycle contains.
+			// We don't need all edges---just node-to-node.
+			fake_graph.add_edge((*from).into(), (*to).into(), ());
+		}
+		toposort(&fake_graph, None).is_err()
 	}
 }

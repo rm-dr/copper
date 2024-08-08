@@ -38,7 +38,7 @@ pub(crate) struct PipelineNodeSpec<StubType: PipelineNodeStub> {
 pub(crate) struct PipelineSpec<StubType: PipelineNodeStub> {
 	/// This pipeline's input node.
 	/// Note that this doesn't provide an `inputs` array.
-	/// that is wired up by code that runs this pipeline.
+	/// That is wired up by the code that runs this pipeline.
 	pub input: InternalNodeStub<StubType>,
 
 	/// This pipeline's output node

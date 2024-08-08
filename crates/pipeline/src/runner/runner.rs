@@ -44,8 +44,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		let spec: PipelineSpec<StubType> = toml::from_str(&s)
 			.map_err(|error| PipelinePrepareError::CouldNotParseFile { error })?;
 
-		let built = PipelineBuilder::new(ctx.clone(), &self.pipelines, spec)
-			.build(pipeline_name.clone().into())?;
+		let built = PipelineBuilder::build(ctx.clone(), &self.pipelines, &pipeline_name[..], spec)?;
 
 		self.pipelines.push((pipeline_name.into(), Arc::new(built)));
 		return Ok(());
