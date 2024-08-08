@@ -1,5 +1,4 @@
 use serde::{de::Visitor, Deserialize};
-use serde_with::DeserializeFromStr;
 use smartstring::{LazyCompact, SmartString};
 use std::{error::Error, fmt::Display, str::FromStr};
 
@@ -37,7 +36,7 @@ pub enum PipelineData {
 	Binary { data_type: ItemType, data: Vec<u8> },
 }
 
-#[derive(Debug, DeserializeFromStr, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PipelineDataType {
 	Text,
 	Binary,
@@ -53,6 +52,17 @@ impl FromStr for PipelineDataType {
 			"binary" => Ok(Self::Binary),
 			_ => Err("bad data type".to_string()),
 		}
+	}
+}
+
+impl<'de> Deserialize<'de> for PipelineDataType {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: serde::Deserializer<'de>,
+	{
+		let addr_str = SmartString::<LazyCompact>::deserialize(deserializer)?;
+		let s = Self::from_str(&addr_str);
+		s.map_err(serde::de::Error::custom)
 	}
 }
 

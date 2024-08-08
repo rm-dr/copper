@@ -1,4 +1,4 @@
-use serde_with::DeserializeFromStr;
+use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::HashMap, str::FromStr};
 
@@ -23,7 +23,7 @@ pub trait PipelineNode {
 	fn get_outputs() -> &'static [(&'static str, PipelineDataType)];
 }
 
-#[derive(Debug, Clone, Copy, DeserializeFromStr)]
+#[derive(Debug, Clone, Copy)]
 pub enum PipelineNodes {
 	ExtractTag,
 	IfNone,
@@ -65,5 +65,16 @@ impl FromStr for PipelineNodes {
 			"IfNone" => Ok(Self::IfNone),
 			_ => Err("bad node type".to_string()),
 		}
+	}
+}
+
+impl<'de> Deserialize<'de> for PipelineNodes {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: serde::Deserializer<'de>,
+	{
+		let addr_str = SmartString::<LazyCompact>::deserialize(deserializer)?;
+		let s = Self::from_str(&addr_str);
+		s.map_err(serde::de::Error::custom)
 	}
 }

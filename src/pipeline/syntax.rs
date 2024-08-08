@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use super::{nodes::PipelineNodes, PipelineDataType, PipelineInput, PipelineOutput};
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Pipeline {
 	/// Pipeline parameters
 	pub pipeline: PipelineConfig,
@@ -250,6 +251,7 @@ impl Pipeline {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PipelineConfig {
 	/// Names and types of pipeline inputs
 	#[serde(default)]
@@ -265,6 +267,7 @@ pub struct PipelineConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct PipelineNodeSpec {
 	/// What kind of node is this?
 	#[serde(rename = "type")]
