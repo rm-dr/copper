@@ -1,6 +1,6 @@
 use ufo_util::data::PipelineData;
 
-use crate::{errors::PipelineError, PipelineNode};
+use crate::{errors::PipelineError, nodes::PipelineNode};
 
 #[derive(Clone)]
 pub struct IfNone {}

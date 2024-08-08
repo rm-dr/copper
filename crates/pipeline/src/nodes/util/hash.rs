@@ -3,7 +3,7 @@ use std::sync::Arc;
 use sha2::{Digest, Sha256};
 use ufo_util::data::PipelineData;
 
-use crate::{errors::PipelineError, PipelineNode};
+use crate::{errors::PipelineError, nodes::PipelineNode};
 
 // TODO: hash datatype
 // TODO: select hash method

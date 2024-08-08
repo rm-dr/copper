@@ -6,8 +6,9 @@ use super::{
 	nodetype::PipelineNodeType,
 	tags::{extractcovers::ExtractCovers, extracttags::ExtractTags, striptags::StripTags},
 	util::{hash::Hash, ifnone::IfNone, noop::Noop},
+	PipelineNode,
 };
-use crate::{errors::PipelineError, PipelineNode};
+use crate::errors::PipelineError;
 
 pub enum PipelineNodeInstance {
 	// Each node instance must have a node_type field,

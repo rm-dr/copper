@@ -12,7 +12,7 @@ use ufo_util::{
 	mime::MimeType,
 };
 
-use crate::{errors::PipelineError, PipelineNode};
+use crate::{errors::PipelineError, nodes::PipelineNode};
 
 #[derive(Clone)]
 pub struct ExtractTags {

@@ -5,7 +5,7 @@ use std::{
 use ufo_audiofile::flac::flac_read_pictures;
 use ufo_util::{data::PipelineData, mime::MimeType};
 
-use crate::{errors::PipelineError, PipelineNode};
+use crate::{errors::PipelineError, nodes::PipelineNode};
 
 #[derive(Clone)]
 pub struct ExtractCovers {}

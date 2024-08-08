@@ -17,11 +17,10 @@ use ufo_util::{data::PipelineData, graph::GraphNodeIdx};
 
 use crate::{
 	errors::PipelineError,
-	nodes::{nodeinstance::PipelineNodeInstance, nodetype::PipelineNodeType},
+	nodes::{nodeinstance::PipelineNodeInstance, nodetype::PipelineNodeType, PipelineNode},
 	output::{storage::StorageOutput, PipelineOutput, PipelineOutputKind},
 	pipeline::Pipeline,
 	syntax::{errors::PipelinePrepareError, labels::PipelineNodeLabel, spec::PipelineSpec},
-	PipelineNode,
 };
 
 #[derive(Debug)]

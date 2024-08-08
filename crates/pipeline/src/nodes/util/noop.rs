@@ -1,6 +1,6 @@
 use ufo_util::data::{PipelineData, PipelineDataType};
 
-use crate::{errors::PipelineError, syntax::labels::PipelinePortLabel, PipelineNode};
+use crate::{errors::PipelineError, nodes::PipelineNode, syntax::labels::PipelinePortLabel};
 
 #[derive(Clone)]
 pub struct Noop {
