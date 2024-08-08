@@ -54,15 +54,39 @@ pub(super) async fn finish_file(
 		Ok(_) => {}
 	}
 
-	match state
-		.uploader
-		.finish_file(&job_id, &file_id, finish_data.frag_count, &finish_data.hash)
-		.await
+	let t_job_id = job_id.clone();
+	let t_file_id = file_id.clone();
+	let t_finish_hash = finish_data.hash.clone();
+	match tokio::task::spawn_blocking(move || {
+		state.uploader.finish_file(
+			&t_job_id,
+			&t_file_id,
+			finish_data.frag_count,
+			&t_finish_hash,
+		)
+	})
+	.await
 	{
-		Ok(()) => {
+		Ok(Ok(())) => {
 			return StatusCode::OK.into_response();
 		}
+
 		Err(e) => {
+			warn!(
+				message = "spawn_blocking exited with error",
+				job_id = ?job_id,
+				file_id = ?file_id,
+				error = ?e
+			);
+
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				"spawn_blocking exited with error",
+			)
+				.into_response();
+		}
+
+		Ok(Err(e)) => {
 			warn!(
 				message = "Could not finish uploading file",
 				job_id = ?job_id,

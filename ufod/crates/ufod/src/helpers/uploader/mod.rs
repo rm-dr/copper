@@ -1,4 +1,3 @@
-use futures::lock::Mutex;
 use rand::{distributions::Alphanumeric, Rng};
 use sha2::{Digest, Sha256};
 use smartstring::{LazyCompact, SmartString};
@@ -46,7 +45,7 @@ pub struct UploadJobFile {
 
 pub struct Uploader {
 	pub config: Arc<UfodConfig>,
-	pub jobs: Mutex<Vec<UploadJob>>,
+	pub jobs: tokio::sync::Mutex<Vec<UploadJob>>,
 }
 
 impl Uploader {
@@ -78,7 +77,7 @@ impl Uploader {
 
 		Self {
 			config,
-			jobs: Mutex::new(Vec::new()),
+			jobs: tokio::sync::Mutex::new(Vec::new()),
 		}
 	}
 
@@ -171,7 +170,6 @@ impl Uploader {
 		file_name: &SmartString<LazyCompact>,
 	) -> Option<PathBuf> {
 		let jobs = self.jobs.lock().await;
-
 		let job = jobs.iter().find(|us| us.id == *job_id)?;
 		let file = job.files.iter().find(|f| f.name == *file_name)?;
 
@@ -185,7 +183,6 @@ impl Uploader {
 		file_name: &SmartString<LazyCompact>,
 	) -> Option<bool> {
 		let jobs = self.jobs.lock().await;
-
 		let job = jobs.iter().find(|us| us.id == *job_id)?;
 		let file = job.files.iter().find(|f| f.name == *file_name)?;
 		return Some(matches!(file.state, UploadJobFileState::Done));
@@ -240,8 +237,8 @@ impl Uploader {
 }
 
 impl Uploader {
-	pub async fn new_job(&self) -> Result<SmartString<LazyCompact>, std::io::Error> {
-		let mut jobs = self.jobs.lock().await;
+	pub fn new_job(&self) -> Result<SmartString<LazyCompact>, std::io::Error> {
+		let mut jobs = self.jobs.blocking_lock();
 
 		let id = loop {
 			let id = Uploader::generate_id();
@@ -271,12 +268,12 @@ impl Uploader {
 		return Ok(id);
 	}
 
-	pub async fn new_file(
+	pub fn new_file(
 		&self,
 		job_id: &str,
 		mime: MimeType,
 	) -> Result<SmartString<LazyCompact>, errors::UploadNewFileError> {
-		let mut jobs = self.jobs.lock().await;
+		let mut jobs = self.jobs.blocking_lock();
 
 		let job = jobs
 			.iter_mut()
@@ -309,7 +306,7 @@ impl Uploader {
 		return Ok(file_id);
 	}
 
-	pub async fn consume_fragment(
+	pub fn consume_fragment(
 		&self,
 		job_id: &str,
 		file_id: &str,
@@ -317,7 +314,7 @@ impl Uploader {
 		frag_idx: u32,
 		frag_hash: &str,
 	) -> Result<(), errors::UploadFragmentError> {
-		let mut jobs = self.jobs.lock().await;
+		let mut jobs = self.jobs.blocking_lock();
 
 		let job = jobs
 			.iter_mut()
@@ -347,14 +344,14 @@ impl Uploader {
 		return Ok(());
 	}
 
-	pub async fn finish_file(
+	pub fn finish_file(
 		&self,
 		job_id: &str,
 		file_id: &str,
 		total_fragments: u32,
 		final_hash: &str,
 	) -> Result<(), errors::UploadFinishFileError> {
-		let mut jobs = self.jobs.lock().await;
+		let mut jobs = self.jobs.blocking_lock();
 
 		let job = jobs
 			.iter_mut()
@@ -367,20 +364,18 @@ impl Uploader {
 			.iter_mut()
 			.find(|f| f.name == file_id)
 			.ok_or(errors::UploadFinishFileError::BadFileID)?;
-		// This prevents the job from timing out if the actions
-		// below take a long time
-		file.state = UploadJobFileState::Finishing;
-
 		if !matches!(file.state, UploadJobFileState::Pending) {
 			return Err(errors::UploadFinishFileError::AlreadyFinished);
 		}
+
+		// This prevents the job from timing out if the actions
+		// below take a long time
+		file.state = UploadJobFileState::Finishing;
 
 		let final_file_path = job.dir.join(file.name.as_str());
 		let mut final_file = File::create(final_file_path)?;
 
 		// We need these later, compute before locking
-		let job_dir = job.dir.clone();
-		let file_name = file.name.clone();
 		let our_hash = {
 			let mut hasher = Sha256::new();
 			for frag_idx in 0..total_fragments {
@@ -401,12 +396,14 @@ impl Uploader {
 			format!("{:X}", hasher.finalize())
 		};
 
-		// Release lock, the next loop could take a while
-		drop(jobs);
+		// It would be nice to release the lock here,
+		// but that doesn't seem to work---we get a deadlock when we
+		// try to re-acquire the lock. why?
+		// drop(jobs);
 
 		for frag_idx in 0..total_fragments {
-			let frag_file_name = format!("{}-frag-{frag_idx}", file_name);
-			let frag_path = job_dir.join(&frag_file_name);
+			let frag_file_name = format!("{}-frag-{frag_idx}", file.name);
+			let frag_path = job.dir.join(&frag_file_name);
 
 			if !frag_path.is_file() {
 				return Err(errors::UploadFinishFileError::MissingFragments {
@@ -422,20 +419,7 @@ impl Uploader {
 			std::fs::remove_file(frag_path)?;
 		}
 
-		// Lock jobs again to finish
-		let mut jobs = self.jobs.lock().await;
-
-		let job = jobs
-			.iter_mut()
-			.find(|us| us.id == job_id)
-			.ok_or(errors::UploadFinishFileError::BadUploadJob)?;
 		job.last_activity = Instant::now();
-
-		let file = job
-			.files
-			.iter_mut()
-			.find(|f| f.name == file_id)
-			.ok_or(errors::UploadFinishFileError::BadFileID)?;
 		file.state = UploadJobFileState::Done;
 
 		if our_hash != final_hash {

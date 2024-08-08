@@ -10,7 +10,7 @@ use utoipa::ToSchema;
 
 use crate::api::RouterState;
 
-#[derive(Deserialize, Serialize, ToSchema, Debug)]
+#[derive(Deserialize, Serialize, ToSchema, Debug, Clone)]
 pub(super) struct UploadFragmentMetadata {
 	pub part_idx: u32,
 	pub part_hash: String,
@@ -119,14 +119,37 @@ pub(super) async fn upload(
 					}
 				};
 
-				let m = meta.as_ref().unwrap();
-				match state
-					.uploader
-					.consume_fragment(&job_id, &file_id, &data, m.part_idx, &m.part_hash)
-					.await
+				let m = meta.as_ref().unwrap().clone();
+				let t_job_id = job_id.clone();
+				let t_file_id = file_id.clone();
+				let t_uploader = state.uploader.clone();
+				match tokio::task::spawn_blocking(move || {
+					t_uploader.consume_fragment(
+						&t_job_id,
+						&t_file_id,
+						&data,
+						m.part_idx,
+						&m.part_hash,
+					)
+				})
+				.await
 				{
-					Ok(()) => {}
+					Ok(Ok(())) => {}
+
 					Err(e) => {
+						warn!(
+							message = "spawn_blocking exited with error",
+							error = ?e
+						);
+
+						return (
+							StatusCode::INTERNAL_SERVER_ERROR,
+							"spawn_blocking exited with error",
+						)
+							.into_response();
+					}
+
+					Ok(Err(e)) => {
 						error!(
 							message = "Could not consume fragment",
 							job = ?job_id,

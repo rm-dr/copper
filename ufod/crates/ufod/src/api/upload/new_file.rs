@@ -58,9 +58,10 @@ pub(super) async fn start_file(
 		Ok(_) => {}
 	}
 
+	let t_job_id = job_id.clone();
 	let mime = MimeType::from_extension(&start_info.file_extension).unwrap_or(MimeType::Blob);
-	match state.uploader.new_file(&job_id, mime).await {
-		Ok(file_id) => {
+	match tokio::task::spawn_blocking(move || state.uploader.new_file(&t_job_id, mime)).await {
+		Ok(Ok(file_id)) => {
 			return (
 				StatusCode::OK,
 				Json(UploadNewFileResult {
@@ -69,7 +70,22 @@ pub(super) async fn start_file(
 			)
 				.into_response();
 		}
+
 		Err(e) => {
+			warn!(
+				message = "spawn_blocking exited with error",
+				job_id = ?job_id,
+				error = ?e
+			);
+
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				"spawn_blocking exited with error",
+			)
+				.into_response();
+		}
+
+		Ok(Err(e)) => {
 			warn!(
 				message = "Could not create file in upload job",
 				upload_job_id = ?job_id,

@@ -7,7 +7,7 @@ use axum::{
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
-use tracing::error;
+use tracing::{error, warn};
 use utoipa::ToSchema;
 
 use crate::api::RouterState;
@@ -40,11 +40,25 @@ pub(super) async fn start_upload(jar: CookieJar, State(state): State<RouterState
 		Ok(_) => {}
 	}
 
-	match state.uploader.new_job().await {
-		Ok(id) => {
+	match tokio::task::spawn_blocking(move || state.uploader.new_job()).await {
+		Ok(Ok(id)) => {
 			return (StatusCode::OK, Json(UploadStartResult { job_id: id })).into_response();
 		}
+
 		Err(e) => {
+			warn!(
+				message = "spawn_blocking exited with error",
+				error = ?e
+			);
+
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				"spawn_blocking exited with error",
+			)
+				.into_response();
+		}
+
+		Ok(Err(e)) => {
 			error!(
 				message = "Could not create upload job",
 				error = ?e
