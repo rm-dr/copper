@@ -28,7 +28,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Delete items
   - [ ] Bottom panel (edit items)
   - [ ] Select attrs to show
-  - [ ] Search panel (no logic yet)
   - [ ] Sort by attrs
   - [ ] List number of selected items
   - [ ] Initial layout for table

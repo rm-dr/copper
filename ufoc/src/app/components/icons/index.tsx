@@ -67,6 +67,10 @@ const defaultStyles: CSSProperties | undefined = {
 // This module lets us apply default styling to tabler icons,
 // and makes it easy to replace our icon provider.
 
+export const XIcon = (params: { icon: any; style?: CSSProperties }) => {
+	return <params.icon style={{ ...defaultStyles, ...params.style }} />;
+};
+
 export const XIconLock = ({ style }: { style?: CSSProperties }) => {
 	return <IconLock style={{ ...defaultStyles, ...style }} />;
 };
