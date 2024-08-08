@@ -1,22 +1,13 @@
 //! Pipeline node implementations
 
 //#![warn(missing_docs)]
-#![allow(clippy::new_without_default)]
 
 pub mod data;
-mod helpers;
-mod traits;
-
-pub mod database;
-pub mod input;
-pub mod tags;
-pub mod util;
-
-pub mod nodeinstance;
-pub mod nodetype;
+pub mod helpers;
 
 use std::sync::Arc;
 use ufo_ds_impl::local::LocalDataset;
+use ufo_pipeline::api::PipelineJobContext;
 
 #[derive(Clone)]
 pub struct UFOContext {
@@ -30,3 +21,5 @@ pub struct UFOContext {
 	/// The maximum size, in bytes, of a blob channel fragment
 	pub blob_fragment_size: u64,
 }
+
+impl PipelineJobContext for UFOContext {}

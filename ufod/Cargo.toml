@@ -48,7 +48,7 @@ new_without_default = "allow"
 
 [workspace.dependencies]
 ufo-pipeline = { path = "crates/pipeline" }
-ufo-pipeline-nodes = { path = "crates/pipeline-nodes" }
+ufo-node-base = { path = "crates/node-base" }
 ufo-util = { path = "crates/util" }
 ufo-audiofile = { path = "crates/audiofile" }
 

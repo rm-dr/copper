@@ -22,7 +22,7 @@ workspace = true
 
 [dependencies]
 ufo-pipeline = { workspace = true }
-ufo-pipeline-nodes = { workspace = true }
+ufo-node-base = { workspace = true }
 ufo-util = { workspace = true }
 ufo-ds-core = { workspace = true }
 ufo-ds-impl = { workspace = true }

@@ -108,7 +108,7 @@ impl PipelineData for UFOData {
 		}
 	}
 
-	fn new_empty(stub: Self::DataStubType) -> Self {
+	fn disconnected(stub: Self::DataStubType) -> Self {
 		Self::None(stub)
 	}
 }
@@ -186,7 +186,15 @@ pub enum UFODataStub {
 	Reference { class: ClassHandle },
 }
 
-impl PipelineDataStub for UFODataStub {}
+impl PipelineDataStub for UFODataStub {
+	fn is_subset_of(&self, superset: &Self) -> bool {
+		if self == superset {
+			return true;
+		}
+
+		return false;
+	}
+}
 
 impl UFODataStub {
 	/// Get the [`MetastoreDataStub`] that this [`UFODataStub`] encode to, if any.

@@ -1,5 +1,5 @@
 [package]
-name = "ufo-pipeline-nodes"
+name = "ufo-node-base"
 description = "TODO"
 categories = { workspace = true }
 keywords = { workspace = true }
@@ -18,7 +18,6 @@ workspace = true
 
 [dependencies]
 ufo-util = { workspace = true }
-ufo-audiofile = { workspace = true }
 ufo-pipeline = { workspace = true }
 ufo-ds-core = { workspace = true }
 ufo-ds-impl = { workspace = true }

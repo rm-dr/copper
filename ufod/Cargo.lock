@@ -3145,6 +3145,8 @@ dependencies = [
  "serde_with",
  "sha2",
  "smartstring",
+ "ufo-node-base",
+ "ufo-pipeline",
  "ufo-util",
 ]
 
@@ -3181,6 +3183,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ufo-node-base"
+version = "0.1.0"
+dependencies = [
+ "crossbeam",
+ "futures",
+ "itertools",
+ "md5",
+ "serde",
+ "serde_with",
+ "sha2",
+ "smartstring",
+ "ufo-ds-core",
+ "ufo-ds-impl",
+ "ufo-pipeline",
+ "ufo-util",
+]
+
+[[package]]
 name = "ufo-pipeline"
 version = "0.1.0"
 dependencies = [
@@ -3192,25 +3212,6 @@ dependencies = [
  "smartstring",
  "toml",
  "tracing",
-]
-
-[[package]]
-name = "ufo-pipeline-nodes"
-version = "0.1.0"
-dependencies = [
- "crossbeam",
- "futures",
- "itertools",
- "md5",
- "serde",
- "serde_with",
- "sha2",
- "smartstring",
- "ufo-audiofile",
- "ufo-ds-core",
- "ufo-ds-impl",
- "ufo-pipeline",
- "ufo-util",
 ]
 
 [[package]]
@@ -3248,10 +3249,11 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
+ "ufo-audiofile",
  "ufo-ds-core",
  "ufo-ds-impl",
+ "ufo-node-base",
  "ufo-pipeline",
- "ufo-pipeline-nodes",
  "ufo-util",
  "utoipa",
  "utoipa-swagger-ui",
