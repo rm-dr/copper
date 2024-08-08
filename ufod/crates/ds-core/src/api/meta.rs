@@ -92,6 +92,12 @@ where
 	) -> Result<Option<AttrInfo>, MetastoreError>;
 	async fn get_attr(&self, attr: AttrHandle) -> Result<AttrInfo, MetastoreError>;
 
+	async fn get_item_attr(
+		&self,
+		attr: AttrHandle,
+		item: ItemIdx,
+	) -> Result<MetastoreData, MetastoreError>;
+
 	async fn class_set_name(&self, class: ClassHandle, name: &str) -> Result<(), MetastoreError>;
 
 	/// Get all classes that store references to items in this class.

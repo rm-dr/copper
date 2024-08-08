@@ -4,15 +4,16 @@ use std::{fmt::Display, str::FromStr};
 
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 use tracing::warn;
+use utoipa::ToSchema;
 
 /// A media type, conveniently parsed
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq, Eq, Clone, SerializeDisplay, DeserializeFromStr)]
+#[derive(Debug, PartialEq, Eq, Clone, SerializeDisplay, DeserializeFromStr, ToSchema)]
 pub enum MimeType {
 	/// A mimetype we didn't recognize
 	Unknown(String),
 
-	// An unstructured binary blob
+	/// An unstructured binary blob
 	Blob,
 
 	// Images

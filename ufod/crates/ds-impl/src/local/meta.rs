@@ -890,4 +890,29 @@ impl Metastore for LocalDataset {
 
 		return Ok(out);
 	}
+
+	async fn get_item_attr(
+		&self,
+		attr: AttrHandle,
+		item: ItemIdx,
+	) -> Result<MetastoreData, MetastoreError> {
+		// Do this first, prevent deadlock
+		let attr_data = self.get_attr(attr).await?;
+		let table_name = Self::get_table_name(attr_data.class);
+		let column_name = Self::get_column_name(attr_data.handle);
+		let mut conn_lock = self.conn.lock().await;
+
+		let res = sqlx::query(&format!(
+			"SELECT \"{column_name}\" FROM \"{table_name}\" WHERE id=?;"
+		))
+		.bind(u32::from(item))
+		.fetch_one(&mut *conn_lock)
+		.await;
+
+		return match res {
+			Err(sqlx::Error::RowNotFound) => Err(MetastoreError::BadItemIdx),
+			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
+			Ok(row) => Ok(Self::read_storage(&row, &attr_data)),
+		};
+	}
 }

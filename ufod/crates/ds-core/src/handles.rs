@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 /// The unique index of an item in it's class.
 /// This does NOT identify an item uniquely; it identifies an item uniquely *in its class*.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+	Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema,
+)]
 #[serde(transparent)]
 pub struct ItemIdx {
 	id: u32,

@@ -83,7 +83,7 @@ pub(super) enum ItemListData {
 	},
 }
 
-/// Create a new attribute
+/// List all items in a class
 #[utoipa::path(
 	get,
 	path = "/list",

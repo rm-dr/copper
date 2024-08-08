@@ -1,12 +1,14 @@
-use axum::{extract::DefaultBodyLimit, routing::get, Router};
+use axum::{extract::DefaultBodyLimit, Router};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
 use ufo_ds_core::{
-	api::meta::AttributeOptions,
+	api::{blob::BlobHandle, meta::AttributeOptions},
 	data::{HashType, MetastoreDataStub},
+	handles::ItemIdx,
 };
 use ufo_ds_impl::DatasetType;
+use ufo_util::mime::MimeType;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -73,7 +75,10 @@ impl Modify for BearerSecurityAddon {
 		MetastoreDataStub,
 		HashType,
 		AttributeOptions,
-		DatasetType
+		DatasetType,
+		ItemIdx,
+		MimeType,
+		BlobHandle
 	))
 )]
 struct ApiDoc;
@@ -81,7 +86,6 @@ struct ApiDoc;
 pub(super) fn router(state: RouterState) -> Router {
 	Router::new()
 		.merge(SwaggerUi::new("/docs").url("/docs/openapi.json", ApiDoc::openapi()))
-		.route("/", get(root))
 		//
 		.nest("/upload", upload::router(state.uploader.clone()))
 		.nest("/status", status::router())
@@ -97,8 +101,4 @@ pub(super) fn router(state: RouterState) -> Router {
 			state.config.network.request_body_limit,
 		))
 		.with_state(state)
-}
-
-async fn root() -> &'static str {
-	"Hello, World!"
 }

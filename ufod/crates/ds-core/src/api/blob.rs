@@ -1,10 +1,14 @@
 use serde::{Deserialize, Serialize};
-use std::{fs::File, io::Write, path::PathBuf};
+use std::{fs::File, io::Write, path::PathBuf, pin::Pin};
+use tokio::io::AsyncRead;
 use ufo_util::mime::MimeType;
+use utoipa::ToSchema;
 
 use crate::errors::BlobstoreError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+	Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema,
+)]
 #[serde(transparent)]
 pub struct BlobHandle {
 	id: u32,
@@ -68,6 +72,12 @@ impl Drop for BlobstoreTmpWriter {
 	}
 }
 
+pub struct BlobInfo {
+	pub handle: BlobHandle,
+	pub data_type: MimeType,
+	pub data: Pin<Box<dyn AsyncRead + Send>>,
+}
+
 #[allow(async_fn_in_trait)]
 pub trait Blobstore
 where
@@ -76,6 +86,7 @@ where
 	async fn new_blob(&self, mime: &MimeType) -> Result<BlobstoreTmpWriter, BlobstoreError>;
 	async fn finish_blob(&self, blob: BlobstoreTmpWriter) -> Result<BlobHandle, BlobstoreError>;
 	async fn delete_blob(&self, blob: BlobHandle) -> Result<(), BlobstoreError>;
+	async fn get_blob(&self, blob: BlobHandle) -> Result<BlobInfo, BlobstoreError>;
 	async fn all_blobs(&self) -> Result<Vec<BlobHandle>, BlobstoreError>;
 	async fn blob_size(&self, blob: BlobHandle) -> Result<u64, BlobstoreError>;
 }

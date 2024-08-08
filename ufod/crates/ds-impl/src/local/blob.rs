@@ -3,7 +3,7 @@ use sqlx::Row;
 use std::path::PathBuf;
 use tracing::{trace, warn};
 use ufo_ds_core::{
-	api::blob::{BlobHandle, Blobstore, BlobstoreTmpWriter},
+	api::blob::{BlobHandle, BlobInfo, Blobstore, BlobstoreTmpWriter},
 	errors::BlobstoreError,
 };
 use ufo_util::mime::MimeType;
@@ -162,5 +162,31 @@ impl Blobstore for LocalDataset {
 		let meta = std::fs::metadata(file_path)?;
 
 		return Ok(meta.len());
+	}
+
+	async fn get_blob(&self, blob: BlobHandle) -> Result<BlobInfo, BlobstoreError> {
+		let mut conn = self.conn.lock().await;
+
+		let res = sqlx::query("SELECT file_path, data_type FROM meta_blobs WHERE id=?;")
+			.bind(u32::from(blob))
+			.fetch_one(&mut *conn)
+			.await;
+
+		let (rel_file_path, data_type) = match res {
+			Err(sqlx::Error::RowNotFound) => return Err(BlobstoreError::InvalidBlobHandle),
+			Err(e) => return Err(BlobstoreError::DbError(Box::new(e))),
+			Ok(res) => (
+				PathBuf::from(res.get::<&str, _>("file_path")),
+				res.get::<&str, _>("data_type").into(),
+			),
+		};
+		let file_path = self.blobstore_root.join(&rel_file_path);
+		let file = tokio::fs::File::open(&file_path).await?;
+
+		return Ok(BlobInfo {
+			handle: blob,
+			data_type,
+			data: Box::pin(file),
+		});
 	}
 }

@@ -21,6 +21,9 @@ pub enum MetastoreError {
 	/// We were given a bad class handle
 	BadClassHandle,
 
+	/// We were given a bad item idx
+	BadItemIdx,
+
 	/// We tried to set an attribute with data of a different type
 	TypeMismatch,
 
@@ -53,6 +56,7 @@ impl Display for MetastoreError {
 			Self::BlobstoreError(_) => write!(f, "Blobstore error"),
 			Self::BadAttrHandle => write!(f, "BadAttrHandle"),
 			Self::BadClassHandle => write!(f, "BadClassHandle"),
+			Self::BadItemIdx => write!(f, "BadItemIdx"),
 			Self::TypeMismatch => write!(f, "TypeMismatch"),
 			Self::UniqueViolated => write!(f, "UniqueViolated"),
 			Self::NotNoneViolated => write!(f, "NotNoneViolated"),
