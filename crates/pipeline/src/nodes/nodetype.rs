@@ -3,7 +3,7 @@ use smartstring::{LazyCompact, SmartString};
 use std::str::FromStr;
 use ufo_util::data::PipelineDataType;
 
-use crate::syntax::labels::PipelinePortLabel;
+use crate::portspec::PipelinePortSpec;
 
 use super::{ifnone::IfNone, nodeinstance::PipelineNodeInstance, tags::ExtractTags};
 
@@ -29,32 +29,32 @@ impl PipelineNodeType {
 }
 
 impl PipelineNodeType {
-	// TODO: efficiency. Don't allocate a new vec here.
-	pub fn outputs(&self) -> Vec<(PipelinePortLabel, PipelineDataType)> {
+	pub fn outputs(&self) -> PipelinePortSpec {
 		match self {
-			PipelineNodeType::ExtractTags => vec![
-				("title".into(), PipelineDataType::Text),
-				("album".into(), PipelineDataType::Text),
-				("artist".into(), PipelineDataType::Text),
-				("genre".into(), PipelineDataType::Text),
-				("comment".into(), PipelineDataType::Text),
-				("track".into(), PipelineDataType::Text),
-				("disk".into(), PipelineDataType::Text),
-				("disk_total".into(), PipelineDataType::Text),
-				("year".into(), PipelineDataType::Text),
-			],
-			PipelineNodeType::IfNone => vec![("out".into(), PipelineDataType::Text)],
+			PipelineNodeType::ExtractTags => PipelinePortSpec::Static(&[
+				("title", PipelineDataType::Text),
+				("album", PipelineDataType::Text),
+				("artist", PipelineDataType::Text),
+				("genre", PipelineDataType::Text),
+				("comment", PipelineDataType::Text),
+				("track", PipelineDataType::Text),
+				("disk", PipelineDataType::Text),
+				("disk_total", PipelineDataType::Text),
+				("year", PipelineDataType::Text),
+			]),
+			PipelineNodeType::IfNone => {
+				PipelinePortSpec::Static(&[("out", PipelineDataType::Text)])
+			}
 		}
 	}
 
-	// TODO: efficiency. Don't allocate a new vec here.
-	pub fn inputs(&self) -> Vec<(PipelinePortLabel, PipelineDataType)> {
+	pub fn inputs(&self) -> PipelinePortSpec {
 		match self {
-			Self::ExtractTags => vec![("data".into(), PipelineDataType::Binary)],
-			Self::IfNone => vec![
-				("data".into(), PipelineDataType::Text),
-				("ifnone".into(), PipelineDataType::Text),
-			],
+			Self::ExtractTags => PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)]),
+			Self::IfNone => PipelinePortSpec::Static(&[
+				("data", PipelineDataType::Text),
+				("ifnone", PipelineDataType::Text),
+			]),
 		}
 	}
 }

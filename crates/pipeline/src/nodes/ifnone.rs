@@ -19,16 +19,13 @@ impl Default for IfNone {
 }
 
 impl PipelineStatelessRunner for IfNone {
-	fn run(
-		&self,
-		data: Vec<Option<Arc<PipelineData>>>,
-	) -> Result<Vec<Option<Arc<PipelineData>>>, PipelineError> {
+	fn run(&self, data: Vec<Arc<PipelineData>>) -> Result<Vec<Arc<PipelineData>>, PipelineError> {
 		let d = data.first().unwrap();
 		let ifnone = data.get(1).unwrap();
 		return Ok(vec![{
-			match d {
-				Some(x) => Some(x.clone()),
-				None => ifnone.clone(),
+			match *d.as_ref() {
+				PipelineData::None(_) => ifnone.clone(),
+				_ => d.clone(),
 			}
 		}]);
 	}

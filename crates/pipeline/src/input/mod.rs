@@ -8,7 +8,7 @@ pub mod file;
 pub trait PipelineInput {
 	type ErrorKind: Send + Sync;
 
-	fn injest(self) -> Result<Vec<Option<Arc<PipelineData>>>, Self::ErrorKind>;
+	fn run(self) -> Result<Vec<Arc<PipelineData>>, Self::ErrorKind>;
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -31,7 +31,7 @@ impl<'a, DatasetType: Dataset> StorageOutput<'a, DatasetType> {
 impl<'a, DatasetType: Dataset> PipelineOutput for StorageOutput<'a, DatasetType> {
 	type ErrorKind = io::Error;
 
-	fn export(&mut self, data: Vec<Option<&PipelineData>>) -> Result<(), Self::ErrorKind> {
+	fn run(&mut self, data: Vec<&PipelineData>) -> Result<(), Self::ErrorKind> {
 		// TODO: better enforce arg type / arg number
 		assert!(data.len() == self.attrs.len());
 

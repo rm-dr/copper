@@ -29,7 +29,7 @@ struct MemClass {
 #[derive(Debug)]
 struct MemItem {
 	class: MemClassIdx,
-	data: HashMap<MemAttrIdx, Option<PipelineData>>,
+	data: HashMap<MemAttrIdx, PipelineData>,
 }
 
 #[derive(Debug)]
@@ -80,8 +80,9 @@ impl Dataset for MemDataset {
 	type AttrHandle = MemAttrIdx;
 	type ClassHandle = MemClassIdx;
 	type ItemHandle = MemItemIdx;
+	type ErrorType = ();
 
-	fn add_class(&mut self, name: &str) -> Result<Self::ClassHandle, ()> {
+	fn add_class(&mut self, name: &str) -> Result<Self::ClassHandle, Self::ErrorType> {
 		let id = self.new_id_class();
 		self.classes.insert(
 			id,
@@ -97,7 +98,7 @@ impl Dataset for MemDataset {
 		class: Self::ClassHandle,
 		name: &str,
 		data_type: PipelineDataType,
-	) -> Result<Self::AttrHandle, ()> {
+	) -> Result<Self::AttrHandle, Self::ErrorType> {
 		let id = self.new_id_attr();
 		self.attrs.insert(
 			id,
@@ -110,7 +111,7 @@ impl Dataset for MemDataset {
 		return Ok(id);
 	}
 
-	fn add_item(&mut self, class: Self::ClassHandle) -> Result<Self::ItemHandle, ()> {
+	fn add_item(&mut self, class: Self::ClassHandle) -> Result<Self::ItemHandle, Self::ErrorType> {
 		let id = self.new_id_item();
 		self.items.insert(
 			id,
@@ -125,12 +126,12 @@ impl Dataset for MemDataset {
 	fn add_item_with_attrs(
 		&mut self,
 		class: Self::ClassHandle,
-		attrs: &[Option<&PipelineData>],
-	) -> Result<Self::ItemHandle, ()> {
+		attrs: &[&PipelineData],
+	) -> Result<Self::ItemHandle, Self::ErrorType> {
 		let mut data = HashMap::new();
 
 		for (i, a) in self.class_get_attrs(class).enumerate() {
-			data.insert(a, attrs.get(i).unwrap().cloned());
+			data.insert(a, (*attrs.get(i).unwrap()).clone());
 		}
 
 		let id = self.new_id_item();
@@ -138,19 +139,19 @@ impl Dataset for MemDataset {
 		return Ok(id);
 	}
 
-	fn del_attr(&mut self, attr: Self::AttrHandle) -> Result<(), ()> {
+	fn del_attr(&mut self, attr: Self::AttrHandle) -> Result<(), Self::ErrorType> {
 		// TODO: delete all instances of this attr
 		self.attrs.remove(&attr).unwrap();
 		Ok(())
 	}
 
-	fn del_class(&mut self, class: Self::ClassHandle) -> Result<(), ()> {
+	fn del_class(&mut self, class: Self::ClassHandle) -> Result<(), Self::ErrorType> {
 		// TODO: remove all items with class
 		self.classes.remove(&class);
 		Ok(())
 	}
 
-	fn del_item(&mut self, item: Self::ItemHandle) -> Result<(), ()> {
+	fn del_item(&mut self, item: Self::ItemHandle) -> Result<(), Self::ErrorType> {
 		self.items.remove(&item);
 		Ok(())
 	}
@@ -183,7 +184,7 @@ impl Dataset for MemDataset {
 		&self,
 		item: Self::ItemHandle,
 		attr: Self::AttrHandle,
-	) -> Result<Option<PipelineData>, ()> {
+	) -> Result<PipelineData, Self::ErrorType> {
 		Ok(self
 			.items
 			.get(&item)
@@ -202,17 +203,21 @@ impl Dataset for MemDataset {
 		&mut self,
 		item: Self::ItemHandle,
 		attr: Self::AttrHandle,
-		data: Option<&PipelineData>,
-	) -> Result<(), ()> {
+		data: &PipelineData,
+	) -> Result<(), Self::ErrorType> {
 		self.items
 			.get_mut(&item)
 			.unwrap()
 			.data
-			.insert(attr, data.cloned());
+			.insert(attr, data.clone());
 		Ok(())
 	}
 
-	fn class_set_name(&mut self, class: Self::ClassHandle, name: &str) -> Result<(), ()> {
+	fn class_set_name(
+		&mut self,
+		class: Self::ClassHandle,
+		name: &str,
+	) -> Result<(), Self::ErrorType> {
 		self.classes.get_mut(&class).unwrap().name = name.to_string();
 		Ok(())
 	}
@@ -234,7 +239,7 @@ impl Dataset for MemDataset {
 			.count()
 	}
 
-	fn attr_set_name(&mut self, attr: Self::AttrHandle, name: &str) -> Result<(), ()> {
+	fn attr_set_name(&mut self, attr: Self::AttrHandle, name: &str) -> Result<(), Self::ErrorType> {
 		self.attrs.get_mut(&attr).unwrap().name = name.to_string();
 		Ok(())
 	}

@@ -21,7 +21,7 @@ impl FileInput {
 impl PipelineInput for FileInput {
 	type ErrorKind = io::Error;
 
-	fn injest(self) -> Result<Vec<Option<Arc<PipelineData>>>, Self::ErrorKind> {
+	fn run(self) -> Result<Vec<Arc<PipelineData>>, Self::ErrorKind> {
 		let mut f = File::open(&self.path)?;
 		let mut data = Vec::new();
 		f.read_to_end(&mut data)?;
@@ -34,14 +34,12 @@ impl PipelineInput for FileInput {
 
 		return Ok(vec![
 			// Path
-			Some(Arc::new(PipelineData::Text(
-				self.path.to_str().unwrap().to_string(),
-			))),
+			Arc::new(PipelineData::Text(self.path.to_str().unwrap().to_string())),
 			// Data
-			Some(Arc::new(PipelineData::Binary {
+			Arc::new(PipelineData::Binary {
 				format: file_format,
 				data,
-			})),
+			}),
 		]);
 	}
 }

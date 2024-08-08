@@ -1,6 +1,9 @@
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
-use std::{fmt::Debug, str::FromStr};
+use std::{
+	fmt::{Debug, Display},
+	str::FromStr,
+};
 
 // TODO: binary format contains data?
 // TODO: Stream data?
@@ -27,10 +30,12 @@ pub enum BinaryFormat {
 	Audio(AudioFormat),
 }
 
+// TODO: rename
 /// A bit of data inside a pipeline.
 /// These are instances of [`PipelineDataType`].
 #[derive(Clone)]
 pub enum PipelineData {
+	None(PipelineDataType),
 	Text(String),
 	Binary { format: BinaryFormat, data: Vec<u8> },
 }
@@ -38,6 +43,7 @@ pub enum PipelineData {
 impl Debug for PipelineData {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
+			Self::None(t) => write!(f, "None({})", t),
 			Self::Text(s) => write!(f, "Text({})", s),
 			Self::Binary { format, .. } => write!(f, "Binary({:?})", format),
 		}
@@ -50,6 +56,15 @@ impl Debug for PipelineData {
 pub enum PipelineDataType {
 	Text,
 	Binary,
+}
+
+impl Display for PipelineDataType {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::Text => write!(f, "Text"),
+			Self::Binary => write!(f, "Binary"),
+		}
+	}
 }
 
 // TODO: better error

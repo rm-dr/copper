@@ -31,13 +31,10 @@ impl Debug for PipelineNodeInstance {
 }
 
 impl PipelineStatelessRunner for PipelineNodeInstance {
-	fn run(
-		&self,
-		data: Vec<Option<Arc<PipelineData>>>,
-	) -> Result<Vec<Option<Arc<PipelineData>>>, PipelineError> {
+	fn run(&self, data: Vec<Arc<PipelineData>>) -> Result<Vec<Arc<PipelineData>>, PipelineError> {
 		match self {
 			Self::ExternalNode => Ok(Default::default()),
-			Self::ConstantNode(x) => Ok(vec![Some(x.clone())]),
+			Self::ConstantNode(x) => Ok(vec![x.clone()]),
 			Self::ExtractTags { node, .. } => node.run(data),
 			Self::IfNone { node, .. } => node.run(data),
 		}

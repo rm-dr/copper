@@ -1,4 +1,4 @@
-use crate::syntax::labels::PipelinePortLabel;
+use crate::{portspec::PipelinePortSpec, syntax::labels::PipelinePortLabel};
 use serde::Deserialize;
 use serde_with::serde_as;
 use ufo_util::data::{PipelineData, PipelineDataType};
@@ -9,7 +9,7 @@ pub trait PipelineOutput {
 	// TODO: better errors
 	type ErrorKind: Send + Sync;
 
-	fn export(&mut self, data: Vec<Option<&PipelineData>>) -> Result<(), Self::ErrorKind>;
+	fn run(&mut self, data: Vec<&PipelineData>) -> Result<(), Self::ErrorKind>;
 }
 
 #[serde_as]
@@ -25,10 +25,9 @@ pub enum PipelineOutputKind {
 }
 
 impl PipelineOutputKind {
-	pub fn get_inputs(&self) -> Vec<(PipelinePortLabel, PipelineDataType)> {
+	pub fn get_inputs(&self) -> PipelinePortSpec {
 		match self {
-			// Order must match
-			Self::DataSet { attrs: attr, .. } => attr.clone(),
+			Self::DataSet { attrs, .. } => PipelinePortSpec::Vec(attrs),
 		}
 	}
 }

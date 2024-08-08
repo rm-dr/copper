@@ -26,7 +26,7 @@ impl Debug for NodePort {
 #[derive(Debug)]
 enum EdgeValue {
 	Uninitialized,
-	Data(Option<Arc<PipelineData>>),
+	Data(Arc<PipelineData>),
 	Consumed,
 }
 
@@ -84,8 +84,8 @@ impl Pipeline {
 
 	pub fn run(
 		&self,
-		mut inputs: Vec<Option<Arc<PipelineData>>>,
-	) -> Result<Vec<Option<Arc<PipelineData>>>, PipelineError> {
+		mut inputs: Vec<Arc<PipelineData>>,
+	) -> Result<Vec<Arc<PipelineData>>, PipelineError> {
 		assert!(inputs.len() == self.config.input.get_outputs().len());
 
 		// The data inside each edge.
@@ -129,17 +129,21 @@ impl Pipeline {
 				// Prepare inputs.
 				inputs.clear();
 
-				let n_inputs = match self.nodes.get(n).unwrap() {
-					PipelineNodeInstance::ConstantNode(_) => 0,
-					PipelineNodeInstance::ExternalNode => self.config.output.get_inputs().len(),
-					x => x.get_type().unwrap().inputs().len(),
-				};
-
 				// Initialize all inputs with None,
 				// in case some are disconnected.
-				for _ in 0..n_inputs {
-					inputs.push(None);
-				}
+				match self.nodes.get(n).unwrap() {
+					PipelineNodeInstance::ConstantNode(_) => {}
+					PipelineNodeInstance::ExternalNode => {
+						for (_, t) in self.config.output.get_inputs().iter() {
+							inputs.push(Arc::new(PipelineData::None(t)));
+						}
+					}
+					x => {
+						for (_, t) in x.get_type().unwrap().inputs().iter() {
+							inputs.push(Arc::new(PipelineData::None(t)));
+						}
+					}
+				};
 
 				// Fill input values
 				for edge_idx in self.edge_map_in.get(n).unwrap().iter() {

@@ -114,8 +114,7 @@ impl PipelineSpec {
 				}
 				let get_node = get_node.unwrap();
 				let a = get_node.node_type.outputs();
-				let b = a.iter().enumerate().find(|(_, (x, _))| x == port);
-
+				let b = a.find_with_name(port);
 				if b.is_none() {
 					return Err(PipelinePrepareError::NoNodeOutput {
 						node: node.clone(),
@@ -123,7 +122,7 @@ impl PipelineSpec {
 						caused_by: input.clone(),
 					});
 				}
-				b.unwrap().1 .1
+				b.unwrap().1
 			}
 		};
 
@@ -134,14 +133,8 @@ impl PipelineSpec {
 				node: PipelineNode::External,
 				port,
 			} => {
-				if let Some((_, from_type)) = self
-					.config
-					.output
-					.get_inputs()
-					.iter()
-					.find(|(a, _)| a == port)
-				{
-					*from_type
+				if let Some((_, from_type)) = self.config.output.get_inputs().find_with_name(port) {
+					from_type
 				} else {
 					return Err(PipelinePrepareError::NoNodeInput {
 						node: PipelineNode::External,
@@ -161,7 +154,7 @@ impl PipelineSpec {
 				}
 				let get_node = get_node.unwrap();
 				let a = get_node.node_type.inputs();
-				let b = a.iter().enumerate().find(|(_, (x, _))| x == port);
+				let b = a.find_with_name(port);
 
 				if b.is_none() {
 					return Err(PipelinePrepareError::NoNodeInput {
@@ -169,7 +162,7 @@ impl PipelineSpec {
 						input: port.clone(),
 					});
 				}
-				b.unwrap().1 .1
+				b.unwrap().1
 			}
 		};
 
@@ -244,9 +237,7 @@ impl PipelineSpec {
 							.unwrap()
 							.node_type
 							.outputs()
-							.iter()
-							.enumerate()
-							.find(|(_, (x, _))| x == port)
+							.find_with_name(port)
 							.unwrap()
 							.0
 					}
@@ -317,9 +308,7 @@ impl PipelineSpec {
 				let in_port = node_spec
 					.node_type
 					.inputs()
-					.iter()
-					.enumerate()
-					.find(|(_, (x, _))| x == input_name)
+					.find_with_name(input_name)
 					.unwrap()
 					.0;
 
@@ -352,9 +341,7 @@ impl PipelineSpec {
 				self.config
 					.output
 					.get_inputs()
-					.iter()
-					.enumerate()
-					.find(|(_, (x, _))| x == port_label)
+					.find_with_name(port_label)
 					.unwrap()
 					.0,
 				*node_name_map.get(&PipelineNode::External).unwrap(),

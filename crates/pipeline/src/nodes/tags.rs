@@ -7,7 +7,7 @@ use std::{
 	io::{Cursor, Read, Seek},
 	sync::Arc,
 };
-use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData};
+use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData, PipelineDataType};
 
 use crate::{errors::PipelineError, PipelineStatelessRunner};
 
@@ -67,13 +67,10 @@ impl ExtractTags {
 }
 
 impl PipelineStatelessRunner for ExtractTags {
-	fn run(
-		&self,
-		data: Vec<Option<Arc<PipelineData>>>,
-	) -> Result<Vec<Option<Arc<PipelineData>>>, PipelineError> {
+	fn run(&self, data: Vec<Arc<PipelineData>>) -> Result<Vec<Arc<PipelineData>>, PipelineError> {
 		let data = data.first().unwrap();
 
-		let (data_type, data) = match data.as_ref().unwrap().as_ref() {
+		let (data_type, data) = match data.as_ref() {
 			PipelineData::Binary {
 				format: data_type,
 				data,
@@ -96,29 +93,67 @@ impl PipelineStatelessRunner for ExtractTags {
 		let t = t.unwrap();
 
 		let h = if let Some(t) = t {
-			let title = t.title().map(|x| PipelineData::Text(x.to_string()));
-			let album = t.album().map(|x| PipelineData::Text(x.to_string()));
-			let artist = t.artist().map(|x| PipelineData::Text(x.to_string()));
-			let genre = t.genre().map(|x| PipelineData::Text(x.to_string()));
-			let comment = t.comment().map(|x| PipelineData::Text(x.to_string()));
-			let track = t.comment().map(|x| PipelineData::Text(x.to_string()));
-			let disk = t.disk().map(|x| PipelineData::Text(x.to_string()));
-			let disk_total = t.disk_total().map(|x| PipelineData::Text(x.to_string()));
-			let year = t.year().map(|x| PipelineData::Text(x.to_string()));
+			let title = t
+				.title()
+				.map(|x| PipelineData::Text(x.to_string()))
+				.unwrap_or(PipelineData::None(PipelineDataType::Text));
+			let album = t
+				.album()
+				.map(|x| PipelineData::Text(x.to_string()))
+				.unwrap_or(PipelineData::None(PipelineDataType::Text));
+			let artist = t
+				.artist()
+				.map(|x| PipelineData::Text(x.to_string()))
+				.unwrap_or(PipelineData::None(PipelineDataType::Text));
+			let genre = t
+				.genre()
+				.map(|x| PipelineData::Text(x.to_string()))
+				.unwrap_or(PipelineData::None(PipelineDataType::Text));
+			let comment = t
+				.comment()
+				.map(|x| PipelineData::Text(x.to_string()))
+				.unwrap_or(PipelineData::None(PipelineDataType::Text));
+			let track = t
+				.comment()
+				.map(|x| PipelineData::Text(x.to_string()))
+				.unwrap_or(PipelineData::None(PipelineDataType::Text));
+			let disk = t
+				.disk()
+				.map(|x| PipelineData::Text(x.to_string()))
+				.unwrap_or(PipelineData::None(PipelineDataType::Text));
+			let disk_total = t
+				.disk_total()
+				.map(|x| PipelineData::Text(x.to_string()))
+				.unwrap_or(PipelineData::None(PipelineDataType::Text));
+			let year = t
+				.year()
+				.map(|x| PipelineData::Text(x.to_string()))
+				.unwrap_or(PipelineData::None(PipelineDataType::Text));
 
 			vec![
-				title.map(Arc::new),
-				album.map(Arc::new),
-				artist.map(Arc::new),
-				genre.map(Arc::new),
-				comment.map(Arc::new),
-				track.map(Arc::new),
-				disk.map(Arc::new),
-				disk_total.map(Arc::new),
-				year.map(Arc::new),
+				Arc::new(title),
+				Arc::new(album),
+				Arc::new(artist),
+				Arc::new(genre),
+				Arc::new(comment),
+				Arc::new(track),
+				Arc::new(disk),
+				Arc::new(disk_total),
+				Arc::new(year),
 			]
 		} else {
-			vec![None, None, None, None, None, None, None, None, None]
+			// TODO: should these all be the same arc?
+			vec![
+				Arc::new(PipelineData::None(PipelineDataType::Text)),
+				Arc::new(PipelineData::None(PipelineDataType::Text)),
+				Arc::new(PipelineData::None(PipelineDataType::Text)),
+				Arc::new(PipelineData::None(PipelineDataType::Text)),
+				Arc::new(PipelineData::None(PipelineDataType::Text)),
+				Arc::new(PipelineData::None(PipelineDataType::Text)),
+				Arc::new(PipelineData::None(PipelineDataType::Text)),
+				Arc::new(PipelineData::None(PipelineDataType::Text)),
+				Arc::new(PipelineData::None(PipelineDataType::Text)),
+			]
 		};
 
 		return Ok(h);
