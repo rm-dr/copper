@@ -1,17 +1,13 @@
 .sidebar {
 	position: relative;
 	height: 100%;
-	background-color: color-mix(
-		in srgb,
-		var(--mantine-color-gray-9),
-		var(--mantine-color-gray-8) 30%
-	);
+	background-color: var(--mantine-color-dark-8);
 	transition-duration: 200ms;
 	overflow: hidden;
 
 	width: 12rem;
 
-	box-shadow: 0px 0px 10px 3px var(--mantine-color-black);
+	box-shadow: 0px 0px 5px 0px var(--mantine-color-black);
 }
 
 .sidebarhide {
@@ -51,15 +47,15 @@
 	overflow: hidden;
 	word-wrap: none;
 
-	color: var(--mantine-color-white);
+	color: var(--mantine-color-text);
 
 	&.itemactive {
 		font-weight: bold;
-		color: var(--mantine-color-red-7);
+		color: var(--mantine-primary-color-5);
 	}
 
 	&:hover:not(.itemactive) {
-		color: var(--mantine-color-red-5);
+		color: var(--mantine-primary-color-2);
 	}
 
 	.itemicon {

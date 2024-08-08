@@ -1,3 +1,6 @@
+// TODO: replace with global
+$color-entry-hover: var(--mantine-color-dark-7);
+
 .main {
 	display: grid;
 
@@ -34,11 +37,7 @@
 			display: flex;
 			flex-direction: column;
 
-			background-color: color-mix(
-				in srgb,
-				var(--mantine-color-gray-9),
-				var(--mantine-color-gray-8) 40%
-			);
+			background-color: var(--mantine-color-dark-7);
 		}
 
 		// Subpanel content
@@ -95,15 +94,10 @@
 		width: 100%;
 		height: 2rem;
 
-		color: var(--mantine-color-white);
-		background-color: color-mix(
-			in srgb,
-			var(--mantine-color-gray-9),
-			var(--mantine-color-gray-8) 40%
-		);
+		background-color: var(--mantine-color-dark-7);
 
 		&:hover {
-			background-color: var(--mantine-color-gray-8);
+			background-color: var(--color-entry-hover);
 		}
 
 		.filelist_entry {
@@ -140,7 +134,7 @@
 
 		align-items: center;
 		border-style: solid;
-		border-color: var(--mantine-color-gray-8);
+		border-color: var(--mantine-color-dark-6);
 		border-width: 2px 0px 0px 0px;
 
 		text-align: center;
@@ -161,10 +155,10 @@
 	border-radius: 0.5rem;
 	height: 2rem;
 
-	color: var(--mantine-color-white);
+	color: var(--mantine-color-text);
 
 	&:hover {
-		background-color: var(--mantine-color-gray-8);
+		background-color: var(--color-entry-hover);
 	}
 
 	.argleft {

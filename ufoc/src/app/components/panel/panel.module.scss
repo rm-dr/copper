@@ -11,12 +11,12 @@
 	padding: 0;
 
 	user-select: none;
-	color: var(--mantine-color-white);
+	color: var(--mantine-color-text);
 
 	font-size: 1rem;
 	font-weight: 300;
 
-	background-color: var(--mantine-color-gray-8);
+	background-color: var(--mantine-color-dark-6);
 
 	.panel_icon {
 		display: flex;
@@ -28,7 +28,7 @@
 		height: 100%;
 		padding: 2px;
 		margin-right: 0.5rem;
-		background-color: var(--mantine-color-gray-7);
+		background-color: var(--mantine-color-dark-5);
 	}
 
 	.panel_title_text {
@@ -45,17 +45,17 @@
 	padding: 0;
 	margin: 0;
 
-	background-color: var(--mantine-color-gray-9);
-	border: 0px solid var(--mantine-color-gray-8);
+	background-color: var(--mantine-color-dark-8);
+	border: 0px solid var(--mantine-color-dark-7);
 	border-radius: 0px;
 	transition: 200ms;
 
 	// Main title
 	& > .panel_title:first-child {
 		font-size: 1.5rem;
-		background-color: var(--mantine-color-red-9);
+		background-color: var(--mantine-primary-color-9);
 		.panel_icon {
-			background-color: var(--mantine-color-red-7);
+			background-color: var(--mantine-primary-color-7);
 		}
 	}
 

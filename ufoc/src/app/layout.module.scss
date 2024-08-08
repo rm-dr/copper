@@ -10,23 +10,7 @@
 	width: 100%;
 	overflow: hidden;
 
-	background-color: color-mix(
-		in srgb,
-		var(--mantine-color-gray-9),
-		var(--mantine-color-black) 65%
-	);
-
-	background-image: radial-gradient(
-		color-mix(
-				in srgb,
-				var(--mantine-color-gray-9),
-				var(--mantine-color-black) 20%
-			)
-			1px,
-		transparent 1px
-	);
-	background-size: 1.5rem 1.5rem;
-	background-position: -19px -19px;
+	background-color: var(--mantine-color-dark-9);
 }
 
 .sidebarContainer {
