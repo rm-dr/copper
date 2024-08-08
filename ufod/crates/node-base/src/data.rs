@@ -10,7 +10,7 @@ use utoipa::ToSchema;
 
 /// Immutable bits of data inside a pipeline.
 ///
-/// Cloning [`UFOData`] should be very fast. Consider wrapping
+/// Cloning [`CopperData`] should be very fast. Consider wrapping
 /// big containers in an [`Arc`].
 ///
 /// Any variant that has a "deserialize" implementation
@@ -26,10 +26,10 @@ use utoipa::ToSchema;
 /// represents a file path that is available when the pipeline is run. This path may vanish later.)
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 #[serde(tag = "data_type")]
-pub enum UFOData {
+pub enum CopperData {
 	/// Typed, unset data
 	#[serde(skip)]
-	None { data_type: UFODataStub },
+	None { data_type: CopperDataStub },
 
 	/// A block of text
 	Text {
@@ -86,29 +86,29 @@ pub enum BytesSource {
 	},
 }
 
-impl PipelineData for UFOData {
-	type DataStubType = UFODataStub;
+impl PipelineData for CopperData {
+	type DataStubType = CopperDataStub;
 
 	fn as_stub(&self) -> Self::DataStubType {
 		match self {
 			Self::None { data_type } => *data_type,
-			Self::Text { .. } => UFODataStub::Text,
+			Self::Text { .. } => CopperDataStub::Text,
 			Self::Integer {
 				is_non_negative, ..
-			} => UFODataStub::Integer {
+			} => CopperDataStub::Integer {
 				is_non_negative: *is_non_negative,
 			},
-			Self::Boolean { .. } => UFODataStub::Boolean,
+			Self::Boolean { .. } => CopperDataStub::Boolean,
 			Self::Float {
 				is_non_negative, ..
-			} => UFODataStub::Float {
+			} => CopperDataStub::Float {
 				is_non_negative: *is_non_negative,
 			},
 			Self::Hash {
 				hash_type: format, ..
-			} => UFODataStub::Hash { hash_type: *format },
-			Self::Bytes { .. } => UFODataStub::Bytes,
-			Self::Reference { class, .. } => UFODataStub::Reference { class: *class },
+			} => CopperDataStub::Hash { hash_type: *format },
+			Self::Bytes { .. } => CopperDataStub::Bytes,
+			Self::Reference { class, .. } => CopperDataStub::Reference { class: *class },
 		}
 	}
 
@@ -117,7 +117,7 @@ impl PipelineData for UFOData {
 	}
 }
 
-impl UFOData {
+impl CopperData {
 	pub fn is_none(&self) -> bool {
 		matches!(self, Self::None { .. })
 	}
@@ -127,40 +127,40 @@ impl UFOData {
 			// These may not be converted to MetastoreData directly.
 			// - Blobs must first be written to the blobstore
 			// - Paths may not be stored in a metastore at all.
-			UFOData::Bytes { .. } => return None,
+			CopperData::Bytes { .. } => return None,
 
-			UFOData::Text { value } => MetastoreData::Text(value.clone()),
-			UFOData::Boolean { value } => MetastoreData::Boolean(*value),
+			CopperData::Text { value } => MetastoreData::Text(value.clone()),
+			CopperData::Boolean { value } => MetastoreData::Boolean(*value),
 
-			UFOData::None { data_type } => {
+			CopperData::None { data_type } => {
 				if let Some(stub) = data_type.as_metastore_stub() {
 					MetastoreData::None(stub)
 				} else {
 					return None;
 				}
 			}
-			UFOData::Hash {
+			CopperData::Hash {
 				hash_type: format,
 				data,
 			} => MetastoreData::Hash {
 				format: *format,
 				data: data.clone(),
 			},
-			UFOData::Integer {
+			CopperData::Integer {
 				value,
 				is_non_negative,
 			} => MetastoreData::Integer {
 				value: *value,
 				is_non_negative: *is_non_negative,
 			},
-			UFOData::Float {
+			CopperData::Float {
 				value,
 				is_non_negative,
 			} => MetastoreData::Float {
 				value: *value,
 				is_non_negative: *is_non_negative,
 			},
-			UFOData::Reference { class, item } => MetastoreData::Reference {
+			CopperData::Reference { class, item } => MetastoreData::Reference {
 				class: *class,
 				item: *item,
 			},
@@ -170,7 +170,7 @@ impl UFOData {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "stub_type")]
-pub enum UFODataStub {
+pub enum CopperDataStub {
 	/// Plain text
 	Text,
 
@@ -196,7 +196,7 @@ pub enum UFODataStub {
 	},
 }
 
-impl PipelineDataStub for UFODataStub {
+impl PipelineDataStub for CopperDataStub {
 	fn is_subset_of(&self, superset: &Self) -> bool {
 		if self == superset {
 			return true;
@@ -206,9 +206,9 @@ impl PipelineDataStub for UFODataStub {
 	}
 }
 
-impl UFODataStub {
-	/// Get the [`MetastoreDataStub`] that this [`UFODataStub`] encode to, if any.
-	/// Not all [`UFODataStub`]s may be stored in a metastore.
+impl CopperDataStub {
+	/// Get the [`MetastoreDataStub`] that this [`CopperDataStub`] encode to, if any.
+	/// Not all [`CopperDataStub`]s may be stored in a metastore.
 	fn as_metastore_stub(&self) -> Option<MetastoreDataStub> {
 		Some(match self {
 			Self::Text => MetastoreDataStub::Text,
@@ -228,9 +228,9 @@ impl UFODataStub {
 	}
 }
 
-// Get the UFODataStub that is encoded into the given MetastoreDataStub.
+// Get the [`CopperDataStub`] that is encoded into the given MetastoreDataStub.
 // This should match `as_metastore_stub` above.
-impl From<MetastoreDataStub> for UFODataStub {
+impl From<MetastoreDataStub> for CopperDataStub {
 	fn from(value: MetastoreDataStub) -> Self {
 		match value {
 			MetastoreDataStub::Text => Self::Text,
@@ -245,7 +245,7 @@ impl From<MetastoreDataStub> for UFODataStub {
 	}
 }
 
-impl UFODataStub {
+impl CopperDataStub {
 	/// Iterate over all possible stubs
 	pub fn iter_all() -> impl Iterator<Item = &'static Self> {
 		[

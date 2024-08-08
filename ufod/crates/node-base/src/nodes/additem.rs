@@ -22,13 +22,13 @@ use ufo_pipeline::{
 };
 
 use crate::{
-	data::{UFOData, UFODataStub},
+	data::{CopperData, CopperDataStub},
 	helpers::DataSource,
-	UFOContext,
+	CopperContext,
 };
 
 enum DataHold {
-	Static(UFOData),
+	Static(CopperData),
 	Binary(DataSource),
 	BlobWriting {
 		reader: DataSource,
@@ -38,8 +38,8 @@ enum DataHold {
 }
 
 pub struct AddItemInfo {
-	outputs: BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType>,
-	inputs: BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType>,
+	outputs: BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType>,
+	inputs: BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType>,
 
 	class: ClassHandle,
 	attrs: BTreeMap<PipelinePortID, AttrInfo>,
@@ -50,8 +50,8 @@ pub struct AddItemInfo {
 
 impl AddItemInfo {
 	pub fn new(
-		ctx: &UFOContext,
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+		ctx: &CopperContext,
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
 	) -> Result<Self, InitNodeError> {
 		if params.len() != 2 {
 			return Err(InitNodeError::BadParameterCount { expected: 2 });
@@ -111,7 +111,7 @@ impl AddItemInfo {
 		Ok(Self {
 			outputs: BTreeMap::from([(
 				PipelinePortID::new("new_item"),
-				UFODataStub::Reference { class },
+				CopperDataStub::Reference { class },
 			)]),
 
 			inputs: attrs
@@ -127,12 +127,12 @@ impl AddItemInfo {
 	}
 }
 
-impl NodeInfo<UFOData> for AddItemInfo {
-	fn inputs(&self) -> &BTreeMap<PipelinePortID, UFODataStub> {
+impl NodeInfo<CopperData> for AddItemInfo {
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, CopperDataStub> {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &BTreeMap<PipelinePortID, UFODataStub> {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, CopperDataStub> {
 		&self.outputs
 	}
 }
@@ -144,8 +144,8 @@ pub struct AddItem {
 
 impl AddItem {
 	pub fn new(
-		ctx: &UFOContext,
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+		ctx: &CopperContext,
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
 	) -> Result<Self, InitNodeError> {
 		Ok(AddItem {
 			dataset: ctx.dataset.clone(),
@@ -154,15 +154,15 @@ impl AddItem {
 	}
 }
 
-impl Node<UFOData> for AddItem {
-	fn get_info(&self) -> &dyn NodeInfo<UFOData> {
+impl Node<CopperData> for AddItem {
+	fn get_info(&self) -> &dyn NodeInfo<CopperData> {
 		&self.info
 	}
 
 	fn take_input(
 		&mut self,
 		target_port: PipelinePortID,
-		input_data: UFOData,
+		input_data: CopperData,
 	) -> Result<(), RunNodeError> {
 		assert!(
 			self.info.inputs.contains_key(&target_port),
@@ -170,7 +170,7 @@ impl Node<UFOData> for AddItem {
 		);
 
 		match input_data {
-			UFOData::Bytes { mime, source } => {
+			CopperData::Bytes { mime, source } => {
 				let x = &self.info.attrs.get(&target_port).unwrap();
 				match x.data_type {
 					MetastoreDataStub::Binary => {
@@ -219,7 +219,7 @@ impl Node<UFOData> for AddItem {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, CopperData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		for (_, hold) in &mut self.info.data {
 			match hold {
@@ -295,7 +295,7 @@ impl Node<UFOData> for AddItem {
 			Ok(item) => {
 				send_data(
 					PipelinePortID::new("new_item"),
-					UFOData::Reference {
+					CopperData::Reference {
 						class: self.info.class,
 						item,
 					},
@@ -308,8 +308,8 @@ impl Node<UFOData> for AddItem {
 					} else {
 						send_data(
 							PipelinePortID::new("new_item"),
-							UFOData::None {
-								data_type: UFODataStub::Reference {
+							CopperData::None {
+								data_type: CopperDataStub::Reference {
 									class: self.info.class,
 								},
 							},

@@ -1,10 +1,10 @@
 use api::RouterState;
-use config::UfodConfig;
+use config::CopperConfig;
 use futures::TryFutureExt;
 use std::{error::Error, future::IntoFuture, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::info;
-use ufo_node_base::{data::UFOData, UFOContext};
+use ufo_node_base::{data::CopperData, CopperContext};
 
 use ufo_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
 
@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			"Generating default config at {}",
 			config_path.to_str().unwrap()
 		);
-		UfodConfig::create_default_config(&config_path).unwrap();
+		CopperConfig::create_default_config(&config_path).unwrap();
 	} else if !config_path.is_file() {
 		// We cannot log here, logger hasn't been initialized
 		println!(
@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		std::process::exit(0);
 	}
 
-	let config = Arc::new(UfodConfig::load_from_file(&config_path).unwrap());
+	let config = Arc::new(CopperConfig::load_from_file(&config_path).unwrap());
 
 	// Logging is available after this point
 	tracing_subscriber::fmt()
@@ -57,10 +57,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	let uploader = uploader::Uploader::open(config.clone());
 
 	// Prep runner
-	let mut runner: PipelineRunner<UFOData, UFOContext> = PipelineRunner::new(PipelineRunConfig {
-		node_threads: config.pipeline.threads_per_job,
-		max_active_jobs: config.pipeline.parallel_jobs,
-	});
+	let mut runner: PipelineRunner<CopperData, CopperContext> =
+		PipelineRunner::new(PipelineRunConfig {
+			node_threads: config.pipeline.threads_per_job,
+			max_active_jobs: config.pipeline.parallel_jobs,
+		});
 
 	{
 		// Base nodes

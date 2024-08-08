@@ -4,9 +4,9 @@ use crate::flac::proc::metastrip::FlacMetaStrip;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, io::Read, sync::Arc};
 use ufo_node_base::{
-	data::{BytesSource, UFOData, UFODataStub},
+	data::{BytesSource, CopperData, CopperDataStub},
 	helpers::DataSource,
-	UFOContext,
+	CopperContext,
 };
 use ufo_pipeline::{
 	api::{InitNodeError, Node, NodeInfo, NodeState, RunNodeError},
@@ -17,32 +17,32 @@ use ufo_util::mime::MimeType;
 
 /// Info for a [`StripTags`] node
 pub struct StripTagsInfo {
-	inputs: BTreeMap<PipelinePortID, UFODataStub>,
-	outputs: BTreeMap<PipelinePortID, UFODataStub>,
+	inputs: BTreeMap<PipelinePortID, CopperDataStub>,
+	outputs: BTreeMap<PipelinePortID, CopperDataStub>,
 }
 
 impl StripTagsInfo {
 	/// Generate node info from parameters
 	pub fn new(
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
 	) -> Result<Self, InitNodeError> {
 		if params.len() != 0 {
 			return Err(InitNodeError::BadParameterCount { expected: 0 });
 		}
 
 		Ok(Self {
-			inputs: BTreeMap::from([(PipelinePortID::new("data"), UFODataStub::Bytes)]),
-			outputs: BTreeMap::from([(PipelinePortID::new("out"), UFODataStub::Bytes)]),
+			inputs: BTreeMap::from([(PipelinePortID::new("data"), CopperDataStub::Bytes)]),
+			outputs: BTreeMap::from([(PipelinePortID::new("out"), CopperDataStub::Bytes)]),
 		})
 	}
 }
 
-impl NodeInfo<UFOData> for StripTagsInfo {
-	fn inputs(&self) -> &BTreeMap<PipelinePortID, UFODataStub> {
+impl NodeInfo<CopperData> for StripTagsInfo {
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, CopperDataStub> {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &BTreeMap<PipelinePortID, UFODataStub> {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, CopperDataStub> {
 		&self.outputs
 	}
 }
@@ -58,8 +58,8 @@ pub struct StripTags {
 impl StripTags {
 	/// Create a new [`StripTags`] node
 	pub fn new(
-		ctx: &UFOContext,
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+		ctx: &CopperContext,
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
 	) -> Result<Self, InitNodeError> {
 		Ok(Self {
 			info: StripTagsInfo::new(params)?,
@@ -70,19 +70,19 @@ impl StripTags {
 	}
 }
 
-impl Node<UFOData> for StripTags {
-	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
+impl Node<CopperData> for StripTags {
+	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<CopperData> {
 		&self.info
 	}
 
 	fn take_input(
 		&mut self,
 		target_port: PipelinePortID,
-		input_data: UFOData,
+		input_data: CopperData,
 	) -> Result<(), RunNodeError> {
 		match target_port.id().as_str() {
 			"data" => match input_data {
-				UFOData::Bytes { source, mime } => {
+				CopperData::Bytes { source, mime } => {
 					if mime != MimeType::Flac {
 						return Err(RunNodeError::UnsupportedFormat(format!(
 							"cannot strip tags from `{}`",
@@ -103,7 +103,7 @@ impl Node<UFOData> for StripTags {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, CopperData) -> Result<(), RunNodeError>,
 	) -> Result<ufo_pipeline::api::NodeState, RunNodeError> {
 		// Push latest data into metadata stripper
 		match &mut self.data {
@@ -154,7 +154,7 @@ impl Node<UFOData> for StripTags {
 			if !out.is_empty() {
 				send_data(
 					PipelinePortID::new("out"),
-					UFOData::Bytes {
+					CopperData::Bytes {
 						mime: MimeType::Flac,
 						source: BytesSource::Array {
 							fragment: Arc::new(out),

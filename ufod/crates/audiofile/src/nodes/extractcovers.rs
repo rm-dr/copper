@@ -2,9 +2,9 @@ use crate::flac::proc::pictures::FlacPictureReader;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, io::Read, sync::Arc};
 use ufo_node_base::{
-	data::{BytesSource, UFOData, UFODataStub},
+	data::{BytesSource, CopperData, CopperDataStub},
 	helpers::DataSource,
-	UFOContext,
+	CopperContext,
 };
 use ufo_pipeline::{
 	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
@@ -15,32 +15,32 @@ use ufo_util::mime::MimeType;
 
 /// Info for a [`ExtractCovers`] node
 pub struct ExtractCoversInfo {
-	inputs: BTreeMap<PipelinePortID, UFODataStub>,
-	outputs: BTreeMap<PipelinePortID, UFODataStub>,
+	inputs: BTreeMap<PipelinePortID, CopperDataStub>,
+	outputs: BTreeMap<PipelinePortID, CopperDataStub>,
 }
 
 impl ExtractCoversInfo {
 	/// Generate node info from parameters
 	pub fn new(
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
 	) -> Result<Self, InitNodeError> {
 		if params.len() != 0 {
 			return Err(InitNodeError::BadParameterCount { expected: 0 });
 		}
 
 		Ok(Self {
-			inputs: BTreeMap::from([(PipelinePortID::new("data"), UFODataStub::Bytes)]),
-			outputs: BTreeMap::from([(PipelinePortID::new("cover_data"), UFODataStub::Bytes)]),
+			inputs: BTreeMap::from([(PipelinePortID::new("data"), CopperDataStub::Bytes)]),
+			outputs: BTreeMap::from([(PipelinePortID::new("cover_data"), CopperDataStub::Bytes)]),
 		})
 	}
 }
 
-impl NodeInfo<UFOData> for ExtractCoversInfo {
-	fn inputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
+impl NodeInfo<CopperData> for ExtractCoversInfo {
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
 		&self.outputs
 	}
 }
@@ -56,8 +56,8 @@ pub struct ExtractCovers {
 impl ExtractCovers {
 	/// Create a new [`ExtractCovers`] node
 	pub fn new(
-		ctx: &UFOContext,
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+		ctx: &CopperContext,
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
 	) -> Result<Self, InitNodeError> {
 		Ok(Self {
 			info: ExtractCoversInfo::new(params)?,
@@ -68,19 +68,19 @@ impl ExtractCovers {
 	}
 }
 
-impl Node<UFOData> for ExtractCovers {
-	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
+impl Node<CopperData> for ExtractCovers {
+	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<CopperData> {
 		&self.info
 	}
 
 	fn take_input(
 		&mut self,
 		target_port: PipelinePortID,
-		input_data: UFOData,
+		input_data: CopperData,
 	) -> Result<(), RunNodeError> {
 		match target_port.id().as_str() {
 			"data" => match input_data {
-				UFOData::Bytes { source, mime } => {
+				CopperData::Bytes { source, mime } => {
 					if mime != MimeType::Flac {
 						return Err(RunNodeError::UnsupportedFormat(format!(
 							"cannot extract covers from `{}`",
@@ -101,7 +101,7 @@ impl Node<UFOData> for ExtractCovers {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, CopperData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		// Push latest data into cover reader
 		match &mut self.data {
@@ -145,7 +145,7 @@ impl Node<UFOData> for ExtractCovers {
 		if let Some(picture) = self.reader.pop_picture() {
 			send_data(
 				PipelinePortID::new("cover_data"),
-				UFOData::Bytes {
+				CopperData::Bytes {
 					mime: picture.mime.clone(),
 					source: BytesSource::Array {
 						fragment: Arc::new(picture.img_data),
@@ -157,8 +157,8 @@ impl Node<UFOData> for ExtractCovers {
 		} else if self.reader.is_done() {
 			send_data(
 				PipelinePortID::new("cover_data"),
-				UFOData::None {
-					data_type: UFODataStub::Bytes,
+				CopperData::None {
+					data_type: CopperDataStub::Bytes,
 				},
 			)?;
 			return Ok(NodeState::Done);

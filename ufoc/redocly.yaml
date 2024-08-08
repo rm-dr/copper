@@ -1,7 +1,7 @@
-# Run `npx openapi-typescript` from `./ufoc`
+# Run `npx openapi-typescript` from `./copperc`
 apis:
     core:
-		# Address of `ufod` dev server
+        # Address of local Copper server
         root: http://localhost:3030/docs/openapi.json
         x-openapi-ts:
             output: ./src/app/_util/api/openapi.ts

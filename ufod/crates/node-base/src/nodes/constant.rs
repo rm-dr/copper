@@ -6,17 +6,17 @@ use ufo_pipeline::{
 	labels::PipelinePortID,
 };
 
-use crate::data::{UFOData, UFODataStub};
+use crate::data::{CopperData, CopperDataStub};
 
 pub struct Constant {
-	inputs: BTreeMap<PipelinePortID, UFODataStub>,
-	outputs: BTreeMap<PipelinePortID, UFODataStub>,
-	value: UFOData,
+	inputs: BTreeMap<PipelinePortID, CopperDataStub>,
+	outputs: BTreeMap<PipelinePortID, CopperDataStub>,
+	value: CopperData,
 }
 
 impl Constant {
 	pub fn new(
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
 	) -> Result<Self, InitNodeError> {
 		if params.len() != 1 {
 			return Err(InitNodeError::BadParameterCount { expected: 1 });
@@ -45,18 +45,18 @@ impl Constant {
 	}
 }
 
-impl NodeInfo<UFOData> for Constant {
-	fn inputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
+impl NodeInfo<CopperData> for Constant {
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
 		&self.outputs
 	}
 }
 
-impl Node<UFOData> for Constant {
-	fn get_info(&self) -> &dyn NodeInfo<UFOData> {
+impl Node<CopperData> for Constant {
+	fn get_info(&self) -> &dyn NodeInfo<CopperData> {
 		self
 	}
 
@@ -67,14 +67,14 @@ impl Node<UFOData> for Constant {
 	fn take_input(
 		&mut self,
 		_target_port: PipelinePortID,
-		_input_data: UFOData,
+		_input_data: CopperData,
 	) -> Result<(), RunNodeError> {
 		unreachable!("Constant nodes do not take input.")
 	}
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, CopperData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		send_data(PipelinePortID::new("out"), self.value.clone())?;
 		Ok(NodeState::Done)

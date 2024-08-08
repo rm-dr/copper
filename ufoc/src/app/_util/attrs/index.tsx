@@ -16,7 +16,7 @@ export type attrTypeInfo = {
 	// Pretty name to display to user
 	pretty_name: string;
 
-	// The name of this data type in ufo's api
+	// The name of this data type in copper's api
 	serialize_as: string;
 
 	// Icon to use for attrs of this type

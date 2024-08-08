@@ -3,11 +3,11 @@ use sha2::{Digest, Sha256};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::HashMap, fs::File, io::Write, path::PathBuf, sync::Arc, time::Instant};
 use tracing::{debug, error, info, warn};
-use ufo_node_base::{data::UFOData, UFOContext};
+use ufo_node_base::{data::CopperData, CopperContext};
 use ufo_pipeline::runner::runner::PipelineRunner;
 use ufo_util::mime::MimeType;
 
-use crate::config::UfodConfig;
+use crate::config::CopperConfig;
 
 pub mod errors;
 
@@ -44,12 +44,12 @@ pub struct UploadJobFile {
 }
 
 pub struct Uploader {
-	pub config: Arc<UfodConfig>,
+	pub config: Arc<CopperConfig>,
 	pub jobs: tokio::sync::Mutex<Vec<UploadJob>>,
 }
 
 impl Uploader {
-	pub fn open(config: Arc<UfodConfig>) -> Self {
+	pub fn open(config: Arc<CopperConfig>) -> Self {
 		// Initialize upload dir
 		if !config.paths.upload_dir.exists() {
 			warn!(
@@ -95,7 +95,7 @@ impl Uploader {
 	///
 	/// This cleans up jobs that have timed out,
 	/// and jobs bound to a pipeline that has been finished.
-	pub async fn check_jobs(&self, runner: &PipelineRunner<UFOData, UFOContext>) {
+	pub async fn check_jobs(&self, runner: &PipelineRunner<CopperData, CopperContext>) {
 		let mut jobs = self.jobs.lock().await;
 
 		let now = Instant::now();

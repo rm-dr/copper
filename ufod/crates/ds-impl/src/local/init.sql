@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS meta_attributes (
 	pretty_name TEXT NOT NULL,
 
 	-- The type of data this attr holds
-	-- (Internal UFO datatype. This is more specific than the types SQL provides.)
+	-- (Internal Copper datatype. This is more specific than the types SQL provides.)
 	data_type TEXT NOT NULL,
 
 	--- Boolean (0 or 1). Does this attribute have a "unique" constrait?

@@ -10,7 +10,7 @@ export const datasetTypes: {
 	// Pretty name to display to user
 	pretty_name: string;
 
-	// The name of this type in ufo's api
+	// The name of this type in copper's api
 	serialize_as: string;
 
 	// Icon to use for datasets of this type

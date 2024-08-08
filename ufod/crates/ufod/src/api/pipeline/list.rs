@@ -11,8 +11,8 @@ use tracing::error;
 use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
 use ufo_ds_impl::local::LocalDataset;
 use ufo_node_base::{
-	data::{UFOData, UFODataStub},
-	UFOContext,
+	data::{CopperData, CopperDataStub},
+	CopperContext,
 };
 use ufo_pipeline::labels::PipelineName;
 use utoipa::{IntoParams, ToSchema};
@@ -33,7 +33,7 @@ pub(super) struct PipelineInfoShort {
 	pub name: PipelineName,
 
 	/// The input this pipeline takes
-	pub inputs: BTreeMap<String, UFODataStub>,
+	pub inputs: BTreeMap<String, CopperDataStub>,
 
 	/// If true, we couldn't load this pipeline successfully.
 	pub has_error: bool,
@@ -87,7 +87,7 @@ pub(super) async fn list_pipelines(
 	// TODO: this is ugly, fix it!
 	// (do while implementing generic datasets)
 	let all_pipes =
-		match <LocalDataset as Pipestore<UFOData, UFOContext>>::all_pipelines(&dataset).await {
+		match <LocalDataset as Pipestore<CopperData, CopperContext>>::all_pipelines(&dataset).await {
 			Ok(x) => x,
 			Err(e) => {
 				error!(
@@ -110,7 +110,7 @@ pub(super) async fn list_pipelines(
 		let pipe = match dataset
 			.load_pipeline(
 				runner.get_dispatcher(),
-				&UFOContext {
+				&CopperContext {
 					dataset: dataset.clone(),
 					blob_fragment_size: state.config.pipeline.blob_fragment_size,
 					input: BTreeMap::new(), // Unused when building pipelines

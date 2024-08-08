@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use ufo_pipeline::dispatcher::{NodeDispatcher, RegisterNodeError};
 
-use crate::{data::UFOData, UFOContext};
+use crate::{data::CopperData, CopperContext};
 
 mod constant;
 mod hash;
@@ -14,7 +14,7 @@ mod finditem;
 
 /// Register all nodes in this module into the given runner.
 pub fn register(
-	dispatcher: &mut NodeDispatcher<UFOData, UFOContext>,
+	dispatcher: &mut NodeDispatcher<CopperData, CopperContext>,
 ) -> Result<(), RegisterNodeError> {
 	dispatcher.register_node(
 		"Constant",

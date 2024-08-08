@@ -53,7 +53,7 @@ impl LocalDataset {
 			.unwrap();
 
 		sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?, ?);")
-			.bind("ufo_version")
+			.bind("copper_version")
 			.bind(env!("CARGO_PKG_VERSION"))
 			.execute(&mut conn)
 			.await

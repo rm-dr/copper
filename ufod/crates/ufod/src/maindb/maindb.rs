@@ -2,7 +2,7 @@ use sqlx::{sqlite::SqliteConnectOptions, Connection, SqliteConnection, SqlitePoo
 use std::{path::Path, str::FromStr, sync::Arc};
 use tracing::{error, info};
 
-use crate::config::UfodConfig;
+use crate::config::CopperConfig;
 
 use super::{auth::AuthProvider, dataset::DatasetProvider};
 
@@ -21,7 +21,7 @@ impl MainDB {
 			.await?;
 
 		sqlx::query("INSERT INTO meta (var, val) VALUES (?, ?);")
-			.bind("ufo_version")
+			.bind("copper_version")
 			.bind(env!("CARGO_PKG_VERSION"))
 			.execute(&mut conn)
 			.await?;
@@ -37,7 +37,7 @@ impl MainDB {
 		Ok(())
 	}
 
-	pub async fn open(config: Arc<UfodConfig>) -> Result<Self, sqlx::Error> {
+	pub async fn open(config: Arc<CopperConfig>) -> Result<Self, sqlx::Error> {
 		let db_addr = format!("sqlite:{}?mode=rw", config.paths.main_db.to_str().unwrap());
 		let pool = SqlitePool::connect_with(
 			SqliteConnectOptions::from_str(&db_addr)?

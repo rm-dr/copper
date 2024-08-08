@@ -2,7 +2,7 @@
 # All paths are relative to the location of this file.
 #
 # The last component of each path will be created automatically.
-# if any parents are missing, ufo will not start.
+# if any parents are missing, Copper will not start.
 
 # In-progress uploads are stored here. This shouldn't be a ramdisk,
 # files have an arbitrary size.
@@ -13,7 +13,7 @@ upload_dir = "./tmp"
 dataset_dir = "./datasets"
 
 # Path to main database file.
-main_db = "./ufo.sqlite"
+main_db = "./copper.sqlite"
 
 
 [network]

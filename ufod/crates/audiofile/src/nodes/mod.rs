@@ -1,7 +1,7 @@
 //! Pipeline nodes for processing audio files
 
 use std::collections::BTreeMap;
-use ufo_node_base::{data::UFOData, UFOContext};
+use ufo_node_base::{data::CopperData, CopperContext};
 use ufo_pipeline::dispatcher::{NodeDispatcher, RegisterNodeError};
 
 mod extractcovers;
@@ -10,7 +10,7 @@ mod striptags;
 
 /// Register all nodes in this module into the given dispatcher
 pub fn register(
-	dispatcher: &mut NodeDispatcher<UFOData, UFOContext>,
+	dispatcher: &mut NodeDispatcher<CopperData, CopperContext>,
 ) -> Result<(), RegisterNodeError> {
 	dispatcher
 		.register_node(

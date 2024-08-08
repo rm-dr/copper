@@ -6,14 +6,14 @@ pub mod data;
 pub mod helpers;
 pub mod nodes;
 
-use data::UFOData;
+use data::CopperData;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
 use ufo_ds_impl::local::LocalDataset;
 use ufo_pipeline::api::PipelineJobContext;
 
 #[derive(Clone)]
-pub struct UFOContext {
+pub struct CopperContext {
 	// Hard-code LocalDataset for now,
 	// TODO: this should be some form of "generic dataset" later.
 	//
@@ -24,11 +24,11 @@ pub struct UFOContext {
 	/// The maximum size, in bytes, of a blob channel fragment
 	pub blob_fragment_size: u64,
 
-	pub input: BTreeMap<SmartString<LazyCompact>, UFOData>,
+	pub input: BTreeMap<SmartString<LazyCompact>, CopperData>,
 }
 
-impl PipelineJobContext<UFOData> for UFOContext {
-	fn get_input(&self) -> &BTreeMap<SmartString<LazyCompact>, UFOData> {
+impl PipelineJobContext<CopperData> for CopperContext {
+	fn get_input(&self) -> &BTreeMap<SmartString<LazyCompact>, CopperData> {
 		&self.input
 	}
 }

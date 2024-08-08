@@ -7,7 +7,7 @@ use tracing::{debug, info};
 use ufo_ds_impl::{local::LocalDataset, DatasetType};
 use ufo_util::names::clean_name;
 
-use crate::config::UfodConfig;
+use crate::config::CopperConfig;
 
 pub mod errors;
 use errors::{CreateDatasetError, RenameDatasetError};
@@ -21,12 +21,12 @@ pub struct DatasetEntry {
 
 pub struct DatasetProvider {
 	pool: SqlitePool,
-	config: Arc<UfodConfig>,
+	config: Arc<CopperConfig>,
 	open_datasets: Mutex<BTreeMap<SmartString<LazyCompact>, Arc<LocalDataset>>>,
 }
 
 impl DatasetProvider {
-	pub(super) fn new(pool: SqlitePool, config: Arc<UfodConfig>) -> Self {
+	pub(super) fn new(pool: SqlitePool, config: Arc<CopperConfig>) -> Self {
 		Self {
 			pool,
 			config,

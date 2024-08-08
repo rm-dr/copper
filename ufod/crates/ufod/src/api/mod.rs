@@ -11,8 +11,8 @@ use ufo_ds_core::{
 };
 use ufo_ds_impl::DatasetType;
 use ufo_node_base::{
-	data::{UFOData, UFODataStub},
-	UFOContext,
+	data::{CopperData, CopperDataStub},
+	CopperContext,
 };
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -29,7 +29,7 @@ mod status;
 mod upload;
 
 use crate::{
-	config::UfodConfig,
+	config::CopperConfig,
 	maindb::{
 		auth::{GroupId, GroupInfo, UserId, UserInfo},
 		MainDB,
@@ -39,8 +39,8 @@ use crate::{
 
 #[derive(Clone)]
 pub struct RouterState {
-	pub config: Arc<UfodConfig>,
-	pub runner: Arc<Mutex<PipelineRunner<UFOData, UFOContext>>>,
+	pub config: Arc<CopperConfig>,
+	pub runner: Arc<Mutex<PipelineRunner<CopperData, CopperContext>>>,
 	pub main_db: Arc<MainDB>,
 	pub uploader: Arc<Uploader>,
 }
@@ -76,7 +76,7 @@ impl Modify for BearerSecurityAddon {
 		(path = "/auth", api = auth::AuthApi)
 	),
 	tags(
-		(name = "ufod", description = "UFO backend daemon")
+		(name = "Copper", description = "Copper backend daemon")
 	),
 	// All schema structs defined outside `crate::api` go here
 	components(schemas(
@@ -91,8 +91,8 @@ impl Modify for BearerSecurityAddon {
 		UserInfo,
 		AttrInfo,
 		ClassInfo,
-		UFODataStub,
-		UFOData,
+		CopperDataStub,
+		CopperData,
 	))
 )]
 struct ApiDoc;

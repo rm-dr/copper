@@ -10,8 +10,8 @@ use std::{collections::BTreeMap, sync::Arc};
 use tracing::{error, warn};
 use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
 use ufo_node_base::{
-	data::{BytesSource, UFOData},
-	UFOContext,
+	data::{BytesSource, CopperData},
+	CopperContext,
 };
 use ufo_pipeline::labels::PipelineName;
 use ufo_util::mime::MimeType;
@@ -125,7 +125,7 @@ pub(super) async fn run_pipeline(
 					.await;
 
 				let path = if let Some(path) = path {
-					UFOData::Bytes {
+					CopperData::Bytes {
 						mime: {
 							path.extension()
 								.map(|x| {
@@ -155,7 +155,7 @@ pub(super) async fn run_pipeline(
 		}
 	}
 
-	let context = UFOContext {
+	let context = CopperContext {
 		dataset: dataset.clone(),
 		blob_fragment_size: state.config.pipeline.blob_fragment_size,
 		input,

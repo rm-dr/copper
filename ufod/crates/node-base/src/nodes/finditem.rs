@@ -13,13 +13,13 @@ use ufo_pipeline::{
 };
 
 use crate::{
-	data::{UFOData, UFODataStub},
-	UFOContext,
+	data::{CopperData, CopperDataStub},
+	CopperContext,
 };
 
 pub struct FindItemInfo {
-	inputs: BTreeMap<PipelinePortID, UFODataStub>,
-	outputs: BTreeMap<PipelinePortID, UFODataStub>,
+	inputs: BTreeMap<PipelinePortID, CopperDataStub>,
+	outputs: BTreeMap<PipelinePortID, CopperDataStub>,
 
 	class: ClassHandle,
 	by_attr: AttrInfo,
@@ -27,8 +27,8 @@ pub struct FindItemInfo {
 
 impl FindItemInfo {
 	pub fn new(
-		ctx: &UFOContext,
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+		ctx: &CopperContext,
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
 	) -> Result<Self, InitNodeError> {
 		if params.len() != 2 {
 			return Err(InitNodeError::BadParameterCount { expected: 2 });
@@ -92,7 +92,7 @@ impl FindItemInfo {
 			inputs: BTreeMap::from([(PipelinePortID::new("attr_value"), by_attr.data_type.into())]),
 			outputs: BTreeMap::from([(
 				PipelinePortID::new("found_item"),
-				UFODataStub::Reference { class },
+				CopperDataStub::Reference { class },
 			)]),
 
 			class,
@@ -101,12 +101,12 @@ impl FindItemInfo {
 	}
 }
 
-impl NodeInfo<UFOData> for FindItemInfo {
-	fn inputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
+impl NodeInfo<CopperData> for FindItemInfo {
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
 		&self.outputs
 	}
 }
@@ -114,13 +114,13 @@ impl NodeInfo<UFOData> for FindItemInfo {
 pub struct FindItem {
 	info: FindItemInfo,
 	dataset: Arc<LocalDataset>,
-	attr_value: Option<UFOData>,
+	attr_value: Option<CopperData>,
 }
 
 impl FindItem {
 	pub fn new(
-		ctx: &UFOContext,
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+		ctx: &CopperContext,
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
 	) -> Result<Self, InitNodeError> {
 		if params.len() != 2 {
 			return Err(InitNodeError::BadParameterCount { expected: 2 });
@@ -136,15 +136,15 @@ impl FindItem {
 	}
 }
 
-impl Node<UFOData> for FindItem {
-	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
+impl Node<CopperData> for FindItem {
+	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<CopperData> {
 		&self.info
 	}
 
 	fn take_input(
 		&mut self,
 		target_port: PipelinePortID,
-		input_data: UFOData,
+		input_data: CopperData,
 	) -> Result<(), RunNodeError> {
 		assert!(target_port == PipelinePortID::new("attr_value"));
 		assert!(input_data.as_stub() == self.info.by_attr.data_type.into());
@@ -154,7 +154,7 @@ impl Node<UFOData> for FindItem {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, CopperData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		if self.attr_value.is_none() {
 			return Ok(NodeState::Pending("waiting for input"));
@@ -169,7 +169,7 @@ impl Node<UFOData> for FindItem {
 		if let Some(item) = found {
 			send_data(
 				PipelinePortID::new("found_item"),
-				UFOData::Reference {
+				CopperData::Reference {
 					class: self.info.class,
 					item,
 				},
@@ -177,8 +177,8 @@ impl Node<UFOData> for FindItem {
 		} else {
 			send_data(
 				PipelinePortID::new("found_item"),
-				UFOData::None {
-					data_type: UFODataStub::Reference {
+				CopperData::None {
+					data_type: CopperDataStub::Reference {
 						class: self.info.class,
 					},
 				},

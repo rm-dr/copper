@@ -13,7 +13,7 @@ use ufo_pipeline::{
 };
 
 use crate::{
-	data::{UFOData, UFODataStub},
+	data::{CopperData, CopperDataStub},
 	helpers::DataSource,
 };
 
@@ -62,7 +62,7 @@ impl HashComputer {
 		}
 	}
 
-	fn finish(self) -> UFOData {
+	fn finish(self) -> CopperData {
 		let format = self.hash_type();
 		let v = match self {
 			Self::MD5 { context } => context.compute().to_vec(),
@@ -70,7 +70,7 @@ impl HashComputer {
 			Self::SHA512 { hasher } => hasher.finalize().to_vec(),
 		};
 
-		UFOData::Hash {
+		CopperData::Hash {
 			hash_type: format,
 			data: Arc::new(v),
 		}
@@ -78,8 +78,8 @@ impl HashComputer {
 }
 
 pub struct Hash {
-	inputs: BTreeMap<PipelinePortID, UFODataStub>,
-	outputs: BTreeMap<PipelinePortID, UFODataStub>,
+	inputs: BTreeMap<PipelinePortID, CopperDataStub>,
+	outputs: BTreeMap<PipelinePortID, CopperDataStub>,
 
 	data: DataSource,
 	hasher: Option<HashComputer>,
@@ -87,7 +87,7 @@ pub struct Hash {
 
 impl Hash {
 	pub fn new(
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
+		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
 	) -> Result<Self, InitNodeError> {
 		if params.len() != 1 {
 			return Err(InitNodeError::BadParameterCount { expected: 1 });
@@ -112,11 +112,11 @@ impl Hash {
 		};
 
 		Ok(Self {
-			inputs: BTreeMap::from([(PipelinePortID::new("data"), UFODataStub::Bytes)]),
+			inputs: BTreeMap::from([(PipelinePortID::new("data"), CopperDataStub::Bytes)]),
 
 			outputs: BTreeMap::from([(
 				PipelinePortID::new("hash"),
-				UFODataStub::Hash {
+				CopperDataStub::Hash {
 					hash_type: hash_type,
 				},
 			)]),
@@ -127,29 +127,29 @@ impl Hash {
 	}
 }
 
-impl NodeInfo<UFOData> for Hash {
-	fn inputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
+impl NodeInfo<CopperData> for Hash {
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
 		&self.outputs
 	}
 }
 
-impl Node<UFOData> for Hash {
-	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<UFOData> {
+impl Node<CopperData> for Hash {
+	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<CopperData> {
 		self
 	}
 
 	fn take_input(
 		&mut self,
 		target_port: PipelinePortID,
-		input_data: UFOData,
+		input_data: CopperData,
 	) -> Result<(), RunNodeError> {
 		match target_port.id().as_str() {
 			"data" => match input_data {
-				UFOData::Bytes { source, mime } => {
+				CopperData::Bytes { source, mime } => {
 					self.data.consume(mime, source);
 				}
 
@@ -163,7 +163,7 @@ impl Node<UFOData> for Hash {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, CopperData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		match &mut self.data {
 			DataSource::Uninitialized => {

@@ -10,7 +10,7 @@ use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
-use ufo_node_base::UFOContext;
+use ufo_node_base::CopperContext;
 use ufo_pipeline::labels::{PipelineName, PipelineNodeID};
 use utoipa::ToSchema;
 
@@ -82,7 +82,7 @@ pub(super) async fn get_pipeline(
 	match dataset
 		.load_pipeline(
 			runner.get_dispatcher(),
-			&UFOContext {
+			&CopperContext {
 				dataset: dataset.clone(),
 				blob_fragment_size: state.config.pipeline.blob_fragment_size,
 				input: BTreeMap::new(), // Unused when building pipelines

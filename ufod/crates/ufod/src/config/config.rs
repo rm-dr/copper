@@ -17,24 +17,24 @@ use std::{
 
 /// Server configuration
 #[derive(Deserialize, Debug)]
-pub struct UfodConfig {
+pub struct CopperConfig {
 	/// Network settings
-	pub network: UfodNetworkConfig,
+	pub network: CopperNetworkConfig,
 
 	/// Path settings
-	pub paths: UfodPathConfig,
+	pub paths: CopperPathConfig,
 
 	#[serde(default)]
-	pub pipeline: UfodPipelineConfig,
+	pub pipeline: CopperPipelineConfig,
 
 	#[serde(default)]
-	pub upload: UfodUploadConfig,
+	pub upload: CopperUploadConfig,
 
 	#[serde(default)]
-	pub logging: UfodLoggingConfig,
+	pub logging: CopperLoggingConfig,
 }
 
-impl UfodConfig {
+impl CopperConfig {
 	// TODO: build script to make sure this is valid
 	const DEFAULT_CONFIG: &'static str = include_str!("./default-config.toml");
 
@@ -47,7 +47,7 @@ impl UfodConfig {
 
 	/// Load a config from a file.
 	///
-	/// This is the only valid way to make a UfodConfig,
+	/// This is the only valid way to make a CopperConfig,
 	/// since this method makes sure paths are valid
 	pub fn load_from_file(config_path: &Path) -> Result<Self, Box<dyn Error>> {
 		let config_path = std::fs::canonicalize(config_path)?;
@@ -62,22 +62,22 @@ impl UfodConfig {
 
 /// Pipeline runner settings
 #[derive(Deserialize, Debug)]
-pub struct UfodPipelineConfig {
+pub struct CopperPipelineConfig {
 	/// The maximum size, in bytes, of a binary fragment in the pipeline.
 	/// Smaller values slow down pipelines; larger values use more memory.
-	#[serde(default = "UfodPipelineConfig::default_frag_size")]
+	#[serde(default = "CopperPipelineConfig::default_frag_size")]
 	pub blob_fragment_size: u64,
 
 	/// How many pipeline jobs to run at once
-	#[serde(default = "UfodPipelineConfig::default_parallel_jobs")]
+	#[serde(default = "CopperPipelineConfig::default_parallel_jobs")]
 	pub parallel_jobs: usize,
 
 	/// How many threads each job may use
-	#[serde(default = "UfodPipelineConfig::default_job_threads")]
+	#[serde(default = "CopperPipelineConfig::default_job_threads")]
 	pub threads_per_job: usize,
 }
 
-impl Default for UfodPipelineConfig {
+impl Default for CopperPipelineConfig {
 	fn default() -> Self {
 		Self {
 			blob_fragment_size: Self::default_frag_size(),
@@ -87,7 +87,7 @@ impl Default for UfodPipelineConfig {
 	}
 }
 
-impl UfodPipelineConfig {
+impl CopperPipelineConfig {
 	fn default_frag_size() -> u64 {
 		2_000_000
 	}
@@ -103,7 +103,7 @@ impl UfodPipelineConfig {
 
 /// Network settings
 #[derive(Deserialize, Debug)]
-pub struct UfodNetworkConfig {
+pub struct CopperNetworkConfig {
 	/// IP and port to bind to
 	/// Should look like `127.0.0.1:3030`
 	pub server_addr: SmartString<LazyCompact>,
@@ -144,14 +144,14 @@ impl Display for LogLevel {
 
 /// Logging settings
 #[derive(Deserialize, Debug, Default)]
-pub struct UfodLoggingConfig {
+pub struct CopperLoggingConfig {
 	#[serde(default)]
-	pub level: UfodLogLevelConfig,
+	pub level: CopperLogLevelConfig,
 }
 
 /// Logging settings
 #[derive(Deserialize, Debug)]
-pub struct UfodLogLevelConfig {
+pub struct CopperLogLevelConfig {
 	#[serde(default)]
 	pub sqlx: LogLevel,
 
@@ -167,11 +167,11 @@ pub struct UfodLogLevelConfig {
 	#[serde(default)]
 	pub server: LogLevel,
 
-	#[serde(default = "UfodLogLevelConfig::default_all")]
+	#[serde(default = "CopperLogLevelConfig::default_all")]
 	pub all: LogLevel,
 }
 
-impl Default for UfodLogLevelConfig {
+impl Default for CopperLogLevelConfig {
 	fn default() -> Self {
 		Self {
 			sqlx: LogLevel::default(),
@@ -186,7 +186,7 @@ impl Default for UfodLogLevelConfig {
 	}
 }
 
-impl UfodLogLevelConfig {
+impl CopperLogLevelConfig {
 	fn default_all() -> LogLevel {
 		LogLevel::Warn
 	}
@@ -202,7 +202,7 @@ impl UfodLogLevelConfig {
 
 /// Path settings
 #[derive(Deserialize, Debug)]
-pub struct UfodPathConfig {
+pub struct CopperPathConfig {
 	/// Directory for in-progress uploads
 	pub upload_dir: PathBuf,
 
@@ -213,7 +213,7 @@ pub struct UfodPathConfig {
 	pub main_db: PathBuf,
 }
 
-impl UfodPathConfig {
+impl CopperPathConfig {
 	/// Adjust all paths in this config to be relative to `root_path`
 	fn set_relative_to(&mut self, root_path: &Path) {
 		self.upload_dir = root_path.join(&self.upload_dir);
@@ -224,18 +224,18 @@ impl UfodPathConfig {
 
 /// Uploader settings
 #[derive(Deserialize, Debug)]
-pub struct UfodUploadConfig {
+pub struct CopperUploadConfig {
 	/// Delete upload jobs that have been bound to a pipeline
 	/// after this many seconds of inactivity
-	#[serde(default = "UfodUploadConfig::default_job_timeout_bound")]
+	#[serde(default = "CopperUploadConfig::default_job_timeout_bound")]
 	pub job_timeout_bound: Duration,
 
 	/// Delete unbound upload jobs after this many seconds of inacivity
-	#[serde(default = "UfodUploadConfig::default_job_timeout_unbound")]
+	#[serde(default = "CopperUploadConfig::default_job_timeout_unbound")]
 	pub job_timeout_unbound: Duration,
 }
 
-impl Default for UfodUploadConfig {
+impl Default for CopperUploadConfig {
 	fn default() -> Self {
 		Self {
 			job_timeout_bound: Self::default_job_timeout_bound(),
@@ -244,7 +244,7 @@ impl Default for UfodUploadConfig {
 	}
 }
 
-impl UfodUploadConfig {
+impl CopperUploadConfig {
 	fn default_job_timeout_bound() -> Duration {
 		Duration::from_secs(10)
 	}
@@ -261,6 +261,6 @@ mod tests {
 	/// Make sure the default config we ship with is valid
 	#[test]
 	fn default_config_is_valid() {
-		let _x: UfodConfig = toml::from_str(UfodConfig::DEFAULT_CONFIG).unwrap();
+		let _x: CopperConfig = toml::from_str(CopperConfig::DEFAULT_CONFIG).unwrap();
 	}
 }
