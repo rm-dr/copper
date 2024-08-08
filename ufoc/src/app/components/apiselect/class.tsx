@@ -1,3 +1,4 @@
+import { APIclient } from "@/app/_util/api";
 import { ApiSelector } from "./api";
 
 async function update_classes(dataset: string | null) {
@@ -5,19 +6,23 @@ async function update_classes(dataset: string | null) {
 		return Promise.resolve(null);
 	}
 
-	const res = await fetch(
-		"/api/class/list?" +
-			new URLSearchParams({
-				dataset,
-			}),
-	);
+	const { data, error } = await APIclient.GET("/class/list", {
+		params: {
+			query: {
+				dataset
+			}
+		}
+	})
 
-	const data: { name: string }[] = await res.json();
+	if (error !== undefined) {
+		throw error;
+	}
 
-	return data.map(({ name }) => {
+
+	return data.map(({ name, handle }) => {
 		return {
 			label: name,
-			value: name,
+			value: handle.toString(),
 			disabled: false,
 		};
 	});

@@ -264,6 +264,7 @@ export function useAddAttrModal(params: {
 								setErrorMessage((e) => ({ ...e, extra_params: m }));
 							}}
 							onChange={(x: any) => {
+								console.log(x);
 								setNewAttrParams(x);
 							}}
 						/>
@@ -300,12 +301,12 @@ export function useAddAttrModal(params: {
 					{errorMessage.response
 						? errorMessage.response
 						: errorMessage.name
-						? errorMessage.name
-						: errorMessage.type
-						? errorMessage.type
-						: errorMessage.extra_params
-						? errorMessage.extra_params
-						: ""}
+							? errorMessage.name
+							: errorMessage.type
+								? errorMessage.type
+								: errorMessage.extra_params
+									? errorMessage.extra_params
+									: ""}
 				</Text>
 			</ModalBase>
 		),

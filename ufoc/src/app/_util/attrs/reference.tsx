@@ -89,9 +89,10 @@ function RefParams(params: {
 		<ClassSelector
 			selectedDataset={params.dataset_name}
 			onSelect={(v) => {
-				if (v == null) {
+				if (v === null) {
 					params.onChange({ class: null });
 				} else {
+					console.log(v);
 					params.onChange({ class: parseInt(v) });
 				}
 			}}
