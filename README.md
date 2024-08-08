@@ -24,8 +24,7 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- Parallelism breaks files
-- Use console instead of crossterm?
+- Stop reading file when all dependents are done
 - Nodes ask for other nodes (ifnone)
 - Remove/rework print node
 - Buffer ALL input (even if not running)
@@ -62,6 +61,7 @@ UFO's goal is to be "[Paperless] for everything," with...
   - Write toposort algo, provide whole cycle in errors
 
 ### Database
+- Many-attr unique constraint
 - Load and check db metadata
 - Clean up blobstore
 - Store mime with binary data
