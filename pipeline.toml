@@ -5,22 +5,44 @@ type = "File"
 type = "DataSet"
 attr."album" = "text"
 attr."artist" = "text"
+attr."albumartist" = "text"
+attr."tracknumber" = "text"
+attr."year" = "text"
+attr."genre" = "text"
+attr."ISRC" = "text"
+attr."lyrics" = "text"
 
 [config.output_map]
-"album" = "if_none.out"
-"artist" = "tags.artist"
+"album" = { node = "tags", output = "Album" }
+"artist" = { node = "tags", output = "Artist" }
+"albumartist" = { node = "tags", output = "AlbumArtist" }
+"tracknumber" = { node = "tags", output = "TrackNumber" }
+"year" = { node = "tags", output = "Year" }
+"genre" = { node = "tags", output = "Genre" }
+"ISRC" = { node = "tags", output = "ISRC" }
+"lyrics" = { node = "if_none", output = "out" }
 
 
 [node."tags"]
-type = "ExtractTag"
-input.data = "pipeline.data"
+type.type = "ExtractTags"
+type.tags = [
+	"Album",
+	"Artist",
+	"AlbumArtist",
+	"TrackNumber",
+	"Year",
+	"Genre",
+	"ISRC",
+	"Lyrics",
+]
+input.data = { "pipeline" = "data" }
 
 #[node."getcover"]
 #type = "CoverExtract"
 #input.data = "fs.data"
 
 [node.if_none]
-type = "IfNone"
-input.data = "tags.album"
+type.type = "IfNone"
+input.data = { node = "tags", output = "Lyrics" }
 #input.data = "if_none.out"
-input.ifnone = { "text" = "Unknown" }
+input.ifnone = { "text" = "Unknown Lyrics" }
