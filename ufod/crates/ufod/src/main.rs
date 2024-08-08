@@ -68,35 +68,35 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 		runner
 			.mut_dispatcher()
-			.register_node("Constant", vec![], &|ctx, params| {
+			.register_node("Constant", vec![], &|ctx, params, _| {
 				Ok(Box::new(Constant::new(ctx, params)))
 			})
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("Hash", vec![], &|ctx, params| {
+			.register_node("Hash", vec![], &|ctx, params, _| {
 				Ok(Box::new(Hash::new(ctx, params)))
 			})
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("IfNone", vec![], &|ctx, params| {
+			.register_node("IfNone", vec![], &|ctx, params, _| {
 				Ok(Box::new(IfNone::new(ctx, params)))
 			})
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("AddItem", vec![], &|ctx, params| {
+			.register_node("AddItem", vec![], &|ctx, params, _| {
 				Ok(Box::new(AddItem::new(ctx, params)))
 			})
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("FindItem", vec![], &|ctx, params| {
+			.register_node("FindItem", vec![], &|ctx, params, _| {
 				Ok(Box::new(FindItem::new(ctx, params)))
 			})
 			.unwrap();
@@ -108,21 +108,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 		runner
 			.mut_dispatcher()
-			.register_node("StripTags", vec![], &|ctx, params| {
+			.register_node("StripTags", vec![], &|ctx, params, _| {
 				Ok(Box::new(StripTags::new(ctx, params)))
 			})
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("ExtractCovers", vec![], &|ctx, params| {
+			.register_node("ExtractCovers", vec![], &|ctx, params, _| {
 				Ok(Box::new(ExtractCovers::new(ctx, params)))
 			})
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("ExtractTags", vec![], &|ctx, params| {
+			.register_node("ExtractTags", vec![], &|ctx, params, _| {
 				Ok(Box::new(ExtractTags::new(ctx, params)))
 			})
 			.unwrap();

@@ -27,6 +27,7 @@ pub(crate) struct PipelineNodeSpec<DataType: PipelineData> {
 
 	/// Parameters for this node
 	#[serde(rename = "params")]
+	#[serde(default)]
 	pub node_params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
 
 	/// Where this node should read its input from.
@@ -45,10 +46,6 @@ pub(crate) struct PipelineNodeSpec<DataType: PipelineData> {
 #[serde(deny_unknown_fields)]
 #[serde(bound = "DataType: DeserializeOwned")]
 pub(in super::super) struct PipelineSpec<DataType: PipelineData> {
-	/// The type of input this pipeline takes
-	#[serde(default)]
-	pub input: HashMap<SmartString<LazyCompact>, <DataType as PipelineData>::DataStubType>,
-
 	/// Nodes in this pipeline
 	#[serde(default)]
 	#[serde(rename = "node")]

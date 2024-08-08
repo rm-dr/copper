@@ -16,7 +16,7 @@ use super::{
 };
 use crate::{
 	api::{PipelineData, PipelineJobContext, PipelineNode, PipelineNodeError, PipelineNodeState},
-	dispatcher::{NodeDispatcher, NodeParameterValue},
+	dispatcher::NodeDispatcher,
 	graph::util::GraphNodeIdx,
 	labels::PipelineNodeID,
 	pipeline::pipeline::{Pipeline, PipelineEdgeData},
@@ -74,12 +74,11 @@ struct NodeInstanceContainer<DataType: PipelineData> {
 }
 
 /// An instance of a single running pipeline
-pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobContext> {
+pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	/// The pipeline we're running
 	pipeline: Arc<Pipeline<DataType, ContextType>>,
 
-	/// The input we ran this pipeline with
-	pub(crate) input: BTreeMap<SmartString<LazyCompact>, DataType>,
+	pub(crate) context: ContextType,
 
 	/// Mutable instances of each node in this pipeline
 	node_instances: Vec<NodeInstanceContainer<DataType>>,
@@ -131,7 +130,7 @@ pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobCon
 	node_run_offset: usize,
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext> Drop
+impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Drop
 	for PipelineSingleJob<DataType, ContextType>
 {
 	fn drop(&mut self) {
@@ -143,7 +142,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> Drop
 	}
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext>
+impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	PipelineSingleJob<DataType, ContextType>
 {
 	/// Get the pipeline this job is running
@@ -164,11 +163,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 	}
 
 	pub fn get_input(&self) -> &BTreeMap<SmartString<LazyCompact>, DataType> {
-		&self.input
+		&self.context.get_input()
 	}
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext>
+impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	PipelineSingleJob<DataType, ContextType>
 {
 	/// Make a new [`PipelineSingleRunner`]
@@ -177,41 +176,21 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 		context: ContextType,
 		dispatcher: &NodeDispatcher<DataType, ContextType>,
 		pipeline: Arc<Pipeline<DataType, ContextType>>,
-		input: BTreeMap<SmartString<LazyCompact>, DataType>,
 	) -> Self {
 		let instant_now = Instant::now();
 		trace!(message = "Making node instances", pipeline_name = ?pipeline.name);
 		let node_instances = pipeline
 			.graph
 			.iter_nodes_idx()
-			.map(|(idx, node_spec)| {
-				let node = if pipeline.input_nodes.contains(&idx) {
-					// If this is an input node, tweak its parameters...
-					assert!(node_spec.node_type == "Constant");
-					dispatcher
-						.make_node(
-							&context,
-							"Constant",
-							&BTreeMap::from([(
-								"value".into(),
-								input
-									.get(node_spec.id.id())
-									.map(|data| NodeParameterValue::Data(data.clone()))
-									.unwrap_or(NodeParameterValue::Data(DataType::disconnected(
-										match node_spec.node_params.get("value") {
-											Some(NodeParameterValue::DataType(t)) => *t,
-											_ => unreachable!(),
-										},
-									))),
-							)]),
-						)
-						.unwrap()
-				} else {
-					// Otherwise, create using the given parameters
-					dispatcher
-						.make_node(&context, &node_spec.node_type, &node_spec.node_params)
-						.unwrap()
-				};
+			.map(|(idx, node_data)| {
+				let node = dispatcher
+					.make_node(
+						&context,
+						&node_data.node_type,
+						&node_data.node_params,
+						&node_data.id.id(),
+					)
+					.unwrap();
 
 				let mut input_queue = VecDeque::new();
 
@@ -232,7 +211,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 				}
 
 				NodeInstanceContainer {
-					id: node_spec.id.clone(),
+					id: node_data.id.clone(),
 					input_queue: Some(input_queue),
 					last_run: instant_now,
 					state: NodeRunState::NotRunning(PipelineNodeState::Pending("not started")),
@@ -274,8 +253,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 		) = unbounded();
 
 		Self {
+			context,
 			pipeline,
-			input,
 			node_instances,
 			edge_values,
 			workers: (0..config.node_threads).map(|_| None).collect(),
@@ -288,7 +267,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 	}
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext>
+impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	PipelineSingleJob<DataType, ContextType>
 {
 	/// Update this job: process state changes that occured since we last called `run()`,

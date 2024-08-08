@@ -64,7 +64,7 @@ pub struct FailedJob<DataType: PipelineData> {
 /// A prepared data processing pipeline.
 /// This is guaranteed to be correct:
 /// no dependency cycles, no port type mismatch, etc
-pub struct PipelineRunner<DataType: PipelineData, ContextType: PipelineJobContext> {
+pub struct PipelineRunner<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	config: PipelineRunConfig,
 	dispatcher: NodeDispatcher<DataType, ContextType>,
 
@@ -85,7 +85,7 @@ pub struct PipelineRunner<DataType: PipelineData, ContextType: PipelineJobContex
 	job_id_counter: u128,
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext>
+impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	PipelineRunner<DataType, ContextType>
 {
 	/// Initialize a new runner
@@ -108,21 +108,13 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 		&mut self,
 		context: ContextType,
 		pipeline: Arc<Pipeline<DataType, ContextType>>,
-		pipeline_inputs: BTreeMap<SmartString<LazyCompact>, DataType>,
 	) -> u128 {
 		debug!(
 			message = "Adding job",
 			pipeline = ?pipeline.name,
-			inputs = ?pipeline_inputs
 		);
 
-		let runner = PipelineSingleJob::new(
-			&self.config,
-			context,
-			&self.dispatcher,
-			pipeline,
-			pipeline_inputs,
-		);
+		let runner = PipelineSingleJob::new(&self.config, context, &self.dispatcher, pipeline);
 		self.job_id_counter = self.job_id_counter.wrapping_add(1);
 		self.job_queue.push_back((self.job_id_counter, runner));
 		return self.job_id_counter;
@@ -207,7 +199,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 						self.completed_jobs.push_back(CompletedJob {
 							job_id: *id,
 							pipeline: x.get_pipeline().name.clone(),
-							input: x.input.clone(),
+							input: x.get_input().clone(),
 
 							node_states: x
 								.get_pipeline()

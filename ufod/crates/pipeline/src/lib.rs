@@ -4,6 +4,8 @@
 
 mod graph;
 
+pub(crate) mod nodes;
+
 pub mod api;
 pub mod dispatcher;
 pub mod labels;

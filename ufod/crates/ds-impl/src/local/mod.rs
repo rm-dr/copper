@@ -19,8 +19,8 @@ pub struct LocalDataset {
 	blobstore_tmp: PathBuf,
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext> Dataset<DataType, ContextType>
-	for LocalDataset
+impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
+	Dataset<DataType, ContextType> for LocalDataset
 {
 }
 

@@ -7,8 +7,9 @@ use super::syntax::{builder::PipelineBuilder, errors::PipelinePrepareError, spec
 use crate::{
 	api::{PipelineData, PipelineJobContext},
 	dispatcher::{NodeDispatcher, NodeParameterValue},
-	graph::{finalized::FinalizedGraph, util::GraphNodeIdx},
+	graph::finalized::FinalizedGraph,
 	labels::{PipelineName, PipelineNodeID},
+	nodes::input::INPUT_NODE_TYPE_NAME,
 };
 
 /// A node in a pipeline graph
@@ -68,7 +69,7 @@ impl PipelineEdgeData {
 
 /// A fully loaded data processing pipeline.
 #[derive(Debug)]
-pub struct Pipeline<DataType: PipelineData, ContextType: PipelineJobContext> {
+pub struct Pipeline<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	pub(crate) _pa: PhantomData<DataType>,
 	pub(crate) _pb: PhantomData<ContextType>,
 
@@ -76,13 +77,13 @@ pub struct Pipeline<DataType: PipelineData, ContextType: PipelineJobContext> {
 	/// Must be unique.
 	pub(crate) name: PipelineName,
 
-	pub(crate) input_nodes: Vec<GraphNodeIdx>,
-
 	/// This pipeline's node graph
 	pub(crate) graph: FinalizedGraph<PipelineNodeData<DataType>, PipelineEdgeData>,
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext> Pipeline<DataType, ContextType> {
+impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
+	Pipeline<DataType, ContextType>
+{
 	/// Load a pipeline from a TOML string
 	pub fn from_toml_str(
 		dispatcher: &NodeDispatcher<DataType, ContextType>,
@@ -112,14 +113,14 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> Pipeline<DataType,
 
 	/// Get this pipeline's input node's id
 	pub fn input_nodes(&self) -> Vec<(PipelineNodeID, <DataType as PipelineData>::DataStubType)> {
-		self.input_nodes
-			.iter()
-			.map(|x| {
-				let n = self.graph.get_node(*x);
+		self.graph
+			.iter_nodes()
+			.filter(|n| n.node_type == INPUT_NODE_TYPE_NAME)
+			.map(|n| {
 				(
 					n.id.clone(),
-					match n.node_params.get("value") {
-						Some(NodeParameterValue::Data(x)) => x.as_stub(),
+					match n.node_params.get("data_type") {
+						Some(NodeParameterValue::DataType(x)) => x.clone(),
 						_ => unreachable!(),
 					},
 				)

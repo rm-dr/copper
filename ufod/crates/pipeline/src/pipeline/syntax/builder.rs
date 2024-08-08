@@ -1,11 +1,7 @@
 //! A user-provided pipeline specification
 
 use itertools::Itertools;
-use std::{
-	cell::RefCell,
-	collections::{BTreeMap, HashMap},
-	marker::PhantomData,
-};
+use std::{cell::RefCell, collections::HashMap, marker::PhantomData};
 use tracing::{debug, trace};
 
 use super::{
@@ -15,7 +11,7 @@ use super::{
 };
 use crate::{
 	api::{PipelineData, PipelineDataStub, PipelineJobContext},
-	dispatcher::{NodeDispatcher, NodeParameterValue},
+	dispatcher::NodeDispatcher,
 	graph::{graph::Graph, util::GraphNodeIdx},
 	labels::{PipelineName, PipelineNodeID},
 	pipeline::pipeline::{Pipeline, PipelineEdgeData, PipelineNodeData},
@@ -24,7 +20,7 @@ use crate::{
 pub(in super::super) struct PipelineBuilder<
 	'a,
 	DataType: PipelineData,
-	ContextType: PipelineJobContext,
+	ContextType: PipelineJobContext<DataType>,
 > {
 	_pa: PhantomData<DataType>,
 	_pb: PhantomData<ContextType>,
@@ -39,9 +35,6 @@ pub(in super::super) struct PipelineBuilder<
 
 	/// The pipeline graph we're building
 	graph: RefCell<Graph<PipelineNodeData<DataType>, PipelineEdgeData>>,
-
-	/// The index of this pipeline's input node
-	input_nodes: Vec<GraphNodeIdx>,
 
 	/// Map node names to node indices
 	/// (used when connecting port-to-port outputs)
@@ -60,7 +53,7 @@ pub(in super::super) struct PipelineBuilder<
 	node_input_name_map_after: RefCell<HashMap<PipelineNodeID, GraphNodeIdx>>,
 }
 
-impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
+impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	PipelineBuilder<'a, DataType, ContextType>
 {
 	pub fn build(
@@ -72,41 +65,20 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
 		debug!(message = "Building pipeline", pipeline_name = ?name);
 
 		// Initialize all variables
-		let builder = {
-			let mut graph = Graph::new();
+		let builder = Self {
+			_pa: PhantomData {},
+			_pb: PhantomData {},
+			context,
+			dispatcher,
 
-			// Add input nodes to the graph
-			let input_nodes = spec
-				.input
-				.iter()
-				.map(|(name, data_type)| {
-					graph.add_node(PipelineNodeData {
-						id: PipelineNodeID::new(name),
-						node_type: "Constant".into(),
-						node_params: BTreeMap::from([(
-							"value".into(),
-							NodeParameterValue::Data(DataType::disconnected(*data_type)),
-						)]),
-					})
-				})
-				.collect();
+			name: name.clone(),
+			spec,
 
-			Self {
-				_pa: PhantomData {},
-				_pb: PhantomData {},
-				context,
-				dispatcher,
-
-				name: name.clone(),
-				spec,
-
-				graph: RefCell::new(graph),
-				input_nodes,
-				node_output_name_map_ptp: RefCell::new(HashMap::new()),
-				node_input_name_map_ptp: RefCell::new(HashMap::new()),
-				node_output_name_map_after: RefCell::new(HashMap::new()),
-				node_input_name_map_after: RefCell::new(HashMap::new()),
-			}
+			graph: RefCell::new(Graph::new()),
+			node_output_name_map_ptp: RefCell::new(HashMap::new()),
+			node_input_name_map_ptp: RefCell::new(HashMap::new()),
+			node_output_name_map_after: RefCell::new(HashMap::new()),
+			node_input_name_map_after: RefCell::new(HashMap::new()),
 		};
 
 		// Make sure every node's inputs are valid,
@@ -129,12 +101,12 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
 		trace!(message = "Making nodes", pipeline_name = ?name);
 		// Add nodes to the graph
 		for (node_name, node_spec) in builder.spec.nodes.iter() {
-			// If this is a normal node, just add it.
 			let n = builder.graph.borrow_mut().add_node(PipelineNodeData {
 				id: node_name.clone(),
 				node_params: node_spec.node_params.clone(),
 				node_type: node_spec.node_type.clone(),
 			});
+
 			builder
 				.node_output_name_map_ptp
 				.borrow_mut()
@@ -188,7 +160,12 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
 					.unwrap();
 				for (input_name, out_link) in node_spec.inputs.iter() {
 					let node = dispatcher
-						.make_node(context, &node_spec.node_type, &node_spec.node_params)
+						.make_node(
+							context,
+							&node_spec.node_type,
+							&node_spec.node_params,
+							&node_name.id(),
+						)
 						.unwrap();
 					let in_port = (&*node)
 						.inputs()
@@ -215,7 +192,6 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
 			_pb: PhantomData {},
 			name: builder.name,
 			graph: builder.graph.into_inner().finalize(),
-			input_nodes: builder.input_nodes,
 		});
 	}
 
@@ -230,7 +206,12 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
 		let node_spec = self.spec.nodes.get(&out_link.node).unwrap();
 		let node_inst = self
 			.dispatcher
-			.make_node(self.context, &node_spec.node_type, &node_spec.node_params)
+			.make_node(
+				self.context,
+				&node_spec.node_type,
+				&node_spec.node_params,
+				&out_link.node.id(),
+			)
 			.unwrap();
 		let out_port = node_inst
 			.outputs()
@@ -279,7 +260,12 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
 
 			let node = self
 				.dispatcher
-				.make_node(self.context, &get_node.node_type, &get_node.node_params)
+				.make_node(
+					self.context,
+					&get_node.node_type,
+					&get_node.node_params,
+					&output.node.id(),
+				)
 				.unwrap();
 
 			node.outputs()
@@ -301,7 +287,12 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
 
 			let node = self
 				.dispatcher
-				.make_node(self.context, &get_node.node_type, &get_node.node_params)
+				.make_node(
+					self.context,
+					&get_node.node_type,
+					&get_node.node_params,
+					&input.node.id(),
+				)
 				.unwrap();
 
 			node.inputs()

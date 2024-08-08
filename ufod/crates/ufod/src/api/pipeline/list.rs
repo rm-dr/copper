@@ -113,6 +113,7 @@ pub(super) async fn list_pipelines(
 				&UFOContext {
 					dataset: dataset.clone(),
 					blob_fragment_size: state.config.blob_fragment_size,
+					input: BTreeMap::new(), //TODO: fix
 				},
 				&pipe_name,
 			)

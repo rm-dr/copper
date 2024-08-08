@@ -8,7 +8,7 @@ use ufo_pipeline::{
 use crate::errors::PipestoreError;
 
 #[allow(async_fn_in_trait)]
-pub trait Pipestore<DataType: PipelineData, ContextType: PipelineJobContext>
+pub trait Pipestore<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 where
 	Self: Send + Sync,
 {

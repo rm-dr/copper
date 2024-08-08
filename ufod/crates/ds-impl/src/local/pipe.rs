@@ -9,8 +9,8 @@ use ufo_pipeline::{
 
 use super::LocalDataset;
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext> Pipestore<DataType, ContextType>
-	for LocalDataset
+impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
+	Pipestore<DataType, ContextType> for LocalDataset
 {
 	async fn load_pipeline(
 		&self,

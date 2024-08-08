@@ -75,9 +75,11 @@ export default function Page() {
 							dataset: selectedDataset as string,
 							pipeline: selectedPipeline as string,
 							input: {
-								type: "File",
-								file_name,
-								upload_job,
+								file: {
+									type: "File",
+									file_name,
+									upload_job,
+								},
 							},
 						},
 					});

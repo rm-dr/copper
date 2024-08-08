@@ -3,18 +3,25 @@ use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, marker::PhantomData};
 
 use super::{NodeParameterSpec, NodeParameterValue};
-use crate::api::{PipelineData, PipelineJobContext, PipelineNode};
+use crate::{
+	api::{PipelineData, PipelineJobContext, PipelineNode},
+	nodes::input::{Input, INPUT_NODE_TYPE_NAME},
+};
 
 // This type must be send + sync, since we use this inside tokio's async runtime.
 type InitNodeType<DataType, ContextType> = &'static (dyn Fn(
+	// The job context to build this node with
 	&ContextType,
+	// This node's parameters
 	&BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
+	// This node's name
+	&str,
 ) -> Result<Box<dyn PipelineNode<DataType>>, ()>
               + Send
               + Sync);
 
 /// A node type we've registered inside a [`NodeDispatcher`]
-struct RegisteredNode<DataType: PipelineData, ContextType: PipelineJobContext> {
+struct RegisteredNode<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	/// A method that constructs a new node of this type with the provided parameters.
 	init_node: InitNodeType<DataType, ContextType>,
 
@@ -24,23 +31,31 @@ struct RegisteredNode<DataType: PipelineData, ContextType: PipelineJobContext> {
 
 /// A factory struct that constructs pipeline nodes
 /// `ContextType` is per-job state that is passed to each node.
-pub struct NodeDispatcher<DataType: PipelineData, ContextType: PipelineJobContext> {
+pub struct NodeDispatcher<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	_pa: PhantomData<DataType>,
 	_pb: PhantomData<ContextType>,
 
 	nodes: BTreeMap<SmartString<LazyCompact>, RegisteredNode<DataType, ContextType>>,
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext>
+impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	NodeDispatcher<DataType, ContextType>
 {
 	/// Create a new [`NodeDispatcher`]
 	pub fn new() -> Self {
-		Self {
+		let mut x = Self {
 			_pa: PhantomData {},
 			_pb: PhantomData {},
 			nodes: BTreeMap::new(),
-		}
+		};
+
+		// Register internal nodes
+		x.register_node(INPUT_NODE_TYPE_NAME, vec![], &|ctx, params, name| {
+			Ok(Box::new(Input::new(ctx, params, name)))
+		})
+		.unwrap();
+
+		x
 	}
 
 	/// Register a new node type.
@@ -77,9 +92,10 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 		context: &ContextType,
 		node_type: &str,
 		node_params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
+		node_name: &str,
 	) -> Result<Box<dyn PipelineNode<DataType>>, ()> {
 		if let Some(node) = self.nodes.get(node_type) {
-			return Ok((node.init_node)(context, node_params).unwrap());
+			return Ok((node.init_node)(context, node_params, node_name).unwrap());
 		} else {
 			panic!()
 		}

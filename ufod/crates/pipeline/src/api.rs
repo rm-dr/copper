@@ -1,6 +1,8 @@
 //! Traits that allow external code to defune pipeline nodes
 use serde::de::DeserializeOwned;
+use smartstring::{LazyCompact, SmartString};
 use std::{
+	collections::BTreeMap,
 	error::Error,
 	fmt::{Debug, Display},
 };
@@ -170,8 +172,11 @@ where
 }
 
 /// Arbitrary additional information for a pipeline job.
-pub trait PipelineJobContext
+pub trait PipelineJobContext<DataType>
 where
 	Self: Send + Sync + 'static,
+	DataType: PipelineData,
 {
+	/// Get the inputs we passed to this pipline
+	fn get_input(&self) -> &BTreeMap<SmartString<LazyCompact>, DataType>;
 }

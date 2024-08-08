@@ -1,67 +1,70 @@
-[inputs]
-file = { stub_type = "Bytes" }
+
+[node."file"]
+node = "Input"
+params.data_type = { parameter_type = "DataType", value = { stub_type = "Bytes" } }
 
 [node."add_file"]
-node.type = "AddItem"
-node.class = "AudioFile"
-input."title" = { node = "tags", output = "Title" }
-input."album" = { node = "tags", output = "Album" }
-input."artist" = { node = "tags", output = "Artist" }
-input."albumartist" = { node = "tags", output = "AlbumArtist" }
-input."tracknumber" = { node = "tags", output = "TrackNumber" }
-input."year" = { node = "tags", output = "Year" }
-input."genre" = { node = "tags", output = "Genre" }
-input."ISRC" = { node = "tags", output = "ISRC" }
-input."lyrics" = { node = "tags", output = "Lyrics" }
-input."audio_data" = { node = "strip", output = "out" }
-input."audio_hash" = { node = "hash_audio", output = "hash" }
-input."cover_art" = { node = "find", output = "found_item" }
+node = "AddItem"
+params.class = { parameter_type = "String", value = "AudioFile" }
+params.error_non_unique = { parameter_type = "Boolean", value = false }
+input."title" = { node = "tags", port = "Title" }
+input."album" = { node = "tags", port = "Album" }
+input."artist" = { node = "tags", port = "Artist" }
+input."albumartist" = { node = "tags", port = "AlbumArtist" }
+input."tracknumber" = { node = "tags", port = "TrackNumber" }
+input."year" = { node = "tags", port = "Year" }
+input."genre" = { node = "tags", port = "Genre" }
+input."ISRC" = { node = "tags", port = "ISRC" }
+input."lyrics" = { node = "tags", port = "Lyrics" }
+input."audio_data" = { node = "strip", port = "out" }
+input."audio_hash" = { node = "hash_audio", port = "hash" }
+input."cover_art" = { node = "find", port = "found_item" }
 
 
 [node."tags"]
-node.type = "ExtractTags"
-node.tags = [
-	"Title",
-	"Album",
-	"Artist",
-	"AlbumArtist",
-	"TrackNumber",
-	"Year",
-	"Genre",
-	"ISRC",
-	"Lyrics",
-]
-input.data = { pipeline = "data" }
+node = "ExtractTags"
+params.tags = { parameter_type = "List", value = [
+	{ parameter_type = "String", value = "Title" },
+	{ parameter_type = "String", value = "Album" },
+	{ parameter_type = "String", value = "Artist" },
+	{ parameter_type = "String", value = "AlbumArtist" },
+	{ parameter_type = "String", value = "TrackNumber" },
+	{ parameter_type = "String", value = "Year" },
+	{ parameter_type = "String", value = "Genre" },
+	{ parameter_type = "String", value = "ISRC" },
+	{ parameter_type = "String", value = "Lyrics" },
+] }
+input.data = { node = "file", port = "out" }
 
 [node.strip]
-node.type = "StripTags"
-input."data" = { pipeline = "data" }
+node = "StripTags"
+input."data" = { node = "file", port = "out" }
 
 [node."hash_audio"]
-node.type = "Hash"
-node.hash_type = "SHA256"
-input."data" = { node = "strip", output = "out" }
+node = "Hash"
+params.hash_type = { parameter_type = "String", value = "SHA256" }
+input."data" = { node = "strip", port = "out" }
 
 
 [node."extract_cover"]
-node.type = "ExtractCovers"
-input."data" = { pipeline = "data" }
+node = "ExtractCovers"
+input."data" = { node = "file", port = "out" }
 
 [node."hash_cover"]
-node.type = "Hash"
-node.hash_type = "SHA256"
-input."data" = { node = "extract_cover", output = "cover_data" }
+node = "Hash"
+params.hash_type = { parameter_type = "String", value = "SHA256" }
+input."data" = { node = "extract_cover", port = "cover_data" }
 
 [node."add_cover"]
-node.type = "AddItem"
-node.class = "CoverArt"
-node.allow_non_unique = true
-input."content_hash" = { node = "hash_cover", output = "hash" }
-input."image_data" = { node = "extract_cover", output = "cover_data" }
+node = "AddItem"
+params.class = { parameter_type = "String", value = "CoverArt" }
+params.error_non_unique = { parameter_type = "Boolean", value = true }
+input."content_hash" = { node = "hash_cover", port = "hash" }
+input."image_data" = { node = "extract_cover", port = "cover_data" }
 
 [node."find"]
-node.type = "FindItem"
-node.class = "CoverArt"
-node.by_attr = "content_hash"
-input."attr_value" = { node = "hash_cover", output = "hash" }
+node = "FindItem"
+params.class = { parameter_type = "String", value = "CoverArt" }
+params.by_attr = { parameter_type = "String", value = "content_hash" }
+input."attr_value" = { node = "hash_cover", port = "hash" }
 after = ["add_cover"]

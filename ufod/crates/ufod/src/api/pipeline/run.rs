@@ -7,7 +7,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use tracing::error;
+use tracing::{error, warn};
 use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
 use ufo_node_base::{
 	data::{BytesSource, UFOData},
@@ -91,51 +91,8 @@ pub(super) async fn run_pipeline(
 		}
 	};
 
-	let pipe = match dataset
-		.load_pipeline(
-			runner.get_dispatcher(),
-			&UFOContext {
-				dataset: dataset.clone(),
-				blob_fragment_size: state.config.blob_fragment_size,
-			},
-			&pipeline_name,
-		)
-		.await
-	{
-		Ok(Some(x)) => x,
-		Ok(None) => {
-			return (
-				StatusCode::NOT_FOUND,
-				format!(
-					"Dataset `{}` does not have a pipeline named `{pipeline_name}`",
-					payload.pipe.dataset
-				),
-			)
-				.into_response()
-		}
-
-		Err(PipestoreError::PipelinePrepareError(_)) => {
-			return (StatusCode::BAD_REQUEST, "Cannot run invalid pipeline").into_response();
-		}
-
-		Err(e) => {
-			error!(
-				message = "Could not get pipeline by name",
-				dataset = payload.pipe.dataset,
-				pipeline_name = ?pipeline_name,
-				error = ?e
-			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get pipeline by name: {e}"),
-			)
-				.into_response();
-		}
-	};
-
 	let mut bound_upload_jobs = Vec::new();
-	let mut inputs = BTreeMap::new();
-
+	let mut input = BTreeMap::new();
 	for (name, value) in payload.input {
 		match value {
 			AddJobInput::File {
@@ -193,19 +150,59 @@ pub(super) async fn run_pipeline(
 						.into_response();
 				};
 
-				inputs.insert(name, path);
+				input.insert(name, path);
 			}
 		}
 	}
 
-	let new_id = runner.add_job(
-		UFOContext {
-			dataset,
-			blob_fragment_size: state.config.blob_fragment_size,
-		},
-		Arc::new(pipe),
-		inputs,
-	);
+	let context = UFOContext {
+		dataset: dataset.clone(),
+		blob_fragment_size: state.config.blob_fragment_size,
+		input,
+	};
+
+	let pipe = match dataset
+		.load_pipeline(runner.get_dispatcher(), &context, &pipeline_name)
+		.await
+	{
+		Ok(Some(x)) => x,
+		Ok(None) => {
+			return (
+				StatusCode::NOT_FOUND,
+				format!(
+					"Dataset `{}` does not have a pipeline named `{pipeline_name}`",
+					payload.pipe.dataset
+				),
+			)
+				.into_response()
+		}
+
+		Err(PipestoreError::PipelinePrepareError(e)) => {
+			warn!(
+				message = "Cannot run invalid pipeline",
+				pipeline = ?pipeline_name,
+				dataset = payload.pipe.dataset,
+				error = ?e
+			);
+			return (StatusCode::BAD_REQUEST, "Cannot run invalid pipeline").into_response();
+		}
+
+		Err(e) => {
+			error!(
+				message = "Could not get pipeline by name",
+				dataset = payload.pipe.dataset,
+				pipeline_name = ?pipeline_name,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not get pipeline by name: {e}"),
+			)
+				.into_response();
+		}
+	};
+
+	let new_id = runner.add_job(context, Arc::new(pipe));
 
 	for j in bound_upload_jobs {
 		match state.uploader.bind_job_to_pipeline(&j, new_id).await {
