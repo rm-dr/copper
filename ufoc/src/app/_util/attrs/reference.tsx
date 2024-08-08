@@ -231,6 +231,7 @@ function RefPanelBody(params: {
 		}
 
 		if (d?.editor.type === "panel") {
+			// Otherwise, show that attribute in this panel
 			return d.editor.panel_body({
 				dataset: params.dataset,
 				item_idx: params.ref_attr_value.item as number,
@@ -431,12 +432,21 @@ function RefPanel(params: {
 						shown_attr: null,
 					});
 				} else {
-					const shown_attr = Object.entries(i_data.attrs).sort(
-						([aa, av], [ba, bv]) =>
-							(av as unknown as components["schemas"]["ItemListData"]).attr
-								.idx -
-							(bv as unknown as components["schemas"]["ItemListData"]).attr.idx,
-					)[0][1];
+					const shown_attr = Object.entries(i_data.attrs)
+						.filter(
+							// Do not try to show a reference inside a reference panel,
+							// this could cause an infinite look
+							//
+							// (if that reference points to a reference that points to this reference)
+							([a, v]) => v?.type !== "Reference",
+						)
+						.sort(
+							([aa, av], [ba, bv]) =>
+								(av as unknown as components["schemas"]["ItemListData"]).attr
+									.idx -
+								(bv as unknown as components["schemas"]["ItemListData"]).attr
+									.idx,
+						)[0][1];
 					setData({
 						loading: false,
 						error: null,
