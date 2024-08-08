@@ -1,6 +1,7 @@
 use copper_util::mime::MimeType;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
 use utoipa::ToSchema;
 
@@ -14,7 +15,7 @@ pub enum MetastoreData {
 	None(MetastoreDataStub),
 
 	/// A block of text
-	Text(Arc<String>),
+	Text(Arc<SmartString<LazyCompact>>),
 
 	/// An integer
 	Integer { value: i64, is_non_negative: bool },

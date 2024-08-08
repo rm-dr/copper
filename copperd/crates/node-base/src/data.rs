@@ -5,6 +5,7 @@ use copper_ds_core::{
 use copper_pipeline::api::{PipelineData, PipelineDataStub};
 use copper_util::mime::MimeType;
 use serde::{Deserialize, Serialize};
+use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use utoipa::ToSchema;
 
@@ -34,7 +35,7 @@ pub enum CopperData {
 	/// A block of text
 	Text {
 		#[schema(value_type = String)]
-		value: Arc<String>,
+		value: Arc<SmartString<LazyCompact>>,
 	},
 
 	/// An integer

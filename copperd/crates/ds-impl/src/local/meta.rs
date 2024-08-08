@@ -9,6 +9,7 @@ use copper_ds_core::{
 };
 use copper_util::{mime::MimeType, names::clean_name};
 use itertools::Itertools;
+use smartstring::SmartString;
 use sqlx::{
 	query::Query,
 	sqlite::{SqliteArguments, SqliteRow},
@@ -38,7 +39,7 @@ impl LocalDataset {
 			// If we don't, the null value's '?' won't be used
 			// and all following fields will be shifted left.
 			MetastoreData::None(_) => q.bind(None::<u32>),
-			MetastoreData::Text(s) => q.bind(&**s),
+			MetastoreData::Text(s) => q.bind(s.as_str()),
 			MetastoreData::Reference { item, .. } => q.bind(u32::from(*item)),
 			MetastoreData::Blob { handle } => q.bind(u32::from(*handle)),
 			MetastoreData::Boolean(x) => q.bind(*x),
@@ -105,7 +106,8 @@ impl LocalDataset {
 				.unwrap_or(MetastoreData::None(attr.data_type)),
 
 			MetastoreDataStub::Text => row
-				.get::<Option<_>, _>(&col_name[..])
+				.get::<Option<String>, _>(&col_name[..])
+				.map(SmartString::from)
 				.map(Arc::new)
 				.map(MetastoreData::Text)
 				.unwrap_or(MetastoreData::None(attr.data_type)),

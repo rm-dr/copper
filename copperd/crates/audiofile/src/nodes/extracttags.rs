@@ -195,7 +195,9 @@ impl Node<CopperData> for ExtractTags {
 			match b {
 				FlacBlock::VorbisComment(comment) => {
 					for (port, tag_type) in self.info.tags.iter() {
-						if let Some(tag_value) = comment.comment.comments.get(tag_type) {
+						if let Some((_, tag_value)) =
+							comment.comment.comments.iter().find(|(t, _)| t == tag_type)
+						{
 							send_data(
 								port.clone(),
 								CopperData::Text {
