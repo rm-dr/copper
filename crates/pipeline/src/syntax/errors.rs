@@ -48,6 +48,15 @@ pub enum PipelinePrepareError {
 		caused_by: NodeInput,
 	},
 
+	/// There is no node named `node` in this pipeline.
+	NoNodeAfter {
+		/// The node label that doesn't exist
+		node: PipelineNodeLabel,
+
+		/// We tried to specify `node` in this node's `after` parameter
+		caused_by_after_in: PipelineNodeLabel,
+	},
+
 	/// `node` has no input named `input`.
 	/// This is triggered when we specify an input that doesn't exist.
 	NoNodeInput {
@@ -105,6 +114,15 @@ impl Display for PipelinePrepareError {
 				writeln!(
 					f,
 					"PipelinePrepareError: No such node `{node:?}`. Caused by `{caused_by:?}`."
+				)
+			}
+			Self::NoNodeAfter {
+				node,
+				caused_by_after_in,
+			} => {
+				writeln!(
+					f,
+					"PipelinePrepareError: No such node `{node:?}`. Caused by `after` in node `{caused_by_after_in:?}`."
 				)
 			}
 			Self::NoNodeInput { node, input } => {

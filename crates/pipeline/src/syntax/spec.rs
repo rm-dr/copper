@@ -1,5 +1,6 @@
 //! A user-provided pipeline specification
 
+use itertools::Itertools;
 use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
 use serde::Deserialize;
 use serde_with::{self, serde_as};
@@ -15,7 +16,7 @@ use crate::{
 	input::PipelineInputKind,
 	nodes::nodetype::PipelineNodeType,
 	output::PipelineOutputKind,
-	pipeline::{NodePort, Pipeline},
+	pipeline::{NodePort, Pipeline, PipelineEdge},
 };
 
 /// Pipeline configuration
@@ -48,6 +49,10 @@ struct PipelineNodeSpec {
 	#[serde(default)]
 	#[serde_as(as = "serde_with::Map<_, _>")]
 	input: Vec<(PipelinePortLabel, NodeOutput)>,
+
+	#[serde(default)]
+	/// Nodes that must complete before this node starts
+	after: Vec<PipelineNodeLabel>,
 }
 
 /// A description of a data processing pipeline
@@ -192,7 +197,7 @@ impl PipelineSpec {
 		&self,
 		// Current build state
 		nodes: &mut Vec<(PipelineNodeLabel, PipelineNodeType)>,
-		edges: &mut Vec<(NodePort, NodePort)>,
+		edges: &mut Vec<PipelineEdge>,
 		node_name_map: &HashMap<PipelineNodeLabel, usize>,
 		input_node_idx: usize,
 
@@ -202,10 +207,10 @@ impl PipelineSpec {
 	) {
 		match out_link {
 			NodeOutput::InlineText { text } => {
-				edges.push((
+				edges.push(PipelineEdge::PortToPort((
 					NodePort {
-						// This must be done BEFORE pushing
-						// to nodes.
+						// This must be done BEFORE pushing to `nodes`
+						// so that nodes.len() gives us the right id.
 						node_idx: nodes.len(),
 						port: 0,
 					},
@@ -213,7 +218,7 @@ impl PipelineSpec {
 						node_idx,
 						port: in_port,
 					},
-				));
+				)));
 				nodes.push((
 					"".into(),
 					PipelineNodeType::ConstantNode {
@@ -231,7 +236,7 @@ impl PipelineSpec {
 					.find(|(_, (a, _))| a == port)
 					.unwrap()
 					.0;
-				edges.push((
+				edges.push(PipelineEdge::PortToPort((
 					NodePort {
 						node_idx: input_node_idx,
 						port: out_port,
@@ -240,7 +245,7 @@ impl PipelineSpec {
 						node_idx,
 						port: in_port,
 					},
-				));
+				)));
 			}
 			NodeOutput::Node { node, port } => {
 				let out_port = self
@@ -252,7 +257,7 @@ impl PipelineSpec {
 					.find_with_name(port)
 					.unwrap()
 					.0;
-				edges.push((
+				edges.push(PipelineEdge::PortToPort((
 					NodePort {
 						node_idx: *node_name_map.get(node).unwrap(),
 						port: out_port,
@@ -261,7 +266,7 @@ impl PipelineSpec {
 						node_idx,
 						port: in_port,
 					},
-				));
+				)));
 			}
 		}
 	}
@@ -273,7 +278,7 @@ impl PipelineSpec {
 		// Build node array
 		// Initialize nodes in graph
 		let mut nodes: Vec<(PipelineNodeLabel, PipelineNodeType)> = Vec::new();
-		let mut edges = Vec::new();
+		let mut edges: Vec<PipelineEdge> = Vec::new();
 		let mut node_name_map: HashMap<PipelineNodeLabel, usize> = HashMap::new();
 
 		nodes.push((
@@ -293,6 +298,7 @@ impl PipelineSpec {
 		let output_node_idx = 1;
 
 		for (node_name, node_spec) in &self.nodes {
+			// Make sure all links going into this node are valid
 			for (input_name, out_link) in &node_spec.input {
 				self.check_link(
 					out_link,
@@ -303,8 +309,27 @@ impl PipelineSpec {
 				)?;
 			}
 
+			// Add this node to all tables
 			node_name_map.insert(node_name.clone(), nodes.len());
 			nodes.push((node_name.clone(), node_spec.node_type.clone()));
+		}
+
+		// Make sure all "after" specifications are valid
+		// and create their corresponding edges.
+		for (node_name, node_spec) in &self.nodes {
+			for after_name in node_spec.after.iter().unique() {
+				if let Some(after_idx) = node_name_map.get(after_name) {
+					edges.push(PipelineEdge::After((
+						*after_idx,
+						*node_name_map.get(node_name).unwrap(),
+					)));
+				} else {
+					return Err(PipelinePrepareError::NoNodeAfter {
+						node: after_name.clone(),
+						caused_by_after_in: node_name.clone(),
+					});
+				}
+			}
 		}
 
 		// Check final pipeline outputs
@@ -342,8 +367,11 @@ impl PipelineSpec {
 
 		// Build graph and check for cycles
 		let mut graph = GraphMap::<usize, (), Directed>::new();
-		for (out_np, in_np) in edges.iter() {
-			graph.add_edge(out_np.node_idx, in_np.node_idx, ());
+		for e in &edges {
+			// TODO: write custom cycle detection algorithm,
+			// print all nodes that the cycle contains.
+			// We don't need all edges---just node-to-node.
+			graph.add_edge(e.source_node(), e.target_node(), ());
 		}
 		if toposort(&graph, None).is_err() {
 			return Err(PipelinePrepareError::HasCycle);
@@ -371,8 +399,8 @@ impl PipelineSpec {
 		let mut edge_map = (0..nodes.len()).map(|_| Vec::new()).collect::<Vec<_>>();
 		let mut rev_edge_map = (0..nodes.len()).map(|_| Vec::new()).collect::<Vec<_>>();
 		for (i, x) in edges.iter().enumerate() {
-			edge_map[x.0.node_idx].push(i);
-			rev_edge_map[x.1.node_idx].push(i);
+			edge_map[x.source_node()].push(i);
+			rev_edge_map[x.target_node()].push(i);
 		}
 
 		let node_instances = Arc::new(

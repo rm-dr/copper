@@ -17,6 +17,7 @@ use crate::{
 	PipelineNode,
 };
 
+/// A specific port on a specific node
 #[derive(Clone, Copy)]
 pub(super) struct NodePort {
 	pub node_idx: usize,
@@ -29,11 +30,78 @@ impl Debug for NodePort {
 	}
 }
 
+/// An edge in a pipeline
+#[derive(Debug)]
+pub(super) enum PipelineEdge {
+	/// A edge from an output port to an input port.
+	/// PTP edges carry data between nodes.
+	PortToPort((NodePort, NodePort)),
+
+	/// An edge from a node to a node, specifying
+	/// that the second *must* wait for the first.
+	After((usize, usize)),
+}
+
+impl PipelineEdge {
+	/// Is this a `Self::PortToPort`?
+	pub fn is_ptp(&self) -> bool {
+		matches!(self, Self::PortToPort(_))
+	}
+
+	/// Is this a `Self::After`?
+	pub fn is_after(&self) -> bool {
+		matches!(self, Self::After(_))
+	}
+
+	/// Get the node this edge starts at
+	pub fn source_node(&self) -> usize {
+		match self {
+			Self::PortToPort((s, _)) => s.node_idx,
+			Self::After((s, _)) => *s,
+		}
+	}
+
+	/// Get the node this edge ends at
+	pub fn target_node(&self) -> usize {
+		match self {
+			Self::PortToPort((_, t)) => t.node_idx,
+			Self::After((_, t)) => *t,
+		}
+	}
+
+	/// Get the port this edge starts at
+	pub fn source_port(&self) -> Option<usize> {
+		match self {
+			Self::PortToPort((s, _)) => Some(s.port),
+			Self::After(_) => None,
+		}
+	}
+
+	/// Get the port this edge ends at
+	pub fn target_port(&self) -> Option<usize> {
+		match self {
+			Self::PortToPort((_, t)) => Some(t.port),
+			Self::After(_) => None,
+		}
+	}
+}
+
 #[derive(Debug)]
 enum EdgeValue {
+	/// This edge is waiting on another node to run
 	Uninitialized,
+
+	/// This edge has data that is ready to be used
+	/// (Only valid for Edge::PortToPort)
 	Data(PipelineData),
+
+	/// This edge had data, but it has been consumed
+	/// (Only valid for Edge::PortToPort)
 	Consumed,
+
+	/// This edge's source node has finised running
+	/// (Only valid for Edge::After)
+	AfterReady,
 }
 
 impl EdgeValue {
@@ -59,7 +127,7 @@ pub struct Pipeline {
 	pub(crate) output_node_idx: usize,
 
 	/// Array of directed edges, indexed by edge idx
-	pub(crate) edges: Vec<(NodePort, NodePort)>,
+	pub(crate) edges: Vec<PipelineEdge>,
 
 	/// An array of edge idx, sorted by start node.
 	pub(crate) edge_map_out: Vec<Vec<usize>>,
@@ -116,8 +184,13 @@ impl Pipeline {
 			(0..self.edges.len())
 				.map(|edge_idx| {
 					let edge = self.edges.get(edge_idx).unwrap();
-					if edge.0.node_idx == self.input_node_idx {
-						EdgeValue::Data(pipeline_inputs.get(edge.0.port).unwrap().clone())
+					if edge.source_node() == self.input_node_idx {
+						EdgeValue::Data(
+							pipeline_inputs
+								.get(edge.source_port().unwrap())
+								.unwrap()
+								.clone(),
+						)
 					} else {
 						EdgeValue::Uninitialized
 					}
@@ -185,7 +258,7 @@ impl Pipeline {
 						.iter()
 						.filter(|edge_idx| {
 							let edge = self.edges.get(**edge_idx).unwrap();
-							edge.0.port == port
+							edge.source_port() == Some(port)
 						})
 					{
 						*edge_values.get_mut(*edge_idx).unwrap() = EdgeValue::Data(data.clone());
@@ -193,8 +266,27 @@ impl Pipeline {
 				}
 
 				recv(receive_status) -> msg => {
-					if let (_node, Err(x)) = msg.unwrap() {
-						return Err(x);
+					match msg.unwrap() {
+						(_node, Err(x)) => {
+							return Err(x);
+						},
+						(node, Ok(_)) => {
+
+							// When a node finishes successfully, mark all
+							// `after` edges that start at it as "ready".
+							for edge_idx in self
+								.edge_map_out
+								.get(node)
+								.unwrap()
+								.iter()
+								.filter(|edge_idx| {
+									let edge = self.edges.get(**edge_idx).unwrap();
+									edge.is_after()
+								})
+							{
+								*edge_values.get_mut(*edge_idx).unwrap() = EdgeValue::AfterReady;
+							}
+						}
 					}
 				}
 			}
@@ -228,6 +320,8 @@ impl Pipeline {
 				EdgeValue::Uninitialized => true,
 				// All edges have data => good to go!
 				EdgeValue::Data(_) => false,
+				// All `after` edges are ready => good to go!
+				EdgeValue::AfterReady => false,
 				// Input edges are consumed when a node is run.
 				// That case is handled earlier.
 				EdgeValue::Consumed => unreachable!(),
@@ -248,11 +342,16 @@ impl Pipeline {
 			// Now, fill input values
 			for edge_idx in pipeline.edge_map_in.get(n).unwrap() {
 				let edge = pipeline.edges.get(*edge_idx).unwrap();
+				if !edge.is_ptp() {
+					// Skip non-value-carrying edges
+					continue;
+				}
+
 				let val = edge_values.get_mut(*edge_idx).unwrap();
 				match val {
 					EdgeValue::Data(_) => {
 						let x = std::mem::replace(val, EdgeValue::Consumed);
-						*inputs.get_mut(edge.1.port).unwrap() = x.unwrap();
+						*inputs.get_mut(edge.target_port().unwrap()).unwrap() = x.unwrap();
 					}
 					_ => unreachable!(),
 				};
