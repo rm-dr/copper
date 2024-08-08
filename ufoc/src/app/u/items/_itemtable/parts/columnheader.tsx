@@ -1,10 +1,12 @@
+import { components } from "@/app/_util/api/openapi";
 import styles from "../itemtable.module.scss";
 import { AttrSelector } from "@/app/components/apiselect/attr";
 import { XIcon } from "@/app/components/icons";
-import { ActionIcon, Menu, rem } from "@mantine/core";
+import { ActionIcon, Menu, Text, rem } from "@mantine/core";
 import {
 	IconChevronLeftPipe,
 	IconChevronRightPipe,
+	IconCircleX,
 	IconDots,
 	IconSortDescending,
 	IconTrash,
@@ -13,9 +15,9 @@ import {
 export function ColumnHeader(params: {
 	selectedDataset: string | null;
 	selectedClass: number | null;
-	attr: number | null;
+	attr: components["schemas"]["AttrInfo"] | null;
 	idx: number;
-	columns: { attr: number | null }[];
+	n_columns: number;
 	setAttr: (attr: number | null) => void;
 	newCol: (at_index: number) => void;
 	delCol: (at_index: number) => void;
@@ -33,20 +35,28 @@ export function ColumnHeader(params: {
 				<XIcon icon={IconSortDescending} />
 			</div>
 			<div>
-				<AttrSelector
-					onSelect={params.setAttr}
-					selectedClass={params.selectedClass}
-					selectedDataset={params.selectedDataset}
-				/>
+				{params.attr === null ? (
+					<AttrSelector
+						onSelect={params.setAttr}
+						selectedClass={params.selectedClass}
+						selectedDataset={params.selectedDataset}
+					/>
+				) : (
+					<Text fw={700} size="md">
+						{params.attr.name}
+					</Text>
+				)}
 			</div>
 
 			<div className={styles.menuicon}>
 				<ColumnMenu
 					disabled={false}
+					attr={params.attr}
 					newCol={params.newCol}
 					delCol={params.delCol}
+					clearCol={() => params.setAttr(null)}
 					idx={params.idx}
-					columns={params.columns}
+					n_columns={params.n_columns}
 				/>
 			</div>
 		</div>
@@ -56,9 +66,11 @@ export function ColumnHeader(params: {
 function ColumnMenu(params: {
 	disabled: boolean;
 	idx: number;
-	columns: { attr: null | number }[];
+	attr: components["schemas"]["AttrInfo"] | null;
+	n_columns: number;
 	newCol: (at_index: number) => void;
 	delCol: (at_index: number) => void;
+	clearCol: () => void;
 }) {
 	return (
 		<>
@@ -77,6 +89,20 @@ function ColumnMenu(params: {
 
 				<Menu.Dropdown>
 					<Menu.Label>Table Column</Menu.Label>
+
+					<Menu.Item
+						leftSection={
+							<XIcon
+								icon={IconCircleX}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
+						}
+						onClick={params.clearCol}
+						disabled={params.attr === null}
+					>
+						Clear attribute
+					</Menu.Item>
+
 					<Menu.Item
 						leftSection={
 							<XIcon
@@ -90,6 +116,7 @@ function ColumnMenu(params: {
 					>
 						Add column (left)
 					</Menu.Item>
+
 					<Menu.Item
 						leftSection={
 							<XIcon
@@ -103,8 +130,9 @@ function ColumnMenu(params: {
 					>
 						Add column (right)
 					</Menu.Item>
+
 					<Menu.Item
-						disabled={params.columns.length === 1}
+						disabled={params.n_columns === 1}
 						color="red"
 						leftSection={
 							<XIcon

@@ -1,75 +1,160 @@
 "use client";
 
 import styles from "./page.module.scss";
-import { DatsetPanel } from "./_datasets";
-import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import { DatasetPanel } from "./_datasets";
+import { useCallback, useRef, useState } from "react";
 import { ItemTablePanel } from "./_itemtable";
-import { useEditPanel } from "./_edit";
+import { EditPanel } from "./_edit";
 import { components } from "@/app/_util/api/openapi";
 import { APIclient } from "@/app/_util/api";
 
+const PAGE_SIZE = 15;
+
+export type ItemData = {
+	loading: boolean;
+	data: components["schemas"]["ItemListItem"][];
+};
+
+export type selectedClass =
+	| { dataset: null; class_idx: null; attrs: null }
+	| {
+			dataset: string;
+			class_idx: null;
+			attrs: null;
+	  }
+	| {
+			dataset: string;
+			class_idx: number;
+			attrs: components["schemas"]["AttrInfo"][];
+	  };
+
 export default function Page() {
-	const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
-	const [selectedClass, setSelectedClass] = useState<number | null>(null);
+	const [selectedClass, setSelectedClass] = useState<selectedClass>({
+		dataset: null,
+		class_idx: null,
+		attrs: null,
+	});
 
 	const select = useSelected();
 
-	const { itemdata, resetitemdata } = useItemData({
-		dataset: selectedDataset,
-		class: selectedClass,
+	const [itemdata, setItemData] = useState<ItemData>({
+		loading: false,
+		data: [],
 	});
 
-	const { node: editPanel, on_change_list } = useEditPanel({
-		data: itemdata,
-		select,
-	});
+	const load_items = useCallback(
+		(maxPage: number, sel: Omit<selectedClass, "attrs">) => {
+			console.log("load", maxPage, sel);
+			if (sel.dataset === null || sel.class_idx === null) {
+				return { data: [], attrs: [] };
+			}
+
+			setItemData((i) => ({
+				...i,
+				loading: true,
+			}));
+
+			fetchdata({
+				dataset: sel.dataset,
+				class: sel.class_idx,
+				maxPage,
+			}).then(({ data }) => {
+				setItemData({
+					loading: false,
+					data,
+				});
+			});
+		},
+		[],
+	);
 
 	return (
 		<main className={styles.main}>
 			<div className={styles.wrap_top}>
 				<div className={styles.wrap_list}>
-					<ItemTablePanel data={itemdata} select={select} />
-				</div>
-				<div className={styles.wrap_right}>
-					<DatsetPanel
-						selectedDataset={selectedDataset}
-						setSelectedDataset={(v) => {
-							resetitemdata();
-							setSelectedDataset(v);
-							on_change_list();
-							select.clear();
+					<ItemTablePanel
+						key={`${selectedClass.dataset}-${selectedClass.class_idx}`}
+						sel={selectedClass}
+						select={select}
+						data={itemdata}
+						minCellWidth={120}
+						load_more_items={() => {
+							load_items(
+								Math.ceil(itemdata.data.length / PAGE_SIZE) + 1,
+								selectedClass,
+							);
 						}}
-						setSelectedClass={(v) => {
-							resetitemdata();
-							setSelectedClass(v);
-							on_change_list();
+					/>
+				</div>
+
+				<div className={styles.wrap_right}>
+					<DatasetPanel
+						dataset={selectedClass.dataset}
+						class={(
+							v:
+								| {
+										dataset: string;
+										class_idx: number | null;
+								  }
+								| { dataset: null; class_idx: null },
+						) => {
+							if (v.class_idx !== null) {
+								const c = v.class_idx;
+								const d = v.dataset;
+								APIclient.GET("/class/get", {
+									params: {
+										query: {
+											dataset: d,
+											class: c,
+										},
+									},
+								}).then(({ data, error }) => {
+									if (error !== undefined) {
+										throw error;
+									}
+
+									setSelectedClass({
+										dataset: d,
+										class_idx: c,
+										attrs: data.attrs,
+									});
+								});
+							} else {
+								setSelectedClass({
+									dataset: v.dataset,
+									class_idx: v.class_idx,
+									attrs: null,
+								});
+							}
+
+							load_items(0, v);
 							select.clear();
 						}}
 					/>
 				</div>
 			</div>
-			<div className={styles.wrap_bottom}>{editPanel}</div>
+
+			<div className={styles.wrap_bottom}>
+				<EditPanel
+					key={`${selectedClass.dataset}-${selectedClass.class_idx}`}
+					dataset={selectedClass.dataset}
+					class={selectedClass.class_idx}
+					select={select}
+					data={itemdata}
+				/>
+			</div>
 		</main>
 	);
 }
 
-const PAGE_SIZE = 15;
-
 async function fetchdata(params: {
-	class: number | null;
-	dataset: string | null;
+	class: number;
+	dataset: string;
 	maxPage: number;
-
-	setLoading: (loading: boolean) => void;
-	setData: Dispatch<SetStateAction<components["schemas"]["ItemListItem"][]>>;
 }) {
 	// TODO: data isn't loaded if more than PAGE_SIZE items fit on the screen
-	params.setLoading(true);
-	if (params.class === null || params.dataset === null) {
-		params.setData([]);
-		return;
-	}
 
+	let d: components["schemas"]["ItemListItem"][] = [];
 	for (let page = 0; page <= params.maxPage; page++) {
 		const { data, error } = await APIclient.GET("/item/list", {
 			params: {
@@ -83,57 +168,14 @@ async function fetchdata(params: {
 		});
 
 		if (error !== undefined) {
-			params.setData([]);
-			params.setLoading(false);
-			return;
+			throw error;
 		} else {
-			params.setData((d) => [
-				...d.slice(0, page * PAGE_SIZE),
-				...data.items,
-				...d.slice(page * PAGE_SIZE + PAGE_SIZE),
-			]);
+			d = [...d, ...data.items];
 		}
 	}
-	params.setLoading(false);
-}
-
-export type ItemData = {
-	dataset: string | null;
-	class: number | null;
-	loading: boolean;
-	data: components["schemas"]["ItemListItem"][];
-	loadMore: () => void;
-};
-
-function useItemData(params: { dataset: string | null; class: number | null }) {
-	const [loading, setLoading] = useState(true);
-	const [data, setData] = useState<components["schemas"]["ItemListItem"][]>([]);
-	const [maxPage, setMaxPage] = useState(0);
-
-	useEffect(() => {
-		fetchdata({
-			dataset: params.dataset,
-			class: params.class,
-			maxPage,
-			setData,
-			setLoading,
-		});
-	}, [params.dataset, params.class, maxPage]);
 
 	return {
-		resetitemdata: () => {
-			setMaxPage(0);
-			setData([]);
-		},
-		itemdata: {
-			dataset: params.dataset,
-			class: params.class,
-			loading,
-			data,
-			loadMore: () => {
-				setMaxPage(Math.ceil(data.length / PAGE_SIZE) + 1);
-			},
-		},
+		data: d,
 	};
 }
 

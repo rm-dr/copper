@@ -6,10 +6,16 @@ import { ClassSelector } from "@/app/components/apiselect/class";
 import { XIcon } from "@/app/components/icons";
 import { IconDatabase } from "@tabler/icons-react";
 
-export function DatsetPanel(params: {
-	selectedDataset: string | null;
-	setSelectedDataset: (dataset: string | null) => void;
-	setSelectedClass: (class_name: number | null) => void;
+export function DatasetPanel(params: {
+	dataset: string | null;
+	class: (
+		v:
+			| {
+					dataset: string;
+					class_idx: number | null;
+			  }
+			| { dataset: null; class_idx: null },
+	) => void;
 }) {
 	return (
 		<>
@@ -18,10 +24,22 @@ export function DatsetPanel(params: {
 				icon={<XIcon icon={IconDatabase} />}
 				title={"Select dataset"}
 			>
-				<DatasetSelector onSelect={params.setSelectedDataset} />
+				<DatasetSelector
+					onSelect={(v) => params.class({ dataset: v, class_idx: null })}
+				/>
 				<ClassSelector
-					onSelect={params.setSelectedClass}
-					selectedDataset={params.selectedDataset}
+					key={params.dataset}
+					onSelect={(class_idx) => {
+						params.class(
+							params.dataset === null
+								? { dataset: null, class_idx: null }
+								: {
+										dataset: params.dataset,
+										class_idx,
+								  },
+						);
+					}}
+					selectedDataset={params.dataset}
 				/>
 			</Panel>
 		</>

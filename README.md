@@ -28,8 +28,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 CRUD items
 - [ ] List number of selected items
-- [ ] Polish
-  - [ ] Initial layout for table
 - [ ] Manage ui items
   - [ ] Delete items
   - [ ] Sort by attrs

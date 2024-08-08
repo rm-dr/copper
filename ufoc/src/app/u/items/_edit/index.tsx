@@ -4,13 +4,24 @@ import { ItemData, Selected } from "../page";
 import { attrTypes } from "@/app/_util/attrs";
 import { Button, Text } from "@mantine/core";
 import { Fragment, useCallback, useMemo, useState } from "react";
-import { IconArrowRight, IconBinary, IconEdit } from "@tabler/icons-react";
+import { IconArrowRight, IconEdit } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
 import { components } from "@/app/_util/api/openapi";
 
-export function useEditPanel(params: { data: ItemData; select: Selected }) {
-	const selectedItems = params.data.data.filter((_, idx) =>
-		params.select.selected.includes(idx),
+export function EditPanel(params: {
+	dataset: string | null;
+	class: number | null;
+	select: Selected;
+	data: ItemData;
+}) {
+	const [panelAttr, setPanelAttr] = useState<
+		components["schemas"]["ItemListData"] | null
+	>(null);
+
+	const selectedItems = useMemo(
+		() =>
+			params.data.data.filter((_, idx) => params.select.selected.includes(idx)),
+		[params.select.selected, params.data.data],
 	);
 
 	const {
@@ -82,17 +93,7 @@ export function useEditPanel(params: { data: ItemData; select: Selected }) {
 		return { first_panel, attr_values };
 	}, [selectedItems]);
 
-	const [panelAttr, setPanelAttr] = useState<
-		components["schemas"]["ItemListData"] | null
-	>(null);
-
-	// Called whenever we change class or dataset
-	const on_change_list = useCallback(() => {
-		console.log("changelist");
-		setPanelAttr(null);
-	}, []);
-
-	const node = (
+	return (
 		<>
 			<Panel
 				panel_id={styles.panel_edititem as string}
@@ -202,23 +203,20 @@ export function useEditPanel(params: { data: ItemData; select: Selected }) {
 									);
 								})}
 				</div>
-				<EditPanel
-					data={params.data}
+				<EditSubPanel
+					dataset={params.dataset}
+					class={params.class}
 					selectedItems={selectedItems}
 					panelAttr={panelAttr}
 				/>
 			</Panel>
 		</>
 	);
-
-	return {
-		node,
-		on_change_list,
-	};
 }
 
-function EditPanel(params: {
-	data: ItemData;
+function EditSubPanel(params: {
+	dataset: string | null;
+	class: number | null;
 	selectedItems: components["schemas"]["ItemListItem"][];
 	panelAttr: components["schemas"]["ItemListData"] | null;
 }) {
@@ -228,8 +226,10 @@ function EditPanel(params: {
 
 	if (
 		selected_attr_spec?.editor.type === "inline" ||
-		params.data.class === null ||
+		params.class === null ||
 		params.panelAttr === null ||
+		params.class === null ||
+		params.dataset === null ||
 		params.selectedItems.length === 0
 	) {
 		return null;
@@ -245,8 +245,8 @@ function EditPanel(params: {
 		selected_attr_spec === undefined ? null : (
 			<div className={styles.panelimage}>
 				{selected_attr_spec.editor.panel_body({
-					dataset: params.data.dataset || "",
-					class: params.data.class.toString() || "",
+					dataset: params.dataset,
+					class: params.class,
 					item_idx: params.selectedItems[0].idx,
 					attr_value: selected_attr_value,
 				})}
@@ -257,8 +257,8 @@ function EditPanel(params: {
 		selected_attr_value === undefined || selected_attr_spec === undefined
 			? null
 			: selected_attr_spec.editor.panel_bottom({
-					dataset: params.data.dataset || "",
-					class: params.data.class.toString() || "",
+					dataset: params.dataset,
+					class: params.class,
 					item_idx: params.selectedItems[0].idx,
 					attr_value: selected_attr_value,
 			  });
@@ -266,7 +266,7 @@ function EditPanel(params: {
 	return (
 		/* Key here is important, it makes sure we get a new panel each time we select an item */
 		<Fragment
-			key={`${params.data.dataset}-${params.data.class}-${params.selectedItems
+			key={`${params.dataset}-${params.class}-${params.selectedItems
 				.map((x) => x.idx)
 				.join(",")}`}
 		>

@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Loader, Text } from "@mantine/core";
 import { ColumnHeader } from "./parts/columnheader";
-import { ItemData, Selected } from "../page";
+import { ItemData, Selected, selectedClass } from "../page";
 import { attrTypes } from "@/app/_util/attrs";
 import {
 	IconCircleOff,
@@ -13,69 +13,71 @@ import {
 	IconListDetails,
 } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
-
-export function ItemTablePanel(params: { data: ItemData; select: Selected }) {
-	return (
-		<Panel
-			panel_id={styles.panel_itemtable}
-			icon={<XIcon icon={IconListDetails} />}
-			title={"Item Table"}
-		>
-			<ItemTable data={params.data} select={params.select} minCellWidth={120} />
-		</Panel>
-	);
-}
-
-const TablePlaceholder = (params: { children: ReactNode }) => {
-	return (
-		<tr>
-			<td>
-				<div
-					style={{
-						display: "flex",
-						flexDirection: "column",
-						alignItems: "center",
-						marginTop: "4rem",
-						marginBottom: "4rem",
-						color: "var(--mantine-color-dimmed)",
-					}}
-				>
-					{params.children}
-				</div>
-			</td>
-		</tr>
-	);
-};
+import { components } from "@/app/_util/api/openapi";
+import { APIclient } from "@/app/_util/api";
 
 // TODO: delete top of list once we scroll too far
 // (save memory for large lists)
 
-const ItemTable = (params: {
+const TablePlaceholder = (params: { children: ReactNode }) => {
+	return (
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "column",
+				alignItems: "center",
+				marginTop: "4rem",
+				marginBottom: "4rem",
+				color: "var(--mantine-color-dimmed)",
+			}}
+		>
+			{params.children}
+		</div>
+	);
+};
+
+export function ItemTablePanel(params: {
+	sel: selectedClass;
 	data: ItemData;
 	select: Selected;
+	load_more_items: () => void;
 
 	// Minimal cell width, in px
 	minCellWidth: number;
-}) => {
+}) {
 	const tableRootElement = useRef<any>(null);
-	const columnUidCounter = useRef(1);
+	const columnUidCounter = useRef(0);
+	const first_n = params.sel.attrs?.slice(0, 3);
+
 	const [columns, setColumns] = useState<
 		{
-			attr: null | number;
+			attr: components["schemas"]["AttrInfo"] | null;
 			unique_id: number;
 		}[]
-	>(
-		// Start with one unset column.
-		// Note that our grid def in .scss also defines one column.
-		[{ unique_id: 0, attr: null }],
-	);
+	>(() => {
+		// Start by making a column for each of the first three attributes in this class
+		if (first_n === undefined) {
+			columnUidCounter.current += 1;
+			return [{ unique_id: 1, attr: null }];
+		}
 
-	// Reset table when dataset or class changes
-	useEffect(() => {
-		columnUidCounter.current = 1;
-		setColumns([{ unique_id: 0, attr: null }]);
-		tableRootElement.current.style.gridTemplateColumns = "1fr";
-	}, [params.data.class, params.data.dataset]);
+		if (first_n.length !== 0) {
+			return first_n.map((x) => {
+				columnUidCounter.current += 1;
+				return {
+					unique_id: columnUidCounter.current,
+					attr: x,
+				};
+			});
+		} else {
+			columnUidCounter.current += 3;
+			return [
+				{ unique_id: 1, attr: null },
+				{ unique_id: 2, attr: null },
+				{ unique_id: 3, attr: null },
+			];
+		}
+	});
 
 	const updateData = useCallback(() => {
 		const e = tableRootElement.current;
@@ -91,9 +93,9 @@ const ItemTable = (params: {
 		const isScrolledToTop = isScrolledToBottom ? false : e.scrollTop === 0;
 
 		if (isScrolledToBottom) {
-			params.data.loadMore();
+			params.load_more_items();
 		}
-	}, [tableRootElement, params.data]);
+	}, [tableRootElement, params]);
 
 	const col_refs = useRef<(HTMLTableCellElement | null)[]>([null, null]);
 
@@ -418,9 +420,10 @@ const ItemTable = (params: {
 	// Table body
 	//
 
-	let table_body;
-	if (params.data.dataset === null) {
-		table_body = (
+	let table_body = null;
+	let table_bottom = null;
+	if (params.sel.dataset === null) {
+		table_bottom = (
 			<TablePlaceholder>
 				<XIcon icon={IconDatabaseX} style={{ height: "6rem" }} />
 				<div>
@@ -428,8 +431,8 @@ const ItemTable = (params: {
 				</div>
 			</TablePlaceholder>
 		);
-	} else if (params.data.class === null) {
-		table_body = (
+	} else if (params.sel.class_idx === null) {
+		table_bottom = (
 			<TablePlaceholder>
 				<XIcon icon={IconFolderX} style={{ height: "6rem" }} />
 				<div>
@@ -438,7 +441,7 @@ const ItemTable = (params: {
 			</TablePlaceholder>
 		);
 	} else if (params.data.data.length === 0 && params.data.loading) {
-		table_body = (
+		table_bottom = (
 			<TablePlaceholder>
 				<Loader color="var(--mantine-color-dimmed)" size="4rem" />
 				<div>
@@ -447,7 +450,7 @@ const ItemTable = (params: {
 			</TablePlaceholder>
 		);
 	} else if (params.data.data.length === 0) {
-		table_body = (
+		table_bottom = (
 			<TablePlaceholder>
 				<XIcon icon={IconCircleOff} style={{ height: "6rem" }} />
 				<div>
@@ -481,10 +484,10 @@ const ItemTable = (params: {
 						}
 					}}
 				>
-					{columns.map(({ attr }, c_idx) => {
+					{columns.map(({ attr, unique_id }) => {
 						if (attr === null) {
 							return (
-								<td key={`${data_entry.idx}-${c_idx}-${attr}`}>
+								<td key={`${unique_id}`}>
 									<Text c="dimmed" fs="italic">
 										no attribute
 									</Text>
@@ -494,7 +497,7 @@ const ItemTable = (params: {
 
 						// type hack (TODO: fix)
 						let found_attr = Object.entries(data_entry.attrs).find(
-							([_, x]) => x?.attr.handle === attr,
+							([_, x]) => x?.attr.handle === attr.handle,
 						);
 						let found_attr_x =
 							found_attr === undefined ? undefined : found_attr[1];
@@ -504,17 +507,17 @@ const ItemTable = (params: {
 						});
 						if (d === undefined) {
 							return (
-								<td key={`${data_entry.idx}-${c_idx}-${attr}`}>
+								<td key={`${attr.handle}-${unique_id}`}>
 									<Text c="dimmed" fs="italic">
-										invalid attr type
+										invalid attr
 									</Text>
 								</td>
 							);
 						}
 
-						let v = data_entry.attrs[attr.toString()];
+						let v = data_entry.attrs[attr.handle.toString()];
 						return (
-							<td key={`${data_entry.idx}-${c_idx}-${attr}`}>
+							<td key={`${attr.handle}-${unique_id}`}>
 								{d.value_preview === undefined || v === undefined
 									? null
 									: d.value_preview({
@@ -533,82 +536,107 @@ const ItemTable = (params: {
 	//
 
 	return (
-		<table
-			className={styles.itemtable}
-			ref={tableRootElement}
-			onScroll={updateData}
+		<Panel
+			panel_id={styles.panel_itemtable}
+			icon={<XIcon icon={IconListDetails} />}
+			title={"Item Table"}
 		>
-			<thead>
-				<tr>
-					{columns.map(({ attr, unique_id }, idx: number) => (
-						<th
-							ref={(ref) => {
-								col_refs.current[idx] = ref;
-							}}
-							key={`${params.data.class}-${unique_id}`}
-						>
-							{/*
+			<table
+				className={styles.itemtable}
+				ref={tableRootElement}
+				onScroll={updateData}
+				style={{
+					gridTemplateColumns: columns.map((_) => "1fr").join(" "),
+				}}
+			>
+				<thead>
+					<tr>
+						{columns.map(({ attr, unique_id }, idx: number) => (
+							<th
+								ref={(ref) => {
+									col_refs.current[idx] = ref;
+								}}
+								key={`${params.sel.class_idx}-${unique_id}`}
+							>
+								{/*
 									Do not show first resize handle.
 									Note that each header contains the *previous*
 									column's resize bar. This is a z-index hack,
 									makes sure that the resize bar goes ON TOP of
 									the previous th.
 								*/}
-							{idx === 0 ? null : (
-								<div
-									style={{ height: "100%" }}
-									onMouseDown={(e) => {
-										if (e.button === 0) {
-											resizeStart(idx - 1);
+								{idx === 0 ? null : (
+									<div
+										style={{ height: "100%" }}
+										onMouseDown={(e) => {
+											if (e.button === 0) {
+												resizeStart(idx - 1);
+											}
+										}}
+										className={clsx(
+											styles.resize_handle,
+											activeResizeHandle === idx - 1 && styles.active,
+										)}
+									/>
+								)}
+								<ColumnHeader
+									attr={attr}
+									idx={idx}
+									n_columns={columns.length}
+									newCol={newColumn}
+									delCol={delColumn}
+									setAttr={(a) => {
+										if (a === null || params.sel.dataset === null) {
+											setColumns((c) => {
+												const n = [...c];
+												n[idx].attr = null;
+												return n;
+											});
+										} else {
+											APIclient.GET("/attr/get", {
+												params: {
+													query: {
+														dataset: params.sel.dataset,
+														attr: a,
+													},
+												},
+											}).then(({ data, error }) => {
+												if (error !== undefined) {
+													throw error;
+												}
+
+												setColumns((c) => {
+													const n = [...c];
+													n[idx].attr = data;
+													return n;
+												});
+											});
 										}
 									}}
-									className={clsx(
-										styles.resize_handle,
-										activeResizeHandle === idx - 1 && styles.active,
-									)}
+									selectedClass={params.sel.class_idx}
+									selectedDataset={params.sel.dataset}
 								/>
-							)}
-							<ColumnHeader
-								attr={attr}
-								idx={idx}
-								columns={columns}
-								newCol={newColumn}
-								delCol={delColumn}
-								setAttr={(a) => {
-									setColumns((c) => {
-										const n = [...c];
-										n[idx].attr = a;
-										return n;
-									});
-								}}
-								selectedClass={params.data.class}
-								selectedDataset={params.data.dataset}
-							/>
-						</th>
-					))}
-				</tr>
-			</thead>
-			<tbody>
-				{table_body}
-				{!(params.data.loading && params.data.data.length !== 0) ? null : (
-					<tr>
-						<td>
-							<div
-								style={{
-									display: "flex",
-									flexDirection: "column",
-									alignItems: "center",
-									marginTop: "1rem",
-									marginBottom: "1rem",
-									color: "var(--mantine-color-dimmed)",
-								}}
-							>
-								<Loader color="var(--mantine-color-dimmed)" size="2rem" />
-							</div>
-						</td>
+							</th>
+						))}
 					</tr>
-				)}
-			</tbody>
-		</table>
+				</thead>
+				<tbody>{table_body}</tbody>
+			</table>
+			{table_bottom}
+			{!params.data.loading ? null : (
+				<div
+					style={{
+						display: "flex",
+						flexDirection: "column",
+						alignItems: "center",
+						marginTop: "1rem",
+						marginBottom: "1rem",
+						color: "var(--mantine-color-dimmed)",
+					}}
+				>
+					<Loader color="var(--mantine-color-dimmed)" size="2rem" />
+				</div>
+			)}
+		</Panel>
 	);
-};
+}
