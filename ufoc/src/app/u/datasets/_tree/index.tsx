@@ -29,6 +29,7 @@ import { APIclient } from "@/app/_util/api";
 import { components } from "@/app/_util/api/openapi";
 import { useRenameAttrModal } from "./modals/renameattr";
 import { useRenameClassModal } from "./modals/renameclass";
+import { useRenameDatasetModal } from "./modals/renameds";
 
 type TreeState = {
 	error: boolean;
@@ -289,10 +290,16 @@ function DatasetMenu(params: { dataset_name: string; onSuccess: () => void }) {
 		onSuccess: params.onSuccess,
 	});
 
+	const { open: openRename, modal: modalRename } = useRenameDatasetModal({
+		dataset_name: params.dataset_name,
+		onSuccess: params.onSuccess,
+	});
+
 	return (
 		<>
 			{modalDelete}
 			{modalAddClass}
+			{modalRename}
 			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
@@ -309,6 +316,7 @@ function DatasetMenu(params: { dataset_name: string; onSuccess: () => void }) {
 								style={{ width: rem(14), height: rem(14) }}
 							/>
 						}
+						onClick={openRename}
 					>
 						Rename
 					</Menu.Item>

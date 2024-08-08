@@ -9,7 +9,7 @@ use ufo_ds_impl::{local::LocalDataset, DatasetType};
 use crate::config::UfodConfig;
 
 pub mod errors;
-use errors::CreateDatasetError;
+use errors::{CreateDatasetError, RenameDatasetError};
 
 #[derive(Debug)]
 pub struct DatasetEntry {
@@ -226,6 +226,49 @@ impl DatasetProvider {
 		t.commit().await?;
 
 		info!(message = "Deleted dataset", name = dataset_name,);
+
+		Ok(())
+	}
+
+	pub async fn rename_dataset(
+		&self,
+		old_name: &str,
+		new_name: &str,
+	) -> Result<(), RenameDatasetError> {
+		// Make sure this name is new
+		let datasets = self
+			.get_datasets()
+			.await
+			.map_err(|e| RenameDatasetError::DbError(Box::new(e)))?;
+		if datasets.iter().any(|x| x.name == new_name) {
+			return Err(RenameDatasetError::AlreadyExists);
+		}
+
+		debug!(message = "Renaming dataset", old_name, new_name);
+
+		// If this dataset is already open, close it
+		let mut ods_lock = self.open_datasets.lock().await;
+		ods_lock.remove(old_name);
+		drop(ods_lock);
+
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| RenameDatasetError::DbError(Box::new(e)))?;
+
+		sqlx::query(
+			"
+			UPDATE datasets
+			SET ds_name=?
+			WHERE ds_name=?;
+			",
+		)
+		.bind(new_name)
+		.bind(old_name)
+		.execute(&mut *conn)
+		.await
+		.map_err(|e| RenameDatasetError::DbError(Box::new(e)))?;
 
 		Ok(())
 	}

@@ -361,6 +361,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/dataset/rename": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Delete a dataset */
+		post: operations["rename_dataset"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/item/attr": {
 		parameters: {
 			query?: never;
@@ -922,6 +939,10 @@ export interface components {
 			class: number;
 			dataset: string;
 			new_name: string;
+		};
+		RenameDatasetRequest: {
+			new_name: string;
+			old_name: string;
 		};
 		/** @description This server's pipeline runner status */
 		RunnerStatus: {
@@ -2080,6 +2101,53 @@ export interface operations {
 				};
 				content: {
 					"application/json": components["schemas"]["DatasetInfoShort"][];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+		};
+	};
+	rename_dataset: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["RenameDatasetRequest"];
+			};
+		};
+		responses: {
+			/** @description Dataset renamed successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Could not rename dataset */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
 				};
 			};
 			/** @description Unauthorized */
