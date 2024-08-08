@@ -1,5 +1,7 @@
 import {
 	IconAdjustmentsAlt,
+	IconAmpersand,
+	IconAnalyze,
 	IconBinary,
 	IconBinaryTree,
 	IconCheck,
@@ -51,6 +53,14 @@ const defaultStyles: CSSProperties | undefined = {
 
 // This module lets us apply default styling to tabler icons,
 // and makes it easy to replace our icon provider.
+
+export const XIconAttrReference = ({ style }: { style?: CSSProperties }) => {
+	return <IconAmpersand style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconAttrHash = ({ style }: { style?: CSSProperties }) => {
+	return <IconAnalyze style={{ ...defaultStyles, ...style }} />;
+};
 
 export const XIconAttrText = ({ style }: { style?: CSSProperties }) => {
 	return <IconLetterCase style={{ ...defaultStyles, ...style }} />;
