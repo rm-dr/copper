@@ -129,15 +129,13 @@ export function useDbList(
 													<XIconEdit style={{ width: "70%", height: "70%" }} />
 												</ActionIcon>
 												*/}
-												<ActionIcon
-													variant="light"
-													aria-label="Delete this dataset"
-													color="red"
+												<DeleteDatasetButton
+													dataset_name={name}
 													disabled={!is_selected}
-													onMouseDown={console.log}
-												>
-													<XIconTrash style={{ width: "70%", height: "70%" }} />
-												</ActionIcon>
+													onSuccess={() => {
+														update_ds_list(select_dataset);
+													}}
+												/>
 											</>
 										}
 									/>
