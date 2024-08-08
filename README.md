@@ -41,6 +41,7 @@ UFO's goal is to be "[Paperless] for everything," with...
 
 
 ### Small tweaks
+- Clean up FLAC code with `readvectored`
 - Add nodes:
   - Audio metadata: bit rate, length, sample rate, etc
   - Strip spaces, regex
