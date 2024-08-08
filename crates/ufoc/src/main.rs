@@ -3,11 +3,11 @@ use api::client::UfoApiClient;
 use clap::{Parser, Subcommand};
 use crossterm::style::Stylize;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use std::{fmt::Write, fs::File, path::PathBuf};
+use std::{fmt::Write, fs::File, path::PathBuf, process::exit};
 use ufo_api::{
 	data::{ApiData, ApiDataStub},
 	pipeline::AddJobParams,
-	runner::RunningNodeState,
+	status::RunningNodeState,
 };
 use ufo_database::{api::UFODatabase, database::Database};
 use ufo_db_blobstore::fs::store::FsBlobstore;
@@ -73,7 +73,20 @@ fn main() -> Result<()> {
 		.progress_chars("⣿⣷⣶⣦⣤⣄⣀");
 	*/
 
-	let api = UfoApiClient::new(cli.host);
+	let api = UfoApiClient::new(cli.host).unwrap();
+
+	let server_status = api.get_server_status().unwrap();
+	if server_status.version != env!("CARGO_PKG_VERSION") {
+		println!(
+			"{} the version of this client {} is not compatible with\nthe version of the server at {} {}.\n{}",
+			"Error:".red(),
+			format!("({})", env!("CARGO_PKG_VERSION")).italic(),
+			format!("{}", api.get_host()).dark_grey(),
+			format!("({})", server_status.version).italic(),
+			"The API may have changed, update ufoc!".yellow()
+		);
+		exit(0)
+	}
 
 	match cli.command {
 		Commands::New { target_dir } => {
@@ -188,13 +201,16 @@ fn main() -> Result<()> {
 		}
 
 		Commands::CreateJob { pipeline, args } => {
-			let pipe = if let Some(pipe) = api.get_pipeline(&pipeline) {
+			let pipe = if let Some(pipe) = api.get_pipeline(&pipeline).unwrap() {
 				pipe
 			} else {
 				panic!("bad pipeline");
 			};
 
-			let input_node = api.get_pipeline_node(&pipeline, &pipe.input_node).unwrap();
+			let input_node = api
+				.get_pipeline_node(&pipeline, &pipe.input_node)
+				.unwrap()
+				.unwrap();
 
 			if input_node.inputs.len() != args.len() {
 				panic!("bad arguments")
@@ -266,6 +282,7 @@ fn main() -> Result<()> {
 				input,
 				bound_upload_job: uploadjob.map(|x| x.get_job_id().clone()),
 			})
+			.unwrap()
 		}
 
 		Commands::WatchJobs => {
@@ -286,7 +303,7 @@ fn main() -> Result<()> {
 			loop {
 				std::thread::sleep(std::time::Duration::from_millis(100));
 
-				let status = api.get_status();
+				let status = api.get_runner_status().unwrap();
 				if !status.running_jobs.is_empty() {
 					multi_bar.remove(&empty_spinner);
 					is_empty = false;

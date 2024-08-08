@@ -41,8 +41,8 @@ impl<'a> UfoApiUploadJob<'a> {
 		let mut part_count = 0;
 		let mut hasher = Sha256::new();
 		loop {
-			// Make sure to leave space for metadata part
-			let mut buf = vec![0u8; 2 * 1024 * 1024 - (16 * 1024)];
+			// Leave 32kb for metadata & headers
+			let mut buf = vec![0u8; self.api_client.request_body_limit - (32 * 1024)];
 			let n = file.read(&mut buf)?;
 			buf.truncate(n);
 			hasher.update(&buf);

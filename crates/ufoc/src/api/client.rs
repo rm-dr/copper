@@ -1,7 +1,9 @@
+use reqwest::StatusCode;
+use ufo_api::status::ServerStatus;
 use ufo_api::upload::UploadStartResult;
 use ufo_api::{
 	pipeline::{AddJobParams, NodeInfo, PipelineInfo},
-	runner::RunnerStatus,
+	status::RunnerStatus,
 };
 use ufo_pipeline::labels::{PipelineLabel, PipelineNodeLabel};
 use url::Url;
@@ -12,14 +14,20 @@ use super::upload::UfoApiUploadJob;
 pub struct UfoApiClient {
 	pub(super) host: Url,
 	pub(super) client: reqwest::blocking::Client,
+	pub(super) request_body_limit: usize,
 }
 
 impl UfoApiClient {
-	pub fn new(host: Url) -> Self {
-		Self {
+	pub fn new(host: Url) -> Result<Self, UfoApiError> {
+		let client = reqwest::blocking::Client::new();
+		let server_status = client.get(host.join("/status").unwrap()).send()?;
+		let server_status: ServerStatus = serde_json::from_str(&server_status.text()?)?;
+
+		return Ok(Self {
 			host,
-			client: reqwest::blocking::Client::new(),
-		}
+			client,
+			request_body_limit: server_status.request_body_limit,
+		});
 	}
 
 	pub fn get_host(&self) -> &Url {
@@ -28,60 +36,73 @@ impl UfoApiClient {
 }
 
 impl UfoApiClient {
-	pub fn get_status(&self) -> RunnerStatus {
-		let resp = self
-			.client
-			.get(self.host.join("status").unwrap())
-			.send()
-			.unwrap();
-		serde_json::from_str(&resp.text().unwrap()).unwrap()
+	pub fn get_server_status(&self) -> Result<ServerStatus, UfoApiError> {
+		let resp = self.client.get(self.host.join("/status").unwrap()).send()?;
+		return Ok(serde_json::from_str(&resp.text()?)?);
 	}
 
-	pub fn get_pipelines(&self) -> Vec<PipelineLabel> {
+	pub fn get_runner_status(&self) -> Result<RunnerStatus, UfoApiError> {
 		let resp = self
 			.client
-			// TODO: url encode?
-			.get(self.host.join("pipelines").unwrap())
-			.send()
-			.unwrap();
-		serde_json::from_str(&resp.text().unwrap()).unwrap()
+			.get(self.host.join("/status/runner").unwrap())
+			.send()?;
+
+		return Ok(serde_json::from_str(&resp.text()?)?);
 	}
 
-	pub fn get_pipeline(&self, pipeline_name: &PipelineLabel) -> Option<PipelineInfo> {
+	pub fn get_pipelines(&self) -> Result<Vec<PipelineLabel>, UfoApiError> {
+		let resp = self
+			.client
+			.get(self.host.join("/pipelines").unwrap())
+			.send()?;
+		return Ok(serde_json::from_str(&resp.text()?)?);
+	}
+
+	pub fn get_pipeline(
+		&self,
+		pipeline_name: &PipelineLabel,
+	) -> Result<Option<PipelineInfo>, UfoApiError> {
 		let resp = self
 			.client
 			.get(
 				self.host
-					.join("pipelines/")
+					.join("/pipelines/")
 					.unwrap()
 					.join(pipeline_name.into())
 					.unwrap(),
 			)
-			.send()
-			.unwrap();
-		let t = resp.text();
-		serde_json::from_str(&t.unwrap()).unwrap()
+			.send()?;
+
+		return Ok(match resp.status() {
+			StatusCode::NOT_FOUND => None,
+			StatusCode::OK => serde_json::from_str(&resp.text()?)?,
+			_ => unreachable!(),
+		});
 	}
 
 	pub fn get_pipeline_node(
 		&self,
 		pipeline_name: &PipelineLabel,
 		node_name: &PipelineNodeLabel,
-	) -> Option<NodeInfo> {
+	) -> Result<Option<NodeInfo>, UfoApiError> {
 		let resp = self
 			.client
 			.get(
 				self.host
-					.join("pipelines/")
+					.join("/pipelines/")
 					.unwrap()
 					.join(&format!("{}/", pipeline_name))
 					.unwrap()
 					.join(node_name.into())
 					.unwrap(),
 			)
-			.send()
-			.unwrap();
-		serde_json::from_str(&resp.text().unwrap()).unwrap()
+			.send()?;
+
+		return Ok(match resp.status() {
+			StatusCode::NOT_FOUND => None,
+			StatusCode::OK => serde_json::from_str(&resp.text()?)?,
+			_ => unreachable!(),
+		});
 	}
 
 	pub fn new_upload_job(&self) -> Result<UfoApiUploadJob, UfoApiError> {
@@ -97,11 +118,12 @@ impl UfoApiClient {
 		});
 	}
 
-	pub fn add_job(&self, job: AddJobParams) {
+	pub fn add_job(&self, job: AddJobParams) -> Result<(), UfoApiError> {
 		self.client
-			.post(self.host.join("add_job").unwrap())
+			.post(self.host.join("/add_job").unwrap())
 			.json(&job)
-			.send()
-			.unwrap();
+			.send()?;
+
+		return Ok(());
 	}
 }
