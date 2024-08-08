@@ -1,122 +1,287 @@
-# UFO: The Universal File Organizer
+# TODO
+
+Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *minimal* working version: robust, usable, but possibly slow and missing fancy features.
 
 
-UFO can replace:
-- [Paperless] (and similar DMS)
-- [Calibre]
-- [Beets] (and similar music managers)
-- [Picard], [EasyTag] (no need to manually tag music)
+## 📦 CRUD datasets
+- [x] Create set, class, attr
+- [x] Delete set, class, attr
+- [ ] Rename set, class, attr
+- [ ] Dataset & class descriptions?
+- [ ] Load set and attr from api
+  - [ ] clean up set and attr type definitions in daemon
+- [ ] Show icon for set and attr types
+- [ ] Show dataset metadata
+  - [ ] size, item count
+  - requires dashboard & item CRUD
+- [ ] Complete class deletion
+  - [ ] Delete blobs
+  - [ ] Check references
+  - [ ] Check pipelines
+    - (or let them be invalid? Connected to pipeline CRUD)
+  - [ ] How to handle running jobs?
+    - cancel, or let them fail?
+    - Same problem with renames. Will that break running jobs?
+  - [ ] Deletion could take a while. Will our request time out?
+    - loading state
+- [ ] Polish UI: (`/datasets` page)
+  - [ ] Message in each modal
+  - [ ] Modal errors
+  - [ ] Loading indicators
+  - [ ] Error indicators (in `ApiSelector` too!)
+
+## 📦 Dataset locks
+- [ ] delete dataset while pipeline is running?
+- [ ] async dataset api?
+
+## 📦 Server.toml
+- [ ] upload fragment size
+- [ ] read blob size
+- [ ] logging
+- [ ] generate default config with docs
+- [ ] `Arc` config to share?
+
+## 📦 How to fail pipelines?
+- e.g, duplicate album art
+
+## 📦 CRUD items
+- [ ] Create items by pipeline
+  - [ ] Fetch item node should work
+  - [ ] Clean up input list & api
+    - get inputs from server
+- [ ] Hash files when uploading (incremental)
+  - make sure uploads don't expire
+  - [ ] clean up upload api
+  - [ ] move upload logic to `Uploader`
+  - [ ] get fragment size from server config
+- [ ] UI item CRUD
+  - [ ] View table (endless scroll)
+  - [ ] Select attrs to show
+  - [ ] Search panel (no logic yet)
+  - [ ] Sort by attr
+
+## 📦 Authentication
+- [ ] Pick auth method & storage
+- [ ] Login endpoint
+- [ ] Login page
+- [ ] CRUD users and groups from ui
+  - group permission to create users and set groups
+- [ ] Dataset permissions (per group)
 
 
-UFO's goal is to be "[Paperless] for everything," with...
-- Flexible, fast, and automatable data processing via pipelines
-  - Data ingest, processing, and export
-- Fast search & metadata editing
-- A pretty web ui
+## 📦 Audiofile library
+- [ ] Tests
+  - [ ] Basic read
+  - [ ] Striptags integrity check
+  - [ ] Malformed file integrity check
+    - Out-of-spec, but blocks ok
+    - blocks don't align
+- [ ] Readvectored
+- [ ] FLAC complete implementation
+  - [ ] Handle errors
+  - [ ] Multiple covers (take first for now)
+  - [ ] Cover inside comment
+- [ ] IDv3 complete implementation
 
 
-[Paperless]: https://docs.paperless-ngx.com
-[Calibre]: https://calibre-ebook.com
-[Beets]: https://beets.io
-[Picard]: https://picard.musicbrainz.org/
-[EasyTag]: https://wiki.gnome.org/Apps/EasyTAG
+## 📦 UI Cleanup
+- [ ] onmousedown: check button, catch keyboard input
+- [ ] tab all interactables
+- [ ] Next cache config
+- [ ] Font
+- [ ] Panel width. Center, or change page background?
 
-## TODO:
+## 📦 Better uploads
+- [ ] Upload in parallel
+- [ ] Warn when closing window if uploading
 
-### Current:
-- Refactor api
-  - do all struct serializations make sense (MimeType)
-  - Clean up "upload" api
-  - Clean up "status" api
-  - Redo "pipeline" api (pipeline editor ui first?)
+## 📦 Better dataset names
+- Store name in db, use idx as fs path?
 
-- Use memmap2
-- How and when should we load databases?
-  - (nice interop with ufod)
-  - Better way to define nodes (compatible with standalone ufo)
-- Clean up logging
-- ufoc error handling
+## 📦 Pipeline editor
+- redo serialize/deserialize pipeline spec
 
-- Clean up pipeline error handling (search for unwrap, assert, and panic)
-  - db errors in pipeline run & build
-  - detect bad classes when building AddToDataset node
-  - elegantly handle duplicate album art (fail pipelines)
-    - how about sub-pipelines?
-    - always fail unless explicitly told to `None`
-- Deadlock detection
+## 📦 Pipeline argument nodes
+- already in upload ui, just need node implementation
 
+## 📦 Database migrations
+- old dbs should not be destroyed
 
-
-### Small tweaks
-- Clean up FLAC code with `readvectored`
-- Add nodes:
-  - Audio metadata: bit rate, length, sample rate, etc
-  - Strip spaces, regex
-  - external commands
-- Add datatypes:
-  - enum
-  - multi-enum
-  - date
-- Helpful pipeline parse errors:
-  - deserialize reference from name
-- Faster node inputs() and outputs()
-  - Fewer db hits (solve by caching?)
-- Clean up dependencies
-- Remove petgraph
-  - Write toposort algo, provide whole cycle in errors
-
-### Database
-- Many-attr unique constraint
-- Load and check db metadata
-- Store mime with binary data
-- Database caching
-- Async database
-- automatic attributes (computed by a pipeline, like hash of album art)
+## 📦 Daemon cleanup
+- [ ] Rename "fragment", "item class", "database", etc (glossary)
+- [ ] clone fewer arcs
+- [ ] logging everywhere
+- [ ] fix all panics/unwraps
+- [ ] Remove petgraph (write cycle detection algo)
+- [ ] Log to file (basic)
+- [ ] Minor TODOs in code (search all files)
+- [ ] clean up dependencies
+- [ ] Enum for api errors (consistent response & log message)
+- [ ] Check serializations
+- [ ] Force nonempty set, attr, class names
 
 
-### Pipeline runner
-- Remove other pipeline node?
-- Improve node parsing
-- Rework pipeline errors
-- Smarter pipeline scheduler
-  - efficient end condition: we don't need to run ALL nodes
-  - What is blocking what? (data streams)
-  - Hints? (iobound, networkbound, etc)
-  - Nodes ask for other nodes (ifnone)
-  - Stop reading file when all dependents are done
-  - Nodes ask for other nodes (ifnone)
-- Warn on disconnected pipeline inputs
-- Arrays & foreach (a file could have many covers)
-- Discard node---what should we do for sub-pipelines?
-  - Transactions?
+## 📦 Distribution
+- [ ] Docker file & compose
+- [ ] `crates.io`
+
+## 📦 Branding
+- [ ] Better name
+- [ ] Better logo
+- [ ] Website (main page & user docs)
+
+## 📦 Dev docs
+- [ ] How to make nodes (cmd api & rust api)
+  - never panic
+- [ ] glossary of terms
+- [ ] Finalize node api (traits, cmd later)
+- Notes
+  - Pipeline = one-off job. No streams!
+  - Nodes take input even when not ready
+
+---------------------------------------------------------------------
 
 
-### Later
-- Better name; branding & site
-- tui, web ui, server with auth, api
-- Docs
-  - classes & attrs are immutable (cannot change once made)
-  - node deadlocks: buffer blobs even if input not ready
-  - Definitions:
-    - pipeline & pipelinespec: definition of pipeline
-    - runner: manages many jobs
-    - job: an instance of one pipeline, possibly with many threads
-    - database = blobstore + metadb
-    - pipeline nodes should never panic. Return errors instead.
-      - Runner should handle panics?
-    - Pipelines are one-off runs, NOT stream processors!
-    - Multiple file readers to prevent high memory use
-  - blobstore, metastore and pipestore do not need to be mutable. They handle locking on their own!
-- Fast search (index certain attributes)
-- Save pipelines in database
-- Web streams as pipeline input
-- Continuously-running pipelines
-  - pipelines are still one-off runs.
-  - Streams get split and `foreach`ed.
-- Plain pipeline tui
+# Daemon cleanup v2
+- [ ] utoipa tags
+- [ ] use memmap2 for files
 
 
-### Write tests:
-- Tiny blob queue sizes
-- Big blob queue sizes
-- Malformed flac files (many headers, not a flac, too long, etc)
+## Audit log
+- [ ] Track logins
+- [ ] Track user actions
+- [ ] Audit log admin page
+
+## Dashboard (UI home page)
+- [ ] Show counts & sizes
+- [ ] Job history
+- [ ] Job history graph
+
+## Dataset caching
+- [ ] Cache built pipelines
+- [ ] Cache common metastore gets
+
+## CRUD Jobs
+- [ ] Clean up pipeline error handling
+- [ ] Show job log in upload page
+- [ ] Job log page:
+  - Failed jobs with message
+  - Input exemplars
+  - Job log expires after `n` hours
+  - show `created_at` in job log
+  - [ ] filter and sort jobs
+- [ ] Cancel pending and running jobs
+
+## Queue jobs (TrueNAS-style)
+- dataset deletion could take a while. Maybe keep an async task queue?
+- or, find a solution to this problem
+
+
+## Arrays in pipelines
+- Some nodes could return multiple elements (music with many covers). How should we handle this?
+
+## "other pipeline" node
+- append to back of job queue, no output
+
+## export jobs
+- perodic (backup)
+- on demand
+- download all items where...
+- Run export pipeline on subset of items
+
+## Search items
+- [ ] Configure search index on attributes
+- search should be fast and robust, even on *huge* datasets
+
+## Better deletion
+- show item count/attr count/size
+
+## Better pipeline scheduler
+- [ ] better end condition (only effectful nodes?)
+- [ ] don't run nodes if not necessary (`ifnone`)
+  - nodes ask for nodes?
+- [ ] do we need `after` edges?
+- [ ] don't read file if no deps
+- [ ] we used to be able to use multiple file readers to save memory.
+  - now what?
+
+## Better logging
+- Different events to different files?
+
+
+## More nodes:
+- [ ] hash additional types
+- [ ] external command (for user plugins)
+  - ollama, whisper
+- [ ] email
+- string manipulation
+  - [ ] strip
+  - [ ] regex replace
+  - [ ] regex search
+  - [ ] lower/upper
+- [ ] audio file metadata (bit rate, etc)
+- type conversion
+  - [ ] number to string
+
+## More storage types:
+- [ ] Enums
+- [ ] Multi-enums
+- [ ] How to store playlists?
+  - in their own class, with a list of refs?
+- [ ] Date
+- [ ] Time
+- [ ] Store `Binary` mime type
+
+---------------------------------------------------------------------
+
+## Faster main db
+- mysql?
+
+## Other datasets
+- mysql + ?
+- object store?
+- No blobs at all (with fast db backend)
+
+## Hash blobs
+- integrity check?
+- deduplicate
+
+## Pipeline builder
+- an invalid pipeline should deserialize, but should not build
+- (gives user opportunity to fix errors)
+- [ ] Better type checking
+  - [ ] `string | null` types
+  - [ ] Catch as many errors as possible when building pipeline
+- [ ] Warnings (disconnected inputs)
+
+
+## Tasks
+- Trigger jobs automatically on some event
+- [ ] email
+- [ ] ytdl
+- [ ] rss
+- [ ] filesystem?
+- [ ] public / apikey POST
+- [ ] Task log
+
+## UI config
+- [ ] Light/dark theme
+- [ ] Save user preference
+- [ ] Set primary color for site (admin)
+- [ ] Set site message / logo
+
+## Dataset constraints
+- [ ] not null
+- [ ] unique
+- [ ] multi-unique
+- [ ] Make sure all these hold on CRUD
+
+## Tooltips and docs in ui
+- UI should be usable without a manual
+
+## Pipes as transactions
+- If a pipe fails, a dataset should not have partial state
+
+## Virtual attributes
+- Attributes computed by a pipeline, auto-updated on change
+
