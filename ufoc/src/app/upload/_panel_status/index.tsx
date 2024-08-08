@@ -5,7 +5,10 @@ import { useEffect, useState } from "react";
 import { UploadState, ppBytes } from "../util";
 import {
 	XIconCpu,
+	XIconFileUpload,
+	XIconGrid,
 	XIconHexMinus,
+	XIconServer,
 	XIconTrash,
 	XIconUpload,
 } from "@/app/components/icons";
@@ -97,7 +100,7 @@ export function useStatusPanel(params: {
 		<>
 			<Panel
 				panel_id={styles.panel_id_status}
-				icon={<XIconCpu />}
+				icon={<XIconServer />}
 				title={"System status"}
 			>
 				<div className={styles.status_panel_content}>
@@ -114,7 +117,7 @@ export function useStatusPanel(params: {
 					</div>
 
 					<div>
-						<PanelTitle icon={<XIconCpu />} title={"Upload Jobs"} />
+						<PanelTitle icon={<XIconFileUpload />} title={"Upload Jobs"} />
 						<div className={styles.status_subpanel_content}>
 							<JobTable
 								pending_count={params.uploadState.queue.length}
@@ -126,7 +129,7 @@ export function useStatusPanel(params: {
 					</div>
 
 					<div>
-						<PanelTitle icon={<XIconCpu />} title={"Control Panel"} />
+						<PanelTitle icon={<XIconGrid />} title={"Control panel"} />
 						<div className={styles.status_subpanel_content}>
 							<div
 								style={{

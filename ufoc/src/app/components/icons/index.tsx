@@ -1,10 +1,21 @@
 import {
+	IconAdjustmentsAlt,
 	IconBinaryTree,
 	IconCheck,
 	IconCpu,
 	IconFile,
+	IconFilePlus,
+	IconFileUpload,
+	IconFileX,
+	IconGridPattern,
+	IconHexagon,
 	IconHexagonMinus,
+	IconList,
 	IconMenu2,
+	IconPlus,
+	IconSchema,
+	IconSend,
+	IconServer2,
 	IconSquareAsterisk,
 	IconTrash,
 	IconUpload,
@@ -22,6 +33,34 @@ const defaultStyles: CSSProperties | undefined = {
 // This module lets us apply default styling to tabler icons,
 // and makes it easy to replace our icon provider.
 
+export const XIconGrid = ({ style }: { style?: CSSProperties }) => {
+	return <IconGridPattern style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconList = ({ style }: { style?: CSSProperties }) => {
+	return <IconList style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconPlus = ({ style }: { style?: CSSProperties }) => {
+	return <IconPlus style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconServer = ({ style }: { style?: CSSProperties }) => {
+	return <IconServer2 style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconHex = ({ style }: { style?: CSSProperties }) => {
+	return <IconHexagon style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconPipeline = ({ style }: { style?: CSSProperties }) => {
+	return <IconSchema style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconAdjustments = ({ style }: { style?: CSSProperties }) => {
+	return <IconAdjustmentsAlt style={{ ...defaultStyles, ...style }} />;
+};
+
 export const XIconHexMinus = ({ style }: { style?: CSSProperties }) => {
 	return <IconHexagonMinus style={{ ...defaultStyles, ...style }} />;
 };
@@ -34,8 +73,24 @@ export const XIconCheck = ({ style }: { style?: CSSProperties }) => {
 	return <IconCheck style={{ ...defaultStyles, ...style }} />;
 };
 
+export const XIconFileX = ({ style }: { style?: CSSProperties }) => {
+	return <IconFileX style={{ ...defaultStyles, ...style }} />;
+};
+
 export const XIconFile = ({ style }: { style?: CSSProperties }) => {
 	return <IconFile style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconFilePlus = ({ style }: { style?: CSSProperties }) => {
+	return <IconFilePlus style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconSend = ({ style }: { style?: CSSProperties }) => {
+	return <IconSend style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconFileUpload = ({ style }: { style?: CSSProperties }) => {
+	return <IconFileUpload style={{ ...defaultStyles, ...style }} />;
 };
 
 export const XIconUpload = ({ style }: { style?: CSSProperties }) => {

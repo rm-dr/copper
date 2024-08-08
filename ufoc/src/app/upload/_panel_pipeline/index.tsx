@@ -3,7 +3,12 @@ import styles from "../page.module.scss";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { Panel, PanelSection } from "../../components/panel";
 import { useArgBoolean, useArgText } from "./args";
-import { XIconCpu } from "@/app/components/icons";
+import {
+	XIconAdjustments,
+	XIconCpu,
+	XIconHex,
+	XIconPipeline,
+} from "@/app/components/icons";
 
 export function usePipelinePanel(params: {
 	setSelectedPipeline: Dispatch<SetStateAction<string | null>>;
@@ -16,14 +21,14 @@ export function usePipelinePanel(params: {
 		<>
 			<Panel
 				panel_id={styles.panel_id_pipe}
-				icon={<XIconCpu />}
+				icon={<XIconPipeline />}
 				title={"Pipeline"}
 			>
-				<PanelSection icon={<XIconCpu />} title={"Select pipeline"}>
+				<PanelSection icon={<XIconHex />} title={"Select pipeline"}>
 					{PipelineSelector}
 				</PanelSection>
 
-				<PanelSection icon={<XIconCpu />} title={"Configure arguments"}>
+				<PanelSection icon={<XIconAdjustments />} title={"Configure arguments"}>
 					{AlbumArt}
 					{Genre}
 				</PanelSection>

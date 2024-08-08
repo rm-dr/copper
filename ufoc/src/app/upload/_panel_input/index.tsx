@@ -7,6 +7,11 @@ import { UploadQueuedFile, UploadState, ppBytes } from "../util";
 import {
 	XIconCheck,
 	XIconFile,
+	XIconFilePlus,
+	XIconFileX,
+	XIconList,
+	XIconPlus,
+	XIconSend,
 	XIconUpload,
 	XIconX,
 } from "@/app/components/icons";
@@ -47,10 +52,10 @@ export function useInputPanel({
 		<>
 			<Panel
 				panel_id={styles.panel_id_input}
-				icon={<XIconUpload />}
+				icon={<XIconSend />}
 				title={"Input"}
 			>
-				<PanelSection icon={<XIconUpload />} title={"Select files"}>
+				<PanelSection icon={<XIconPlus />} title={"Select files"}>
 					<Dropzone
 						onDrop={(dropped_files) => {
 							// Only add new files
@@ -94,7 +99,7 @@ export function useInputPanel({
 								}}
 							>
 								<Dropzone.Accept>
-									<XIconCheck
+									<XIconFilePlus
 										style={{
 											height: "7rem",
 											color: "var(--mantine-color-green-6)",
@@ -118,10 +123,10 @@ export function useInputPanel({
 								<Dropzone.Idle>
 									{uploadState.is_uploading ? (
 										<>
-											<XIconX
+											<XIconFileX
 												style={{
 													height: "7rem",
-													color: "dimmed",
+													color: "var(--mantine-color-dimmed)",
 												}}
 											/>
 											<Text size="lg" inline c="dimmed">
@@ -146,7 +151,7 @@ export function useInputPanel({
 					</Dropzone>
 				</PanelSection>
 
-				<PanelSection icon={<XIconUpload />} title={"File list"}>
+				<PanelSection icon={<XIconList />} title={"File list"}>
 					<div id={styles.filelist_base}>
 						{uploadState.queue.slice(0, 30).map((f, idx) => {
 							return (
