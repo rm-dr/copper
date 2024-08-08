@@ -35,12 +35,27 @@ pub struct CompletedJob<NodeStubType: PipelineNodeStub> {
 	/// The arguments this pipeline was run with
 	pub input: Vec<SDataType<NodeStubType>>,
 
-	/// The error this pipeline encountered.
-	/// If this is `None`, it completed successfully.
-	pub error: Option<SErrorType<NodeStubType>>,
+	/// The state of each node when this pipeline finished running
+	pub node_states: Vec<(bool, PipelineNodeState)>,
+}
+
+/// A failed pipeline job
+#[derive(Debug)]
+pub struct FailedJob<NodeStubType: PipelineNodeStub> {
+	/// The id of the job that finisehd
+	pub job_id: u128,
+
+	/// The name of the pipeline that was run
+	pub pipeline: PipelineName,
+
+	/// The arguments this pipeline was run with
+	pub input: Vec<SDataType<NodeStubType>>,
 
 	/// The state of each node when this pipeline finished running
 	pub node_states: Vec<(bool, PipelineNodeState)>,
+
+	/// The reason this pipeline failed.
+	pub error: SErrorType<NodeStubType>,
 }
 
 /// A prepared data processing pipeline.
@@ -60,6 +75,9 @@ pub struct PipelineRunner<NodeStubType: PipelineNodeStub> {
 	/// A log of completed jobs
 	completed_jobs: VecDeque<CompletedJob<NodeStubType>>,
 
+	/// A log of failed jobs
+	failed_jobs: VecDeque<FailedJob<NodeStubType>>,
+
 	/// Job id counter. This will be unique for a long time,
 	/// but will eventually wrap back to zero.
 	job_id_counter: u128,
@@ -78,6 +96,7 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 			active_jobs: (0..config.max_active_jobs).map(|_| None).collect(),
 			job_queue: VecDeque::new(),
 			completed_jobs: VecDeque::new(),
+			failed_jobs: VecDeque::new(),
 
 			job_id_counter: 0,
 			config,
@@ -135,6 +154,16 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 		self.completed_jobs.clear()
 	}
 
+	/// Get a list of all jobs that have failed
+	pub fn get_failed_jobs(&self) -> &VecDeque<FailedJob<NodeStubType>> {
+		&self.failed_jobs
+	}
+
+	/// Empty this runner's failed job log
+	pub fn clear_failed_jobs(&mut self) {
+		self.failed_jobs.clear()
+	}
+
 	/// Find a queued job by id
 	pub fn queued_job_by_id(&self, id: u128) -> Option<&(u128, PipelineSingleJob<NodeStubType>)> {
 		self.job_queue.iter().find(|(x, _)| *x == id)
@@ -161,7 +190,6 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 							job_id: *id,
 							pipeline: x.get_pipeline().name.clone(),
 							input: x.get_input().clone(),
-							error: None,
 
 							node_states: x
 								.get_pipeline()
@@ -172,12 +200,12 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 						r.take();
 					}
 					Err(err) => {
-						// Drop finished jobs
-						self.completed_jobs.push_back(CompletedJob {
+						// Drop failed jobs
+						self.failed_jobs.push_back(FailedJob {
 							job_id: *id,
 							pipeline: x.get_pipeline().name.clone(),
 							input: x.get_input().clone(),
-							error: Some(err),
+							error: err,
 
 							node_states: x
 								.get_pipeline()

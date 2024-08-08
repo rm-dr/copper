@@ -20,9 +20,6 @@ pub(super) struct CompletedJobStatus {
 	#[schema(value_type = String)]
 	pub pipeline: PipelineName,
 
-	/// The error we finished with, if any
-	pub error: Option<String>,
-
 	// TODO: redo
 	/// A pretty string that identifies this job by its input
 	pub input_exemplar: String,
@@ -45,7 +42,6 @@ pub(super) async fn get_runner_completed(State(state): State<RouterState>) -> Re
 		.map(|c| CompletedJobStatus {
 			job_id: c.job_id,
 			pipeline: c.pipeline.clone(),
-			error: c.error.as_ref().map(|x| x.to_string()),
 			input_exemplar: format!("{:?}", c.input.first().unwrap()),
 		})
 		.collect();

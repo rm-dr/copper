@@ -22,6 +22,9 @@ pub(super) struct RunnerStatus {
 	/// How many jobs have been finished?
 	pub finished_jobs: usize,
 
+	/// How many jobs have failed
+	pub failed_jobs: usize,
+
 	/// What jobs are running right now?
 	pub running_jobs: Vec<RunningJobStatus>,
 }
@@ -113,6 +116,7 @@ pub(super) async fn get_runner_status(State(state): State<RouterState>) -> Respo
 		Json(RunnerStatus {
 			queued_jobs: runner.get_queued_jobs().len(),
 			finished_jobs: runner.get_completed_jobs().len(),
+			failed_jobs: runner.get_failed_jobs().len(),
 			running_jobs,
 		}),
 	)
