@@ -44,13 +44,13 @@ impl FlacMetaStripSelector {
 
 	fn select(&self, block_type: FlacMetablockType) -> bool {
 		match block_type {
-			FlacMetablockType::Streaminfo => true,
-			FlacMetablockType::Padding => false,
-			FlacMetablockType::Application => false,
-			FlacMetablockType::Seektable => true,
-			FlacMetablockType::VorbisComment => false,
-			FlacMetablockType::Cuesheet => true,
-			FlacMetablockType::Picture => false,
+			FlacMetablockType::Streaminfo => self.keep_streaminfo,
+			FlacMetablockType::Padding => self.keep_padding,
+			FlacMetablockType::Application => self.keep_application,
+			FlacMetablockType::Seektable => self.keep_seektable,
+			FlacMetablockType::VorbisComment => self.keep_vorbiscomment,
+			FlacMetablockType::Cuesheet => self.keep_cuesheet,
+			FlacMetablockType::Picture => self.keep_picture,
 		}
 	}
 
