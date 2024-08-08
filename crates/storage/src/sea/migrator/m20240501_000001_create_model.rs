@@ -27,12 +27,6 @@ pub enum Attr {
 }
 
 #[derive(Iden)]
-pub enum AttrDatatype {
-	String,
-	Binary,
-}
-
-#[derive(Iden)]
 pub enum Item {
 	Table,
 	Id,
@@ -48,12 +42,12 @@ pub enum ValueStr {
 	Value,
 }
 
-// TODO: add subtype
 #[derive(Iden)]
 pub enum ValueBinary {
 	Table,
 	Id,
 	Attr,
+	Format,
 	Item,
 	Value,
 }
@@ -103,14 +97,7 @@ impl MigrationTrait for Migration {
 							.from(Attr::Table, Attr::Class)
 							.to(Class::Table, Class::Id),
 					)
-					.col(
-						ColumnDef::new(Attr::Datatype)
-							.enumeration(
-								Attr::Datatype,
-								[AttrDatatype::String, AttrDatatype::Binary],
-							)
-							.not_null(),
-					)
+					.col(ColumnDef::new(Attr::Datatype).string().not_null())
 					.to_owned(),
 			)
 			.await?;
@@ -186,6 +173,7 @@ impl MigrationTrait for Migration {
 							.auto_increment()
 							.primary_key(),
 					)
+					.col(ColumnDef::new(ValueBinary::Format).binary().not_null())
 					.col(ColumnDef::new(ValueBinary::Value).binary().not_null())
 					.col(ColumnDef::new(ValueBinary::Attr).integer().not_null())
 					.foreign_key(

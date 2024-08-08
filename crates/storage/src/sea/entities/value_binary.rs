@@ -11,6 +11,7 @@ pub struct Model {
 	pub value: Vec<u8>,
 	pub attr: i32,
 	pub item: i32,
+	pub format: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

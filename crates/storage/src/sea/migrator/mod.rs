@@ -1,8 +1,6 @@
 use sea_orm_migration::prelude::*;
-
 mod m20240501_000001_create_model;
 
-pub use m20240501_000001_create_model::AttrDatatype;
 pub struct Migrator;
 
 #[async_trait::async_trait]
