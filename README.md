@@ -37,6 +37,7 @@ UFO's goal is to be "[Paperless] for everything," with...
 - sanely handle duplicate album art
 - Attach "after" to *output* of sub-pipeline
 - Clean up all error handling (search for unwrap, assert, and panic)
+- clean up paths (pub use)
 
 ### Later:
 - Better name
