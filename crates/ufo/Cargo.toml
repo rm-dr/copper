@@ -26,6 +26,7 @@ ufo-pipeline = { workspace = true }
 ufo-pipeline-nodes = { workspace = true }
 ufo-metadb = { workspace = true }
 ufo-util = { workspace = true }
+ufo-blobstore = { workspace = true }
 
 anyhow = { workspace = true }
 smartstring = { workspace = true }

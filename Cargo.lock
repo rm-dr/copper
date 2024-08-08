@@ -2020,6 +2020,7 @@ dependencies = [
  "anyhow",
  "serde",
  "smartstring",
+ "ufo-blobstore",
  "ufo-metadb",
  "ufo-pipeline",
  "ufo-pipeline-nodes",
@@ -2079,6 +2080,8 @@ dependencies = [
 name = "ufo-pipeline-nodes"
 version = "0.1.0"
 dependencies = [
+ "async-broadcast",
+ "crossbeam",
  "itertools",
  "md5",
  "serde",
