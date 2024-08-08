@@ -2058,6 +2058,7 @@ dependencies = [
  "serde",
  "smartstring",
  "sqlx",
+ "ufo-pipeline",
  "ufo-util",
 ]
 

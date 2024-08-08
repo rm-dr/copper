@@ -4,9 +4,10 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
+use ufo_storage::data::StorageData;
 use ufo_util::mime::MimeType;
 
-use crate::{data::UFOData, UFOContext};
+use crate::UFOContext;
 
 pub struct FileInput {
 	path: Option<PathBuf>,
@@ -20,7 +21,7 @@ impl FileInput {
 
 impl PipelineNode for FileInput {
 	type NodeContext = UFOContext;
-	type DataType = UFOData;
+	type DataType = StorageData;
 
 	fn init<F>(
 		&mut self,
@@ -33,7 +34,7 @@ impl PipelineNode for FileInput {
 	{
 		assert!(input.len() == 1);
 		self.path = match input.pop().unwrap() {
-			UFOData::Path(p) => Some((*p).clone()),
+			StorageData::Path(p) => Some((*p).clone()),
 			_ => panic!(),
 		};
 		Ok(PipelineNodeState::Pending)
@@ -55,11 +56,11 @@ impl PipelineNode for FileInput {
 		let file_format = MimeType::from_extension(p.extension().unwrap().to_str().unwrap())
 			.unwrap_or(MimeType::Blob);
 
-		send_data(0, UFOData::Path(Arc::new(p.clone())))?;
+		send_data(0, StorageData::Path(Arc::new(p.clone())))?;
 
 		send_data(
 			1,
-			UFOData::Binary {
+			StorageData::Binary {
 				format: file_format,
 				data: Arc::new(data),
 			},

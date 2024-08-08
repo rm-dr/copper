@@ -1,59 +1,110 @@
-use std::fmt::Debug;
+use serde::Deserialize;
+use smartstring::{LazyCompact, SmartString};
+use std::{fmt::Debug, path::PathBuf, str::FromStr, sync::Arc};
+use ufo_pipeline::api::{PipelineData, PipelineDataStub};
 use ufo_util::mime::MimeType;
 
 use crate::api::{ClassHandle, ItemHandle};
 
-#[derive(Debug, Clone)]
+/// Immutable bits of data.
+///
+/// Cloning [`StorageData`] should be very fast. Consider wrapping
+/// big containers in an [`Arc`].
+///
+/// TODO: split deserialize?
+/// Any variant that has a "deserialize" implementation
+/// may be used as a parameter in certain nodes.
+/// (for example, the `Constant` node's `value` field)
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
 pub enum StorageData {
 	/// Typed, unset data
-	None(StorageDataType),
+	#[serde(skip)]
+	None(StorageDataStub),
 
 	/// A block of text
-	Text(String),
+	Text(Arc<String>),
 
 	/// A filesystem path
-	Path(String),
+	#[serde(skip)]
+	Path(Arc<PathBuf>),
 
 	/// An integer
-	Integer(i128),
+	#[serde(skip)]
+	Integer(i64),
 
 	/// A positive integer
-	PositiveInteger(u128),
+	#[serde(skip)]
+	PositiveInteger(u64),
 
 	/// A float
+	#[serde(skip)]
 	Float(f64),
 
 	/// A checksum
-	Hash { format: HashType, data: Vec<u8> },
+	#[serde(skip)]
+	Hash {
+		format: HashType,
+		data: Arc<Vec<u8>>,
+	},
 
 	/// Binary data
+	#[serde(skip)]
 	Binary {
 		/// This data's media type
 		format: MimeType,
 
 		/// The data
-		data: Vec<u8>,
+		data: Arc<Vec<u8>>,
 	},
 
+	#[serde(skip)]
 	Reference {
+		/// The item class this
 		class: ClassHandle,
+
+		/// The item
 		item: ItemHandle,
 	},
 }
 
-impl StorageData {
-	/// Transforms a data container into its type.
-	pub fn get_type(&self) -> StorageDataType {
+impl PipelineData for StorageData {
+	type DataStub = StorageDataStub;
+
+	fn as_stub(&self) -> Self::DataStub {
 		match self {
 			Self::None(t) => *t,
-			Self::Text(_) => StorageDataType::Text,
-			Self::Binary { .. } => StorageDataType::Binary,
-			Self::Path(_) => StorageDataType::Path,
-			Self::Integer(_) => StorageDataType::Integer,
-			Self::PositiveInteger(_) => StorageDataType::PositiveInteger,
-			Self::Float(_) => StorageDataType::Float,
-			Self::Hash { format, .. } => StorageDataType::Hash { format: *format },
-			Self::Reference { class, .. } => StorageDataType::Reference {
+			Self::Text(_) => StorageDataStub::Text,
+			Self::Path(_) => StorageDataStub::Path,
+			Self::Integer(_) => StorageDataStub::Integer,
+			Self::PositiveInteger(_) => StorageDataStub::PositiveInteger,
+			Self::Float(_) => StorageDataStub::Float,
+			Self::Hash { format, .. } => StorageDataStub::Hash { format: *format },
+			Self::Binary { .. } => StorageDataStub::Binary,
+			Self::Reference { class, .. } => StorageDataStub::Reference {
+				class: class.clone(),
+			},
+		}
+	}
+
+	fn new_empty(stub: Self::DataStub) -> Self {
+		Self::None(stub)
+	}
+}
+
+impl StorageData {
+	/// Transforms a data container into its type.
+	pub fn get_type(&self) -> StorageDataStub {
+		match self {
+			Self::None(t) => *t,
+			Self::Text(_) => StorageDataStub::Text,
+			Self::Binary { .. } => StorageDataStub::Binary,
+			Self::Path(_) => StorageDataStub::Path,
+			Self::Integer(_) => StorageDataStub::Integer,
+			Self::PositiveInteger(_) => StorageDataStub::PositiveInteger,
+			Self::Float(_) => StorageDataStub::Float,
+			Self::Hash { format, .. } => StorageDataStub::Hash { format: *format },
+			Self::Reference { class, .. } => StorageDataStub::Reference {
 				class: class.clone(),
 			},
 		}
@@ -72,7 +123,7 @@ pub enum HashType {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum StorageDataType {
+pub enum StorageDataStub {
 	/// Plain text
 	Text,
 
@@ -92,16 +143,44 @@ pub enum StorageDataType {
 	Float,
 
 	/// A checksum
-	Hash {
-		format: HashType,
-	},
+	Hash { format: HashType },
 
-	Reference {
-		class: ClassHandle,
-	},
+	/// A reference to an item
+	Reference { class: ClassHandle },
 }
 
-impl StorageDataType {
+// TODO: better error
+impl FromStr for StorageDataStub {
+	type Err = &'static str;
+
+	fn from_str(s: &str) -> Result<Self, &'static str> {
+		match s {
+			"text" => Ok(Self::Text),
+			"binary" => Ok(Self::Binary),
+			"path" => Ok(Self::Path),
+			"reference" => todo!(),
+			"hash::sha256" => Ok(Self::Hash {
+				format: HashType::SHA256,
+			}),
+			_ => Err("bad data type"),
+		}
+	}
+}
+
+impl<'de> Deserialize<'de> for StorageDataStub {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: serde::Deserializer<'de>,
+	{
+		let addr_str = SmartString::<LazyCompact>::deserialize(deserializer)?;
+		let s = Self::from_str(&addr_str);
+		s.map_err(serde::de::Error::custom)
+	}
+}
+
+impl PipelineDataStub for StorageDataStub {}
+
+impl StorageDataStub {
 	/// A string that represents this type in a database.
 	pub fn to_db_str(&self) -> String {
 		match self {

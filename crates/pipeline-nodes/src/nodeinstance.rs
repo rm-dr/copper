@@ -4,8 +4,9 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
+use ufo_storage::data::StorageData;
 
-use crate::{data::UFOData, input::file::FileInput, output::storage::StorageOutput, UFOContext};
+use crate::{input::file::FileInput, output::storage::StorageOutput, UFOContext};
 
 use super::{
 	nodetype::UFONodeType,
@@ -89,7 +90,7 @@ impl Debug for UFONodeInstance {
 
 impl PipelineNode for UFONodeInstance {
 	type NodeContext = UFOContext;
-	type DataType = UFOData;
+	type DataType = StorageData;
 
 	fn init<F>(
 		&mut self,

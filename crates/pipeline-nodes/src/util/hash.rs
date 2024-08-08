@@ -4,17 +4,15 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
+use ufo_storage::data::{HashType, StorageData};
 
-use crate::{
-	data::{HashType, UFOData},
-	UFOContext,
-};
+use crate::UFOContext;
 
 // TODO: hash datatype
 // TODO: select hash method
 #[derive(Clone)]
 pub struct Hash {
-	data: Option<UFOData>,
+	data: Option<StorageData>,
 }
 
 impl Hash {
@@ -31,7 +29,7 @@ impl Default for Hash {
 
 impl PipelineNode for Hash {
 	type NodeContext = UFOContext;
-	type DataType = UFOData;
+	type DataType = StorageData;
 
 	fn init<F>(
 		&mut self,
@@ -56,7 +54,7 @@ impl PipelineNode for Hash {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let data = match self.data.as_ref().unwrap() {
-			UFOData::Binary { data, .. } => data,
+			StorageData::Binary { data, .. } => data,
 			_ => panic!("bad data type"),
 		};
 
@@ -66,7 +64,7 @@ impl PipelineNode for Hash {
 
 		send_data(
 			0,
-			UFOData::Hash {
+			StorageData::Hash {
 				format: HashType::SHA256,
 				data: Arc::new(result.to_vec()),
 			},

@@ -4,23 +4,24 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
+use ufo_storage::data::StorageData;
 
-use crate::{data::UFOData, UFOContext};
+use crate::UFOContext;
 
 #[derive(Clone)]
 pub struct Constant {
-	value: UFOData,
+	value: StorageData,
 }
 
 impl Constant {
-	pub fn new(value: UFOData) -> Self {
+	pub fn new(value: StorageData) -> Self {
 		Self { value }
 	}
 }
 
 impl PipelineNode for Constant {
 	type NodeContext = UFOContext;
-	type DataType = UFOData;
+	type DataType = StorageData;
 
 	fn init<F>(
 		&mut self,

@@ -11,16 +11,14 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
+use ufo_storage::data::{StorageData, StorageDataStub};
 use ufo_util::mime::MimeType;
 
-use crate::{
-	data::{UFOData, UFODataStub},
-	UFOContext,
-};
+use crate::UFOContext;
 
 #[derive(Clone)]
 pub struct ExtractTags {
-	data: Option<UFOData>,
+	data: Option<StorageData>,
 	tags: Vec<TagType>,
 }
 
@@ -45,7 +43,7 @@ impl ExtractTags {
 
 impl PipelineNode for ExtractTags {
 	type NodeContext = UFOContext;
-	type DataType = UFOData;
+	type DataType = StorageData;
 
 	fn init<F>(
 		&mut self,
@@ -70,7 +68,7 @@ impl PipelineNode for ExtractTags {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let (data_type, data) = match self.data.as_ref().unwrap() {
-			UFOData::Binary {
+			StorageData::Binary {
 				format: data_type,
 				data,
 			} => (data_type, data),
@@ -86,9 +84,9 @@ impl PipelineNode for ExtractTags {
 
 		for (i, tag_type) in self.tags.iter().enumerate() {
 			if let Some(tag_value) = tagger.get_tag(tag_type) {
-				send_data(i, UFOData::Text(Arc::new(tag_value)))?;
+				send_data(i, StorageData::Text(Arc::new(tag_value)))?;
 			} else {
-				send_data(i, UFOData::None(UFODataStub::Text))?;
+				send_data(i, StorageData::None(StorageDataStub::Text))?;
 			}
 		}
 

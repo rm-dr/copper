@@ -4,12 +4,13 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
+use ufo_storage::data::StorageData;
 
-use crate::{data::UFOData, UFOContext};
+use crate::UFOContext;
 
 #[derive(Clone)]
 pub struct Print {
-	input: Option<UFOData>,
+	input: Option<StorageData>,
 }
 
 impl Print {
@@ -20,7 +21,7 @@ impl Print {
 
 impl PipelineNode for Print {
 	type NodeContext = UFOContext;
-	type DataType = UFOData;
+	type DataType = StorageData;
 
 	fn init<F>(
 		&mut self,
@@ -42,7 +43,7 @@ impl PipelineNode for Print {
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, UFOData) -> Result<(), PipelineError>,
+		F: Fn(usize, StorageData) -> Result<(), PipelineError>,
 	{
 		println!("{:?}", self.input);
 		Ok(PipelineNodeState::Done)

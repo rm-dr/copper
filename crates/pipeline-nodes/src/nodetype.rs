@@ -9,13 +9,12 @@ use ufo_pipeline::{
 	labels::PipelinePortLabel,
 	portspec::PipelinePortSpec,
 };
-use ufo_storage::api::{ClassHandle, Dataset};
-
-use crate::{
-	data::{HashType, UFOData, UFODataStub},
-	input::file::FileInput,
-	output::storage::StorageOutput,
+use ufo_storage::{
+	api::{ClassHandle, Dataset},
+	data::{HashType, StorageData, StorageDataStub},
 };
+
+use crate::{input::file::FileInput, output::storage::StorageOutput};
 
 use super::{
 	nodeinstance::UFONodeInstance,
@@ -30,7 +29,7 @@ use super::{
 pub enum UFONodeType {
 	/// A node that provides a constant value.
 	Constant {
-		value: UFOData,
+		value: StorageData,
 	},
 
 	// Utility nodes
@@ -40,7 +39,7 @@ pub enum UFONodeType {
 	Noop {
 		#[serde(rename = "input")]
 		#[serde_as(as = "serde_with::Map<_, _>")]
-		inputs: Vec<(PipelinePortLabel, UFODataStub)>,
+		inputs: Vec<(PipelinePortLabel, StorageDataStub)>,
 	},
 
 	// Audio nodes
@@ -55,7 +54,7 @@ pub enum UFONodeType {
 		class: String,
 		#[serde(rename = "attr")]
 		#[serde_as(as = "serde_with::Map<_, _>")]
-		attrs: Vec<(SmartString<LazyCompact>, UFODataStub)>,
+		attrs: Vec<(SmartString<LazyCompact>, StorageDataStub)>,
 	},
 }
 
@@ -139,25 +138,27 @@ impl PipelineNodeStub for UFONodeType {
 			// Util
 			Self::Constant { .. } => PipelinePortSpec::Static(&[]),
 			Self::IfNone => PipelinePortSpec::Static(&[
-				("data", UFODataStub::Text),
-				("ifnone", UFODataStub::Text),
+				("data", StorageDataStub::Text),
+				("ifnone", StorageDataStub::Text),
 			]),
 			Self::Noop { inputs } => PipelinePortSpec::Vec(inputs),
-			Self::Hash => PipelinePortSpec::Static(&[("data", UFODataStub::Binary)]),
+			Self::Hash => PipelinePortSpec::Static(&[("data", StorageDataStub::Binary)]),
 			Self::Print => PipelinePortSpec::VecOwned(vec![(
 				"data".into(),
-				UFODataStub::Reference {
+				StorageDataStub::Reference {
 					// TODO: specify type as arg
 					class: ClassHandle::from(2),
 				},
 			)]),
 
 			// Audio
-			Self::ExtractTags { .. } => PipelinePortSpec::Static(&[("data", UFODataStub::Binary)]),
-			Self::StripTags => PipelinePortSpec::Static(&[("data", UFODataStub::Binary)]),
-			Self::ExtractCovers => PipelinePortSpec::Static(&[("data", UFODataStub::Binary)]),
+			Self::ExtractTags { .. } => {
+				PipelinePortSpec::Static(&[("data", StorageDataStub::Binary)])
+			}
+			Self::StripTags => PipelinePortSpec::Static(&[("data", StorageDataStub::Binary)]),
+			Self::ExtractCovers => PipelinePortSpec::Static(&[("data", StorageDataStub::Binary)]),
 
-			Self::File => PipelinePortSpec::Static(&[("path", UFODataStub::Path)]),
+			Self::File => PipelinePortSpec::Static(&[("path", StorageDataStub::Path)]),
 			Self::Dataset { attrs, .. } => PipelinePortSpec::VecOwned(
 				attrs
 					.iter()
@@ -178,10 +179,10 @@ impl PipelineNodeStub for UFONodeType {
 			}
 
 			// Util
-			Self::IfNone => PipelinePortSpec::Static(&[("out", UFODataStub::Text)]),
+			Self::IfNone => PipelinePortSpec::Static(&[("out", StorageDataStub::Text)]),
 			Self::Hash => PipelinePortSpec::Static(&[(
 				"hash",
-				UFODataStub::Hash {
+				StorageDataStub::Hash {
 					format: HashType::SHA256,
 				},
 			)]),
@@ -191,15 +192,17 @@ impl PipelineNodeStub for UFONodeType {
 			// Audio
 			Self::ExtractTags { tags } => PipelinePortSpec::VecOwned(
 				tags.iter()
-					.map(|x| (Into::<&str>::into(x).into(), UFODataStub::Text))
+					.map(|x| (Into::<&str>::into(x).into(), StorageDataStub::Text))
 					.collect(),
 			),
-			Self::StripTags => PipelinePortSpec::Static(&[("out", UFODataStub::Binary)]),
-			Self::ExtractCovers => PipelinePortSpec::Static(&[("cover_data", UFODataStub::Binary)]),
+			Self::StripTags => PipelinePortSpec::Static(&[("out", StorageDataStub::Binary)]),
+			Self::ExtractCovers => {
+				PipelinePortSpec::Static(&[("cover_data", StorageDataStub::Binary)])
+			}
 
 			Self::File => PipelinePortSpec::Static(&[
-				("path", UFODataStub::Path),
-				("data", UFODataStub::Binary),
+				("path", StorageDataStub::Path),
+				("data", StorageDataStub::Binary),
 			]),
 
 			// TODO: add output
@@ -208,7 +211,7 @@ impl PipelineNodeStub for UFONodeType {
 				let class = d.get_class(class).unwrap().unwrap();
 				PipelinePortSpec::VecOwned(vec![(
 					"added_item".into(),
-					UFODataStub::Reference { class },
+					StorageDataStub::Reference { class },
 				)])
 			}
 		}

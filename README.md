@@ -27,7 +27,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- Remove pipeline data types
 - Options for hash, reference
 - Load "new item" pipeline inputs from db
 - sanely handle duplicate album art

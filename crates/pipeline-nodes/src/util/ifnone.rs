@@ -4,8 +4,9 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
+use ufo_storage::data::StorageData;
 
-use crate::{data::UFOData, UFOContext};
+use crate::UFOContext;
 
 #[derive(Clone)]
 pub struct IfNone {}
@@ -24,7 +25,7 @@ impl Default for IfNone {
 
 impl PipelineNode for IfNone {
 	type NodeContext = UFOContext;
-	type DataType = UFOData;
+	type DataType = StorageData;
 
 	fn init<F>(
 		&mut self,
@@ -42,7 +43,7 @@ impl PipelineNode for IfNone {
 		send_data(
 			0,
 			match input {
-				UFOData::None(_) => ifnone,
+				StorageData::None(_) => ifnone,
 				_ => input,
 			},
 		)?;

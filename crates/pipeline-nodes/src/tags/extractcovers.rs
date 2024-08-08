@@ -7,13 +7,14 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
+use ufo_storage::data::StorageData;
 use ufo_util::mime::MimeType;
 
-use crate::{data::UFOData, UFOContext};
+use crate::UFOContext;
 
 #[derive(Clone)]
 pub struct ExtractCovers {
-	data: Option<UFOData>,
+	data: Option<StorageData>,
 }
 
 impl ExtractCovers {
@@ -24,7 +25,7 @@ impl ExtractCovers {
 
 impl PipelineNode for ExtractCovers {
 	type NodeContext = UFOContext;
-	type DataType = UFOData;
+	type DataType = StorageData;
 
 	fn init<F>(
 		&mut self,
@@ -49,7 +50,7 @@ impl PipelineNode for ExtractCovers {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let (data_type, data) = match self.data.as_ref().unwrap() {
-			UFOData::Binary {
+			StorageData::Binary {
 				format: data_type,
 				data,
 			} => (data_type, data),
@@ -70,7 +71,7 @@ impl PipelineNode for ExtractCovers {
 
 		send_data(
 			0,
-			UFOData::Binary {
+			StorageData::Binary {
 				format: cover_format,
 				data: Arc::new(cover_data),
 			},

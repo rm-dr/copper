@@ -1,7 +1,7 @@
 use std::{fmt::Debug, hash::Hash};
 
 use crate::{
-	data::{StorageData, StorageDataType},
+	data::{StorageData, StorageDataStub},
 	errors::DatasetError,
 };
 
@@ -98,7 +98,7 @@ pub trait Dataset {
 		&mut self,
 		class: ClassHandle,
 		name: &str,
-		data_type: StorageDataType,
+		data_type: StorageDataStub,
 		options: AttributeOptions,
 	) -> Result<AttrHandle, DatasetError>;
 
@@ -133,6 +133,6 @@ pub trait Dataset {
 
 	fn attr_set_name(&mut self, attr: AttrHandle, name: &str) -> Result<(), DatasetError>;
 	fn attr_get_name(&self, attr: AttrHandle) -> Result<&str, DatasetError>;
-	fn attr_get_type(&self, attr: AttrHandle) -> Result<StorageDataType, DatasetError>;
+	fn attr_get_type(&self, attr: AttrHandle) -> Result<StorageDataStub, DatasetError>;
 	fn attr_get_class(&self, attr: AttrHandle) -> ClassHandle;
 }

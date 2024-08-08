@@ -7,13 +7,14 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
+use ufo_storage::data::StorageData;
 use ufo_util::mime::MimeType;
 
-use crate::{data::UFOData, UFOContext};
+use crate::UFOContext;
 
 #[derive(Clone)]
 pub struct StripTags {
-	data: Option<UFOData>,
+	data: Option<StorageData>,
 }
 
 impl StripTags {
@@ -30,7 +31,7 @@ impl Default for StripTags {
 
 impl PipelineNode for StripTags {
 	type NodeContext = UFOContext;
-	type DataType = UFOData;
+	type DataType = StorageData;
 
 	fn init<F>(
 		&mut self,
@@ -55,7 +56,7 @@ impl PipelineNode for StripTags {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let (data_type, data) = match self.data.as_ref().unwrap() {
-			UFOData::Binary {
+			StorageData::Binary {
 				format: data_type,
 				data,
 			} => (data_type, data),
@@ -76,7 +77,7 @@ impl PipelineNode for StripTags {
 
 		send_data(
 			0,
-			UFOData::Binary {
+			StorageData::Binary {
 				format: data_type.clone(),
 				data: Arc::new(stripped),
 			},

@@ -5,26 +5,24 @@ use ufo_pipeline::{
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
+use ufo_storage::data::{StorageData, StorageDataStub};
 
-use crate::{
-	data::{UFOData, UFODataStub},
-	UFOContext,
-};
+use crate::UFOContext;
 
 #[derive(Clone)]
 pub struct Noop {
-	inputs: Vec<(PipelinePortLabel, UFODataStub)>,
+	inputs: Vec<(PipelinePortLabel, StorageDataStub)>,
 }
 
 impl Noop {
-	pub fn new(inputs: Vec<(PipelinePortLabel, UFODataStub)>) -> Self {
+	pub fn new(inputs: Vec<(PipelinePortLabel, StorageDataStub)>) -> Self {
 		Self { inputs }
 	}
 }
 
 impl PipelineNode for Noop {
 	type NodeContext = UFOContext;
-	type DataType = UFOData;
+	type DataType = StorageData;
 
 	fn init<F>(
 		&mut self,

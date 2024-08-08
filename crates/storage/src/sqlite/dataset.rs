@@ -1,6 +1,6 @@
 use crate::{
 	api::{AttrHandle, AttributeOptions, ClassHandle, Dataset, ItemHandle},
-	data::{StorageData, StorageDataType},
+	data::{StorageData, StorageDataStub},
 	errors::DatasetError,
 };
 use base64::{
@@ -114,14 +114,13 @@ impl SQLiteDataset {
 	) -> Query<'a, Sqlite, SqliteArguments<'a>> {
 		match storage {
 			StorageData::None(_) => q,
-			StorageData::Text(s) => q.bind(s),
-			StorageData::Path(p) => q.bind(p),
-			// TODO: store as int for easy compare
-			StorageData::Integer(x) => q.bind(x.to_le_bytes().to_vec()),
-			StorageData::PositiveInteger(x) => q.bind(x.to_le_bytes().to_vec()),
+			StorageData::Text(s) => q.bind(&**s),
+			StorageData::Path(p) => q.bind(p.to_str().unwrap()),
+			StorageData::Integer(x) => q.bind(x),
+			StorageData::PositiveInteger(x) => q.bind(i64::from_be_bytes(x.to_be_bytes())),
 			StorageData::Float(x) => q.bind(x),
-			StorageData::Hash { data, .. } => q.bind(data.clone()),
-			StorageData::Binary { data, .. } => q.bind(data.clone()),
+			StorageData::Hash { data, .. } => q.bind((**data).clone()),
+			StorageData::Binary { data, .. } => q.bind((**data).clone()),
 			StorageData::Reference { item, .. } => q.bind(u32::from(*item)),
 		}
 	}
@@ -132,7 +131,7 @@ impl Dataset for SQLiteDataset {
 		&mut self,
 		class: ClassHandle,
 		attr_name: &str,
-		data_type: StorageDataType,
+		data_type: StorageDataStub,
 		options: AttributeOptions,
 	) -> Result<AttrHandle, DatasetError> {
 		let column_name = self.sanitize_name("attr", attr_name);
@@ -182,21 +181,21 @@ impl Dataset for SQLiteDataset {
 
 		// Map internal type to sqlite type
 		let data_type_str = match data_type {
-			StorageDataType::Text => "TEXT",
-			StorageDataType::Path => "TEXT",
-			StorageDataType::Integer => "BLOB",
-			StorageDataType::PositiveInteger => "BLOB",
-			StorageDataType::Float => "REAL",
-			StorageDataType::Binary => "BLOB",
-			StorageDataType::Reference { .. } => "INTEGER",
-			StorageDataType::Hash { .. } => "BLOB",
+			StorageDataStub::Text => "TEXT",
+			StorageDataStub::Path => "TEXT",
+			StorageDataStub::Integer => "INTEGER",
+			StorageDataStub::PositiveInteger => "INTEGER",
+			StorageDataStub::Float => "REAL",
+			StorageDataStub::Binary => "BLOB",
+			StorageDataStub::Reference { .. } => "INTEGER",
+			StorageDataStub::Hash { .. } => "BLOB",
 		};
 
 		let not_null = if options.not_null { " NOT NULL" } else { "" };
 
 		// Add foreign key if necessary
 		let references = match data_type {
-			StorageDataType::Reference { class } => {
+			StorageDataStub::Reference { class } => {
 				let table_name: String = {
 					let res = block_on(
 						sqlx::query("SELECT table_name FROM meta_classes WHERE id=?;")
@@ -216,7 +215,7 @@ impl Dataset for SQLiteDataset {
 				"ALTER TABLE \"{table_name}\" ADD \"{column_name}\" {data_type_str}{not_null}{references};",
 			))
 			.execute(&mut *t),
-		)?; // This should never fail
+		)?;
 
 		// Add unique constraint if necessary
 		if options.unique {
@@ -226,7 +225,7 @@ impl Dataset for SQLiteDataset {
 					"CREATE UNIQUE INDEX \"unique_{table_name}_{column_name}\" ON \"{table_name}\"(\"{column_name}\");",
 				))
 				.execute(&mut *t),
-			)?; // This should never fail
+			)?;
 		}
 
 		// Commit transaction
@@ -522,7 +521,7 @@ impl Dataset for SQLiteDataset {
 		unimplemented!()
 	}
 
-	fn attr_get_type(&self, _attr: AttrHandle) -> Result<StorageDataType, DatasetError> {
+	fn attr_get_type(&self, _attr: AttrHandle) -> Result<StorageDataStub, DatasetError> {
 		todo!()
 	}
 

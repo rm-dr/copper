@@ -1,5 +1,5 @@
 use serde::de::DeserializeOwned;
-use std::{fmt::Debug, sync::Arc};
+use std::{fmt::Debug, str::FromStr, sync::Arc};
 
 use crate::{errors::PipelineError, portspec::PipelinePortSpec};
 

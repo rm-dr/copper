@@ -5,21 +5,24 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
-use ufo_storage::api::{ClassHandle, Dataset};
-
-use crate::{
-	data::{UFOData, UFODataStub},
-	UFOContext,
+use ufo_storage::{
+	api::{ClassHandle, Dataset},
+	data::{StorageData, StorageDataStub},
 };
+
+use crate::UFOContext;
 
 pub struct StorageOutput {
 	class: ClassHandle,
-	attrs: Vec<(SmartString<LazyCompact>, UFODataStub)>,
-	data: Vec<UFOData>,
+	attrs: Vec<(SmartString<LazyCompact>, StorageDataStub)>,
+	data: Vec<StorageData>,
 }
 
 impl StorageOutput {
-	pub fn new(class: ClassHandle, attrs: Vec<(SmartString<LazyCompact>, UFODataStub)>) -> Self {
+	pub fn new(
+		class: ClassHandle,
+		attrs: Vec<(SmartString<LazyCompact>, StorageDataStub)>,
+	) -> Self {
 		StorageOutput {
 			class,
 			attrs,
@@ -30,7 +33,7 @@ impl StorageOutput {
 
 impl PipelineNode for StorageOutput {
 	type NodeContext = UFOContext;
-	type DataType = UFOData;
+	type DataType = StorageData;
 
 	fn init<F>(
 		&mut self,
@@ -61,14 +64,14 @@ impl PipelineNode for StorageOutput {
 		let mut attrs = Vec::new();
 		for ((attr_name, _), data) in self.attrs.iter().zip(self.data.iter()) {
 			let a = d.get_attr(self.class, attr_name).unwrap().unwrap();
-			attrs.push((a, data.to_storage_data()));
+			attrs.push((a, data.clone()));
 		}
 
 		let item = d.add_item(self.class, &attrs).unwrap();
 
 		send_data(
 			0,
-			UFOData::Reference {
+			StorageData::Reference {
 				class: self.class,
 				item,
 			},
