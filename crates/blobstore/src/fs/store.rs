@@ -51,9 +51,12 @@ impl Write for FsBlobWriter {
 // TODO: test this
 impl Drop for FsBlobWriter {
 	fn drop(&mut self) {
-		// If we never finish a writer, drop the file.
 		self.file.take();
-		std::fs::remove_file(&self.path).unwrap();
+
+		// If we never finished this writer, delete the file.
+		if !self.is_finished {
+			std::fs::remove_file(&self.path).unwrap();
+		}
 	}
 }
 
