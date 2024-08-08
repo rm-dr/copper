@@ -1,11 +1,7 @@
-mod ifnone;
-mod nodeinstance;
-mod nodetype;
-mod striptags;
-mod tags;
+// Utilities
+pub mod nodeinstance;
+pub mod nodetype;
 
-pub use ifnone::IfNone;
-pub use nodeinstance::PipelineNodeInstance;
-pub use nodetype::PipelineNodeType;
-pub use striptags::StripTags;
-pub use tags::ExtractTags;
+// Node implementations
+pub mod tags;
+pub mod util;

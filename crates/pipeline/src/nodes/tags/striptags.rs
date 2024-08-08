@@ -7,6 +7,7 @@ use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData};
 
 use crate::{errors::PipelineError, PipelineStatelessRunner};
 
+#[derive(Clone)]
 pub struct StripTags {}
 
 impl StripTags {

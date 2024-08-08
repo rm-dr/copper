@@ -1,9 +1,9 @@
 use std::sync::Arc;
-
 use ufo_util::data::PipelineData;
 
 use crate::{errors::PipelineError, PipelineStatelessRunner};
 
+#[derive(Clone)]
 pub struct IfNone {}
 
 impl IfNone {

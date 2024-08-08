@@ -11,6 +11,7 @@ use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData, PipelineDataType};
 
 use crate::{errors::PipelineError, PipelineStatelessRunner};
 
+#[derive(Clone)]
 pub struct ExtractTags {
 	tags: Vec<TagType>,
 }

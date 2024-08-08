@@ -2,7 +2,11 @@ use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
 use ufo_util::data::{PipelineData, PipelineDataType};
 
-use super::{ifnone::IfNone, nodetype::PipelineNodeType, tags::ExtractTags, StripTags};
+use super::{
+	nodetype::PipelineNodeType,
+	tags::{striptags::StripTags, tags::ExtractTags},
+	util::ifnone::IfNone,
+};
 use crate::{errors::PipelineError, portspec::PipelinePortSpec, PipelineStatelessRunner};
 
 pub enum PipelineNodeInstance {

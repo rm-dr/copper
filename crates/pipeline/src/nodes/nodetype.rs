@@ -5,7 +5,11 @@ use ufo_util::data::PipelineDataType;
 
 use crate::portspec::PipelinePortSpec;
 
-use super::{ifnone::IfNone, nodeinstance::PipelineNodeInstance, tags::ExtractTags, StripTags};
+use super::{
+	nodeinstance::PipelineNodeInstance,
+	tags::{striptags::StripTags, tags::ExtractTags},
+	util::ifnone::IfNone,
+};
 
 #[serde_as]
 #[derive(Debug, Deserialize, Clone)]
