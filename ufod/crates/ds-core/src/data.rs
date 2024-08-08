@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, path::PathBuf, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 use ufo_util::mime::MimeType;
 use utoipa::ToSchema;
 
 use crate::api::blob::BlobHandle;
 
-use super::handles::{ClassHandle, ItemHandle};
+use super::handles::{ClassHandle, ItemIdx};
 
 /// Bits of data inside a metadata db.
 #[derive(Debug, Clone)]
@@ -15,9 +15,6 @@ pub enum MetastoreData {
 
 	/// A block of text
 	Text(Arc<String>),
-
-	/// A filesystem path
-	Path(Arc<PathBuf>),
 
 	/// An integer
 	Integer(i64),
@@ -51,11 +48,11 @@ pub enum MetastoreData {
 	Blob { handle: BlobHandle },
 
 	Reference {
-		/// The item class this
+		/// The item class this reference points to
 		class: ClassHandle,
 
 		/// The item
-		item: ItemHandle,
+		item: ItemIdx,
 	},
 }
 
