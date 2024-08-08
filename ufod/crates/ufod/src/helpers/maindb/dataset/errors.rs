@@ -24,7 +24,7 @@ impl Display for CreateDatasetError {
 }
 
 impl Error for CreateDatasetError {
-	fn cause(&self) -> Option<&dyn Error> {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
 			_ => None,

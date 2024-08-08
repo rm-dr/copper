@@ -94,7 +94,7 @@ impl From<MetastoreError> for UFONodeTypeError {
 }
 
 impl Error for UFONodeTypeError {
-	fn cause(&self) -> Option<&dyn Error> {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::MetastoreError(e) => Some(e),
 			_ => None,

@@ -75,7 +75,7 @@ impl Display for MetastoreError {
 }
 
 impl Error for MetastoreError {
-	fn cause(&self) -> Option<&dyn Error> {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
 			Self::BlobstoreError(x) => Some(x),
@@ -111,7 +111,7 @@ impl<NodeStubType: PipelineNodeStub> Display for PipestoreError<NodeStubType> {
 }
 
 impl<NodeStubType: PipelineNodeStub + 'static> Error for PipestoreError<NodeStubType> {
-	fn cause(&self) -> Option<&dyn Error> {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
 			Self::PipelinePrepareError(e) => Some(e),
@@ -142,7 +142,7 @@ impl Display for BlobstoreError {
 }
 
 impl Error for BlobstoreError {
-	fn cause(&self) -> Option<&dyn Error> {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
 			Self::IOError(x) => Some(x),

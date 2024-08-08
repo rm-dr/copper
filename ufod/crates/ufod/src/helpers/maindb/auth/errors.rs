@@ -19,7 +19,7 @@ impl Display for DeleteGroupError {
 }
 
 impl Error for DeleteGroupError {
-	fn cause(&self) -> Option<&dyn Error> {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
 			_ => None,
@@ -59,7 +59,7 @@ impl Display for CreateUserError {
 }
 
 impl Error for CreateUserError {
-	fn cause(&self) -> Option<&dyn Error> {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
 			_ => None,
@@ -95,7 +95,7 @@ impl Display for CreateGroupError {
 }
 
 impl Error for CreateGroupError {
-	fn cause(&self) -> Option<&dyn Error> {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
 			_ => None,
