@@ -3140,6 +3140,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "smartstring",
+ "sqlx",
  "tokio",
  "toml",
  "tower-http",
