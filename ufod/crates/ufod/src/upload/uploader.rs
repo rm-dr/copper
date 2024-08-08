@@ -2,7 +2,7 @@ use futures::lock::Mutex;
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use std::{path::PathBuf, time::Instant};
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 use ufo_pipeline::runner::runner::PipelineRunner;
 use ufo_pipeline_nodes::nodetype::UFONodeType;
 use ufo_util::mime::MimeType;
@@ -93,9 +93,19 @@ impl Uploader {
 			// just in case it has been created but hasn't yet been added to the runner.
 			if j.last_activity + offset < now {
 				if j.bound_to_pipeline_job.is_none() {
-					info!(message = "Removing job", reason = "timeout", job_id = ?j.id);
+					info!(
+						message = "Removing job",
+						reason = "timeout",
+						job_id = ?j.id,
+						started_at = ?j.started_at
+					);
 				} else {
-					info!(message = "Removing job", reason = "pipeline is done", job_id = ?j.id);
+					info!(
+						message = "Removing job",
+						reason = "pipeline is done",
+						job_id = ?j.id,
+						started_at = ?j.started_at
+					);
 				}
 
 				let j = jobs.swap_remove(i);

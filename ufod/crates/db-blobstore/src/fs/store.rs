@@ -98,7 +98,7 @@ impl Blobstore for FsBlobstore {
 	fn finish_blob(&self, mut blob: BlobstoreTmpWriter) -> BlobHandle {
 		block_on(
 			sqlx::query("INSERT INTO blobs (data_type, file_path) VALUES (?, ?);")
-				.bind(blob.handle.get_type().to_db_str())
+				.bind(blob.handle.get_type().to_string())
 				.bind(blob.path_to_file.to_str().unwrap())
 				.execute(&mut *self.conn.lock().unwrap()),
 		)

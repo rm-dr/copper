@@ -17,5 +17,4 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
-serde = { workspace = true }
-utoipa = { workspace = true }
+tracing = { workspace = true }

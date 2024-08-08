@@ -17,8 +17,9 @@ use super::uploader::{UploadJobFile, Uploader};
 /// Parameters to start a new file
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 pub(super) struct UploadStartInfo {
-	/// This file's type
-	pub file_type: MimeType,
+	/// This file's extension, used to determine its mime type
+	#[schema(value_type = String)]
+	pub file_extension: SmartString<LazyCompact>,
 }
 
 /// A freshly-started upload file's parameters
@@ -72,17 +73,19 @@ pub(super) async fn start_file(
 	};
 	job.last_activity = Instant::now();
 
+	let file_mime = MimeType::from_extension(&start_info.file_extension).unwrap_or(MimeType::Blob);
+
 	// Make a new handle for this file
 	let file_name = loop {
 		let id = Uploader::generate_id();
 		if job.files.iter().all(|us| us.name != id) {
-			break format!("{}{}", id, start_info.file_type.extension());
+			break format!("{}{}", id, file_mime.extension());
 		}
 	};
 
 	job.files.push(UploadJobFile {
 		name: file_name.clone().into(),
-		file_type: start_info.file_type.clone(),
+		file_type: file_mime.clone(),
 		is_done: false,
 	});
 
@@ -90,7 +93,7 @@ pub(super) async fn start_file(
 		message = "Created a new upload file",
 		job = ?job.id,
 		file_name= ?file_name,
-		file_type = ?start_info.file_type
+		file_type = ?file_mime
 	);
 
 	return (

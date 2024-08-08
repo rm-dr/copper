@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use axum::{routing::post, Router};
-use ufo_util::mime::MimeType;
 use utoipa::OpenApi;
 
 use crate::RouterState;
@@ -30,7 +29,6 @@ use upload::*;
 		UploadNewFileResult,
 		UploadFragmentMetadata,
 		UploadFinish,
-		MimeType
 	))
 )]
 pub(super) struct UploadApi;
