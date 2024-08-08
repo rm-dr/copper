@@ -21,9 +21,6 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
   - [ ] Deletion could take a while. Will our request time out?
     - loading state
 - [ ] Polish UI: (`/datasets` page)
-  - [ ] Modal errors
-  - [ ] Loading indicators
-  - [ ] Error indicators (in `ApiSelector` too!)
   - [ ] Dataset & attribute type descriptions
 
 ## 📦 Dataset locks
@@ -228,6 +225,10 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
 - [ ] Date
 - [ ] Time
 - [ ] Store `Binary` mime type
+
+## Ui Polish
+- [ ] Better errors in modals
+- [ ] Better `ApiSelector` loading state
 
 ---------------------------------------------------------------------
 

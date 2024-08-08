@@ -9,6 +9,7 @@ type SelectorOption = {
 
 type SelectorData = {
 	error: boolean;
+	loading: boolean;
 	options: SelectorOption[] | null;
 };
 
@@ -42,10 +43,14 @@ export function ApiSelector<T>(params: {
 
 		// Used as placeholder AND nothingmsg whenever `update_list` returns `null`
 		message_null?: string;
+
+		// Used as placeholder while data is loading
+		message_loading: string;
 	};
 }) {
 	const [selectorState, setSelectorState] = useState<SelectorData>({
 		error: false,
+		loading: false,
 		options: null,
 	});
 
@@ -58,16 +63,24 @@ export function ApiSelector<T>(params: {
 	// (and recover from) server disconnect.
 	useEffect(() => {
 		const update_options = () => {
+			setSelectorState((s) => ({
+				...s,
+				error: false,
+				loading: true,
+			}));
+
 			update_list(update_params)
 				?.then((data) => {
 					setSelectorState({
 						options: data,
 						error: false,
+						loading: false,
 					});
 				})
 				.catch(() => {
 					setSelectorState({
 						options: null,
+						loading: false,
 						error: true,
 					});
 				});
@@ -85,7 +98,9 @@ export function ApiSelector<T>(params: {
 				params.onSelect(null);
 			}}
 			nothingFoundMessage={
-				selectorState.options !== null
+				selectorState.loading && selectorState.options === null
+					? params.messages.message_loading
+					: selectorState.options !== null
 					? selectorState.options.length != 0
 						? params.messages.nothingmsg_normal
 						: params.messages.nothingmsg_empty

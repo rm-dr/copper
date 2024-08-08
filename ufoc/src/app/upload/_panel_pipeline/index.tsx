@@ -68,6 +68,7 @@ export function usePipelinePanel(params: {
 							nothingmsg_empty: "No datasets are available",
 							placeholder_error: "could not fetch datasets",
 							placeholder_normal: "select dataset",
+							message_loading: "fetching datasets...",
 						}}
 					/>
 
@@ -80,7 +81,8 @@ export function usePipelinePanel(params: {
 							nothingmsg_empty: "This dataset has no pipelines",
 							placeholder_error: "could not fetch pipelines",
 							placeholder_normal: "select pipeline",
-							message_null: "select a dataset",
+							message_null: "select a pipeline",
+							message_loading: "fetching pipelines...",
 						}}
 					/>
 				</PanelSection>
