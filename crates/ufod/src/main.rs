@@ -1,8 +1,4 @@
-use std::{
-	path::PathBuf,
-	sync::{Arc, Mutex},
-	thread,
-};
+use std::{path::PathBuf, sync::Arc, thread};
 
 use axum::{
 	extract::{DefaultBodyLimit, Path, State},
@@ -10,6 +6,8 @@ use axum::{
 	routing::{get, post},
 	Json, Router,
 };
+use futures::executor::block_on;
+use tokio::sync::Mutex;
 use ufo_api::{
 	data::{ApiData, ApiDataStub},
 	pipeline::{AddJobParams, AddJobResult, NodeInfo, PipelineInfo},
@@ -115,7 +113,7 @@ async fn main() {
 	tracing::debug!("listening on {}", listener.local_addr().unwrap());
 
 	thread::spawn(move || loop {
-		let mut runner = state.runner.lock().unwrap();
+		let mut runner = block_on(state.runner.lock());
 		runner.run().unwrap();
 		drop(runner);
 		std::thread::sleep(std::time::Duration::from_millis(10));
@@ -129,7 +127,7 @@ async fn root() -> &'static str {
 }
 
 async fn get_status(State(state): State<RouterState>) -> impl IntoResponse {
-	let runner = state.runner.lock().unwrap();
+	let runner = state.runner.lock().await;
 
 	let running_jobs: Vec<RunningJobStatus> = runner
 		.iter_active_jobs()
@@ -241,7 +239,7 @@ async fn get_pipeline_node(
 }
 
 async fn get_completed(State(state): State<RouterState>) -> impl IntoResponse {
-	let runner = state.runner.lock().unwrap();
+	let runner = state.runner.lock().await;
 
 	let completed_jobs: Vec<CompletedJobStatus> = runner
 		.get_completed_jobs()
@@ -261,7 +259,7 @@ async fn add_job(
 	State(state): State<RouterState>,
 	Json(payload): Json<AddJobParams>,
 ) -> impl IntoResponse {
-	let mut runner = state.runner.lock().unwrap();
+	let mut runner = state.runner.lock().await;
 	let db = state.database;
 
 	let pipeline = if let Some(pipeline) = db
@@ -313,32 +311,47 @@ async fn add_job(
 		}
 	}
 
-	runner.add_job(
-		Arc::new(pipeline),
-		payload
-			.input
-			.into_iter()
-			.map(|x| match x {
-				ApiData::None(t) => UFOData::None(match t {
-					ApiDataStub::Text => UFODataStub::Text,
-					ApiDataStub::Blob => UFODataStub::Path,
-					ApiDataStub::Integer => UFODataStub::Integer,
-					ApiDataStub::PositiveInteger => UFODataStub::PositiveInteger,
-					ApiDataStub::Boolean => UFODataStub::Boolean,
-					ApiDataStub::Float => UFODataStub::Float,
-				}),
-				ApiData::Text(t) => UFOData::Text(Arc::new(t)),
-				ApiData::Blob {
-					upload_job,
-					file_name,
-				} => UFOData::Path(PathBuf::from(format!("./tmp/{upload_job}/{file_name}"))),
-				ApiData::Integer(i) => UFOData::Integer(i),
-				ApiData::PositiveInteger(i) => UFOData::PositiveInteger(i),
-				ApiData::Boolean(b) => UFOData::Boolean(b),
-				ApiData::Float(f) => UFOData::Float(f),
-			})
-			.collect(),
-	);
+	let mut inputs = Vec::new();
+	for i in payload.input {
+		let x = match i {
+			ApiData::None(t) => UFOData::None(match t {
+				ApiDataStub::Text => UFODataStub::Text,
+				ApiDataStub::Blob => UFODataStub::Path,
+				ApiDataStub::Integer => UFODataStub::Integer,
+				ApiDataStub::PositiveInteger => UFODataStub::PositiveInteger,
+				ApiDataStub::Boolean => UFODataStub::Boolean,
+				ApiDataStub::Float => UFODataStub::Float,
+			}),
+			ApiData::Text(t) => UFOData::Text(Arc::new(t)),
+			ApiData::Blob {
+				upload_job,
+				file_name,
+			} => {
+				/*
+				let p = state
+					.uploader
+					.get_job_file_path(&upload_job, &file_name)
+					.await;
+				*/
+
+				let p = Some(PathBuf::from(format!("./tmp/{upload_job}/{file_name}")));
+
+				if let Some(p) = p {
+					UFOData::Path(p)
+				} else {
+					panic!("")
+				}
+			}
+			ApiData::Integer(i) => UFOData::Integer(i),
+			ApiData::PositiveInteger(i) => UFOData::PositiveInteger(i),
+			ApiData::Boolean(b) => UFOData::Boolean(b),
+			ApiData::Float(f) => UFOData::Float(f),
+		};
+
+		inputs.push(x);
+	}
+
+	runner.add_job(Arc::new(pipeline), inputs);
 
 	return Json(AddJobResult::Ok);
 }
