@@ -267,7 +267,7 @@ mod tests {
 		"7c2b1a963a665847167a7275f9924f65baeb85c21726c218f61bf3f803f301c8",
 		&[PictureData {
 			picture_type: PictureType::FrontCover,
-			mime: MimeType::Unknown("image/gif".into()),
+			mime: MimeType::from("image/gif"),
 			description: "",
 			width: 1920,
 			height: 1080,
@@ -282,7 +282,7 @@ mod tests {
 		"7395d02bf8d9533dc554cce02dee9de98c77f8731a45f62d0a243bd0d6f9a45c",
 		&[PictureData {
 			picture_type: PictureType::FrontCover,
-			mime: MimeType::Unknown("image/avif".into()),
+			mime: MimeType::from("image/avif"),
 			description: "",
 			width: 1920,
 			height: 1080,
