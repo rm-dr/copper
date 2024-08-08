@@ -63,13 +63,6 @@ impl<NodeStubType: PipelineNodeStub> FromStr for NodeOutput<NodeStubType> {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum NodeInput {
-	/// An output port of the pipeline
-	Pipeline {
-		#[serde(rename = "pipeline")]
-		/// The port's name
-		port: PipelinePortID,
-	},
-
 	/// An input port of a node
 	Node {
 		/// The node that provides this input

@@ -41,9 +41,6 @@ pub(in super::super) struct PipelineSpec<NodeStubType: PipelineNodeStub> {
 	/// That is wired up by the code that runs this pipeline.
 	pub input: NodeStubType,
 
-	/// This pipeline's output node
-	pub output: PipelineNodeSpec<NodeStubType>,
-
 	/// Nodes in this pipeline
 	#[serde(default)]
 	#[serde(rename = "node")]

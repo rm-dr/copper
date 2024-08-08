@@ -100,16 +100,6 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 					)?;
 				}
 			}
-
-			// Output node is handled separately
-			for (input_name, out_link) in &builder.spec.output.inputs {
-				builder.check_link(
-					out_link,
-					&NodeInput::Pipeline {
-						port: input_name.clone(),
-					},
-				)?;
-			}
 		}
 
 		debug!(source = "syntax", summary = "Making nodes",);
@@ -363,26 +353,6 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 		// Find the datatype of the input port we're connecting to.
 		// While doing this, make sure both the input node and port exist.
 		let compatible = match &input {
-			NodeInput::Pipeline { port } => {
-				if let Some(idx) = self
-					.spec
-					.output
-					.node_type
-					.input_with_name(&self.context, port)
-				{
-					self.spec.output.node_type.input_compatible_with(
-						&self.context,
-						idx,
-						output_type,
-					)
-				} else {
-					return Err(PipelinePrepareError::NoNodeInput {
-						node: PipelineErrorNode::PipelineOutput,
-						input: port.clone(),
-					});
-				}
-			}
-
 			NodeInput::Node { node, port } => {
 				let get_node = self.spec.nodes.get(node);
 
