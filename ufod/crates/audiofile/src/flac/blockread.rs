@@ -310,7 +310,7 @@ impl FlacBlockReader {
 						// reading is tricky.
 						for i in first_byte..data.len() {
 							if data[i - 2] == 0b1111_1111
-								&& data[i - 1] & 0b1111_1100 == 0b1111_1000
+								&& data[i - 1] & 0b1111_11_00 == 0b1111_10_00
 							{
 								// We found another frame sync header. Split at this index.
 								if self.selector.pick_audio {
@@ -480,6 +480,54 @@ mod tests {
 		}
 
 		return out_blocks;
+	}
+
+	fn test_identical(
+		test_file_path: &Path,
+		fragment_size_range: Option<std::ops::Range<usize>>,
+		in_hash: &str,
+	) {
+		let selector = FlacBlockSelector {
+			pick_streaminfo: true,
+			pick_padding: true,
+			pick_application: true,
+			pick_seektable: true,
+			pick_vorbiscomment: true,
+			pick_cuesheet: true,
+			pick_picture: true,
+			pick_audio: true,
+		};
+
+		let out_blocks = read_file(test_file_path, fragment_size_range, selector, in_hash);
+
+		let mut out = Vec::new();
+		out.write_all(&[0x66, 0x4C, 0x61, 0x43]).unwrap();
+
+		for i in 0..out_blocks.len() {
+			let b = &out_blocks[i];
+			let is_last = if i == out_blocks.len() - 1 {
+				false
+			} else {
+				!matches!(b, FlacBlock::AudioFrame(_))
+					&& matches!(&out_blocks[i + 1], FlacBlock::AudioFrame(_))
+			};
+
+			match b {
+				FlacBlock::Streaminfo(i) => i.encode(is_last, &mut out).unwrap(),
+				FlacBlock::CueSheet(c) => c.encode(is_last, &mut out).unwrap(),
+				FlacBlock::SeekTable(s) => s.encode(is_last, &mut out).unwrap(),
+				FlacBlock::Application(a) => a.encode(is_last, &mut out).unwrap(),
+				FlacBlock::Padding(p) => p.encode(is_last, &mut out).unwrap(),
+				FlacBlock::Picture(p) => p.encode(is_last, &mut out).unwrap(),
+				FlacBlock::VorbisComment(v) => v.encode(is_last, &mut out).unwrap(),
+				FlacBlock::AudioFrame(a) => out.extend(a),
+			}
+		}
+
+		let mut hasher = Sha256::new();
+		hasher.update(out);
+		let result = format!("{:x}", hasher.finalize());
+		assert_eq!(result, in_hash, "Output hash doesn't match");
 	}
 
 	fn test_strip(
@@ -723,44 +771,66 @@ mod tests {
 					$stripped_hash:literal
 				) => {
 			paste! {
-			#[test]
-			pub fn [<blockread_small_ $file_name>]() {
-				for _ in 0..5 {
-					test_blockread(
-						$file_path,
-						Some(1..256),
-						$in_hash,
-						$result,
-						$audio_hash
-					)
+				#[test]
+				pub fn [<blockread_small_ $file_name>]() {
+					for _ in 0..5 {
+						test_blockread(
+							$file_path,
+							Some(1..256),
+							$in_hash,
+							$result,
+							$audio_hash
+						)
+					}
 				}
-			}
 
-			#[test]
-			pub fn [<blockread_large_ $file_name>]() {
-				for _ in 0..5 {
-					test_blockread(
-						$file_path,
-						Some(5_000..100_000),
-						$in_hash,
-						$result,
-						$audio_hash
-					)
+				#[test]
+				pub fn [<blockread_large_ $file_name>]() {
+					for _ in 0..5 {
+						test_blockread(
+							$file_path,
+							Some(5_000..100_000),
+							$in_hash,
+							$result,
+							$audio_hash
+						)
+					}
 				}
-			}
 
-			#[test]
-			pub fn [<blockread_strip_ $file_name>]() {
-				for _ in 0..5 {
-					test_strip(
-						$file_path,
-						Some(5_000..100_000),
-						$in_hash,
-						$stripped_hash
-					)
+				#[test]
+				pub fn [<blockread_strip_ $file_name>]() {
+					for _ in 0..5 {
+						test_strip(
+							$file_path,
+							Some(5_000..100_000),
+							$in_hash,
+							$stripped_hash
+						)
+					}
+				}
+
+				#[test]
+				pub fn [<identical_small_ $file_name>]() {
+					for _ in 0..5 {
+						test_identical(
+							$file_path,
+							Some(1..256),
+							$in_hash
+						)
+					}
+				}
+
+				#[test]
+				pub fn [<identical_large_ $file_name>]() {
+					for _ in 0..5 {
+						test_identical(
+							$file_path,
+							Some(5_000..100_000),
+							$in_hash
+						)
+					}
 				}
 			}
-				}
 		};
 	}
 
