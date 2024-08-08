@@ -98,6 +98,7 @@ UFO's goal is to be "[Paperless] for everything," with...
       - Runner should handle panics?
     - Pipelines are one-off runs, NOT stream processors!
     - Multiple file readers to prevent high memory use
+  - blobstore, metastore and pipestore do not need to be mutable. They handle locking on their own!
 - Fast search (index certain attributes)
 - Save pipelines in database
 - Web streams as pipeline input
