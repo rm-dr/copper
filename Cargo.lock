@@ -3227,6 +3227,7 @@ dependencies = [
  "sha2",
  "smartstring",
  "tokio",
+ "toml",
  "tracing",
  "tracing-subscriber",
  "ufo-api",

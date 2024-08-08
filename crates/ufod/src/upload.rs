@@ -3,7 +3,7 @@ use std::{
 	io::Write,
 	path::PathBuf,
 	sync::Arc,
-	time::{Duration, Instant},
+	time::Instant,
 };
 
 use axum::{
@@ -25,7 +25,7 @@ use ufo_pipeline::runner::runner::PipelineRunner;
 use ufo_pipeline_nodes::nodetype::UFONodeType;
 use ufo_util::mime::MimeType;
 
-use crate::RouterState;
+use crate::{config::UfodConfig, RouterState};
 
 // TODO: better error handling
 // TODO: delete when fail
@@ -56,8 +56,6 @@ struct UploadJobFile {
 pub(crate) struct Uploader {
 	tmp_dir: PathBuf,
 	jobs: Mutex<Vec<UploadJob>>,
-	delete_job_after_bound: Duration,
-	delete_job_after_unbound: Duration,
 }
 
 #[derive(Debug)]
@@ -74,8 +72,6 @@ impl Uploader {
 		Self {
 			tmp_dir,
 			jobs: Mutex::new(Vec::new()),
-			delete_job_after_unbound: Duration::from_secs(5),
-			delete_job_after_bound: Duration::from_secs(10),
 		}
 	}
 
@@ -123,7 +119,7 @@ impl Uploader {
 	///
 	/// This cleans up jobs that have timed out,
 	/// and jobs bound to a pipeline that has been finished.
-	pub async fn check_jobs(&self, runner: &PipelineRunner<UFONodeType>) {
+	pub async fn check_jobs(&self, config: &UfodConfig, runner: &PipelineRunner<UFONodeType>) {
 		let mut jobs = self.jobs.lock().await;
 
 		let now = Instant::now();
@@ -143,9 +139,9 @@ impl Uploader {
 			}
 
 			let offset = if j.bound_to_pipeline_job.is_some() {
-				self.delete_job_after_bound
+				config.delete_job_after_bound
 			} else {
-				self.delete_job_after_unbound
+				config.delete_job_after_unbound
 			};
 
 			// Wait for timeout even if this job is bound,

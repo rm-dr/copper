@@ -1,12 +1,12 @@
-use std::{path::PathBuf, sync::Arc, thread};
-
 use axum::{
 	extract::{DefaultBodyLimit, Path, State},
 	response::IntoResponse,
 	routing::{get, post},
 	Json, Router,
 };
+use config::UfodConfig;
 use futures::executor::block_on;
+use std::{path::PathBuf, sync::Arc, thread};
 use tokio::sync::Mutex;
 use tracing::debug;
 use ufo_api::{
@@ -31,11 +31,13 @@ use ufo_pipeline_nodes::{
 	UFOContext,
 };
 
+mod config;
 mod upload;
 use upload::Uploader;
 
 #[derive(Clone)]
 pub struct RouterState {
+	config: Arc<UfodConfig>,
 	runner: Arc<Mutex<PipelineRunner<UFONodeType>>>,
 	database: Arc<Database<FsBlobstore, SQLiteMetastore, FsPipestore>>,
 	context: Arc<UFOContext>,
@@ -50,13 +52,17 @@ pub struct RouterState {
 #[tokio::main]
 async fn main() {
 	tracing_subscriber::fmt()
-		//.with_env_filter("ufo_pipeline=debug")
-		.with_env_filter("ufo_pipeline=error,sqlx=error,debug")
+		.with_env_filter(concat!("ufo_pipeline=error,sqlx=error,debug"))
 		.without_time()
 		.with_ansi(true)
-		//.with_max_level(Level::DEBUG)
 		//.event_format(log::LogFormatter::new(true))
 		.init();
+
+	//let mut f = File::open("./config.toml").unwrap();
+	//let mut config_string = String::new();
+	//f.read_to_string(&mut config_string).unwrap();
+	//let config = toml::from_str(&config_string).unwrap();
+	let config = Default::default();
 
 	let database = Database::open(&PathBuf::from("./db")).unwrap();
 
@@ -77,11 +83,8 @@ async fn main() {
 
 	// TODO: clone fewer arcs
 
-	// Max body size, in bytes
-	// 2Mb = 2 * 1024 * 1024
-	let upload_size_limit = 2 * 1024 * 1024;
-
 	let state = RouterState {
+		config,
 		runner: Arc::new(Mutex::new(runner)),
 		database: Arc::new(database),
 		context: Arc::new(ctx),
@@ -104,10 +107,10 @@ async fn main() {
 		.route("/add_job", post(add_job))
 		.nest("/upload", Uploader::get_router(state.uploader.clone()))
 		// Finish
-		.layer(DefaultBodyLimit::max(upload_size_limit))
+		.layer(DefaultBodyLimit::max(state.config.request_body_limit))
 		.with_state(state.clone());
 
-	let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+	let listener = tokio::net::TcpListener::bind(state.config.server_addr.to_string())
 		.await
 		.unwrap();
 	tracing::debug!("listening on {}", listener.local_addr().unwrap());
@@ -115,7 +118,7 @@ async fn main() {
 	thread::spawn(move || loop {
 		let mut runner = block_on(state.runner.lock());
 		runner.run().unwrap();
-		block_on(state.uploader.check_jobs(&runner));
+		block_on(state.uploader.check_jobs(&state.config, &runner));
 		drop(runner);
 
 		std::thread::sleep(std::time::Duration::from_millis(10));
