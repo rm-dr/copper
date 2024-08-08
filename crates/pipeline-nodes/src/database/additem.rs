@@ -6,7 +6,7 @@ use smartstring::{LazyCompact, SmartString};
 use ufo_db_blobstore::api::{BlobHandle, Blobstore, BlobstoreTmpWriter};
 use ufo_db_metastore::{
 	api::Metastore,
-	data::{MetastoreData, MetastoreDataStub},
+	data::MetastoreData,
 	errors::MetastoreError,
 	handles::{AttrHandle, ClassHandle},
 };
@@ -16,7 +16,11 @@ use ufo_pipeline::{
 };
 
 use crate::{
-	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
+	data::{UFOData, UFODataStub},
+	errors::PipelineError,
+	nodetype::UFONodeType,
+	traits::UFONode,
+	UFOContext,
 };
 
 enum DataHold {
@@ -50,7 +54,7 @@ pub struct AddItem {
 	blobstore: Arc<dyn Blobstore>,
 
 	class: ClassHandle,
-	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetastoreDataStub)>,
+	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, UFODataStub)>,
 	config: AddItemConfig,
 
 	data: Vec<Option<DataHold>>,
@@ -60,7 +64,7 @@ impl AddItem {
 	pub fn new(
 		ctx: &<Self as PipelineNode>::NodeContext,
 		class: ClassHandle,
-		attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetastoreDataStub)>,
+		attrs: Vec<(AttrHandle, SmartString<LazyCompact>, UFODataStub)>,
 		config: AddItemConfig,
 	) -> Self {
 		let data = attrs.iter().map(|_| None).collect();
@@ -168,7 +172,7 @@ impl PipelineNode for AddItem {
 					if self.config.allow_non_unique {
 						send_data(
 							0,
-							UFOData::None(MetastoreDataStub::Reference { class: self.class }),
+							UFOData::None(UFODataStub::Reference { class: self.class }),
 						)?;
 					} else {
 						return Err(err.into());
@@ -199,7 +203,7 @@ impl UFONode for AddItem {
 		stub: &UFONodeType,
 		ctx: &UFOContext,
 		input_idx: usize,
-		input_type: MetastoreDataStub,
+		input_type: UFODataStub,
 	) -> bool {
 		match stub {
 			UFONodeType::AddItem { .. } => {
@@ -229,17 +233,13 @@ impl UFONode for AddItem {
 		}
 	}
 
-	fn input_default_type(
-		stub: &UFONodeType,
-		ctx: &UFOContext,
-		input_idx: usize,
-	) -> MetastoreDataStub {
+	fn input_default_type(stub: &UFONodeType, ctx: &UFOContext, input_idx: usize) -> UFODataStub {
 		match stub {
 			UFONodeType::AddItem { class, .. } => {
 				let class = ctx.metastore.get_class(&class[..]).unwrap().unwrap();
 				let attrs = ctx.metastore.class_get_attrs(class).unwrap();
 
-				attrs.into_iter().nth(input_idx).unwrap().2
+				attrs.into_iter().nth(input_idx).unwrap().2.into()
 			}
 			_ => unreachable!(),
 		}
@@ -256,12 +256,12 @@ impl UFONode for AddItem {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> MetastoreDataStub {
+	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> UFODataStub {
 		match stub {
 			UFONodeType::AddItem { class, .. } => {
 				assert!(output_idx == 0);
 				let class = ctx.metastore.get_class(class).unwrap().unwrap();
-				MetastoreDataStub::Reference { class }
+				UFODataStub::Reference { class }
 			}
 			_ => unreachable!(),
 		}

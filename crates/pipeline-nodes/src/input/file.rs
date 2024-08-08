@@ -1,9 +1,13 @@
 use std::{fs::File, io::Read, path::PathBuf, sync::Arc};
-use ufo_db_metastore::data::MetastoreDataStub;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 
-use crate::{data::UFOData, errors::PipelineError, traits::UFOStaticNode, UFOContext};
+use crate::{
+	data::{UFOData, UFODataStub},
+	errors::PipelineError,
+	traits::UFOStaticNode,
+	UFOContext,
+};
 
 /// A node that reads data from a file
 pub struct FileReader {
@@ -36,7 +40,7 @@ impl PipelineNode for FileReader {
 		match port {
 			0 => {
 				self.path = match data {
-					UFOData::Path(p) => Some((*p).clone()),
+					UFOData::Path(p) => Some(p.clone()),
 					x => panic!("bad data {x:?}"),
 				};
 
@@ -57,10 +61,7 @@ impl PipelineNode for FileReader {
 		}
 		if !self.sent_path {
 			self.sent_path = true;
-			send_data(
-				0,
-				UFOData::Path(Arc::new(self.path.as_ref().unwrap().clone())),
-			)?;
+			send_data(0, UFOData::Path(self.path.as_ref().unwrap().clone()))?;
 		}
 
 		// Read a segment of our file
@@ -101,14 +102,11 @@ impl PipelineNode for FileReader {
 }
 
 impl UFOStaticNode for FileReader {
-	fn inputs() -> &'static [(&'static str, MetastoreDataStub)] {
-		&[("path", MetastoreDataStub::Path)]
+	fn inputs() -> &'static [(&'static str, UFODataStub)] {
+		&[("path", UFODataStub::Path)]
 	}
 
-	fn outputs() -> &'static [(&'static str, MetastoreDataStub)] {
-		&[
-			("path", MetastoreDataStub::Path),
-			("data", MetastoreDataStub::Blob),
-		]
+	fn outputs() -> &'static [(&'static str, UFODataStub)] {
+		&[("path", UFODataStub::Path), ("data", UFODataStub::Blob)]
 	}
 }

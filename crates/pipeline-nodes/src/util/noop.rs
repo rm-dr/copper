@@ -1,11 +1,14 @@
-use ufo_db_metastore::data::MetastoreDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
 };
 
 use crate::{
-	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
+	data::{UFOData, UFODataStub},
+	errors::PipelineError,
+	nodetype::UFONodeType,
+	traits::UFONode,
+	UFOContext,
 };
 
 enum ReceivedInput {
@@ -21,7 +24,7 @@ pub struct Noop {
 impl Noop {
 	pub fn new(
 		_ctx: &<Self as PipelineNode>::NodeContext,
-		inputs: Vec<(PipelinePortLabel, MetastoreDataStub)>,
+		inputs: Vec<(PipelinePortLabel, UFODataStub)>,
 	) -> Self {
 		Self {
 			received_input: inputs
@@ -95,7 +98,7 @@ impl UFONode for Noop {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-		input_type: MetastoreDataStub,
+		input_type: UFODataStub,
 	) -> bool {
 		match stub {
 			UFONodeType::Noop { inputs } => inputs.get(input_idx).unwrap().1 == input_type,
@@ -118,11 +121,7 @@ impl UFONode for Noop {
 		}
 	}
 
-	fn input_default_type(
-		stub: &UFONodeType,
-		_ctx: &UFOContext,
-		input_idx: usize,
-	) -> MetastoreDataStub {
+	fn input_default_type(stub: &UFONodeType, _ctx: &UFOContext, input_idx: usize) -> UFODataStub {
 		match stub {
 			UFONodeType::Noop { inputs } => inputs.get(input_idx).unwrap().1,
 			_ => unreachable!(),
@@ -136,7 +135,7 @@ impl UFONode for Noop {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetastoreDataStub {
+	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> UFODataStub {
 		match stub {
 			UFONodeType::Noop { inputs } => inputs.get(output_idx).unwrap().1,
 			_ => unreachable!(),

@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
-use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use ufo_db_blobstore::api::BlobHandle;
-use ufo_pipeline::api::PipelineDataStub;
 use ufo_util::mime::MimeType;
 
 use super::handles::{ClassHandle, ItemHandle};
@@ -87,9 +85,6 @@ pub enum MetastoreDataStub {
 	/// Big binary data
 	Blob,
 
-	/// A filesystem path
-	Path,
-
 	/// An integer
 	Integer,
 
@@ -109,32 +104,6 @@ pub enum MetastoreDataStub {
 	Reference { class: ClassHandle },
 }
 
-impl<'de> Deserialize<'de> for MetastoreDataStub {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where
-		D: serde::Deserializer<'de>,
-	{
-		let addr_str = SmartString::<LazyCompact>::deserialize(deserializer)?;
-		let s = Self::from_db_str(&addr_str);
-		s.ok_or(serde::de::Error::custom(format!(
-			"bad type string {}",
-			addr_str
-		)))
-	}
-}
-
-impl Serialize for MetastoreDataStub {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where
-		S: serde::Serializer,
-	{
-		let s = self.to_db_str();
-		s.serialize(serializer)
-	}
-}
-
-impl PipelineDataStub for MetastoreDataStub {}
-
 impl MetastoreDataStub {
 	/// A string that represents this type in a database.
 	pub fn to_db_str(&self) -> String {
@@ -143,7 +112,6 @@ impl MetastoreDataStub {
 			Self::Binary => "binary".into(),
 			Self::Blob => "blob".into(),
 			Self::Boolean => "boolean".into(),
-			Self::Path => "path".into(),
 			Self::Integer => "integer".into(),
 			Self::PositiveInteger => "positiveinteger".into(),
 			Self::Float => "float".into(),
@@ -162,7 +130,6 @@ impl MetastoreDataStub {
 		let q = match s {
 			"text" => Some(Self::Text),
 			"binary" => Some(Self::Binary),
-			"path" => Some(Self::Path),
 			"blob" => Some(Self::Blob),
 			"boolan" => Some(Self::Boolean),
 			"integer" => Some(Self::Integer),

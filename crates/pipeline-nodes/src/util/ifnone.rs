@@ -1,11 +1,14 @@
-use ufo_db_metastore::data::MetastoreDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
 };
 
 use crate::{
-	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
+	data::{UFOData, UFODataStub},
+	errors::PipelineError,
+	nodetype::UFONodeType,
+	traits::UFONode,
+	UFOContext,
 };
 
 #[derive(Clone)]
@@ -77,7 +80,7 @@ impl UFONode for IfNone {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-		input_type: MetastoreDataStub,
+		input_type: UFODataStub,
 	) -> bool {
 		match stub {
 			UFONodeType::IfNone { data_type } => {
@@ -103,11 +106,7 @@ impl UFONode for IfNone {
 		}
 	}
 
-	fn input_default_type(
-		stub: &UFONodeType,
-		_ctx: &UFOContext,
-		input_idx: usize,
-	) -> MetastoreDataStub {
+	fn input_default_type(stub: &UFONodeType, _ctx: &UFOContext, input_idx: usize) -> UFODataStub {
 		match stub {
 			UFONodeType::IfNone { data_type } => {
 				assert!(input_idx < 2);
@@ -124,7 +123,7 @@ impl UFONode for IfNone {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetastoreDataStub {
+	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> UFODataStub {
 		match stub {
 			UFONodeType::IfNone { data_type } => {
 				assert!(output_idx == 0);

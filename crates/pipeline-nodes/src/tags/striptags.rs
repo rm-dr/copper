@@ -3,11 +3,15 @@ use std::{
 	sync::Arc,
 };
 use ufo_audiofile::flac::metastrip::{FlacMetaStrip, FlacMetaStripSelector};
-use ufo_db_metastore::data::MetastoreDataStub;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 
-use crate::{data::UFOData, errors::PipelineError, traits::UFOStaticNode, UFOContext};
+use crate::{
+	data::{UFOData, UFODataStub},
+	errors::PipelineError,
+	traits::UFOStaticNode,
+	UFOContext,
+};
 
 pub struct StripTags {
 	blob_fragment_size: usize,
@@ -103,11 +107,11 @@ impl PipelineNode for StripTags {
 }
 
 impl UFOStaticNode for StripTags {
-	fn inputs() -> &'static [(&'static str, MetastoreDataStub)] {
-		&[("data", MetastoreDataStub::Blob)]
+	fn inputs() -> &'static [(&'static str, UFODataStub)] {
+		&[("data", UFODataStub::Blob)]
 	}
 
-	fn outputs() -> &'static [(&'static str, MetastoreDataStub)] {
-		&[("out", MetastoreDataStub::Blob)]
+	fn outputs() -> &'static [(&'static str, UFODataStub)] {
+		&[("out", UFODataStub::Blob)]
 	}
 }

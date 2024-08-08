@@ -147,7 +147,6 @@ impl Metastore for SQLiteMetastore {
 		// Map internal type to sqlite type
 		let data_type_str = match data_type {
 			MetastoreDataStub::Text => "TEXT",
-			MetastoreDataStub::Path => "TEXT",
 			MetastoreDataStub::Integer => "INTEGER",
 			MetastoreDataStub::PositiveInteger => "INTEGER",
 			MetastoreDataStub::Boolean => "INTEGER",

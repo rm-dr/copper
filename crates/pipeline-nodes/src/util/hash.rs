@@ -1,13 +1,17 @@
 use sha2::{Digest, Sha256, Sha512};
 use std::{collections::VecDeque, sync::Arc};
-use ufo_db_metastore::data::{HashType, MetastoreDataStub};
+use ufo_db_metastore::data::HashType;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
 };
 
 use crate::{
-	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
+	data::{UFOData, UFODataStub},
+	errors::PipelineError,
+	nodetype::UFONodeType,
+	traits::UFONode,
+	UFOContext,
 };
 
 enum HashComputer {
@@ -165,13 +169,13 @@ impl UFONode for Hash {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-		input_type: MetastoreDataStub,
+		input_type: UFODataStub,
 	) -> bool {
 		match stub {
 			UFONodeType::Hash { .. } => {
 				assert!(input_idx < 1);
 				match input_type {
-					MetastoreDataStub::Blob | MetastoreDataStub::Binary => true,
+					UFODataStub::Blob | UFODataStub::Binary => true,
 					_ => false,
 				}
 			}
@@ -193,15 +197,11 @@ impl UFONode for Hash {
 		}
 	}
 
-	fn input_default_type(
-		stub: &UFONodeType,
-		_ctx: &UFOContext,
-		input_idx: usize,
-	) -> MetastoreDataStub {
+	fn input_default_type(stub: &UFONodeType, _ctx: &UFOContext, input_idx: usize) -> UFODataStub {
 		match stub {
 			UFONodeType::Hash { .. } => {
 				assert!(input_idx < 1);
-				MetastoreDataStub::Binary
+				UFODataStub::Binary
 			}
 			_ => unreachable!(),
 		}
@@ -214,11 +214,11 @@ impl UFONode for Hash {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetastoreDataStub {
+	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> UFODataStub {
 		match stub {
 			UFONodeType::Hash { hash_type } => {
 				assert!(output_idx == 0);
-				MetastoreDataStub::Hash {
+				UFODataStub::Hash {
 					hash_type: *hash_type,
 				}
 			}

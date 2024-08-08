@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use ufo_db_metastore::{
 	api::Metastore,
-	data::MetastoreDataStub,
 	errors::MetastoreError,
 	handles::{AttrHandle, ClassHandle},
 };
@@ -11,14 +10,18 @@ use ufo_pipeline::{
 };
 
 use crate::{
-	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
+	data::{UFOData, UFODataStub},
+	errors::PipelineError,
+	nodetype::UFONodeType,
+	traits::UFONode,
+	UFOContext,
 };
 
 pub struct FindItem {
 	metastore: Arc<dyn Metastore>,
 	class: ClassHandle,
 	by_attr: AttrHandle,
-	attr_type: MetastoreDataStub,
+	attr_type: UFODataStub,
 
 	attr_value: Option<UFOData>,
 }
@@ -29,7 +32,7 @@ impl FindItem {
 		class: ClassHandle,
 		by_attr: AttrHandle,
 	) -> Result<Self, MetastoreError> {
-		let attr_type = ctx.metastore.attr_get_type(by_attr)?;
+		let attr_type = ctx.metastore.attr_get_type(by_attr)?.into();
 		Ok(FindItem {
 			metastore: ctx.metastore.clone(),
 			class,
@@ -76,7 +79,7 @@ impl PipelineNode for FindItem {
 		} else {
 			send_data(
 				0,
-				UFOData::None(MetastoreDataStub::Reference { class: self.class }),
+				UFOData::None(UFODataStub::Reference { class: self.class }),
 			)?;
 		}
 
@@ -96,7 +99,7 @@ impl UFONode for FindItem {
 		stub: &UFONodeType,
 		ctx: &UFOContext,
 		input_idx: usize,
-		input_type: MetastoreDataStub,
+		input_type: UFODataStub,
 	) -> bool {
 		match stub {
 			UFONodeType::FindItem { .. } => {
@@ -120,17 +123,13 @@ impl UFONode for FindItem {
 		}
 	}
 
-	fn input_default_type(
-		stub: &UFONodeType,
-		ctx: &UFOContext,
-		input_idx: usize,
-	) -> MetastoreDataStub {
+	fn input_default_type(stub: &UFONodeType, ctx: &UFOContext, input_idx: usize) -> UFODataStub {
 		match stub {
 			UFONodeType::FindItem { class, by_attr } => {
 				assert!(input_idx == 0);
 				let class = ctx.metastore.get_class(&class[..]).unwrap().unwrap();
 				let attr = ctx.metastore.get_attr(class, &by_attr).unwrap().unwrap();
-				ctx.metastore.attr_get_type(attr).unwrap()
+				ctx.metastore.attr_get_type(attr).unwrap().into()
 			}
 			_ => unreachable!(),
 		}
@@ -143,12 +142,12 @@ impl UFONode for FindItem {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> MetastoreDataStub {
+	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> UFODataStub {
 		match stub {
 			UFONodeType::FindItem { class, .. } => {
 				assert!(output_idx == 0);
 				let class = ctx.metastore.get_class(class).unwrap().unwrap();
-				MetastoreDataStub::Reference { class }
+				UFODataStub::Reference { class }
 			}
 			_ => unreachable!(),
 		}

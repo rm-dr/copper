@@ -4,7 +4,6 @@ use std::{
 	sync::Arc,
 };
 use ufo_audiofile::{common::tagtype::TagType, flac::flac_read_tags};
-use ufo_db_metastore::data::MetastoreDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
@@ -12,8 +11,12 @@ use ufo_pipeline::{
 use ufo_util::mime::MimeType;
 
 use crate::{
-	data::UFOData, errors::PipelineError, helpers::ArcVecBuffer, nodetype::UFONodeType,
-	traits::UFONode, UFOContext,
+	data::{UFOData, UFODataStub},
+	errors::PipelineError,
+	helpers::ArcVecBuffer,
+	nodetype::UFONodeType,
+	traits::UFONode,
+	UFOContext,
 };
 
 // TODO: fail after max buffer size
@@ -98,7 +101,7 @@ impl PipelineNode for ExtractTags {
 			if let Some(tag_value) = tagger.get_tag(tag_type) {
 				send_data(i, UFOData::Text(Arc::new(tag_value)))?;
 			} else {
-				send_data(i, UFOData::None(MetastoreDataStub::Text))?;
+				send_data(i, UFOData::None(UFODataStub::Text))?;
 			}
 		}
 
@@ -107,8 +110,8 @@ impl PipelineNode for ExtractTags {
 }
 
 impl ExtractTags {
-	fn inputs() -> &'static [(&'static str, MetastoreDataStub)] {
-		&[("data", MetastoreDataStub::Blob)]
+	fn inputs() -> &'static [(&'static str, UFODataStub)] {
+		&[("data", UFODataStub::Blob)]
 	}
 }
 
@@ -124,7 +127,7 @@ impl UFONode for ExtractTags {
 		stub: &UFONodeType,
 		ctx: &UFOContext,
 		input_idx: usize,
-		input_type: MetastoreDataStub,
+		input_type: UFODataStub,
 	) -> bool {
 		Self::input_default_type(stub, ctx, input_idx) == input_type
 	}
@@ -144,11 +147,7 @@ impl UFONode for ExtractTags {
 		}
 	}
 
-	fn input_default_type(
-		stub: &UFONodeType,
-		_ctx: &UFOContext,
-		input_idx: usize,
-	) -> MetastoreDataStub {
+	fn input_default_type(stub: &UFONodeType, _ctx: &UFOContext, input_idx: usize) -> UFODataStub {
 		match stub {
 			UFONodeType::ExtractTags { .. } => Self::inputs().get(input_idx).unwrap().1,
 			_ => unreachable!(),
@@ -162,11 +161,11 @@ impl UFONode for ExtractTags {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetastoreDataStub {
+	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> UFODataStub {
 		match stub {
 			UFONodeType::ExtractTags { tags } => {
 				assert!(output_idx < tags.len());
-				MetastoreDataStub::Text
+				UFODataStub::Text
 			}
 			_ => unreachable!(),
 		}
