@@ -1,3 +1,7 @@
 /target
 /data
-*.sqlite
+
+# Test files
+/*.sqlite
+/*.flac
+/*.mp3
