@@ -45,9 +45,10 @@ const SideBar = () => {
 				}}
 			>
 				<div className={styles.menuicon}>
+					{/* Sizing here is broken, fix! */}
 					<Burger
 						opened={opened}
-						color={menuHover ? "var(--mantine-color-red-5)" : "white"}
+						//color={menuHover ? "var(--mantine-color-red-5)" : "white"}
 					/>
 				</div>
 			</div>

@@ -17,10 +17,15 @@
 	);
 
 	background-image: radial-gradient(
-		var(--mantine-color-gray-9) 1px,
-		transparent 2px
+		color-mix(
+				in srgb,
+				var(--mantine-color-gray-9),
+				var(--mantine-color-black) 20%
+			)
+			1px,
+		transparent 1px
 	);
-	background-size: 2rem 2rem;
+	background-size: 1.5rem 1.5rem;
 	background-position: -19px -19px;
 }
 
