@@ -9,6 +9,7 @@ import {
 	IconChevronDown,
 	IconChevronLeftPipe,
 	IconChevronRightPipe,
+	IconCircleOff,
 	IconCpu,
 	IconDatabase,
 	IconDatabaseCog,
@@ -59,6 +60,10 @@ const defaultStyles: CSSProperties | undefined = {
 
 // This module lets us apply default styling to tabler icons,
 // and makes it easy to replace our icon provider.
+
+export const XIconNoItems = ({ style }: { style?: CSSProperties }) => {
+	return <IconCircleOff style={{ ...defaultStyles, ...style }} />;
+};
 
 export const XIconAddLeft = ({ style }: { style?: CSSProperties }) => {
 	return <IconChevronLeftPipe style={{ ...defaultStyles, ...style }} />;

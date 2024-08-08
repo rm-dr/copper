@@ -2,17 +2,15 @@ import styles from "./itemtable.module.scss";
 import { Panel, PanelSection } from "@/app/components/panel";
 import clsx from "clsx";
 import {
-	XIconAddLeft,
-	XIconAddRight,
-	XIconDots,
+	XIconDatabaseX,
+	XIconFolderX,
 	XIconItems,
-	XIconSortDown,
-	XIconTrash,
+	XIconNoItems,
 } from "@/app/components/icons";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ActionIcon, Code, Menu, Text, rem } from "@mantine/core";
-import { AttrSelector } from "@/app/components/apiselect/attr";
+import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { Code, Loader, Text } from "@mantine/core";
+import { ColumnHeader } from "./parts/columnheader";
 
 export function ItemTablePanel(params: {
 	selectedDataset: string | null;
@@ -37,6 +35,27 @@ export function ItemTablePanel(params: {
 	);
 }
 
+const TablePlaceholder = (params: { children: ReactNode }) => {
+	return (
+		<tr>
+			<td>
+				<div
+					style={{
+						display: "flex",
+						flexDirection: "column",
+						alignItems: "center",
+						marginTop: "4rem",
+						marginBottom: "4rem",
+						color: "var(--mantine-color-dimmed)",
+					}}
+				>
+					{params.children}
+				</div>
+			</td>
+		</tr>
+	);
+};
+
 const ItemTable = (params: {
 	selectedDataset: string | null;
 	selectedClass: string | null;
@@ -44,8 +63,9 @@ const ItemTable = (params: {
 	// Minimal cell width, in px
 	minCellWidth: number;
 }) => {
-	const page_size = 50;
+	const page_size = 30;
 	const tableRootElement = useRef<any>(null);
+	const tableWrapperElement = useRef<any>(null);
 	const columnUidCounter = useRef(1);
 	const [columns, setColumns] = useState<
 		{
@@ -58,19 +78,21 @@ const ItemTable = (params: {
 		[{ unique_id: 0, attr: null }],
 	);
 
+	const [loading, setLoading] = useState(true);
 	const [data, setData] = useState<{}[]>([]);
 	const [dataMaxPage, setDataMaxPage] = useState(0);
 
-	const reset = useEffect(() => {
+	// Reset table when dataset or class changes
+	useEffect(() => {
 		columnUidCounter.current = 1;
 		setData([]);
 		setColumns([{ unique_id: 0, attr: null }]);
 		tableRootElement.current.style.gridTemplateColumns = "1fr";
-	}, [params]);
+	}, [params.selectedClass, params.selectedDataset]);
 
 	const updateData = useCallback(() => {
-		const e = tableRootElement.current;
-		if (e == null) {
+		const e = tableWrapperElement.current;
+		if (e === null) {
 			return;
 		}
 
@@ -84,10 +106,11 @@ const ItemTable = (params: {
 		if (isScrolledToBottom) {
 			setDataMaxPage(Math.ceil(data.length / page_size) + 1);
 		}
-	}, [tableRootElement, data]);
+	}, [tableWrapperElement, data]);
 
 	useEffect(() => {
 		async function fetchdata() {
+			setLoading(true);
 			if (params.selectedClass === null || params.selectedDataset === null) {
 				return;
 			}
@@ -109,22 +132,13 @@ const ItemTable = (params: {
 					...d.slice(page * page_size + page_size),
 				]);
 			}
+			setLoading(false);
 		}
 
 		fetchdata();
 	}, [params.selectedClass, params.selectedDataset, dataMaxPage]);
 
 	const col_refs = useRef<(HTMLTableCellElement | null)[]>([null, null]);
-
-	useEffect(() => {
-		setColumns((c) => {
-			const n = [...c];
-			return n.map((x) => ({
-				...x,
-				attr: null,
-			}));
-		});
-	}, [params.selectedClass, params.selectedDataset]);
 
 	// The handle we're dragging right now, if any
 	const [activeResizeHandle, setActiveResizeHandle] = useState<null | number>(
@@ -444,16 +458,74 @@ const ItemTable = (params: {
 	);
 
 	//
+	// Table body
+	//
+
+	let table_body;
+	if (params.selectedDataset === null) {
+		table_body = (
+			<TablePlaceholder>
+				<XIconDatabaseX style={{ height: "6rem" }} />
+				<div>
+					<Text size="1.5rem">No dataset selected</Text>
+				</div>
+			</TablePlaceholder>
+		);
+	} else if (params.selectedClass === null) {
+		table_body = (
+			<TablePlaceholder>
+				<XIconFolderX style={{ height: "6rem" }} />
+				<div>
+					<Text size="1.5rem">No class selected</Text>
+				</div>
+			</TablePlaceholder>
+		);
+	} else if (data.length === 0 && loading) {
+		table_body = (
+			<TablePlaceholder>
+				<Loader color="var(--mantine-color-dimmed)" size="4rem" />
+				<div>
+					<Text size="1.5rem">Loading...</Text>
+				</div>
+			</TablePlaceholder>
+		);
+	} else if (data.length === 0) {
+		table_body = (
+			<TablePlaceholder>
+				<XIconNoItems style={{ height: "6rem" }} />
+				<div>
+					<Text size="1.5rem">No items in this class</Text>
+				</div>
+			</TablePlaceholder>
+		);
+	} else {
+		table_body = data.map((data_entry: any) => {
+			return (
+				<tr key={data_entry.idx} className={styles.itemdata}>
+					{columns.map(({ attr }, c_idx) => {
+						return (
+							<td key={`${data_entry.idx}-${c_idx}-${attr}`}>
+								<ItemData
+									attr={attr === null ? null : data_entry.attrs[attr]}
+								/>
+							</td>
+						);
+					})}
+				</tr>
+			);
+		});
+	}
+	//
 	// Content
 	//
 
 	return (
-		<div>
-			<table
-				className={styles.itemtable}
-				ref={tableRootElement}
-				onScroll={updateData}
-			>
+		<div
+			className={styles.itemtablewrapper}
+			ref={tableWrapperElement}
+			onScroll={updateData}
+		>
+			<table className={styles.itemtable} ref={tableRootElement}>
 				<thead>
 					<tr>
 						{columns.map(({ attr, unique_id }, idx: number) => (
@@ -501,21 +573,25 @@ const ItemTable = (params: {
 					</tr>
 				</thead>
 				<tbody>
-					{data.map((data_entry: any) => {
-						return (
-							<tr key={data_entry.idx}>
-								{columns.map(({ attr }, c_idx) => {
-									return (
-										<td key={`${data_entry.idx}-${c_idx}-${attr}`}>
-											<ItemData
-												attr={attr === null ? null : data_entry.attrs[attr]}
-											/>
-										</td>
-									);
-								})}
-							</tr>
-						);
-					})}
+					{table_body}
+					{!(loading && data.length !== 0) ? null : (
+						<tr>
+							<td>
+								<div
+									style={{
+										display: "flex",
+										flexDirection: "column",
+										alignItems: "center",
+										marginTop: "1rem",
+										marginBottom: "1rem",
+										color: "var(--mantine-color-dimmed)",
+									}}
+								>
+									<Loader color="var(--mantine-color-dimmed)" size="2rem" />
+								</div>
+							</td>
+						</tr>
+					)}
 				</tbody>
 			</table>
 		</div>
@@ -576,110 +652,5 @@ function ItemData(params: { attr: any | null }) {
 				{params.attr.type}
 			</Text>
 		</Text>
-	);
-}
-
-function ColumnHeader(params: {
-	selectedDataset: string | null;
-	selectedClass: string | null;
-	attr: null | string;
-	idx: number;
-	columns: { attr: null | string }[];
-	setAttr: (attr: string | null) => void;
-	newCol: (at_index: number) => void;
-	delCol: (at_index: number) => void;
-}) {
-	return (
-		<div
-			style={{
-				display: "flex",
-				alignItems: "center",
-				justifyContent: "flex-start",
-				gap: "0.5rem",
-			}}
-		>
-			<div className={styles.sorticon}>
-				<XIconSortDown />
-			</div>
-			<div>
-				<AttrSelector
-					onSelect={params.setAttr}
-					selectedClass={params.selectedClass}
-					selectedDataset={params.selectedDataset}
-				/>
-			</div>
-
-			<div className={styles.menuicon}>
-				<ColumnMenu
-					disabled={false}
-					newCol={params.newCol}
-					delCol={params.delCol}
-					idx={params.idx}
-					columns={params.columns}
-				/>
-			</div>
-		</div>
-	);
-}
-
-function ColumnMenu(params: {
-	disabled: boolean;
-	idx: number;
-	columns: { attr: null | string }[];
-	newCol: (at_index: number) => void;
-	delCol: (at_index: number) => void;
-}) {
-	return (
-		<>
-			<Menu
-				shadow="md"
-				position="right-start"
-				withArrow
-				arrowPosition="center"
-				disabled={params.disabled}
-			>
-				<Menu.Target>
-					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
-						<XIconDots />
-					</ActionIcon>
-				</Menu.Target>
-
-				<Menu.Dropdown>
-					<Menu.Label>Table Column</Menu.Label>
-					<Menu.Item
-						leftSection={
-							<XIconAddLeft style={{ width: rem(14), height: rem(14) }} />
-						}
-						onClick={() => {
-							params.newCol(params.idx);
-						}}
-					>
-						Add column (left)
-					</Menu.Item>
-					<Menu.Item
-						leftSection={
-							<XIconAddRight style={{ width: rem(14), height: rem(14) }} />
-						}
-						onClick={() => {
-							params.newCol(params.idx + 1);
-						}}
-					>
-						Add column (right)
-					</Menu.Item>
-					<Menu.Item
-						disabled={params.columns.length === 1}
-						color="red"
-						leftSection={
-							<XIconTrash style={{ width: rem(14), height: rem(14) }} />
-						}
-						onClick={() => {
-							params.delCol(params.idx);
-						}}
-					>
-						Remove this column
-					</Menu.Item>
-				</Menu.Dropdown>
-			</Menu>
-		</>
 	);
 }
