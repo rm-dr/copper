@@ -2,25 +2,24 @@ use std::sync::Arc;
 
 use smartstring::{LazyCompact, SmartString};
 use ufo_pipeline::{
-	data::{PipelineData, PipelineDataType},
 	errors::PipelineError,
 	node::{PipelineNode, PipelineNodeState},
 };
 use ufo_storage::api::{ClassHandle, Dataset};
 
-use crate::UFOContext;
+use crate::{
+	data::{UFOData, UFODataStub},
+	UFOContext,
+};
 
 pub struct StorageOutput {
 	class: ClassHandle,
-	attrs: Vec<(SmartString<LazyCompact>, PipelineDataType)>,
-	data: Vec<PipelineData>,
+	attrs: Vec<(SmartString<LazyCompact>, UFODataStub)>,
+	data: Vec<UFOData>,
 }
 
 impl StorageOutput {
-	pub fn new(
-		class: ClassHandle,
-		attrs: Vec<(SmartString<LazyCompact>, PipelineDataType)>,
-	) -> Self {
+	pub fn new(class: ClassHandle, attrs: Vec<(SmartString<LazyCompact>, UFODataStub)>) -> Self {
 		StorageOutput {
 			class,
 			attrs,
@@ -30,16 +29,17 @@ impl StorageOutput {
 }
 
 impl PipelineNode for StorageOutput {
-	type RunContext = UFOContext;
+	type NodeContext = UFOContext;
+	type DataType = UFOData;
 
 	fn init<F>(
 		&mut self,
-		_ctx: Arc<Self::RunContext>,
-		input: Vec<PipelineData>,
+		_ctx: Arc<Self::NodeContext>,
+		input: Vec<Self::DataType>,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		assert!(input.len() == self.attrs.len());
 		self.data = input;
@@ -48,11 +48,11 @@ impl PipelineNode for StorageOutput {
 
 	fn run<F>(
 		&mut self,
-		ctx: Arc<Self::RunContext>,
+		ctx: Arc<Self::NodeContext>,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let mut d = ctx.dataset.lock().unwrap();
 		let item = d.add_item(self.class).unwrap();
@@ -66,7 +66,7 @@ impl PipelineNode for StorageOutput {
 
 		send_data(
 			0,
-			PipelineData::Reference {
+			UFOData::Reference {
 				class: self.class,
 				item,
 			},

@@ -2,8 +2,6 @@
 
 use std::{error::Error, fmt::Display};
 
-use crate::data::PipelineDataType;
-
 use super::{
 	labels::{PipelineNodeLabel, PipelinePortLabel},
 	ports::{NodeInput, NodeOutput},
@@ -86,15 +84,6 @@ pub enum PipelinePrepareError {
 		input: NodeInput,
 	},
 
-	/// We tried to connect an inline type to `input`,
-	/// but their types don't match.
-	InlineTypeMismatch {
-		/// The type our inline data has
-		inline_type: PipelineDataType,
-		/// The input we tried to connect it to
-		input: NodeInput,
-	},
-
 	/// This graph has a cycle containing `node`
 	HasCycle,
 
@@ -154,12 +143,6 @@ impl Display for PipelinePrepareError {
 				writeln!(
 					f,
 					"PipelinePrepareError: `{output:?}` and `{input:?}` have different types."
-				)
-			}
-			Self::InlineTypeMismatch { input, inline_type } => {
-				writeln!(
-					f,
-					"PipelinePrepareError: `{input:?}` cannot consume inline type `{inline_type}`"
 				)
 			}
 			Self::HasCycle => {

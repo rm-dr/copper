@@ -4,17 +4,16 @@ use std::{
 };
 use ufo_audiofile::flac::flac_read_pictures;
 use ufo_pipeline::{
-	data::PipelineData,
 	errors::PipelineError,
 	node::{PipelineNode, PipelineNodeState},
 };
 use ufo_util::mime::MimeType;
 
-use crate::UFOContext;
+use crate::{data::UFOData, UFOContext};
 
 #[derive(Clone)]
 pub struct ExtractCovers {
-	data: Option<PipelineData>,
+	data: Option<UFOData>,
 }
 
 impl ExtractCovers {
@@ -24,16 +23,17 @@ impl ExtractCovers {
 }
 
 impl PipelineNode for ExtractCovers {
-	type RunContext = UFOContext;
+	type NodeContext = UFOContext;
+	type DataType = UFOData;
 
 	fn init<F>(
 		&mut self,
-		_ctx: Arc<UFOContext>,
-		mut input: Vec<PipelineData>,
+		_ctx: Arc<Self::NodeContext>,
+		mut input: Vec<Self::DataType>,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		assert!(input.len() == 1);
 		self.data = Some(input.pop().unwrap());
@@ -42,14 +42,14 @@ impl PipelineNode for ExtractCovers {
 
 	fn run<F>(
 		&mut self,
-		_ctx: Arc<UFOContext>,
+		_ctx: Arc<Self::NodeContext>,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let (data_type, data) = match self.data.as_ref().unwrap() {
-			PipelineData::Binary {
+			UFOData::Binary {
 				format: data_type,
 				data,
 			} => (data_type, data),
@@ -70,7 +70,7 @@ impl PipelineNode for ExtractCovers {
 
 		send_data(
 			0,
-			PipelineData::Binary {
+			UFOData::Binary {
 				format: cover_format,
 				data: Arc::new(cover_data),
 			},

@@ -17,10 +17,6 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
-# TODO: remove this dep
-ufo-storage = { workspace = true }
-ufo-util = { workspace = true }
-
 serde = { workspace = true }
 smartstring = { workspace = true }
 petgraph = { workspace = true }

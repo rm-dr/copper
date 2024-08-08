@@ -1,18 +1,17 @@
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use ufo_pipeline::{
-	data::PipelineData,
 	errors::PipelineError,
 	node::{PipelineNode, PipelineNodeState},
 };
 
-use crate::UFOContext;
+use crate::{data::UFOData, UFOContext};
 
 // TODO: hash datatype
 // TODO: select hash method
 #[derive(Clone)]
 pub struct Hash {
-	data: Option<PipelineData>,
+	data: Option<UFOData>,
 }
 
 impl Hash {
@@ -28,16 +27,17 @@ impl Default for Hash {
 }
 
 impl PipelineNode for Hash {
-	type RunContext = UFOContext;
+	type NodeContext = UFOContext;
+	type DataType = UFOData;
 
 	fn init<F>(
 		&mut self,
-		_ctx: Arc<Self::RunContext>,
-		mut input: Vec<PipelineData>,
+		_ctx: Arc<Self::NodeContext>,
+		mut input: Vec<Self::DataType>,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		assert!(input.len() == 1);
 		self.data = Some(input.pop().unwrap());
@@ -46,14 +46,14 @@ impl PipelineNode for Hash {
 
 	fn run<F>(
 		&mut self,
-		_ctx: Arc<Self::RunContext>,
+		_ctx: Arc<Self::NodeContext>,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let data = match self.data.as_ref().unwrap() {
-			PipelineData::Binary { data, .. } => data,
+			UFOData::Binary { data, .. } => data,
 			_ => panic!("bad data type"),
 		};
 
@@ -61,7 +61,7 @@ impl PipelineNode for Hash {
 		hasher.update(&**data);
 		let result = hasher.finalize();
 
-		send_data(0, PipelineData::Text(Arc::new(format!("{:X}", result))))?;
+		send_data(0, UFOData::Text(Arc::new(format!("{:X}", result))))?;
 
 		return Ok(PipelineNodeState::Done);
 	}

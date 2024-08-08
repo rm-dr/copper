@@ -4,17 +4,16 @@ use std::{
 };
 use ufo_audiofile::flac::metastrip::FlacMetaStrip;
 use ufo_pipeline::{
-	data::PipelineData,
 	errors::PipelineError,
 	node::{PipelineNode, PipelineNodeState},
 };
 use ufo_util::mime::MimeType;
 
-use crate::UFOContext;
+use crate::{data::UFOData, UFOContext};
 
 #[derive(Clone)]
 pub struct StripTags {
-	data: Option<PipelineData>,
+	data: Option<UFOData>,
 }
 
 impl StripTags {
@@ -30,16 +29,17 @@ impl Default for StripTags {
 }
 
 impl PipelineNode for StripTags {
-	type RunContext = UFOContext;
+	type NodeContext = UFOContext;
+	type DataType = UFOData;
 
 	fn init<F>(
 		&mut self,
-		_ctx: Arc<Self::RunContext>,
-		mut input: Vec<PipelineData>,
+		_ctx: Arc<Self::NodeContext>,
+		mut input: Vec<Self::DataType>,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		assert!(input.len() == 1);
 		self.data = Some(input.pop().unwrap());
@@ -48,14 +48,14 @@ impl PipelineNode for StripTags {
 
 	fn run<F>(
 		&mut self,
-		_ctx: Arc<Self::RunContext>,
+		_ctx: Arc<Self::NodeContext>,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let (data_type, data) = match self.data.as_ref().unwrap() {
-			PipelineData::Binary {
+			UFOData::Binary {
 				format: data_type,
 				data,
 			} => (data_type, data),
@@ -76,7 +76,7 @@ impl PipelineNode for StripTags {
 
 		send_data(
 			0,
-			PipelineData::Binary {
+			UFOData::Binary {
 				format: data_type.clone(),
 				data: Arc::new(stripped),
 			},

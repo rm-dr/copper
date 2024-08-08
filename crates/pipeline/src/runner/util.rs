@@ -1,13 +1,13 @@
-use crate::{data::PipelineData, node::PipelineNodeState};
+use crate::node::{PipelineData, PipelineNodeState};
 
 #[derive(Debug)]
-pub(super) enum EdgeValue {
+pub(super) enum EdgeValue<DataType: PipelineData> {
 	/// This edge is waiting on another node to run
 	Uninitialized,
 
 	/// This edge has data that is ready to be used
 	/// (Only valid for Edge::PortToPort)
-	Data(PipelineData),
+	Data(DataType),
 
 	/// This edge had data, but it has been consumed
 	/// (Only valid for Edge::PortToPort)
@@ -18,8 +18,8 @@ pub(super) enum EdgeValue {
 	AfterReady,
 }
 
-impl EdgeValue {
-	pub fn unwrap(self) -> PipelineData {
+impl<DataType: PipelineData> EdgeValue<DataType> {
+	pub fn unwrap(self) -> DataType {
 		match self {
 			Self::Data(x) => x,
 			_ => panic!("tried to unwrap a non-Data Edgevalue"),

@@ -7,6 +7,7 @@ use std::{
 	str::FromStr,
 	sync::Arc,
 };
+use ufo_pipeline::node::{PipelineData, PipelineDataStub};
 use ufo_storage::{
 	api::{ClassHandle, ItemHandle},
 	StorageData, StorageDataType,
@@ -19,9 +20,9 @@ use ufo_util::mime::MimeType;
 /// An immutable bit of data inside a pipeline.
 /// These are instances of [`PipelineDataType`].
 #[derive(Clone)]
-pub enum PipelineData {
+pub enum UFOData {
 	/// Typed, unset data
-	None(PipelineDataType),
+	None(UFODataStub),
 
 	/// A block of text
 	Text(Arc<String>),
@@ -41,7 +42,7 @@ pub enum PipelineData {
 	},
 }
 
-impl Debug for PipelineData {
+impl Debug for UFOData {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::None(t) => write!(f, "None({})", t),
@@ -52,19 +53,26 @@ impl Debug for PipelineData {
 	}
 }
 
-impl PipelineData {
-	/// Transforms a data container into its type.
-	pub fn get_type(&self) -> PipelineDataType {
+impl PipelineData for UFOData {
+	type DataStub = UFODataStub;
+
+	fn as_stub(&self) -> Self::DataStub {
 		match self {
 			Self::None(t) => *t,
-			Self::Text(_) => PipelineDataType::Text,
-			Self::Binary { .. } => PipelineDataType::Binary,
-			Self::Reference { class, .. } => PipelineDataType::Reference {
+			Self::Text(_) => UFODataStub::Text,
+			Self::Binary { .. } => UFODataStub::Binary,
+			Self::Reference { class, .. } => UFODataStub::Reference {
 				class: class.clone(),
 			},
 		}
 	}
 
+	fn new_empty(stub: Self::DataStub) -> Self {
+		Self::None(stub)
+	}
+}
+
+impl UFOData {
 	pub fn to_storage_data(&self) -> StorageData {
 		match self {
 			Self::None(t) => StorageData::None(t.to_storage_type()),
@@ -84,7 +92,7 @@ impl PipelineData {
 /// A data type inside a pipeline.
 /// Corresponds to [`PipelineData`]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum PipelineDataType {
+pub enum UFODataStub {
 	/// Plain text
 	Text,
 
@@ -96,7 +104,9 @@ pub enum PipelineDataType {
 	},
 }
 
-impl Display for PipelineDataType {
+impl PipelineDataStub for UFODataStub {}
+
+impl Display for UFODataStub {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::Text => write!(f, "Text"),
@@ -107,7 +117,7 @@ impl Display for PipelineDataType {
 }
 
 // TODO: better error
-impl FromStr for PipelineDataType {
+impl FromStr for UFODataStub {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -119,7 +129,7 @@ impl FromStr for PipelineDataType {
 	}
 }
 
-impl<'de> Deserialize<'de> for PipelineDataType {
+impl<'de> Deserialize<'de> for UFODataStub {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
 		D: serde::Deserializer<'de>,
@@ -130,7 +140,7 @@ impl<'de> Deserialize<'de> for PipelineDataType {
 	}
 }
 
-impl PipelineDataType {
+impl UFODataStub {
 	pub fn to_storage_type(&self) -> StorageDataType {
 		match self {
 			Self::Binary => StorageDataType::Binary,

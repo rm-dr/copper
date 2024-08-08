@@ -53,7 +53,7 @@ impl PipelineEdge {
 /// This is guaranteed to be correct:
 /// no dependency cycles, no port type mismatch, etc.
 #[derive(Debug)]
-pub struct Pipeline<NodeType: PipelineNodeStub> {
+pub struct Pipeline<StubType: PipelineNodeStub> {
 	/// This pipeline's name.
 	/// Must be unique.
 	pub(crate) name: SmartString<LazyCompact>,
@@ -62,5 +62,5 @@ pub struct Pipeline<NodeType: PipelineNodeStub> {
 	pub(crate) output_node_idx: GraphNodeIdx,
 
 	/// This pipeline's node graph
-	pub(crate) graph: FinalizedGraph<(PipelineNodeLabel, InternalNodeStub<NodeType>), PipelineEdge>,
+	pub(crate) graph: FinalizedGraph<(PipelineNodeLabel, InternalNodeStub<StubType>), PipelineEdge>,
 }

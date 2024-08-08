@@ -3,8 +3,8 @@ use std::{
 	path::Path,
 	sync::{Arc, Mutex},
 };
-use ufo_pipeline::{data::PipelineData, runner::runner::PipelineRunner};
-use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
+use ufo_pipeline::runner::runner::PipelineRunner;
+use ufo_pipeline_nodes::{data::UFOData, nodetype::UFONodeType, UFOContext};
 use ufo_storage::{
 	api::{AttributeOptions, Dataset},
 	sea::dataset::SeaDataset,
@@ -91,7 +91,7 @@ fn main() -> Result<()> {
 		runner.run(
 			ctx.clone(),
 			"audio".into(),
-			vec![PipelineData::Text(Arc::new(p.into()))],
+			vec![UFOData::Text(Arc::new(p.into()))],
 		)?;
 	}
 

@@ -26,12 +26,6 @@ pub enum NodeOutput {
 		#[serde(rename = "output")]
 		port: PipelinePortLabel,
 	},
-
-	/// Inline static text
-	InlineText {
-		/// The text to provide
-		text: String,
-	},
 }
 
 // TODO: better error

@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 use std::{fmt::Debug, sync::Arc};
 
-use crate::{data::PipelineData, errors::PipelineError, portspec::PipelinePortSpec};
+use crate::{errors::PipelineError, portspec::PipelinePortSpec};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipelineNodeState {
@@ -33,7 +33,10 @@ impl PipelineNodeState {
 }
 
 pub trait PipelineNode {
-	type RunContext: Send + Sync;
+	/// Extra resources available to nodes
+	type NodeContext: Send + Sync;
+	/// The kind of data this node handles
+	type DataType: PipelineData;
 
 	/// Initialize this node.
 	/// This is called only once, when this node's inputs are ready.
@@ -49,10 +52,10 @@ pub trait PipelineNode {
 	fn init<F>(
 		&mut self,
 
-		ctx: Arc<Self::RunContext>,
+		ctx: Arc<Self::NodeContext>,
 
 		// TODO: provide args one at a time
-		input: Vec<PipelineData>,
+		input: Vec<Self::DataType>,
 
 		// Call this when data is ready.
 		// Arguments are (port idx, data).
@@ -64,17 +67,17 @@ pub trait PipelineNode {
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>;
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>;
 
 	/// Run this node.
 	/// This is always run in a worker thread. All heavy computation goes here.
 	fn run<F>(
 		&mut self,
-		_ctx: Arc<Self::RunContext>,
+		_ctx: Arc<Self::NodeContext>,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		Ok(PipelineNodeState::Done)
 	}
@@ -84,13 +87,39 @@ pub trait PipelineNodeStub
 where
 	Self: Debug + Clone + DeserializeOwned + Sync + Send,
 {
+	/// The type of node this stub produces
 	type NodeType: PipelineNode + Sync + Send + 'static;
 
 	fn build(
 		&self,
-		ctx: Arc<<Self::NodeType as PipelineNode>::RunContext>,
+		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
 		name: &str,
 	) -> Self::NodeType;
-	fn inputs(&self, ctx: Arc<<Self::NodeType as PipelineNode>::RunContext>) -> PipelinePortSpec;
-	fn outputs(&self, ctx: Arc<<Self::NodeType as PipelineNode>::RunContext>) -> PipelinePortSpec;
+	fn inputs(
+		&self,
+		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
+	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>;
+	fn outputs(
+		&self,
+		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
+	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>;
+}
+
+pub trait PipelineData
+where
+	Self: Debug + Clone + Send + Sync,
+{
+	type DataStub: PipelineDataStub;
+
+	/// Transform this data container into its type.
+	fn as_stub(&self) -> Self::DataStub;
+
+	/// Create an "empty" node of the given type.
+	fn new_empty(stub: Self::DataStub) -> Self;
+}
+
+pub trait PipelineDataStub
+where
+	Self: Debug + PartialEq + Eq + Clone + Copy + Send + Sync,
+{
 }

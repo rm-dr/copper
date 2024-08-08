@@ -1,12 +1,11 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
 use ufo_pipeline::{
-	data::PipelineData,
 	errors::PipelineError,
 	node::{PipelineNode, PipelineNodeState},
 };
 
-use crate::{input::file::FileInput, output::storage::StorageOutput, UFOContext};
+use crate::{data::UFOData, input::file::FileInput, output::storage::StorageOutput, UFOContext};
 
 use super::{
 	nodetype::UFONodeType,
@@ -89,16 +88,17 @@ impl Debug for UFONodeInstance {
 }
 
 impl PipelineNode for UFONodeInstance {
-	type RunContext = UFOContext;
+	type NodeContext = UFOContext;
+	type DataType = UFOData;
 
 	fn init<F>(
 		&mut self,
-		ctx: Arc<Self::RunContext>,
-		input: Vec<PipelineData>,
+		ctx: Arc<Self::NodeContext>,
+		input: Vec<Self::DataType>,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		match self {
 			// Utility
@@ -120,11 +120,11 @@ impl PipelineNode for UFONodeInstance {
 
 	fn run<F>(
 		&mut self,
-		ctx: Arc<Self::RunContext>,
+		ctx: Arc<Self::NodeContext>,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		match self {
 			Self::Dataset { node, .. } => node.run(ctx, send_data),

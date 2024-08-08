@@ -4,7 +4,7 @@ use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::fmt::Display;
 
-/// A node label in a pipeline pipeline
+/// A node label in a pipeline
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Deserialize)]
 pub struct PipelineNodeLabel(SmartString<LazyCompact>);
 
@@ -56,7 +56,7 @@ impl<'a> From<&'a PipelineNodeLabel> for &'a str {
 	}
 }
 
-/// A port label in a pipeline pipeline
+/// A port label in a pipeline
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Deserialize)]
 pub struct PipelinePortLabel(SmartString<LazyCompact>);
 

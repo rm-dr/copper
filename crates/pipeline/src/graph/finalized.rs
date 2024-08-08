@@ -39,6 +39,7 @@ where
 	}
 }
 
+#[allow(dead_code)]
 impl<NodeType, EdgeType> FinalizedGraph<NodeType, EdgeType>
 where
 	NodeType: Debug,

@@ -1,16 +1,16 @@
-use crate::{data::PipelineDataType, syntax::labels::PipelinePortLabel};
+use crate::{node::PipelineDataStub, syntax::labels::PipelinePortLabel};
 
 /// Name and datatype for a set of ports.
 #[derive(Debug, Clone)]
-pub enum PipelinePortSpec<'a> {
+pub enum PipelinePortSpec<'a, DataStub: PipelineDataStub + 'static> {
 	// TODO: make `&'static str` a `PipelinePortLabel` once we can
 	// statically make SmartStrings.
-	Static(&'static [(&'static str, PipelineDataType)]),
-	Vec(&'a Vec<(PipelinePortLabel, PipelineDataType)>),
-	VecOwned(Vec<(PipelinePortLabel, PipelineDataType)>),
+	Static(&'static [(&'static str, DataStub)]),
+	Vec(&'a Vec<(PipelinePortLabel, DataStub)>),
+	VecOwned(Vec<(PipelinePortLabel, DataStub)>),
 }
 
-impl<'a> PipelinePortSpec<'a> {
+impl<'a, DataStub: PipelineDataStub> PipelinePortSpec<'a, DataStub> {
 	pub fn len(&self) -> usize {
 		match self {
 			Self::Static(x) => x.len(),
@@ -23,7 +23,7 @@ impl<'a> PipelinePortSpec<'a> {
 		self.len() == 0
 	}
 
-	pub fn find_with_name(&self, name: &PipelinePortLabel) -> Option<(usize, PipelineDataType)> {
+	pub fn find_with_name(&self, name: &PipelinePortLabel) -> Option<(usize, DataStub)> {
 		match self {
 			Self::Static(x) => x
 				.iter()
@@ -43,7 +43,7 @@ impl<'a> PipelinePortSpec<'a> {
 		}
 	}
 
-	pub fn iter(&self) -> PipelineArgSpecIterator {
+	pub fn iter(&self) -> PipelineArgSpecIterator<DataStub> {
 		match self {
 			Self::Static(data) => PipelineArgSpecIterator::Static { data, idx: 0 },
 			Self::Vec(data) => PipelineArgSpecIterator::Vec { data, idx: 0 },
@@ -51,24 +51,24 @@ impl<'a> PipelinePortSpec<'a> {
 		}
 	}
 
-	pub fn to_vec(&self) -> Vec<(PipelinePortLabel, PipelineDataType)> {
+	pub fn to_vec(&self) -> Vec<(PipelinePortLabel, DataStub)> {
 		self.iter().collect()
 	}
 }
 
-pub enum PipelineArgSpecIterator<'a> {
+pub enum PipelineArgSpecIterator<'a, DataStub: PipelineDataStub + 'static> {
 	Static {
-		data: &'static [(&'static str, PipelineDataType)],
+		data: &'static [(&'static str, DataStub)],
 		idx: usize,
 	},
 	Vec {
-		data: &'a Vec<(PipelinePortLabel, PipelineDataType)>,
+		data: &'a Vec<(PipelinePortLabel, DataStub)>,
 		idx: usize,
 	},
 }
 
-impl<'a> Iterator for PipelineArgSpecIterator<'a> {
-	type Item = (PipelinePortLabel, PipelineDataType);
+impl<'a, DataStub: PipelineDataStub> Iterator for PipelineArgSpecIterator<'a, DataStub> {
+	type Item = (PipelinePortLabel, DataStub);
 
 	fn next(&mut self) -> Option<Self::Item> {
 		match self {
@@ -94,7 +94,7 @@ impl<'a> Iterator for PipelineArgSpecIterator<'a> {
 	}
 }
 
-impl<'a> ExactSizeIterator for PipelineArgSpecIterator<'a> {
+impl<'a, DataStub: PipelineDataStub> ExactSizeIterator for PipelineArgSpecIterator<'a, DataStub> {
 	fn len(&self) -> usize {
 		match self {
 			Self::Static { data, .. } => data.len(),

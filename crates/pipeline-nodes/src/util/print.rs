@@ -1,16 +1,15 @@
 use std::sync::Arc;
 
 use ufo_pipeline::{
-	data::PipelineData,
 	errors::PipelineError,
 	node::{PipelineNode, PipelineNodeState},
 };
 
-use crate::UFOContext;
+use crate::{data::UFOData, UFOContext};
 
 #[derive(Clone)]
 pub struct Print {
-	input: Option<PipelineData>,
+	input: Option<UFOData>,
 }
 
 impl Print {
@@ -20,16 +19,17 @@ impl Print {
 }
 
 impl PipelineNode for Print {
-	type RunContext = UFOContext;
+	type NodeContext = UFOContext;
+	type DataType = UFOData;
 
 	fn init<F>(
 		&mut self,
-		_ctx: Arc<Self::RunContext>,
-		mut input: Vec<PipelineData>,
+		_ctx: Arc<Self::NodeContext>,
+		mut input: Vec<Self::DataType>,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		assert!(input.len() == 1);
 		self.input = input.pop();
@@ -38,11 +38,11 @@ impl PipelineNode for Print {
 
 	fn run<F>(
 		&mut self,
-		_ctx: Arc<Self::RunContext>,
+		_ctx: Arc<Self::NodeContext>,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, UFOData) -> Result<(), PipelineError>,
 	{
 		println!("{:?}", self.input);
 		Ok(PipelineNodeState::Done)

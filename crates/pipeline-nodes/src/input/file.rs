@@ -1,19 +1,12 @@
-use std::{
-	fs::File,
-	io::{self, Read},
-	path::PathBuf,
-	str::FromStr,
-	sync::Arc,
-};
+use std::{fs::File, io::Read, path::PathBuf, str::FromStr, sync::Arc};
 
 use ufo_pipeline::{
-	data::PipelineData,
 	errors::PipelineError,
 	node::{PipelineNode, PipelineNodeState},
 };
 use ufo_util::mime::MimeType;
 
-use crate::UFOContext;
+use crate::{data::UFOData, UFOContext};
 
 pub struct FileInput {
 	path: Option<PathBuf>,
@@ -26,20 +19,21 @@ impl FileInput {
 }
 
 impl PipelineNode for FileInput {
-	type RunContext = UFOContext;
+	type NodeContext = UFOContext;
+	type DataType = UFOData;
 
 	fn init<F>(
 		&mut self,
-		_ctx: Arc<Self::RunContext>,
-		mut input: Vec<PipelineData>,
+		_ctx: Arc<Self::NodeContext>,
+		mut input: Vec<Self::DataType>,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		assert!(input.len() == 1);
 		self.path = match input.pop().unwrap() {
-			PipelineData::Text(t) => Some(PathBuf::from_str(&t).unwrap()),
+			UFOData::Text(t) => Some(PathBuf::from_str(&t).unwrap()),
 			_ => panic!(),
 		};
 		Ok(PipelineNodeState::Pending)
@@ -47,11 +41,11 @@ impl PipelineNode for FileInput {
 
 	fn run<F>(
 		&mut self,
-		_ctx: Arc<Self::RunContext>,
+		_ctx: Arc<Self::NodeContext>,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let p = self.path.as_ref().unwrap();
 		let mut f = File::open(p).unwrap();
@@ -61,14 +55,11 @@ impl PipelineNode for FileInput {
 		let file_format = MimeType::from_extension(p.extension().unwrap().to_str().unwrap())
 			.unwrap_or(MimeType::Blob);
 
-		send_data(
-			0,
-			PipelineData::Text(Arc::new(p.to_str().unwrap().to_string())),
-		)?;
+		send_data(0, UFOData::Text(Arc::new(p.to_str().unwrap().to_string())))?;
 
 		send_data(
 			1,
-			PipelineData::Binary {
+			UFOData::Binary {
 				format: file_format,
 				data: Arc::new(data),
 			},

@@ -13,29 +13,28 @@ use super::{
 	ports::{NodeInput, NodeOutput},
 };
 use crate::{
-	data::PipelineDataType,
 	graph::{graph::Graph, util::GraphNodeIdx},
-	node::{PipelineNode, PipelineNodeStub},
+	node::{PipelineData, PipelineNode, PipelineNodeStub},
 	pipeline::{Pipeline, PipelineEdge},
 	portspec::PipelinePortSpec,
 };
 
 #[derive(Clone)]
-pub(crate) enum InternalNodeStub<NodeType: PipelineNodeStub> {
+pub(crate) enum InternalNodeStub<StubType: PipelineNodeStub> {
 	Pipeline { pipeline: String },
-	User(NodeType),
+	User(StubType),
 }
 
-impl<'de, NodeType: PipelineNodeStub> Deserialize<'de> for InternalNodeStub<NodeType> {
+impl<'de, StubType: PipelineNodeStub> Deserialize<'de> for InternalNodeStub<StubType> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
 		D: serde::Deserializer<'de>,
 	{
-		NodeType::deserialize(deserializer).map(Self::User)
+		StubType::deserialize(deserializer).map(Self::User)
 	}
 }
 
-impl<NodeType: PipelineNodeStub> Debug for InternalNodeStub<NodeType> {
+impl<StubType: PipelineNodeStub> Debug for InternalNodeStub<StubType> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::Pipeline { .. } => todo!(),
@@ -44,28 +43,34 @@ impl<NodeType: PipelineNodeStub> Debug for InternalNodeStub<NodeType> {
 	}
 }
 
-impl<NodeType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<NodeType> {
-	type NodeType = NodeType::NodeType;
+impl<StubType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<StubType> {
+	type NodeType = StubType::NodeType;
 
 	fn build(
 		&self,
-		ctx: Arc<<Self::NodeType as PipelineNode>::RunContext>,
+		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
 		name: &str,
 	) -> Self::NodeType {
 		match self {
 			Self::Pipeline { .. } => panic!(),
-			Self::User(n) => NodeType::build(n, ctx, name),
+			Self::User(n) => StubType::build(n, ctx, name),
 		}
 	}
 
-	fn inputs(&self, ctx: Arc<<Self::NodeType as PipelineNode>::RunContext>) -> PipelinePortSpec {
+	fn inputs(
+		&self,
+		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
+	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
 		match self {
 			Self::Pipeline { .. } => panic!(),
 			Self::User(n) => n.inputs(ctx),
 		}
 	}
 
-	fn outputs(&self, ctx: Arc<<Self::NodeType as PipelineNode>::RunContext>) -> PipelinePortSpec {
+	fn outputs(
+		&self,
+		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
+	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
 		match self {
 			Self::Pipeline { .. } => panic!(),
 			Self::User(n) => n.outputs(ctx),
@@ -77,16 +82,16 @@ impl<NodeType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<NodeType>
 #[serde_as]
 #[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
-#[serde(bound = "NodeType: DeserializeOwned")]
-struct PipelineConfig<NodeType>
+#[serde(bound = "StubType: DeserializeOwned")]
+struct PipelineConfig<StubType>
 where
-	NodeType: PipelineNodeStub,
+	StubType: PipelineNodeStub,
 {
 	/// The kind of input this pipeline takes
-	pub input: InternalNodeStub<NodeType>,
+	pub input: InternalNodeStub<StubType>,
 
 	/// The kind of output this pipeline produces
-	pub output: InternalNodeStub<NodeType>,
+	pub output: InternalNodeStub<StubType>,
 
 	/// Connect node outputs to this pipeline's outputs
 	#[serde(default)]
@@ -98,11 +103,11 @@ where
 #[serde_as]
 #[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
-#[serde(bound = "NodeType: DeserializeOwned")]
-struct PipelineNodeSpec<NodeType: PipelineNodeStub> {
+#[serde(bound = "StubType: DeserializeOwned")]
+struct PipelineNodeSpec<StubType: PipelineNodeStub> {
 	/// What kind of node is this?
 	#[serde(rename = "node")]
-	node_type: InternalNodeStub<NodeType>,
+	node_type: InternalNodeStub<StubType>,
 
 	/// Where this node should read its input from.
 	#[serde(default)]
@@ -117,20 +122,20 @@ struct PipelineNodeSpec<NodeType: PipelineNodeStub> {
 /// A description of a data processing pipeline
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[serde(bound = "NodeType: DeserializeOwned")]
-pub(crate) struct PipelineSpec<NodeType: PipelineNodeStub> {
+#[serde(bound = "StubType: DeserializeOwned")]
+pub(crate) struct PipelineSpec<StubType: PipelineNodeStub> {
 	/// Pipeline parameters
-	config: PipelineConfig<NodeType>,
+	config: PipelineConfig<StubType>,
 
 	/// Nodes in this pipeline
 	#[serde(default)]
 	#[serde(rename = "node")]
-	nodes: HashMap<PipelineNodeLabel, PipelineNodeSpec<NodeType>>,
+	nodes: HashMap<PipelineNodeLabel, PipelineNodeSpec<StubType>>,
 }
 
 // TODO: warnings (disconnected input)
 // TODO: check for unused nodes
-impl<NodeType: PipelineNodeStub> PipelineSpec<NodeType> {
+impl<StubType: PipelineNodeStub> PipelineSpec<StubType> {
 	/// Check a link from `output` to `input`.
 	/// Returns [`PipelineCheckResult::Ok`] if everything is ok, and an error otherwise.
 	///
@@ -142,8 +147,8 @@ impl<NodeType: PipelineNodeStub> PipelineSpec<NodeType> {
 	/// - The input and output ports have matching types
 	fn check_link(
 		&self,
-		ctx: Arc<<NodeType::NodeType as PipelineNode>::RunContext>,
-		pipelines: &Vec<(SmartString<LazyCompact>, Arc<Pipeline<NodeType>>)>,
+		ctx: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+		pipelines: &Vec<(SmartString<LazyCompact>, Arc<Pipeline<StubType>>)>,
 
 		output: &NodeOutput,
 		input: &NodeInput,
@@ -151,8 +156,6 @@ impl<NodeType: PipelineNodeStub> PipelineSpec<NodeType> {
 		// Find the datatype of the output port we're connecting to.
 		// While doing this, make sure both the output node and port exist.
 		let output_type = match output {
-			NodeOutput::InlineText { .. } => PipelineDataType::Text,
-
 			NodeOutput::Pipeline { port } => {
 				if let Some((_, from_type)) = self
 					.config
@@ -273,14 +276,6 @@ impl<NodeType: PipelineNodeStub> PipelineSpec<NodeType> {
 
 		// Check types
 		match output {
-			NodeOutput::InlineText { .. } => {
-				if input_type != PipelineDataType::Text {
-					return Err(PipelinePrepareError::InlineTypeMismatch {
-						inline_type: PipelineDataType::Text,
-						input: input.clone(),
-					});
-				}
-			}
 			NodeOutput::Pipeline { .. } | NodeOutput::Node { .. } => {
 				if output_type != input_type {
 					return Err(PipelinePrepareError::TypeMismatch {
@@ -298,9 +293,9 @@ impl<NodeType: PipelineNodeStub> PipelineSpec<NodeType> {
 	#[allow(clippy::too_many_arguments)]
 	fn add_to_graph(
 		&self,
-		ctx: Arc<<NodeType::NodeType as PipelineNode>::RunContext>,
+		ctx: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 		// Current build state
-		graph: &mut Graph<(PipelineNodeLabel, InternalNodeStub<NodeType>), PipelineEdge>,
+		graph: &mut Graph<(PipelineNodeLabel, InternalNodeStub<StubType>), PipelineEdge>,
 		node_output_name_map: &HashMap<PipelineNodeLabel, GraphNodeIdx>,
 		input_node_idx: GraphNodeIdx,
 
@@ -309,18 +304,6 @@ impl<NodeType: PipelineNodeStub> PipelineSpec<NodeType> {
 		out_link: &NodeOutput,
 	) {
 		match out_link {
-			NodeOutput::InlineText { text } => {
-				panic!()
-				/*
-				let n = graph.add_node((
-					"CONSTANT".into(),
-					InternalNodeStub::Constant {
-						value: PipelineData::Text(Arc::new(text.clone())),
-					},
-				));
-				graph.add_edge(n, node_idx, PipelineEdge::PortToPort((0, in_port)));
-				*/
-			}
 			NodeOutput::Pipeline { port } => {
 				let out_port = self
 					.config
@@ -360,11 +343,11 @@ impl<NodeType: PipelineNodeStub> PipelineSpec<NodeType> {
 	/// [`Pipeline`].
 	pub fn prepare(
 		self,
-		ctx: Arc<<NodeType::NodeType as PipelineNode>::RunContext>,
+		ctx: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 		pipeline_name: String,
 		// TODO: pipeline name type
-		pipelines: &Vec<(SmartString<LazyCompact>, Arc<Pipeline<NodeType>>)>,
-	) -> Result<Pipeline<NodeType>, PipelinePrepareError> {
+		pipelines: &Vec<(SmartString<LazyCompact>, Arc<Pipeline<StubType>>)>,
+	) -> Result<Pipeline<StubType>, PipelinePrepareError> {
 		let mut node_output_name_map: HashMap<PipelineNodeLabel, GraphNodeIdx> = HashMap::new();
 		let mut node_input_name_map: HashMap<PipelineNodeLabel, GraphNodeIdx> = HashMap::new();
 

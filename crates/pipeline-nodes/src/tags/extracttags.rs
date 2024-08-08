@@ -8,17 +8,19 @@ use ufo_audiofile::{
 	flac::flac_read_tags,
 };
 use ufo_pipeline::{
-	data::{PipelineData, PipelineDataType},
 	errors::PipelineError,
 	node::{PipelineNode, PipelineNodeState},
 };
 use ufo_util::mime::MimeType;
 
-use crate::UFOContext;
+use crate::{
+	data::{UFOData, UFODataStub},
+	UFOContext,
+};
 
 #[derive(Clone)]
 pub struct ExtractTags {
-	data: Option<PipelineData>,
+	data: Option<UFOData>,
 	tags: Vec<TagType>,
 }
 
@@ -42,16 +44,17 @@ impl ExtractTags {
 }
 
 impl PipelineNode for ExtractTags {
-	type RunContext = UFOContext;
+	type NodeContext = UFOContext;
+	type DataType = UFOData;
 
 	fn init<F>(
 		&mut self,
-		_ctx: Arc<Self::RunContext>,
-		mut input: Vec<PipelineData>,
+		_ctx: Arc<Self::NodeContext>,
+		mut input: Vec<Self::DataType>,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		assert!(input.len() == 1);
 		self.data = Some(input.pop().unwrap());
@@ -60,14 +63,14 @@ impl PipelineNode for ExtractTags {
 
 	fn run<F>(
 		&mut self,
-		_ctx: Arc<Self::RunContext>,
+		_ctx: Arc<Self::NodeContext>,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let (data_type, data) = match self.data.as_ref().unwrap() {
-			PipelineData::Binary {
+			UFOData::Binary {
 				format: data_type,
 				data,
 			} => (data_type, data),
@@ -83,9 +86,9 @@ impl PipelineNode for ExtractTags {
 
 		for (i, tag_type) in self.tags.iter().enumerate() {
 			if let Some(tag_value) = tagger.get_tag(tag_type) {
-				send_data(i, PipelineData::Text(Arc::new(tag_value)))?;
+				send_data(i, UFOData::Text(Arc::new(tag_value)))?;
 			} else {
-				send_data(i, PipelineData::None(PipelineDataType::Text))?;
+				send_data(i, UFOData::None(UFODataStub::Text))?;
 			}
 		}
 

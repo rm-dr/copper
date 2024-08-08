@@ -11,10 +11,9 @@ use threadpool::ThreadPool;
 
 use super::util::{EdgeValue, NodeRunState};
 use crate::{
-	data::PipelineData,
 	errors::PipelineError,
 	graph::util::GraphNodeIdx,
-	node::{PipelineNode, PipelineNodeState, PipelineNodeStub},
+	node::{PipelineData, PipelineNode, PipelineNodeState, PipelineNodeStub},
 	pipeline::Pipeline,
 	syntax::{errors::PipelinePrepareError, labels::PipelineNodeLabel, spec::PipelineSpec},
 };
@@ -22,13 +21,13 @@ use crate::{
 /// A prepared data processing pipeline.
 /// This is guaranteed to be correct:
 /// no dependency cycles, no port type mismatch, etc
-pub struct PipelineRunner<NodeType: PipelineNodeStub> {
-	_p: PhantomData<NodeType>,
-	pipelines: Vec<(SmartString<LazyCompact>, Arc<Pipeline<NodeType>>)>,
+pub struct PipelineRunner<StubType: PipelineNodeStub> {
+	_p: PhantomData<StubType>,
+	pipelines: Vec<(SmartString<LazyCompact>, Arc<Pipeline<StubType>>)>,
 	node_runners: usize,
 }
 
-impl<NodeType: PipelineNodeStub> PipelineRunner<NodeType> {
+impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	pub fn new(node_runners: usize) -> Self {
 		Self {
 			_p: PhantomData,
@@ -39,7 +38,7 @@ impl<NodeType: PipelineNodeStub> PipelineRunner<NodeType> {
 
 	pub fn add_pipeline(
 		&mut self,
-		ctx: Arc<<NodeType::NodeType as PipelineNode>::RunContext>,
+		ctx: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 		path: &Path,
 		pipeline_name: String,
 	) -> Result<(), PipelinePrepareError> {
@@ -51,7 +50,7 @@ impl<NodeType: PipelineNodeStub> PipelineRunner<NodeType> {
 		f.read_to_string(&mut s)
 			.map_err(|error| PipelinePrepareError::CouldNotReadFile { error })?;
 
-		let spec: PipelineSpec<NodeType> = toml::from_str(&s)
+		let spec: PipelineSpec<StubType> = toml::from_str(&s)
 			.map_err(|error| PipelinePrepareError::CouldNotParseFile { error })?;
 
 		let p = spec.prepare(ctx.clone(), pipeline_name.clone(), &self.pipelines)?;
@@ -62,7 +61,7 @@ impl<NodeType: PipelineNodeStub> PipelineRunner<NodeType> {
 	pub fn get_pipeline(
 		&self,
 		pipeline_name: SmartString<LazyCompact>,
-	) -> Option<Arc<Pipeline<NodeType>>> {
+	) -> Option<Arc<Pipeline<StubType>>> {
 		self.pipelines
 			.iter()
 			.find(|(x, _)| x == &pipeline_name)
@@ -70,13 +69,13 @@ impl<NodeType: PipelineNodeStub> PipelineRunner<NodeType> {
 	}
 }
 
-impl<NodeType: PipelineNodeStub> PipelineRunner<NodeType> {
+impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	/// Run a pipeline to completion.
 	pub fn run(
 		&mut self,
-		ctx: Arc<<NodeType::NodeType as PipelineNode>::RunContext>,
+		ctx: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 		pipeline_name: SmartString<LazyCompact>,
-		pipeline_inputs: Vec<PipelineData>,
+		pipeline_inputs: Vec<<StubType::NodeType as PipelineNode>::DataType>,
 	) -> Result<(), PipelineError> {
 		let pipeline = self.get_pipeline(pipeline_name).unwrap();
 
@@ -131,8 +130,16 @@ impl<NodeType: PipelineNodeStub> PipelineRunner<NodeType> {
 		// Contents are (node index, port index, data)
 		#[allow(clippy::type_complexity)]
 		let (send_data, receive_data): (
-			Sender<(GraphNodeIdx, usize, PipelineData)>,
-			Receiver<(GraphNodeIdx, usize, PipelineData)>,
+			Sender<(
+				GraphNodeIdx,
+				usize,
+				<StubType::NodeType as PipelineNode>::DataType,
+			)>,
+			Receiver<(
+				GraphNodeIdx,
+				usize,
+				<StubType::NodeType as PipelineNode>::DataType,
+			)>,
 		) = unbounded();
 
 		// Channel for node status. A node's return status is sent here when it finishes.
@@ -232,15 +239,19 @@ impl<NodeType: PipelineNodeStub> PipelineRunner<NodeType> {
 	#[inline]
 	fn try_run_node(
 		&mut self,
-		ctx: Arc<<NodeType::NodeType as PipelineNode>::RunContext>,
-		pipeline_inputs: &Vec<PipelineData>,
+		ctx: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+		pipeline_inputs: &Vec<<StubType::NodeType as PipelineNode>::DataType>,
 		node: GraphNodeIdx,
-		node_instances: &mut Vec<(PipelineNodeLabel, Arc<Mutex<NodeType::NodeType>>)>,
-		pipeline: Arc<Pipeline<NodeType>>,
+		node_instances: &mut Vec<(PipelineNodeLabel, Arc<Mutex<StubType::NodeType>>)>,
+		pipeline: Arc<Pipeline<StubType>>,
 		pool: &ThreadPool,
 		node_status: &mut [NodeRunState],
-		edge_values: &mut [EdgeValue],
-		send_data: Sender<(GraphNodeIdx, usize, PipelineData)>,
+		edge_values: &mut [EdgeValue<<StubType::NodeType as PipelineNode>::DataType>],
+		send_data: Sender<(
+			GraphNodeIdx,
+			usize,
+			<StubType::NodeType as PipelineNode>::DataType,
+		)>,
 		send_status: Sender<(GraphNodeIdx, Result<PipelineNodeState, PipelineError>)>,
 	) -> Result<(), PipelineError> {
 		// Skip nodes we've already run and nodes that are running right now.
@@ -281,7 +292,7 @@ impl<NodeType: PipelineNodeStub> PipelineRunner<NodeType> {
 				let node_type = &pipeline.graph.get_node(node).1;
 				let mut inputs = Vec::with_capacity(node_type.inputs(ctx.clone()).len());
 				for (_, t) in node_type.inputs(ctx.clone()).iter() {
-					inputs.push(PipelineData::None(t));
+					inputs.push(PipelineData::new_empty(t));
 				}
 
 				// Now, fill input values
