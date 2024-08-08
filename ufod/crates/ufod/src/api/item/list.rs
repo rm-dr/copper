@@ -78,6 +78,7 @@ pub(super) enum ItemListData {
 		size: Option<u64>,
 	},
 	Blob {
+		format: Option<MimeType>,
 		handle: Option<BlobHandle>,
 		size: Option<u64>,
 	},
@@ -216,6 +217,7 @@ pub(super) async fn list_item(
 						size: None,
 					},
 					MetastoreDataStub::Blob => ItemListData::Blob {
+						format: None,
 						handle: None,
 						size: None,
 					},
@@ -275,6 +277,7 @@ pub(super) async fn list_item(
 					};
 
 					ItemListData::Blob {
+						format: Some(MimeType::Flac),
 						handle: Some(*handle),
 						size: Some(size),
 					}
