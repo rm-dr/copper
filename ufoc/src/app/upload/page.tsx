@@ -21,11 +21,14 @@ export default function Page() {
 	});
 
 	const [selectedPipeline, setSelectedPipeline] = useState<string | null>(null);
+	const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
 
 	var upload_ac = useRef(new AbortController());
 
 	const panel_pipeline = usePipelinePanel({
 		setSelectedPipeline,
+		setSelectedDataset,
+		selectedDataset,
 	});
 
 	const panel_input = useInputPanel({

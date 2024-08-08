@@ -1,20 +1,55 @@
-import { Select } from "@mantine/core";
 import styles from "../page.module.scss";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { Panel, PanelSection } from "../../components/panel";
 import {
 	XIconAdjustments,
-	XIconCpu,
 	XIconHex,
 	XIconPipeline,
 } from "@/app/components/icons";
 import { PanelSwitch } from "@/app/components/panel/parts/switch";
 import { PanelText } from "@/app/components/panel/parts/text";
+import { ApiSelector } from "@/app/components/apiselect";
 
 export function usePipelinePanel(params: {
 	setSelectedPipeline: Dispatch<SetStateAction<string | null>>;
+	setSelectedDataset: Dispatch<SetStateAction<string | null>>;
+	selectedDataset: string | null;
 }) {
-	const PipelineSelector = usePipelineSelector(params.setSelectedPipeline);
+	const update_datasets = async (_: null) => {
+		const res = await fetch("/api/dataset/list");
+		const data: { name: string; ds_type: string }[] = await res.json();
+
+		return data.map(({ name }) => {
+			return {
+				label: name,
+				value: name,
+				disabled: false,
+			};
+		});
+	};
+
+	const update_pipelines = async (dataset: string | null) => {
+		if (dataset === null) {
+			return Promise.resolve(null);
+		}
+
+		const res = await fetch(
+			"/api/pipeline/list?" +
+				new URLSearchParams({
+					dataset,
+				}),
+		);
+
+		const data: { input_type: string; name: string }[] = await res.json();
+
+		return data.map(({ name, input_type }) => {
+			return {
+				label: name,
+				value: name,
+				disabled: input_type == "None",
+			};
+		});
+	};
 
 	return (
 		<>
@@ -24,7 +59,30 @@ export function usePipelinePanel(params: {
 				title={"Pipeline"}
 			>
 				<PanelSection icon={<XIconHex />} title={"Select pipeline"}>
-					{PipelineSelector}
+					<ApiSelector
+						onSelect={params.setSelectedDataset}
+						update_params={null}
+						update_list={update_datasets}
+						messages={{
+							nothingmsg_normal: "No datasets found",
+							nothingmsg_empty: "No datasets are available",
+							placeholder_error: "could not fetch datasets",
+							placeholder_normal: "select dataset",
+						}}
+					/>
+
+					<ApiSelector
+						onSelect={params.setSelectedPipeline}
+						update_params={params.selectedDataset}
+						update_list={update_pipelines}
+						messages={{
+							nothingmsg_normal: "No pipelines found",
+							nothingmsg_empty: "This dataset has no pipelines",
+							placeholder_error: "could not fetch pipelines",
+							placeholder_normal: "select pipeline",
+							message_null: "select a dataset",
+						}}
+					/>
 				</PanelSection>
 
 				<PanelSection icon={<XIconAdjustments />} title={"Configure arguments"}>
@@ -37,76 +95,5 @@ export function usePipelinePanel(params: {
 				</PanelSection>
 			</Panel>
 		</>
-	);
-}
-
-type PipelineSelectorData = {
-	pipelines: {
-		name: string;
-		input_type: string;
-	}[];
-	error: boolean;
-};
-
-// Search for a pipeline
-function usePipelineSelector(onPipelineSelect: (value: string | null) => void) {
-	const [plSelectorState, setPlSelectorState] = useState<PipelineSelectorData>({
-		pipelines: [],
-		error: false,
-	});
-
-	// Periodically refresh pipeline list
-	// (not strictly necessary, but this helps us recover from errors)
-	useEffect(() => {
-		const update_pipeline_list = () => {
-			fetch("/api/pipeline/list")
-				.then((res) => res.json())
-				.then((data) => {
-					setPlSelectorState({
-						pipelines: data,
-						error: false,
-					});
-				})
-				.catch(() => {
-					setPlSelectorState({
-						pipelines: [],
-						error: true,
-					});
-				});
-		};
-
-		// First call has no delay
-		update_pipeline_list();
-		const id = setInterval(update_pipeline_list, 10_000);
-		return () => clearInterval(id);
-	}, []);
-
-	return (
-		<Select
-			nothingFoundMessage="No pipeline found..."
-			placeholder={
-				plSelectorState.error
-					? "Error: could not fetch pipelines from server"
-					: "select a pipeline..."
-			}
-			data={plSelectorState.pipelines.map(({ name, input_type }) => {
-				return {
-					value: name,
-					label: name,
-					disabled: input_type == "None",
-				};
-			})}
-			onOptionSubmit={onPipelineSelect}
-			onClear={() => {
-				onPipelineSelect(null);
-			}}
-			comboboxProps={{
-				transitionProps: { transition: "fade-down", duration: 200 },
-			}}
-			error={plSelectorState.error}
-			disabled={plSelectorState.error}
-			searchable
-			clearable
-		/>
 	);
 }
