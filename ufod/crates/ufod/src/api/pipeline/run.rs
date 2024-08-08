@@ -6,7 +6,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 use tracing::error;
 use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
 use ufo_node_base::{
@@ -25,7 +25,8 @@ pub(super) struct AddJobParams {
 	#[serde(flatten)]
 	pub pipe: PipelineSelect,
 
-	pub input: AddJobInput,
+	#[schema(value_type = BTreeMap<String, UFOData>)]
+	pub input: BTreeMap<SmartString<LazyCompact>, AddJobInput>,
 }
 
 /// Input that is passed to the pipeline we're running
@@ -132,66 +133,70 @@ pub(super) async fn run_pipeline(
 		}
 	};
 
-	let bound_upload_job: Option<SmartString<LazyCompact>>;
-	let inputs = match payload.input {
-		AddJobInput::File {
-			upload_job,
-			file_name,
-		} => {
-			bound_upload_job = Some(upload_job.clone());
+	let mut bound_upload_jobs = Vec::new();
+	let mut inputs = BTreeMap::new();
 
-			match state
-				.uploader
-				.has_file_been_finished(&upload_job, &file_name)
-				.await
-			{
-				Some(true) => {}
-				Some(false) => {
+	for (name, value) in payload.input {
+		match value {
+			AddJobInput::File {
+				upload_job,
+				file_name,
+			} => {
+				bound_upload_jobs.push(upload_job.clone());
+
+				match state
+					.uploader
+					.has_file_been_finished(&upload_job, &file_name)
+					.await
+				{
+					Some(true) => {}
+					Some(false) => {
+						return (
+							StatusCode::BAD_REQUEST,
+							format!("File `{file_name}` has not finished uploading"),
+						)
+							.into_response();
+					}
+					None => {
+						return (StatusCode::BAD_REQUEST, "Bad upload job or file").into_response();
+					}
+				};
+
+				let path = state
+					.uploader
+					.get_job_file_path(&upload_job, &file_name)
+					.await;
+
+				let path = if let Some(path) = path {
+					UFOData::Bytes {
+						mime: {
+							path.extension()
+								.map(|x| {
+									MimeType::from_extension(x.to_str().unwrap())
+										.unwrap_or(MimeType::Blob)
+								})
+								.unwrap_or(MimeType::Blob)
+						},
+						source: BytesSource::File { path },
+					}
+				} else {
+					// This shouldn't ever happen, since we checked for existence above
+					error!(
+						message = "Could not get upload file path",
+						upload_job = ?upload_job,
+						file_name = ?file_name
+					);
 					return (
-						StatusCode::BAD_REQUEST,
-						format!("File `{file_name}` has not finished uploading"),
+						StatusCode::INTERNAL_SERVER_ERROR,
+						"Could not get upload file path",
 					)
 						.into_response();
-				}
-				None => {
-					return (StatusCode::BAD_REQUEST, "Bad upload job or file").into_response();
-				}
-			};
+				};
 
-			let path = state
-				.uploader
-				.get_job_file_path(&upload_job, &file_name)
-				.await;
-
-			let path = if let Some(path) = path {
-				UFOData::Bytes {
-					mime: {
-						path.extension()
-							.map(|x| {
-								MimeType::from_extension(x.to_str().unwrap())
-									.unwrap_or(MimeType::Blob)
-							})
-							.unwrap_or(MimeType::Blob)
-					},
-					source: BytesSource::File { path },
-				}
-			} else {
-				// This shouldn't ever happen, since we checked for existence above
-				error!(
-					message = "Could not get upload file path",
-					upload_job = ?upload_job,
-					file_name = ?file_name
-				);
-				return (
-					StatusCode::INTERNAL_SERVER_ERROR,
-					"Could not get upload file path",
-				)
-					.into_response();
-			};
-
-			vec![path]
+				inputs.insert(name, path);
+			}
 		}
-	};
+	}
 
 	let new_id = runner.add_job(
 		UFOContext {
@@ -202,7 +207,7 @@ pub(super) async fn run_pipeline(
 		inputs,
 	);
 
-	if let Some(j) = bound_upload_job {
+	for j in bound_upload_jobs {
 		match state.uploader.bind_job_to_pipeline(&j, new_id).await {
 			Ok(()) => {}
 			Err(e) => {

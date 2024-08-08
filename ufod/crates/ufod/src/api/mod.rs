@@ -10,7 +10,10 @@ use ufo_ds_core::{
 	data::{HashType, MetastoreDataStub},
 };
 use ufo_ds_impl::DatasetType;
-use ufo_node_base::{data::UFOData, UFOContext};
+use ufo_node_base::{
+	data::{UFOData, UFODataStub},
+	UFOContext,
+};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -89,7 +92,9 @@ impl Modify for BearerSecurityAddon {
 		UserId,
 		UserInfo,
 		AttrInfo,
-		ClassInfo
+		ClassInfo,
+		UFODataStub,
+		UFOData,
 	))
 )]
 struct ApiDoc;

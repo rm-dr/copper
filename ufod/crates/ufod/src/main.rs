@@ -62,26 +62,67 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		max_active_jobs: 8,
 	});
 
+	// Base nodes
+	{
+		use ufo_node_base::nodes::{AddItem, Constant, FindItem, Hash, IfNone};
+
+		runner
+			.mut_dispatcher()
+			.register_node("Constant", vec![], &|ctx, params| {
+				Ok(Box::new(Constant::new(ctx, params)))
+			})
+			.unwrap();
+
+		runner
+			.mut_dispatcher()
+			.register_node("Hash", vec![], &|ctx, params| {
+				Ok(Box::new(Hash::new(ctx, params)))
+			})
+			.unwrap();
+
+		runner
+			.mut_dispatcher()
+			.register_node("IfNone", vec![], &|ctx, params| {
+				Ok(Box::new(IfNone::new(ctx, params)))
+			})
+			.unwrap();
+
+		runner
+			.mut_dispatcher()
+			.register_node("AddItem", vec![], &|ctx, params| {
+				Ok(Box::new(AddItem::new(ctx, params)))
+			})
+			.unwrap();
+
+		runner
+			.mut_dispatcher()
+			.register_node("FindItem", vec![], &|ctx, params| {
+				Ok(Box::new(FindItem::new(ctx, params)))
+			})
+			.unwrap();
+	}
+
+	// Audiofile nodes
 	{
 		use ufo_audiofile::nodes::{ExtractCovers, ExtractTags, StripTags};
 
 		runner
 			.mut_dispatcher()
-			.register_node("striptags", vec![], &|ctx, params| {
+			.register_node("StripTags", vec![], &|ctx, params| {
 				Ok(Box::new(StripTags::new(ctx, params)))
 			})
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("extractcovers", vec![], &|ctx, params| {
+			.register_node("ExtractCovers", vec![], &|ctx, params| {
 				Ok(Box::new(ExtractCovers::new(ctx, params)))
 			})
 			.unwrap();
 
 		runner
 			.mut_dispatcher()
-			.register_node("extracttags", vec![], &|ctx, params| {
+			.register_node("ExtractTags", vec![], &|ctx, params| {
 				Ok(Box::new(ExtractTags::new(ctx, params)))
 			})
 			.unwrap();

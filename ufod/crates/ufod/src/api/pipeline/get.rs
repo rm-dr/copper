@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use axum::{
 	extract::{Query, State},
 	http::StatusCode,
@@ -12,7 +14,7 @@ use ufo_node_base::UFOContext;
 use ufo_pipeline::labels::{PipelineName, PipelineNodeID};
 use utoipa::ToSchema;
 
-use super::list::{PipelineInfoInput, PipelineInfoShort};
+use super::list::PipelineInfoShort;
 use super::PipelineSelect;
 use crate::RouterState;
 
@@ -25,10 +27,6 @@ pub(super) struct PipelineInfo {
 	/// A list of nodes in this pipeline
 	#[schema(value_type = Vec<String>)]
 	pub nodes: Vec<PipelineNodeID>,
-
-	/// This pipeline's input node
-	#[schema(value_type = String)]
-	pub input_node: PipelineNodeID,
 }
 
 /// Get details about a pipeline
@@ -94,22 +92,20 @@ pub(super) async fn get_pipeline(
 	{
 		Ok(Some(pipe)) => {
 			let node_ids = pipe.iter_node_ids().cloned().collect::<Vec<_>>();
-			let input_node_type = pipe.get_node(pipe.input_node_id()).unwrap();
 
 			return (
 				StatusCode::OK,
 				Json(Some(PipelineInfo {
 					short: PipelineInfoShort {
 						name: pipeline_name,
-						input_type: match &input_node_type.node_type[..] {
-							// TODO: rework this
-							"file" => PipelineInfoInput::File,
-							_ => PipelineInfoInput::None,
-						},
+						inputs: pipe
+							.input_nodes()
+							.iter()
+							.map(|(n, t)| (n.to_string(), *t))
+							.collect(),
 						has_error: false,
 					},
 					nodes: node_ids,
-					input_node: pipe.input_node_id().clone(),
 				})),
 			)
 				.into_response();
@@ -131,11 +127,10 @@ pub(super) async fn get_pipeline(
 				Json(Some(PipelineInfo {
 					short: PipelineInfoShort {
 						name: pipeline_name,
-						input_type: PipelineInfoInput::None,
-						has_error: false,
+						inputs: BTreeMap::new(),
+						has_error: true,
 					},
 					nodes: vec![],
-					input_node: PipelineNodeID::new("INVALID"),
 				})),
 			)
 				.into_response();

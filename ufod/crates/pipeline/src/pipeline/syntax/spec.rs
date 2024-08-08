@@ -46,7 +46,8 @@ pub(crate) struct PipelineNodeSpec<DataType: PipelineData> {
 #[serde(bound = "DataType: DeserializeOwned")]
 pub(in super::super) struct PipelineSpec<DataType: PipelineData> {
 	/// The type of input this pipeline takes
-	pub input: PipelineNodeSpec<DataType>,
+	#[serde(default)]
+	pub input: HashMap<SmartString<LazyCompact>, <DataType as PipelineData>::DataStubType>,
 
 	/// Nodes in this pipeline
 	#[serde(default)]

@@ -102,7 +102,7 @@ pub(super) async fn get_runner_status(
 			RunningJobStatus {
 				job_id: *job_id,
 				pipeline: p.get_name().clone(),
-				input_exemplar: format!("{:?}", job.get_input().first().unwrap()),
+				input_exemplar: format!("{:?}", job.get_input().first_key_value().unwrap().0),
 				node_status: p
 					.iter_node_ids()
 					.map(|l| RunningNodeStatus {

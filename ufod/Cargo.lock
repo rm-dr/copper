@@ -3191,6 +3191,7 @@ dependencies = [
  "itertools",
  "md5",
  "serde",
+ "serde_json",
  "serde_with",
  "sha2",
  "smartstring",
@@ -3198,6 +3199,7 @@ dependencies = [
  "ufo-ds-impl",
  "ufo-pipeline",
  "ufo-util",
+ "utoipa",
 ]
 
 [[package]]

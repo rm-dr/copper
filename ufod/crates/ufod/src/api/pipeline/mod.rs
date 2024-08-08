@@ -31,7 +31,6 @@ pub(in crate::api) struct PipelineSelect {
 		AddJobParams,
 		PipelineListRequest,
 		PipelineInfoShort,
-		PipelineInfoInput,
 		PipelineInfo
 	))
 )]

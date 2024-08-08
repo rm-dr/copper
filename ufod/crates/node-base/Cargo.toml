@@ -30,3 +30,5 @@ crossbeam = { workspace = true }
 sha2 = { workspace = true }
 md5 = { workspace = true }
 futures = { workspace = true }
+serde_json = { workspace = true }
+utoipa = { workspace = true }

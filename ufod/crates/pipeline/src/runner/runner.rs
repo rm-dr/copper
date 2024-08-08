@@ -1,7 +1,11 @@
 //! Top-level pipeline runner.
 //! Runs a set of jobs asyncronously and in parallel.
 
-use std::{collections::VecDeque, sync::Arc};
+use smartstring::{LazyCompact, SmartString};
+use std::{
+	collections::{BTreeMap, VecDeque},
+	sync::Arc,
+};
 use tracing::{debug, warn};
 
 use super::single::{PipelineSingleJob, PipelineSingleJobError, SingleJobState};
@@ -32,7 +36,7 @@ pub struct CompletedJob<DataType: PipelineData> {
 	pub pipeline: PipelineName,
 
 	/// The arguments this pipeline was run with
-	pub input: Vec<DataType>,
+	pub input: BTreeMap<SmartString<LazyCompact>, DataType>,
 
 	/// The state of each node when this pipeline finished running
 	pub node_states: Vec<(bool, PipelineNodeState)>,
@@ -48,7 +52,7 @@ pub struct FailedJob<DataType: PipelineData> {
 	pub pipeline: PipelineName,
 
 	/// The arguments this pipeline was run with
-	pub input: Vec<DataType>,
+	pub input: BTreeMap<SmartString<LazyCompact>, DataType>,
 
 	/// The state of each node when this pipeline finished running
 	pub node_states: Vec<(bool, PipelineNodeState)>,
@@ -104,11 +108,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 		&mut self,
 		context: ContextType,
 		pipeline: Arc<Pipeline<DataType, ContextType>>,
-		pipeline_inputs: Vec<DataType>,
+		pipeline_inputs: BTreeMap<SmartString<LazyCompact>, DataType>,
 	) -> u128 {
 		debug!(
 			message = "Adding job",
-			pipeline = ?pipeline.get_name(),
+			pipeline = ?pipeline.name,
 			inputs = ?pipeline_inputs
 		);
 
@@ -203,7 +207,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 						self.completed_jobs.push_back(CompletedJob {
 							job_id: *id,
 							pipeline: x.get_pipeline().name.clone(),
-							input: x.get_input().clone(),
+							input: x.input.clone(),
 
 							node_states: x
 								.get_pipeline()

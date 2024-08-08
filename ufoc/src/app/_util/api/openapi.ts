@@ -562,7 +562,9 @@ export interface components {
 			upload_job: string;
 		};
 		AddJobParams: components["schemas"]["PipelineSelect"] & {
-			input: components["schemas"]["AddJobInput"];
+			input: {
+				[key: string]: components["schemas"]["UFOData"] | undefined;
+			};
 		};
 		AddgroupRequest: {
 			name: string;
@@ -853,18 +855,17 @@ export interface components {
 		};
 		/** @description A pipeline specification */
 		PipelineInfo: components["schemas"]["PipelineInfoShort"] & {
-			/** @description This pipeline's input node */
-			input_node: string;
 			/** @description A list of nodes in this pipeline */
 			nodes: string[];
 		};
-		/** @enum {string} */
-		PipelineInfoInput: "None" | "File";
 		/** @description A pipeline specification */
 		PipelineInfoShort: {
 			/** @description If true, we couldn't load this pipeline successfully. */
 			has_error: boolean;
-			input_type: components["schemas"]["PipelineInfoInput"];
+			/** @description The input this pipeline takes */
+			inputs: {
+				[key: string]: components["schemas"]["UFODataStub"] | undefined;
+			};
 			/** @description This pipeline's name */
 			name: string;
 		};
@@ -934,6 +935,57 @@ export interface components {
 			 */
 			version: string;
 		};
+		/** @description Immutable bits of data inside a pipeline.
+		 *
+		 *     Cloning [`UFOData`] should be very fast. Consider wrapping
+		 *     big containers in an [`Arc`].
+		 *
+		 *     Any variant that has a "deserialize" implementation
+		 *     may be used as a parameter in certain nodes.
+		 *     (for example, the `Constant` node's `value` field)
+		 *
+		 *     This is very similar to [`MetastoreData`]. In fact, we often convert between the two.
+		 *     We can't use [`MetastoreData`] everywhere, though... Data inside a pipeline is represented
+		 *     slightly differently than data inside a metastore. (For example, look at the `Blob` variant.
+		 *     In a metastore, `Blob`s are always stored in a blobstore. Here, they are given as streams.)
+		 *
+		 *     Also, some types that exist here cannot exist inside a metastore (for example, `Path`, which
+		 *     represents a file path that is available when the pipeline is run. This path may vanish later.) */
+		UFOData: string;
+		UFODataStub:
+			| {
+					/** @enum {string} */
+					type: "Text";
+			  }
+			| {
+					/** @enum {string} */
+					type: "Bytes";
+			  }
+			| {
+					is_non_negative: boolean;
+					/** @enum {string} */
+					type: "Integer";
+			  }
+			| {
+					is_non_negative: boolean;
+					/** @enum {string} */
+					type: "Float";
+			  }
+			| {
+					/** @enum {string} */
+					type: "Boolean";
+			  }
+			| {
+					hash_type: components["schemas"]["HashType"];
+					/** @enum {string} */
+					type: "Hash";
+			  }
+			| {
+					/** Format: int32 */
+					class: number;
+					/** @enum {string} */
+					type: "Reference";
+			  };
 		/** @description Parameters to finish an uploading file */
 		UploadFinish: {
 			/**

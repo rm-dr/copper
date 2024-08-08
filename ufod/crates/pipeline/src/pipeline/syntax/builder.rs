@@ -1,7 +1,11 @@
 //! A user-provided pipeline specification
 
 use itertools::Itertools;
-use std::{cell::RefCell, collections::HashMap, marker::PhantomData};
+use std::{
+	cell::RefCell,
+	collections::{BTreeMap, HashMap},
+	marker::PhantomData,
+};
 use tracing::{debug, trace};
 
 use super::{
@@ -11,7 +15,7 @@ use super::{
 };
 use crate::{
 	api::{PipelineData, PipelineDataStub, PipelineJobContext},
-	dispatcher::NodeDispatcher,
+	dispatcher::{NodeDispatcher, NodeParameterValue},
 	graph::{graph::Graph, util::GraphNodeIdx},
 	labels::{PipelineName, PipelineNodeID},
 	pipeline::pipeline::{Pipeline, PipelineEdgeData, PipelineNodeData},
@@ -37,7 +41,7 @@ pub(in super::super) struct PipelineBuilder<
 	graph: RefCell<Graph<PipelineNodeData<DataType>, PipelineEdgeData>>,
 
 	/// The index of this pipeline's input node
-	input_node_idx: GraphNodeIdx,
+	input_nodes: Vec<GraphNodeIdx>,
 
 	/// Map node names to node indices
 	/// (used when connecting port-to-port outputs)
@@ -71,12 +75,21 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
 		let builder = {
 			let mut graph = Graph::new();
 
-			// Add input and output nodes to the graph
-			let input_node_idx = graph.add_node(PipelineNodeData {
-				id: PipelineNodeID::new("INPUT"),
-				node_type: spec.input.node_type.clone(),
-				node_params: spec.input.node_params.clone(),
-			});
+			// Add input nodes to the graph
+			let input_nodes = spec
+				.input
+				.iter()
+				.map(|(name, data_type)| {
+					graph.add_node(PipelineNodeData {
+						id: PipelineNodeID::new(name),
+						node_type: "Constant".into(),
+						node_params: BTreeMap::from([(
+							"value".into(),
+							NodeParameterValue::Data(DataType::disconnected(*data_type)),
+						)]),
+					})
+				})
+				.collect();
 
 			Self {
 				_pa: PhantomData {},
@@ -88,7 +101,7 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
 				spec,
 
 				graph: RefCell::new(graph),
-				input_node_idx,
+				input_nodes,
 				node_output_name_map_ptp: RefCell::new(HashMap::new()),
 				node_input_name_map_ptp: RefCell::new(HashMap::new()),
 				node_output_name_map_after: RefCell::new(HashMap::new()),
@@ -104,7 +117,7 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
 				for (input_name, out_link) in &node_spec.inputs {
 					builder.check_link(
 						out_link,
-						&NodeInput::Node {
+						&NodeInput {
 							node: node_id.clone(),
 							port: input_name.clone(),
 						},
@@ -202,7 +215,7 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
 			_pb: PhantomData {},
 			name: builder.name,
 			graph: builder.graph.into_inner().finalize(),
-			input_node_idx: builder.input_node_idx,
+			input_nodes: builder.input_nodes,
 		});
 	}
 
@@ -214,44 +227,26 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
 		node_idx: GraphNodeIdx,
 		out_link: &NodeOutput,
 	) -> Result<(), PipelinePrepareError<DataType>> {
-		match out_link {
-			NodeOutput::Pipeline { port } => {
-				let node_spec = &self.spec.input;
-				let node_inst = self
-					.dispatcher
-					.make_node(self.context, &node_spec.node_type, &node_spec.node_params)
-					.unwrap();
-				let out_port = node_inst
-					.outputs()
-					.iter()
-					.find_position(|x| x.name == *port)
-					.unwrap();
+		let node_spec = self.spec.nodes.get(&out_link.node).unwrap();
+		let node_inst = self
+			.dispatcher
+			.make_node(self.context, &node_spec.node_type, &node_spec.node_params)
+			.unwrap();
+		let out_port = node_inst
+			.outputs()
+			.iter()
+			.find_position(|x| x.name == out_link.port)
+			.unwrap();
 
-				self.graph.borrow_mut().add_edge(
-					self.input_node_idx,
-					node_idx,
-					PipelineEdgeData::PortToPort((out_port.0, in_port)),
-				);
-			}
-			NodeOutput::Node { node, port } => {
-				let node_spec = self.spec.nodes.get(node).unwrap();
-				let node_inst = self
-					.dispatcher
-					.make_node(self.context, &node_spec.node_type, &node_spec.node_params)
-					.unwrap();
-				let out_port = node_inst
-					.outputs()
-					.iter()
-					.find_position(|x| x.name == *port)
-					.unwrap();
-
-				self.graph.borrow_mut().add_edge(
-					*self.node_output_name_map_ptp.borrow().get(node).unwrap(),
-					node_idx,
-					PipelineEdgeData::PortToPort((out_port.0, in_port)),
-				);
-			}
-		}
+		self.graph.borrow_mut().add_edge(
+			*self
+				.node_output_name_map_ptp
+				.borrow()
+				.get(&out_link.node)
+				.unwrap(),
+			node_idx,
+			PipelineEdgeData::PortToPort((out_port.0, in_port)),
+		);
 
 		Ok(())
 	}
@@ -272,77 +267,57 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
 	) -> Result<(), PipelinePrepareError<DataType>> {
 		// Find the datatype of the output port we're connecting to.
 		// While doing this, make sure both the output node and port exist.
-		let output_type: <DataType as PipelineData>::DataStubType = match output {
-			NodeOutput::Pipeline { port } => {
-				let get_node = &self.spec.input;
-				let node = self
-					.dispatcher
-					.make_node(self.context, &get_node.node_type, &get_node.node_params)
-					.unwrap();
-
-				node.outputs()
-					.iter()
-					.find(|x| x.name == *port)
-					.unwrap()
-					.produces_type
+		let output_type: <DataType as PipelineData>::DataStubType = {
+			let get_node = self.spec.nodes.get(&output.node);
+			if get_node.is_none() {
+				return Err(PipelinePrepareError::NoNode {
+					node: output.node.clone(),
+					caused_by: input.clone(),
+				});
 			}
+			let get_node = get_node.unwrap();
 
-			NodeOutput::Node { node, port } => {
-				let get_node = self.spec.nodes.get(node);
-				if get_node.is_none() {
-					return Err(PipelinePrepareError::NoNode {
-						node: node.clone(),
-						caused_by: input.clone(),
-					});
-				}
-				let get_node = get_node.unwrap();
+			let node = self
+				.dispatcher
+				.make_node(self.context, &get_node.node_type, &get_node.node_params)
+				.unwrap();
 
-				let node = self
-					.dispatcher
-					.make_node(self.context, &get_node.node_type, &get_node.node_params)
-					.unwrap();
-
-				node.outputs()
-					.iter()
-					.find(|x| x.name == *port)
-					.unwrap()
-					.produces_type
-			}
+			node.outputs()
+				.iter()
+				.find(|x| x.name == output.port)
+				.unwrap()
+				.produces_type
 		};
 
-		let input_type: <DataType as PipelineData>::DataStubType = match input {
-			NodeInput::Node { node, port } => {
-				let get_node = self.spec.nodes.get(node);
-				if get_node.is_none() {
-					return Err(PipelinePrepareError::NoNode {
-						node: node.clone(),
-						caused_by: input.clone(),
-					});
-				}
-				let get_node = get_node.unwrap();
-
-				let node = self
-					.dispatcher
-					.make_node(self.context, &get_node.node_type, &get_node.node_params)
-					.unwrap();
-
-				node.inputs()
-					.iter()
-					.find(|x| x.name == *port)
-					.unwrap()
-					.accepts_type
+		let input_type: <DataType as PipelineData>::DataStubType = {
+			let get_node = self.spec.nodes.get(&input.node);
+			if get_node.is_none() {
+				return Err(PipelinePrepareError::NoNode {
+					node: input.node.clone(),
+					caused_by: input.clone(),
+				});
 			}
+			let get_node = get_node.unwrap();
+
+			let node = self
+				.dispatcher
+				.make_node(self.context, &get_node.node_type, &get_node.node_params)
+				.unwrap();
+
+			node.inputs()
+				.iter()
+				.find(|x| x.name == input.port)
+				.unwrap()
+				.accepts_type
 		};
 
 		if !output_type.is_subset_of(&input_type) {
 			return Err(PipelinePrepareError::TypeMismatch {
-				output: match output {
-					NodeOutput::Node { node, port } => {
-						(PipelineErrorNode::Named(node.clone()), port.clone())
-					}
-					NodeOutput::Pipeline { port } => {
-						(PipelineErrorNode::PipelineInput, port.clone())
-					}
+				output: {
+					(
+						PipelineErrorNode::Named(output.node.clone()),
+						output.port.clone(),
+					)
 				},
 				output_type,
 				input: input.clone(),

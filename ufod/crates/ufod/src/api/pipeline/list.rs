@@ -1,4 +1,3 @@
-use crate::RouterState;
 use axum::{
 	extract::{Query, State},
 	http::StatusCode,
@@ -7,12 +6,18 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use tracing::error;
 use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
 use ufo_ds_impl::local::LocalDataset;
-use ufo_node_base::{data::UFOData, UFOContext};
+use ufo_node_base::{
+	data::{UFOData, UFODataStub},
+	UFOContext,
+};
 use ufo_pipeline::labels::PipelineName;
 use utoipa::{IntoParams, ToSchema};
+
+use crate::RouterState;
 
 #[derive(Deserialize, Serialize, ToSchema, Debug, IntoParams)]
 pub(super) struct PipelineListRequest {
@@ -28,19 +33,10 @@ pub(super) struct PipelineInfoShort {
 	pub name: PipelineName,
 
 	/// The input this pipeline takes
-	pub input_type: PipelineInfoInput,
+	pub inputs: BTreeMap<String, UFODataStub>,
 
 	/// If true, we couldn't load this pipeline successfully.
 	pub has_error: bool,
-}
-
-#[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub(super) enum PipelineInfoInput {
-	/// This pipeline's input may not be provided through the api
-	None,
-
-	/// This pipeline consumes a file
-	File,
 }
 
 /// Get all pipelines
@@ -122,27 +118,24 @@ pub(super) async fn list_pipelines(
 			)
 			.await
 		{
-			// This should never fail---all_pipelines must only return valid names.
 			Ok(x) => {
+				// This should never fail---all_pipelines must only return valid names.
 				let pipe = x.unwrap();
-
-				// Same thing here---this should not be none.
-				let input_node_type = pipe.get_node(pipe.input_node_id()).unwrap();
 
 				PipelineInfoShort {
 					name: pipe_name.clone(),
-					input_type: match &input_node_type.node_type[..] {
-						// TODO: rework this
-						"file" => PipelineInfoInput::File,
-						_ => PipelineInfoInput::None,
-					},
 					has_error: false,
+					inputs: pipe
+						.input_nodes()
+						.iter()
+						.map(|(n, t)| (n.to_string(), *t))
+						.collect(),
 				}
 			}
 
 			Err(PipestoreError::PipelinePrepareError(_)) => PipelineInfoShort {
 				name: pipe_name.clone(),
-				input_type: PipelineInfoInput::None,
+				inputs: BTreeMap::new(),
 				has_error: true,
 			},
 

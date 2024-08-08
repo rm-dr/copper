@@ -8,24 +8,12 @@ use crate::labels::{PipelineNodeID, PipelinePortID};
 /// An output port in the pipeline.
 /// (i.e, a port that produces data.)
 #[derive(Debug, Clone, Deserialize)]
-#[serde(untagged)]
-pub(crate) enum NodeOutput {
-	/// An output port of the pipeline
-	Pipeline {
-		/// The port's name
-		#[serde(rename = "pipeline")]
-		port: PipelinePortID,
-	},
+pub(crate) struct NodeOutput {
+	/// The node that provides this output
+	pub node: PipelineNodeID,
 
-	/// An output port of a node
-	Node {
-		/// The node that provides this output
-		node: PipelineNodeID,
-
-		/// The output's name
-		#[serde(rename = "output")]
-		port: PipelinePortID,
-	},
+	/// The output's name
+	pub port: PipelinePortID,
 }
 
 // TODO: better error
@@ -43,7 +31,7 @@ impl FromStr for NodeOutput {
 		let a = a.unwrap();
 		let b = b.unwrap();
 
-		Ok(Self::Node {
+		Ok(Self {
 			node: PipelineNodeID::new(a),
 			port: PipelinePortID::new(b),
 		})
@@ -53,15 +41,12 @@ impl FromStr for NodeOutput {
 /// An input port in the pipeline.
 /// (i.e, a port that consumes data.)
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub enum NodeInput {
-	/// An input port of a node
-	Node {
-		/// The node that provides this input
-		node: PipelineNodeID,
+pub(crate) struct NodeInput {
+	/// The node that provides this input
+	pub node: PipelineNodeID,
 
-		/// The port's name
-		port: PipelinePortID,
-	},
+	/// The port's name
+	pub port: PipelinePortID,
 }
 
 // TODO: better error
@@ -79,7 +64,7 @@ impl FromStr for NodeInput {
 		let a = a.unwrap();
 		let b = b.unwrap();
 
-		Ok(Self::Node {
+		Ok(Self {
 			node: PipelineNodeID::new(a),
 			port: PipelinePortID::new(b),
 		})

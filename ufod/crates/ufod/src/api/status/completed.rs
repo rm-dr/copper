@@ -51,7 +51,7 @@ pub(super) async fn get_runner_completed(
 		.map(|c| CompletedJobStatus {
 			job_id: c.job_id,
 			pipeline: c.pipeline.clone(),
-			input_exemplar: format!("{:?}", c.input.first().unwrap()),
+			input_exemplar: format!("{:?}", c.input.first_key_value().unwrap().0),
 		})
 		.collect();
 

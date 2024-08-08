@@ -4,6 +4,7 @@
 
 pub mod data;
 pub mod helpers;
+pub mod nodes;
 
 use std::sync::Arc;
 use ufo_ds_impl::local::LocalDataset;

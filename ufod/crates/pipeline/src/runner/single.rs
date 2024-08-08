@@ -1,6 +1,7 @@
 use crossbeam::channel::{unbounded, Receiver, Sender};
+use smartstring::{LazyCompact, SmartString};
 use std::{
-	collections::VecDeque,
+	collections::{BTreeMap, VecDeque},
 	error::Error,
 	fmt::Display,
 	sync::{Arc, Mutex},
@@ -15,7 +16,7 @@ use super::{
 };
 use crate::{
 	api::{PipelineData, PipelineJobContext, PipelineNode, PipelineNodeError, PipelineNodeState},
-	dispatcher::NodeDispatcher,
+	dispatcher::{NodeDispatcher, NodeParameterValue},
 	graph::util::GraphNodeIdx,
 	labels::PipelineNodeID,
 	pipeline::pipeline::{Pipeline, PipelineEdgeData},
@@ -78,7 +79,7 @@ pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobCon
 	pipeline: Arc<Pipeline<DataType, ContextType>>,
 
 	/// The input we ran this pipeline with
-	input: Vec<DataType>,
+	pub(crate) input: BTreeMap<SmartString<LazyCompact>, DataType>,
 
 	/// Mutable instances of each node in this pipeline
 	node_instances: Vec<NodeInstanceContainer<DataType>>,
@@ -162,7 +163,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 			})
 	}
 
-	pub fn get_input(&self) -> &Vec<DataType> {
+	pub fn get_input(&self) -> &BTreeMap<SmartString<LazyCompact>, DataType> {
 		&self.input
 	}
 }
@@ -176,7 +177,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 		context: ContextType,
 		dispatcher: &NodeDispatcher<DataType, ContextType>,
 		pipeline: Arc<Pipeline<DataType, ContextType>>,
-		input: Vec<DataType>,
+		input: BTreeMap<SmartString<LazyCompact>, DataType>,
 	) -> Self {
 		let instant_now = Instant::now();
 		trace!(message = "Making node instances", pipeline_name = ?pipeline.name);
@@ -184,33 +185,49 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 			.graph
 			.iter_nodes_idx()
 			.map(|(idx, node_spec)| {
-				let node = dispatcher
-					.make_node(&context, &node_spec.node_type, &node_spec.node_params)
-					.unwrap();
+				let node = if pipeline.input_nodes.contains(&idx) {
+					// If this is an input node, tweak its parameters...
+					assert!(node_spec.node_type == "Constant");
+					dispatcher
+						.make_node(
+							&context,
+							"Constant",
+							&BTreeMap::from([(
+								"value".into(),
+								input
+									.get(node_spec.id.id())
+									.map(|data| NodeParameterValue::Data(data.clone()))
+									.unwrap_or(NodeParameterValue::Data(DataType::disconnected(
+										match node_spec.node_params.get("value") {
+											Some(NodeParameterValue::DataType(t)) => *t,
+											_ => unreachable!(),
+										},
+									))),
+							)]),
+						)
+						.unwrap()
+				} else {
+					// Otherwise, create using the given parameters
+					dispatcher
+						.make_node(&context, &node_spec.node_type, &node_spec.node_params)
+						.unwrap()
+				};
 
 				let mut input_queue = VecDeque::new();
-				// Pass pipeline inputs to input node immediately
-				if idx == pipeline.input_node_idx {
-					for (i, d) in input.iter().enumerate() {
-						input_queue.push_back((i, d.clone()));
+
+				// Send empty data to disconnected inputs
+				let mut port_is_empty = node.inputs().iter().map(|_| true).collect::<Vec<_>>();
+				for i in pipeline.graph.edges_ending_at(idx) {
+					let edge = &pipeline.graph.get_edge(*i).2;
+					if edge.is_after() {
+						continue;
 					}
-				} else {
-					// Send empty data to disconnected inputs
-					let mut port_is_empty = node.inputs().iter().map(|_| true).collect::<Vec<_>>();
-					for i in pipeline.graph.edges_ending_at(idx) {
-						let edge = &pipeline.graph.get_edge(*i).2;
-						if edge.is_after() {
-							continue;
-						}
-						port_is_empty[edge.target_port().unwrap()] = false;
-					}
-					for (i, e) in port_is_empty.into_iter().enumerate() {
-						if e {
-							input_queue.push_back((
-								i,
-								DataType::disconnected(node.inputs()[i].accepts_type),
-							));
-						}
+					port_is_empty[edge.target_port().unwrap()] = false;
+				}
+				for (i, e) in port_is_empty.into_iter().enumerate() {
+					if e {
+						input_queue
+							.push_back((i, DataType::disconnected(node.inputs()[i].accepts_type)));
 					}
 				}
 

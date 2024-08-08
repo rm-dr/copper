@@ -76,7 +76,7 @@ pub struct Pipeline<DataType: PipelineData, ContextType: PipelineJobContext> {
 	/// Must be unique.
 	pub(crate) name: PipelineName,
 
-	pub(crate) input_node_idx: GraphNodeIdx,
+	pub(crate) input_nodes: Vec<GraphNodeIdx>,
 
 	/// This pipeline's node graph
 	pub(crate) graph: FinalizedGraph<PipelineNodeData<DataType>, PipelineEdgeData>,
@@ -111,7 +111,19 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> Pipeline<DataType,
 	}
 
 	/// Get this pipeline's input node's id
-	pub fn input_node_id(&self) -> &PipelineNodeID {
-		&self.graph.get_node(self.input_node_idx).id
+	pub fn input_nodes(&self) -> Vec<(PipelineNodeID, <DataType as PipelineData>::DataStubType)> {
+		self.input_nodes
+			.iter()
+			.map(|x| {
+				let n = self.graph.get_node(*x);
+				(
+					n.id.clone(),
+					match n.node_params.get("value") {
+						Some(NodeParameterValue::Data(x)) => x.as_stub(),
+						_ => unreachable!(),
+					},
+				)
+			})
+			.collect()
 	}
 }
