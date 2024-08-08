@@ -38,13 +38,16 @@ export const PanelSection = ({
 	title,
 	children,
 }: {
-	icon: any;
-	title: string;
+	icon?: any;
+	title?: string;
 	children: any;
 }) => {
 	return (
 		<div>
-			<PanelTitle icon={icon} title={title} />
+			{icon === undefined || title === undefined ? null : (
+				<PanelTitle icon={icon} title={title} />
+			)}
+
 			<div className={styles.panel_content}>{children}</div>
 		</div>
 	);

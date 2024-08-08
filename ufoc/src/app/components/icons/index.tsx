@@ -30,12 +30,15 @@ import {
 	IconHexagonPlus,
 	IconLetterCase,
 	IconList,
+	IconListDetails,
 	IconMenu2,
 	IconPlus,
 	IconSchema,
 	IconSend,
 	IconServer2,
 	IconSettings2,
+	IconSortAscending2,
+	IconSortDescending2,
 	IconSquareAsterisk,
 	IconTableRow,
 	IconTrash,
@@ -53,6 +56,18 @@ const defaultStyles: CSSProperties | undefined = {
 
 // This module lets us apply default styling to tabler icons,
 // and makes it easy to replace our icon provider.
+
+export const XIconSortUp = ({ style }: { style?: CSSProperties }) => {
+	return <IconSortAscending2 style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconSortDown = ({ style }: { style?: CSSProperties }) => {
+	return <IconSortDescending2 style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconItems = ({ style }: { style?: CSSProperties }) => {
+	return <IconListDetails style={{ ...defaultStyles, ...style }} />;
+};
 
 export const XIconAttrReference = ({ style }: { style?: CSSProperties }) => {
 	return <IconAmpersand style={{ ...defaultStyles, ...style }} />;
