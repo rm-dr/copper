@@ -53,11 +53,6 @@ struct UploadJobFile {
 	hasher: Option<Sha256>,
 }
 
-pub(crate) struct Uploader {
-	tmp_dir: PathBuf,
-	jobs: Mutex<Vec<UploadJob>>,
-}
-
 #[derive(Debug)]
 pub enum JobBindError {
 	/// We tried to bind a job that doesn't exist
@@ -65,6 +60,11 @@ pub enum JobBindError {
 
 	/// We tried to bind a job that has already been bound
 	AlreadyBound,
+}
+
+pub(crate) struct Uploader {
+	tmp_dir: PathBuf,
+	jobs: Mutex<Vec<UploadJob>>,
 }
 
 impl Uploader {
@@ -148,15 +148,15 @@ impl Uploader {
 			// just in case it has been created but hasn't yet been added to the runner.
 			if j.last_activity + offset < now {
 				if j.bound_to_pipeline_job.is_none() {
-					debug!(message = "Removing job", reason = "timeout", job_id = ?j.id);
+					info!(message = "Removing job", reason = "timeout", job_id = ?j.id);
 				} else {
-					debug!(message = "Removing job", reason = "pipeline is done", job_id = ?j.id);
+					info!(message = "Removing job", reason = "pipeline is done", job_id = ?j.id);
 				}
 
 				let j = jobs.swap_remove(i);
 				match std::fs::remove_dir_all(&j.dir) {
 					Ok(()) => {
-						info!(message = "Removed job directory", job_id = ?j.id, path = ?j.dir)
+						debug!(message = "Removed job directory", job_id = ?j.id, path = ?j.dir)
 					}
 					Err(e) => {
 						error!(message = "Failed removing job directory", job_id = ?j.id, path = ?j.dir, error=?e)
@@ -213,19 +213,19 @@ impl Uploader {
 	/// - Once a job is bound, it cannot be bound again.
 	pub async fn bind_job_to_pipeline(
 		&self,
-		job_id: &SmartString<LazyCompact>,
-		pipeline_id: u128,
+		upload_job_id: &SmartString<LazyCompact>,
+		pipeline_job_id: u128,
 	) -> Result<(), JobBindError> {
 		let mut jobs = self.jobs.lock().await;
 
 		// Try to find the given job
-		let job = if let Some(x) = jobs.iter_mut().find(|us| us.id == *job_id) {
+		let job = if let Some(x) = jobs.iter_mut().find(|us| us.id == *upload_job_id) {
 			x
 		} else {
 			warn!(
 				message = "Tried to bind job that doesn't exist",
-				job = ?job_id,
-				pipeline = pipeline_id
+				job = ?upload_job_id,
+				pipeline = pipeline_job_id
 			);
 			return Err(JobBindError::NoSuchJob);
 		};
@@ -234,16 +234,16 @@ impl Uploader {
 			warn!(
 				message = "Tried to bind job, but it is alredy bound",
 				job = ?job.id,
-				pipeline = pipeline_id
+				pipeline = pipeline_job_id
 			);
 			return Err(JobBindError::AlreadyBound);
 		}
 
-		job.bound_to_pipeline_job = Some(pipeline_id);
-		debug!(
+		job.bound_to_pipeline_job = Some(pipeline_job_id);
+		info!(
 			message = "Bound job to pipeline",
-			job = ?job.id,
-			pipeline = pipeline_id
+			upload_job = ?job.id,
+			pipeline_job = pipeline_job_id
 		);
 
 		return Ok(());
@@ -290,7 +290,7 @@ impl Uploader {
 			bound_to_pipeline_job: None,
 		});
 
-		debug!(message = "Created upload job", job=?id);
+		info!(message = "Created upload job", job=?id);
 		return (StatusCode::OK, Json(UploadStartResult { job_id: id })).into_response();
 	}
 
@@ -357,7 +357,7 @@ impl Uploader {
 			hasher: Some(Sha256::new()),
 		});
 
-		debug!(
+		info!(
 			message = "Created a new upload file",
 			job = ?job.id,
 			file_name= ?file_name,
@@ -622,7 +622,7 @@ impl Uploader {
 			)
 				.into_response();
 		} else {
-			debug!(
+			info!(
 				message = "Finished uploading file",
 				job = ?job_id,
 				file = ?file_id,
