@@ -1,3 +1,4 @@
+import { ClassSelector } from "@/app/components/apiselect/class";
 import { DatasetSelector } from "@/app/components/apiselect/dataset";
 import {
 	XIconAttrBinary,
@@ -9,7 +10,7 @@ import {
 	XIconAttrReference,
 	XIconAttrText,
 } from "@/app/components/icons";
-import { Select } from "@mantine/core";
+import { Code, Select, Text, Textarea } from "@mantine/core";
 import { ReactElement, ReactNode } from "react";
 
 // Server-compatible attr definitions
@@ -23,6 +24,22 @@ export const attrTypes: {
 
 	// Icon to use for attrs of this type
 	icon: ReactNode;
+
+	// How to display the value of this attr
+	// in the item table. This should be compact
+	// and non-interactive.
+	value_preview?: (params: { attr: any }) => ReactElement;
+
+	// How to display the old value of attr
+	// in the editor. `attr` param is the object
+	// returned by the api.
+	old_value?: (params: { attr: any }) => ReactElement;
+
+	// Inline value editor
+	new_value?: (params: {
+		attr: any;
+		onChange: (value: any) => void;
+	}) => ReactElement;
 
 	// TODO: fix these types (no any)
 
@@ -60,6 +77,59 @@ export const attrTypes: {
 		serialize_as: "Text",
 		icon: <XIconAttrText />,
 		extra_params: null,
+
+		value_preview: (params) => {
+			if (params.attr.value == "") {
+				return (
+					<Text c="dimmed" fs="italic">
+						empty string
+					</Text>
+				);
+			} else if (params.attr.value.trim() == "") {
+				return <Text c="dimmed">""</Text>;
+			} else if (params.attr.value == null) {
+				return (
+					<Text c="dimmed" fs="italic">
+						no value
+					</Text>
+				);
+			} else {
+				return params.attr.value;
+			}
+		},
+
+		old_value: (params) => {
+			if (params.attr.value == "") {
+				return (
+					<Text c="dimmed" fs="italic">
+						empty string
+					</Text>
+				);
+			} else if (params.attr.value.trim() == "") {
+				return <Text c="dimmed">""</Text>;
+			} else if (params.attr.value == null) {
+				return (
+					<Text c="dimmed" fs="italic">
+						no value
+					</Text>
+				);
+			} else {
+				return params.attr.value;
+			}
+		},
+
+		new_value: (params) => {
+			return (
+				<Textarea
+					radius="0px"
+					placeholder="no value"
+					autosize
+					minRows={1}
+					defaultValue={params.attr.value}
+					onChange={params.onChange}
+				/>
+			);
+		},
 	},
 
 	{
@@ -74,6 +144,10 @@ export const attrTypes: {
 		serialize_as: "Blob",
 		icon: <XIconAttrBlob />,
 		extra_params: null,
+
+		value_preview: (params) => (
+			<Text c="dimmed" fs="italic">{`Blob id=${params.attr.handle}`}</Text>
+		),
 	},
 
 	{
@@ -81,6 +155,9 @@ export const attrTypes: {
 		serialize_as: "Integer",
 		icon: <XIconAttrInt />,
 		extra_params: null,
+
+		value_preview: (params) => params.attr.value,
+		old_value: (params) => params.attr.value,
 	},
 
 	{
@@ -88,6 +165,9 @@ export const attrTypes: {
 		serialize_as: "PositiveInteger",
 		icon: <XIconAttrPosInt />,
 		extra_params: null,
+
+		value_preview: (params) => params.attr.value,
+		old_value: (params) => params.attr.value,
 	},
 
 	{
@@ -95,6 +175,9 @@ export const attrTypes: {
 		serialize_as: "Float",
 		icon: <XIconAttrFloat />,
 		extra_params: null,
+
+		value_preview: (params) => params.attr.value,
+		old_value: (params) => params.attr.value,
 	},
 
 	{
@@ -105,6 +188,13 @@ export const attrTypes: {
 			inputs_ok: checkHash,
 			node: HashParams,
 		},
+
+		value_preview: (params) => (
+			<Text>
+				{`${params.attr.hash_type} hash: `}
+				<Code>{params.attr.value}</Code>
+			</Text>
+		),
 	},
 
 	{
@@ -115,6 +205,15 @@ export const attrTypes: {
 			inputs_ok: checkRef,
 			node: RefParams,
 		},
+
+		value_preview: (params) => (
+			<Text c="dimmed">
+				Reference to{" "}
+				<Text c="dimmed" fs="italic" span>
+					{params.attr.class}
+				</Text>
+			</Text>
+		),
 	},
 
 	// TODO: reference type
@@ -185,28 +284,9 @@ function RefParams(params: {
 	setErrorMessage: (message: null | any) => void;
 	errorMessage: null | any;
 }) {
-	const update_classes = async (dataset: string) => {
-		const res = await fetch(
-			"/api/class/list?" +
-				new URLSearchParams({
-					dataset: params.dataset_name,
-				}).toString(),
-		);
-
-		const data: { handle: number; name: string; attrs: any[] }[] =
-			await res.json();
-
-		return data.map(({ name, handle }) => {
-			return {
-				label: name,
-				value: handle.toString(),
-				disabled: false,
-			};
-		});
-	};
-
 	return (
-		<DatasetSelector
+		<ClassSelector
+			selectedDataset={params.dataset_name}
 			onSelect={(v) => {
 				if (v == null) {
 					params.onChange({ class: null });
