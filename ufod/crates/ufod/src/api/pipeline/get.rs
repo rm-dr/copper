@@ -39,8 +39,9 @@ pub(super) struct PipelineInfo {
 	params(PipelineSelect),
 	responses(
 		(status = 200, description = "Pipeline info", body = PipelineInfo),
-		(status = 404, description = "There is no such pipeline or database", body=String),
-		(status = 500, description = "Internal server error", body=String)
+		(status = 404, description = "There is no such pipeline or database", body = String),
+		(status = 500, description = "Internal server error", body = String),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn get_pipeline(
@@ -48,9 +49,8 @@ pub(super) async fn get_pipeline(
 	State(state): State<RouterState>,
 	Query(query): Query<PipelineSelect>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	let pipeline_name = PipelineName::new(&query.pipeline);

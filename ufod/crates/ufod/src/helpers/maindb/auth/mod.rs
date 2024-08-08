@@ -22,7 +22,7 @@ pub use info::*;
 pub use permissions::*;
 
 const AUTH_TOKEN_LENGTH: usize = 32;
-pub const AUTH_COOKIE_NAME: &'static str = "authtoken";
+pub const AUTH_COOKIE_NAME: &str = "authtoken";
 
 pub struct AuthProvider {
 	conn: Arc<Mutex<SqliteConnection>>,
@@ -32,7 +32,7 @@ pub struct AuthProvider {
 impl AuthProvider {
 	#[inline(always)]
 	async fn generate_token(&self, user: UserId) -> AuthToken {
-		let token = loop {
+		let token = 'outer: loop {
 			let rand: String = rand::thread_rng()
 				.sample_iter(&Alphanumeric)
 				.take(AUTH_TOKEN_LENGTH)
@@ -43,7 +43,7 @@ impl AuthProvider {
 			// Make sure token isn't already used
 			for t in self.active_tokens.lock().await.iter() {
 				if t.token == token {
-					break;
+					continue 'outer;
 				}
 			}
 			break token;
@@ -80,7 +80,7 @@ impl AuthProvider {
 	/// Match a user to an authentication token or log out.
 	/// This simplifies api code, and automatically logs users out if their token is invalid.
 	pub async fn auth_or_logout(&self, jar: &CookieJar) -> Result<UserInfo, Response> {
-		match self.check_cookies(&jar).await {
+		match self.check_cookies(jar).await {
 			Ok(None) => {}
 			Ok(Some(u)) => return Ok(u),
 			Err(e) => {
@@ -91,14 +91,14 @@ impl AuthProvider {
 				);
 				return Err((
 					StatusCode::INTERNAL_SERVER_ERROR,
-					format!("Could not check auth cookies"),
+					"Could not check auth cookies",
 				)
 					.into_response());
 			}
 		}
 
 		// If cookie is invalid, clean up and delete client cookies
-		let _ = self.terminate_session(jar);
+		self.terminate_session(jar).await;
 		let cookie = Cookie::build((AUTH_COOKIE_NAME, ""))
 			.path("/")
 			.secure(true)
@@ -204,7 +204,7 @@ impl AuthProvider {
 	pub async fn new_group(&self, name: &str, parent: GroupId) -> Result<(), CreateGroupError> {
 		// No empty names
 		let name = name.trim();
-		if name == "" {
+		if name.is_empty() {
 			return Err(CreateGroupError::BadName(
 				"Group name cannot be empty".into(),
 			));
@@ -285,7 +285,7 @@ impl AuthProvider {
 	) -> Result<(), CreateUserError> {
 		// No empty names
 		let user_name = user_name.trim();
-		if user_name == "" {
+		if user_name.is_empty() {
 			return Err(CreateUserError::BadName("User name cannot be empty".into()));
 		}
 

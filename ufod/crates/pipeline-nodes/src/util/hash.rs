@@ -138,13 +138,13 @@ impl PipelineNode for Hash {
 
 		match self.data.as_mut().unwrap() {
 			HashData::Binary(data) => {
-				self.hasher.as_mut().unwrap().update(&**data);
+				self.hasher.as_mut().unwrap().update(data);
 				send_data(0, self.hasher.take().unwrap().finish())?;
 				return Ok(PipelineNodeState::Done);
 			}
 			HashData::Blob { fragments, is_done } => {
 				while let Some(data) = fragments.pop_front() {
-					self.hasher.as_mut().unwrap().update(&**data)
+					self.hasher.as_mut().unwrap().update(&data)
 				}
 				if *is_done {
 					send_data(0, self.hasher.take().unwrap().finish())?;
@@ -174,10 +174,7 @@ impl UFONode for Hash {
 		Ok(match stub {
 			UFONodeType::Hash { .. } => {
 				assert!(input_idx < 1);
-				match input_type {
-					UFODataStub::Blob | UFODataStub::Binary => true,
-					_ => false,
-				}
+				matches!(input_type, UFODataStub::Blob | UFODataStub::Binary)
 			}
 			_ => unreachable!(),
 		})

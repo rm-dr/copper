@@ -41,7 +41,7 @@ impl DatasetProvider {
 	) -> Result<(), CreateDatasetError> {
 		// No empty names
 		let name = name.trim();
-		if name == "" {
+		if name.is_empty() {
 			return Err(CreateDatasetError::BadName(
 				"Dataset name cannot be empty".into(),
 			));
@@ -211,7 +211,7 @@ impl DatasetProvider {
 
 		match entry.ds_type {
 			DatasetType::Local => {
-				std::fs::remove_dir_all(&self.config.paths.dataset_dir.join(&entry.path)).unwrap();
+				std::fs::remove_dir_all(self.config.paths.dataset_dir.join(&entry.path)).unwrap();
 			}
 		};
 

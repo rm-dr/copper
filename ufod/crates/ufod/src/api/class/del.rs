@@ -27,9 +27,10 @@ pub(in crate::api) struct DelClassRequest {
 	path = "/del",
 	responses(
 		(status = 200, description = "Successfully deleted this class"),
-		(status = 400, description = "Invalid request", body=String),
-		(status = 404, description = "Invalid dataset or class", body=String),
-		(status = 500, description = "Internal server error", body=String),
+		(status = 400, description = "Invalid request", body = String),
+		(status = 404, description = "Invalid dataset or class", body = String),
+		(status = 500, description = "Internal server error", body = String),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn del_class(
@@ -37,9 +38,8 @@ pub(super) async fn del_class(
 	State(state): State<RouterState>,
 	Json(payload): Json<DelClassRequest>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	let dataset = match state.main_db.dataset.get_dataset(&payload.dataset).await {
@@ -57,11 +57,7 @@ pub(super) async fn del_class(
 				dataset = payload.dataset,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get dataset").into_response();
 		}
 	};
 
@@ -81,11 +77,7 @@ pub(super) async fn del_class(
 				class = ?payload.class,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get class"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get class").into_response();
 		}
 	};
 

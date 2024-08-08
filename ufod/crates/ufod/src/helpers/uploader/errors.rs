@@ -31,11 +31,9 @@ impl Error for UploadNewFileError {}
 impl IntoResponse for UploadNewFileError {
 	fn into_response(self) -> axum::response::Response {
 		match self {
-			Self::BadUploadJob => (
-				StatusCode::NOT_FOUND,
-				format!("This upload job does not exist"),
-			)
-				.into_response(),
+			Self::BadUploadJob => {
+				(StatusCode::NOT_FOUND, "This upload job does not exist").into_response()
+			}
 		}
 	}
 }
@@ -110,34 +108,30 @@ impl Error for UploadFinishFileError {
 impl IntoResponse for UploadFinishFileError {
 	fn into_response(self) -> axum::response::Response {
 		match self {
-			Self::BadUploadJob => (
-				StatusCode::NOT_FOUND,
-				format!("This upload job does not exist"),
-			)
-				.into_response(),
-			Self::BadFileID => (
-				StatusCode::NOT_FOUND,
-				format!("This file id does not exist"),
-			)
-				.into_response(),
+			Self::BadUploadJob => {
+				(StatusCode::NOT_FOUND, "This upload job does not exist").into_response()
+			}
+			Self::BadFileID => {
+				(StatusCode::NOT_FOUND, "This file id does not exist").into_response()
+			}
 			Self::MissingFragments { .. } => (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not finish file with missing fragments"),
+				"Could not finish file with missing fragments",
 			)
 				.into_response(),
 			Self::AlreadyFinished => (
 				StatusCode::BAD_REQUEST,
-				format!("This file has already been finished"),
+				"This file has already been finished",
 			)
 				.into_response(),
 			Self::IoError { .. } => (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("I/O error while finishing file"),
+				"I/O error while finishing file",
 			)
 				.into_response(),
 			Self::HashDoesntMatch { .. } => (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Final file hash doesn't match"),
+				"Final file hash doesn't match",
 			)
 				.into_response(),
 		}
@@ -197,24 +191,20 @@ impl Error for UploadFragmentError {
 impl IntoResponse for UploadFragmentError {
 	fn into_response(self) -> axum::response::Response {
 		match self {
-			Self::BadUploadJob => (
-				StatusCode::NOT_FOUND,
-				format!("This upload job does not exist"),
-			)
-				.into_response(),
-			Self::BadFileID => (
-				StatusCode::NOT_FOUND,
-				format!("This file id does not exist"),
-			)
-				.into_response(),
+			Self::BadUploadJob => {
+				(StatusCode::NOT_FOUND, "This upload job does not exist").into_response()
+			}
+			Self::BadFileID => {
+				(StatusCode::NOT_FOUND, "This file id does not exist").into_response()
+			}
 			Self::AlreadyFinished => (
 				StatusCode::BAD_REQUEST,
-				format!("Cannot push a fragment to a finished file"),
+				"Cannot push a fragment to a finished file",
 			)
 				.into_response(),
 			Self::IoError { .. } => (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("I/O error while consuming fragment"),
+				"I/O error while consuming fragment",
 			)
 				.into_response(),
 		}

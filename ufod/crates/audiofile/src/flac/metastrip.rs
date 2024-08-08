@@ -178,7 +178,7 @@ impl FlacMetaStrip {
 	/// When this is called, the state of this struct is reset.
 	pub fn take_error(&mut self) -> Option<FlacError> {
 		let x = self.error.take();
-		*self = Self::new(self.selector.clone());
+		*self = Self::new(self.selector);
 		return x;
 	}
 }
@@ -221,10 +221,8 @@ impl Write for FlacMetaStrip {
 								self.output_buffer.extend(header);
 								self.output_buffer.extend(block);
 							}
-							self.last_kept_block = Some((
-								header,
-								std::mem::replace(&mut self.current_block, Vec::new()),
-							));
+							self.last_kept_block =
+								Some((header, std::mem::take(&mut self.current_block)));
 						}
 
 						if self.done_with_meta {

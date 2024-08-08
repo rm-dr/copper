@@ -44,7 +44,8 @@ pub(super) struct UploadNewFileResult {
 			description = "Internal error, check server logs. Should not appear during normal operation.",
 			body = String,
 			example = json!("error text")
-		)
+		),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn start_file(
@@ -53,22 +54,15 @@ pub(super) async fn start_file(
 	Path(job_id): Path<SmartString<LazyCompact>>,
 	Json(start_info): Json<UploadStartInfo>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	let t_job_id = job_id.clone();
 	let mime = MimeType::from_extension(&start_info.file_extension).unwrap_or(MimeType::Blob);
 	match tokio::task::spawn_blocking(move || state.uploader.new_file(&t_job_id, mime)).await {
 		Ok(Ok(file_id)) => {
-			return (
-				StatusCode::OK,
-				Json(UploadNewFileResult {
-					file_id: file_id.into(),
-				}),
-			)
-				.into_response();
+			return (StatusCode::OK, Json(UploadNewFileResult { file_id })).into_response();
 		}
 
 		Err(e) => {

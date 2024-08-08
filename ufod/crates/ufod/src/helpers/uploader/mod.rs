@@ -254,7 +254,7 @@ impl Uploader {
 		jobs.push(UploadJob {
 			id: id.clone(),
 			dir: upload_job_dir,
-			started_at: now.clone(),
+			started_at: now,
 			last_activity: now,
 			files: Vec::new(),
 			bound_to_pipeline_job: None,
@@ -290,7 +290,7 @@ impl Uploader {
 		};
 
 		job.files.push(UploadJobFile {
-			name: file_id.clone().into(),
+			name: file_id.clone(),
 			mime: mime.clone(),
 			state: UploadJobFileState::Pending,
 			frag_hashes: HashMap::new(),
@@ -338,8 +338,8 @@ impl Uploader {
 		file.frag_hashes.insert(frag_file_name, frag_hash.into());
 		drop(jobs);
 
-		let mut f = File::create(&frag_path)?;
-		f.write(&data)?;
+		let mut f = File::create(frag_path)?;
+		f.write_all(data)?;
 
 		return Ok(());
 	}

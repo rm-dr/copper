@@ -73,11 +73,7 @@ pub(super) async fn try_login(
 				request_payload = ?payload,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not auth user"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not auth user").into_response();
 		}
 	};
 }

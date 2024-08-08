@@ -6,6 +6,7 @@ use super::RouterState;
 mod finish;
 mod new_file;
 mod new_upload;
+#[allow(clippy::module_inception)]
 mod upload;
 
 use finish::*;

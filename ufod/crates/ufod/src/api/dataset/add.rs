@@ -53,18 +53,10 @@ pub(super) async fn add_dataset(
 
 	debug!(message = "Making new dataset", payload = ?payload);
 
-	if payload.name == "" {
-		return (
-			StatusCode::BAD_REQUEST,
-			format!("Dataset name cannot be empty"),
-		)
-			.into_response();
+	if payload.name.is_empty() {
+		return (StatusCode::BAD_REQUEST, "Dataset name cannot be empty").into_response();
 	} else if payload.name.trim() == "" {
-		return (
-			StatusCode::BAD_REQUEST,
-			format!("Dataset name cannot be whitespace"),
-		)
-			.into_response();
+		return (StatusCode::BAD_REQUEST, "Dataset name cannot be whitespace").into_response();
 	}
 
 	match payload.params {

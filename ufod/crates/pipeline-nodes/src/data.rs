@@ -234,10 +234,8 @@ impl From<MetastoreDataStub> for UFODataStub {
 			MetastoreDataStub::PositiveInteger => Self::PositiveInteger,
 			MetastoreDataStub::Boolean => Self::Boolean,
 			MetastoreDataStub::Float => Self::Float,
-			MetastoreDataStub::Hash { hash_type } => Self::Hash {
-				hash_type: hash_type,
-			},
-			MetastoreDataStub::Reference { class } => Self::Reference { class: class },
+			MetastoreDataStub::Hash { hash_type } => Self::Hash { hash_type },
+			MetastoreDataStub::Reference { class } => Self::Reference { class },
 		}
 	}
 }

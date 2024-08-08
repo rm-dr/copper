@@ -23,7 +23,7 @@ pub(super) struct DeluserRequest {
 	responses(
 		(status = 200, description = "Successfully deleted user"),
 		(status = 400, description = "Could not delete user"),
-		(status = 500, description = "Internal server error", body=String),
+		(status = 500, description = "Internal server error", body = String),
 		(status = 401, description = "Unauthorized")
 	)
 )]
@@ -49,7 +49,7 @@ pub(super) async fn del_user(
 					);
 					return (
 						StatusCode::INTERNAL_SERVER_ERROR,
-						format!("Could not check group parent"),
+						"Could not check group parent",
 					)
 						.into_response();
 				}
@@ -78,7 +78,7 @@ pub(super) async fn del_user(
 					);
 					return (
 						StatusCode::INTERNAL_SERVER_ERROR,
-						format!("Could not check group parent"),
+						"Could not check group parent",
 					)
 						.into_response();
 				}
@@ -96,7 +96,7 @@ pub(super) async fn del_user(
 	};
 
 	if payload.user == u32::from(userinfo.id) {
-		return (StatusCode::BAD_REQUEST, format!("Cannot delete self")).into_response();
+		return (StatusCode::BAD_REQUEST, "Cannot delete self").into_response();
 	}
 
 	info!(
@@ -119,11 +119,7 @@ pub(super) async fn del_user(
 				request_payload = ?payload,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not delete user"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not delete user").into_response();
 		}
 	};
 }

@@ -54,7 +54,7 @@ impl UfodConfig {
 		let mut config: Self = toml::from_str(&config_string)?;
 
 		// Now, adjust paths so that they are relative to the config file
-		config.paths.set_relative_to(&config_path.parent().unwrap());
+		config.paths.set_relative_to(config_path.parent().unwrap());
 		return Ok(config);
 	}
 }

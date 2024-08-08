@@ -29,6 +29,8 @@ pub(super) struct ClassGetRequest {
 	responses(
 		(status = 200, description = "Class info", body = ExtendedClassInfo),
 		(status = 500, description = "Internal server error", body = String),
+		(status = 404, description = "Invalid dataset or class", body = String),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn get_class(
@@ -36,9 +38,8 @@ pub(super) async fn get_class(
 	State(state): State<RouterState>,
 	Query(query): Query<ClassGetRequest>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	let dataset = match state.main_db.dataset.get_dataset(&query.dataset).await {
@@ -56,11 +57,7 @@ pub(super) async fn get_class(
 				dataset = query.dataset,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get dataset").into_response();
 		}
 	};
 
@@ -72,11 +69,7 @@ pub(super) async fn get_class(
 				dataset = ?query.dataset,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get class"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get class").into_response();
 		}
 	};
 

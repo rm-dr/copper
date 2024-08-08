@@ -18,7 +18,7 @@ pub(super) struct GetAttrRequest {
 	pub attr: u32,
 }
 
-/// Find an attribute by name
+/// Get a single attribute's info
 #[utoipa::path(
 	get,
 	path = "/get",
@@ -27,8 +27,9 @@ pub(super) struct GetAttrRequest {
 	),
 	responses(
 		(status = 200, description = "Attribute info", body = AttrInfo),
-		(status = 404, description = "Could not find attribute", body = String),
+		(status = 404, description = "Bad dataset or attribute", body = String),
 		(status = 500, description = "Internal server error", body = String),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn get_attr(
@@ -36,9 +37,8 @@ pub(super) async fn get_attr(
 	Query(payload): Query<GetAttrRequest>,
 	State(state): State<RouterState>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	let dataset = match state.main_db.dataset.get_dataset(&payload.dataset).await {
@@ -56,11 +56,7 @@ pub(super) async fn get_attr(
 				dataset = payload.dataset,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get dataset").into_response();
 		}
 	};
 
@@ -80,11 +76,7 @@ pub(super) async fn get_attr(
 				attr = ?payload.attr,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get attr"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get attr").into_response();
 		}
 	};
 }

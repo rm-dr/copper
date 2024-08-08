@@ -46,7 +46,8 @@ pub(super) enum AddJobInput {
 	responses(
 		(status = 200, description = "Job started successfully", body = PipelineInfo),
 		(status = 404, description = "Invalid dataset or pipeline", body = String),
-		(status = 500, description = "Internal server error", body = String)
+		(status = 500, description = "Internal server error", body = String),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn run_pipeline(
@@ -104,11 +105,7 @@ pub(super) async fn run_pipeline(
 		}
 
 		Err(PipestoreError::PipelinePrepareError(_)) => {
-			return (
-				StatusCode::BAD_REQUEST,
-				format!("Cannot run invalid pipeline"),
-			)
-				.into_response();
+			return (StatusCode::BAD_REQUEST, "Cannot run invalid pipeline").into_response();
 		}
 
 		Err(e) => {
@@ -148,8 +145,7 @@ pub(super) async fn run_pipeline(
 						.into_response();
 				}
 				None => {
-					return (StatusCode::BAD_REQUEST, format!("Bad upload job or file"))
-						.into_response();
+					return (StatusCode::BAD_REQUEST, "Bad upload job or file").into_response();
 				}
 			};
 
@@ -169,7 +165,7 @@ pub(super) async fn run_pipeline(
 				);
 				return (
 					StatusCode::INTERNAL_SERVER_ERROR,
-					format!("Could not get upload file path"),
+					"Could not get upload file path",
 				)
 					.into_response();
 			};

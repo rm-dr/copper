@@ -142,7 +142,7 @@ impl UFONode for FindItem {
 				};
 
 				let attr = if let Some(a) =
-					block_on(ctx.dataset.get_attr_by_name(class.handle, &by_attr))?
+					block_on(ctx.dataset.get_attr_by_name(class.handle, by_attr))?
 				{
 					a
 				} else {

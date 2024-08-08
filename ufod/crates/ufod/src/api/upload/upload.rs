@@ -33,7 +33,8 @@ pub(super) struct UploadFragmentMetadata {
 			description = "Internal error, check server logs. Should not appear during normal operation.",
 			body = String,
 			example = json!("error text")
-		)
+		),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn upload(
@@ -42,9 +43,8 @@ pub(super) async fn upload(
 	Path((job_id, file_id)): Path<(String, String)>,
 	mut multipart: Multipart,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	let mut meta: Option<UploadFragmentMetadata> = None;

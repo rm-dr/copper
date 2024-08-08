@@ -8,7 +8,6 @@ use ufo_ds_core::{
 		meta::{AttrInfo, AttributeOptions, ClassInfo},
 	},
 	data::{HashType, MetastoreDataStub},
-	handles::ItemIdx,
 };
 use ufo_ds_impl::DatasetType;
 use utoipa::OpenApi;

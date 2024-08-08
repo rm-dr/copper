@@ -11,8 +11,8 @@ use axum_extra::extract::CookieJar;
 	get,
 	path = "/me",
 	responses(
-		(status = 200, description = "User info", body=UserInfo),
-		(status = 500, description = "Internal server error", body=String),
+		(status = 200, description = "User info", body = UserInfo),
+		(status = 500, description = "Internal server error", body = String),
 		(status = 401, description = "Unauthorized")
 	)
 )]

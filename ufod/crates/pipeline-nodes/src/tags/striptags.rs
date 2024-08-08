@@ -63,7 +63,7 @@ impl PipelineNode for StripTags {
 
 				assert!(!self.is_done);
 				self.is_done = is_last;
-				self.strip.write_all(&**fragment)?;
+				self.strip.write_all(&fragment)?;
 			}
 			_ => unreachable!(),
 		}

@@ -89,9 +89,8 @@ pub(super) async fn get_runner_status(
 	jar: CookieJar,
 	State(state): State<RouterState>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	let runner = state.runner.lock().await;

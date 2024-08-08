@@ -167,7 +167,7 @@ impl ItemListData {
 						);
 						return Err((
 							StatusCode::INTERNAL_SERVER_ERROR,
-							format!("Could not get blob length"),
+							"Could not get blob length",
 						)
 							.into_response());
 					}
@@ -223,10 +223,11 @@ impl ItemListData {
 		ItemListRequest
 	),
 	responses(
-		(status = 200, description = "Items", body=ItemListResponse),
-		(status = 400, description = "Could not list items bad parameters", body=String),
-		(status = 404, description = "Unknown dataset or class name", body=String),
-		(status = 500, description = "Internal server error", body=String),
+		(status = 200, description = "Items", body = ItemListResponse),
+		(status = 400, description = "Could not list items bad parameters", body = String),
+		(status = 404, description = "Unknown dataset or class name", body = String),
+		(status = 500, description = "Internal server error", body = String),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn list_item(
@@ -234,9 +235,8 @@ pub(super) async fn list_item(
 	State(state): State<RouterState>,
 	Query(query): Query<ItemListRequest>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	// TODO: configure max page size
@@ -266,11 +266,7 @@ pub(super) async fn list_item(
 				dataset = query.dataset,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get dataset").into_response();
 		}
 	};
 	// The scope here is necessary, res must be dropped to avoid an error.
@@ -296,11 +292,7 @@ pub(super) async fn list_item(
 					query = ?query,
 					error = ?e
 				);
-				return (
-					StatusCode::INTERNAL_SERVER_ERROR,
-					format!("Could not get items"),
-				)
-					.into_response();
+				return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get items").into_response();
 			}
 		}
 	};
@@ -337,7 +329,7 @@ pub(super) async fn list_item(
 	for item in itemdata.into_iter() {
 		let mut itemlistdata = HashMap::new();
 		for (attr, val) in attrs.iter().zip(item.attrs.iter()) {
-			let d = match ItemListData::from_data(&dataset, attr.clone(), &val).await {
+			let d = match ItemListData::from_data(&dataset, attr.clone(), val).await {
 				Ok(x) => x,
 				Err(r) => return r,
 			};

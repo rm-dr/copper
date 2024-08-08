@@ -22,7 +22,7 @@ pub(super) struct ItemGetRequest {
 	pub item: u32,
 }
 
-/// Get the value of a specific item in this class
+/// Get a specific item in this class
 #[utoipa::path(
 	get,
 	path = "/get",
@@ -33,6 +33,7 @@ pub(super) struct ItemGetRequest {
 		(status = 200, description = "Item information", body = ItemListItem),
 		(status = 404, description = "Unknown dataset, class, or item", body = String),
 		(status = 500, description = "Internal server error", body = String),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn get_item(
@@ -40,9 +41,8 @@ pub(super) async fn get_item(
 	State(state): State<RouterState>,
 	Query(query): Query<ItemGetRequest>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	let dataset = match state.main_db.dataset.get_dataset(&query.dataset).await {
@@ -60,11 +60,7 @@ pub(super) async fn get_item(
 				dataset = query.dataset,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get dataset").into_response();
 		}
 	};
 
@@ -99,11 +95,7 @@ pub(super) async fn get_item(
 					query = ?query,
 					error = ?e
 				);
-				return (
-					StatusCode::INTERNAL_SERVER_ERROR,
-					format!("Could not get item"),
-				)
-					.into_response();
+				return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get item").into_response();
 			}
 		}
 	};
@@ -138,7 +130,7 @@ pub(super) async fn get_item(
 
 	let mut itemlistdata = HashMap::new();
 	for (attr, val) in attrs.iter().zip(item.attrs.iter()) {
-		let d = match ItemListData::from_data(&dataset, attr.clone(), &val).await {
+		let d = match ItemListData::from_data(&dataset, attr.clone(), val).await {
 			Ok(x) => x,
 			Err(r) => return r,
 		};

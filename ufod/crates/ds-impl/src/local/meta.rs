@@ -39,10 +39,10 @@ impl LocalDataset {
 			// and all following fields will be shifted left.
 			MetastoreData::None(_) => q.bind(None::<u32>),
 			MetastoreData::Text(s) => q.bind(&**s),
-			MetastoreData::Integer(x) => q.bind(&*x),
+			MetastoreData::Integer(x) => q.bind(*x),
 			MetastoreData::PositiveInteger(x) => q.bind(i64::from_be_bytes(x.to_be_bytes())),
 			MetastoreData::Boolean(x) => q.bind(*x),
-			MetastoreData::Float(x) => q.bind(&*x),
+			MetastoreData::Float(x) => q.bind(*x),
 			MetastoreData::Hash { data, .. } => q.bind(&**data),
 			MetastoreData::Binary { data, mime: format } => {
 				let s = format.to_string();
@@ -88,7 +88,7 @@ impl LocalDataset {
 
 			MetastoreDataStub::Text => row
 				.get::<Option<_>, _>(&col_name[..])
-				.map(|x| Arc::new(x))
+				.map(Arc::new)
 				.map(MetastoreData::Text)
 				.unwrap_or(MetastoreData::None(attr.data_type)),
 
@@ -140,7 +140,7 @@ impl LocalDataset {
 		let mut all_blobs = self
 			.all_blobs()
 			.await
-			.map_err(|e| MetastoreError::BlobstoreError(e))?;
+			.map_err(MetastoreError::BlobstoreError)?;
 
 		// Do this after getting attrs to prevent deadlock
 		let mut conn = self.conn.lock().await;
@@ -181,7 +181,7 @@ impl LocalDataset {
 			);
 			self.delete_blob(b)
 				.await
-				.map_err(|e| MetastoreError::BlobstoreError(e))?;
+				.map_err(MetastoreError::BlobstoreError)?;
 		}
 
 		return Ok(());
@@ -198,7 +198,7 @@ impl Metastore for LocalDataset {
 	) -> Result<AttrHandle, MetastoreError> {
 		// No empty names
 		let attr_name = attr_name.trim();
-		if attr_name == "" {
+		if attr_name.is_empty() {
 			return Err(MetastoreError::BadAttrName(
 				"Attr name cannot be empty".into(),
 			));
@@ -284,9 +284,7 @@ impl Metastore for LocalDataset {
 				format!(" REFERENCES \"{}\"(id)", Self::get_table_name(class))
 			}
 
-			MetastoreDataStub::Blob => {
-				format!(" REFERENCES meta_blobs(id)")
-			}
+			MetastoreDataStub::Blob => " REFERENCES meta_blobs(id)".to_string(),
 			_ => "".into(),
 		};
 
@@ -314,13 +312,13 @@ impl Metastore for LocalDataset {
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
-		Ok(u32::try_from(new_attr).unwrap().into())
+		Ok(new_attr.into())
 	}
 
 	async fn add_class(&self, class_name: &str) -> Result<ClassHandle, MetastoreError> {
 		// No empty names
 		let class_name = class_name.trim();
-		if class_name == "" {
+		if class_name.is_empty() {
 			return Err(MetastoreError::BadClassName(
 				"Class name cannot be empty".into(),
 			));
@@ -368,7 +366,7 @@ impl Metastore for LocalDataset {
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
-		return Ok(u32::try_from(new_class_id).unwrap().into());
+		return Ok(new_class_id.into());
 	}
 
 	async fn add_item(
@@ -838,18 +836,15 @@ impl Metastore for LocalDataset {
 		let mut out = Vec::new();
 		for i_class in classes {
 			for attr in self.class_get_attrs(i_class.handle).await? {
-				match attr.data_type {
-					MetastoreDataStub::Reference { class: ref_class } => {
-						if class == ref_class {
-							out.push(ClassInfo {
-								handle: i_class.handle,
-								name: i_class.name,
-							});
-							// We include each class exactly once, so break here.
-							break;
-						}
+				if let MetastoreDataStub::Reference { class: ref_class } = attr.data_type {
+					if class == ref_class {
+						out.push(ClassInfo {
+							handle: i_class.handle,
+							name: i_class.name,
+						});
+						// We include each class exactly once, so break here.
+						break;
 					}
-					_ => {}
 				}
 			}
 		}
@@ -869,7 +864,7 @@ impl Metastore for LocalDataset {
 		let mut conn = self.conn.lock().await;
 
 		// Find table and column name to modify
-		let column_name = Self::get_column_name(attr.into());
+		let column_name = Self::get_column_name(attr);
 		let table_name: String = {
 			// TODO: meta_attributes.id AS attr_id
 			let res = sqlx::query(

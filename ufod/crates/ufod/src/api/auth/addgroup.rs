@@ -27,7 +27,7 @@ pub(super) struct AddgroupRequest {
 	responses(
 		(status = 200, description = "Successfully created group"),
 		(status = 400, description = "Could not create group"),
-		(status = 500, description = "Internal server error", body=String),
+		(status = 500, description = "Internal server error", body = String),
 		(status = 401, description = "Unauthorized")
 	)
 )]
@@ -59,7 +59,7 @@ pub(super) async fn add_group(
 					);
 					return (
 						StatusCode::INTERNAL_SERVER_ERROR,
-						format!("Could not check group parent"),
+						"Could not check group parent",
 					)
 						.into_response();
 				}
@@ -105,7 +105,7 @@ pub(super) async fn add_group(
 		}
 
 		Err(CreateGroupError::BadParent) => {
-			return (StatusCode::BAD_REQUEST, format!("Invalid parent group")).into_response();
+			return (StatusCode::BAD_REQUEST, "Invalid parent group").into_response();
 		}
 
 		Err(CreateGroupError::DbError(e)) => {
@@ -114,11 +114,7 @@ pub(super) async fn add_group(
 				request_payload = ?payload,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not create group"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not create group").into_response();
 		}
 	};
 }

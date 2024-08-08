@@ -34,9 +34,10 @@ pub(super) struct ItemAttrRequest {
 	),
 	responses(
 		(status = 200, description = "Item data"),
-		(status = 400, description = "Could not get this attribute", body=String),
-		(status = 404, description = "Invalid dataset, class, or item", body=String),
-		(status = 500, description = "Internal server error", body=String),
+		(status = 400, description = "Could not get this attribute", body = String),
+		(status = 404, description = "Invalid dataset, class, or item", body = String),
+		(status = 500, description = "Internal server error", body = String),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn get_item_attr(
@@ -44,9 +45,8 @@ pub(super) async fn get_item_attr(
 	State(state): State<RouterState>,
 	Query(query): Query<ItemAttrRequest>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	let dataset = match state.main_db.dataset.get_dataset(&query.dataset).await {
@@ -66,7 +66,7 @@ pub(super) async fn get_item_attr(
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset by name"),
+				"Could not get dataset by name",
 			)
 				.into_response();
 		}
@@ -88,11 +88,7 @@ pub(super) async fn get_item_attr(
 				attr = ?query.attr,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get attr"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get attr").into_response();
 		}
 	};
 
@@ -109,11 +105,7 @@ pub(super) async fn get_item_attr(
 				item_idx = ?query.item_idx,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get item"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get item").into_response();
 		}
 	};
 
@@ -145,10 +137,7 @@ pub(super) async fn get_item_attr(
 						item_idx = ?query.item_idx,
 						error = ?e
 					);
-					return (
-						StatusCode::INTERNAL_SERVER_ERROR,
-						format!("Could not get blob"),
-					)
+					return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get blob")
 						.into_response();
 				}
 			};

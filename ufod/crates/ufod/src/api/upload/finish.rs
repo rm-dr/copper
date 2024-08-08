@@ -32,7 +32,7 @@ pub(super) struct UploadFinish {
 		("file_id", description = "Upload file name"),
 	),
 	responses(
-		(status = 200, description = "File finished successfully", body = ()),
+		(status = 200, description = "File finished successfully"),
 		(status = 404, description = "Bad job or file id"),
 		(status = 400, description = "Malformed request or unfinished upload"),
 		(
@@ -40,7 +40,8 @@ pub(super) struct UploadFinish {
 			description = "Internal error, check server logs. Should not appear during normal operation.",
 			body = String,
 			example = json!("error text")
-		)
+		),
+		(status = 401, description = "Unauthorized")
 	)
 )]
 pub(super) async fn finish_file(
@@ -49,9 +50,8 @@ pub(super) async fn finish_file(
 	Path((job_id, file_id)): Path<(String, String)>,
 	Json(finish_data): Json<UploadFinish>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	let t_job_id = job_id.clone();

@@ -39,9 +39,10 @@ pub(super) struct NewAttrParams {
 	path = "/add",
 	responses(
 		(status = 200, description = "Successfully created new attribute"),
-		(status = 400, description = "Could not create new attribute, bad parameters", body=String),
-		(status = 404, description = "Unknown dataset or class name", body=String),
-		(status = 500, description = "Internal server error", body=String),
+		(status = 400, description = "Could not create new attribute, bad parameters", body = String),
+		(status = 404, description = "Bad dataset or class", body = String),
+		(status = 500, description = "Internal server error", body = String),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn add_attr(
@@ -49,9 +50,8 @@ pub(super) async fn add_attr(
 	State(state): State<RouterState>,
 	Json(payload): Json<NewAttrParams>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	debug!(
@@ -59,16 +59,12 @@ pub(super) async fn add_attr(
 		payload = ?payload
 	);
 
-	if payload.new_attr_name == "" {
-		return (
-			StatusCode::BAD_REQUEST,
-			format!("Attribute name cannot be empty"),
-		)
-			.into_response();
+	if payload.new_attr_name.is_empty() {
+		return (StatusCode::BAD_REQUEST, "Attribute name cannot be empty").into_response();
 	} else if payload.new_attr_name.trim() == "" {
 		return (
 			StatusCode::BAD_REQUEST,
-			format!("Attribute name cannot be whitespace"),
+			"Attribute name cannot be whitespace",
 		)
 			.into_response();
 	}
@@ -88,11 +84,7 @@ pub(super) async fn add_attr(
 				dataset = payload.dataset,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get dataset").into_response();
 		}
 	};
 
@@ -112,11 +104,7 @@ pub(super) async fn add_attr(
 				class = ?payload.class,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get class"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get class").into_response();
 		}
 	};
 
@@ -147,7 +135,7 @@ pub(super) async fn add_attr(
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not create new attribute"),
+				"Could not create new attribute",
 			)
 				.into_response();
 		}

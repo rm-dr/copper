@@ -123,7 +123,7 @@ impl<NodeStubType: PipelineNodeStub> Drop for PipelineSingleJob<NodeStubType> {
 impl<NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 	/// Get the pipeline this job is running
 	pub fn get_pipeline(&self) -> &Pipeline<NodeStubType> {
-		&*self.pipeline
+		&self.pipeline
 	}
 
 	/// Get the current state of all nodes in this job
@@ -261,7 +261,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 	}
 }
 
-impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
+impl<NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 	/// Update this job: process state changes that occured since we last called `run()`,
 	/// deliver new data, and start nodes that should be started.
 	///
@@ -276,10 +276,8 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 
 		// Clean up threads that finished since we last called `run()`
 		for w in &mut self.workers {
-			if w.is_some() {
-				if w.as_ref().unwrap().is_finished() {
-					w.take().unwrap().join().unwrap();
-				}
+			if w.is_some() && w.as_ref().unwrap().is_finished() {
+				w.take().unwrap().join().unwrap();
 			}
 		}
 

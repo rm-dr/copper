@@ -157,7 +157,7 @@ impl Blobstore for LocalDataset {
 			Err(e) => return Err(BlobstoreError::DbError(Box::new(e))),
 			Ok(res) => PathBuf::from(res.get::<&str, _>("file_path")),
 		};
-		let file_path = self.blobstore_root.join(&rel_file_path);
+		let file_path = self.blobstore_root.join(rel_file_path);
 
 		let meta = std::fs::metadata(file_path)?;
 

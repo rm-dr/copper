@@ -25,9 +25,9 @@ pub(super) struct ListgroupInfo {
 	get,
 	path = "/group/list",
 	responses(
-		(status = 200, description = "List of groups", body=Vec<ListgroupInfo>),
-		(status = 400, description = "Could not create group"),
-		(status = 500, description = "Internal server error", body=String),
+		(status = 200, description = "List of groups", body = Vec<ListgroupInfo>),
+		(status = 400, description = "Could not list groups"),
+		(status = 500, description = "Internal server error", body = String),
 		(status = 401, description = "Unauthorized")
 	)
 )]
@@ -49,10 +49,7 @@ pub(super) async fn list_group(jar: CookieJar, State(state): State<RouterState>)
 							group = ?g,
 							error = ?e
 						);
-						return (
-							StatusCode::INTERNAL_SERVER_ERROR,
-							format!("Could not list users"),
-						)
+						return (StatusCode::INTERNAL_SERVER_ERROR, "Could not list users")
 							.into_response();
 					}
 				};
@@ -71,11 +68,7 @@ pub(super) async fn list_group(jar: CookieJar, State(state): State<RouterState>)
 				message = "Could not list groups",
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not list groups"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not list groups").into_response();
 		}
 	};
 }

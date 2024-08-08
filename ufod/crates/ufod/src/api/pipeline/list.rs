@@ -64,6 +64,7 @@ impl PipelineInfoInput {
 		(status = 200, description = "Pipeline info", body = Vec<PipelineInfoShort>),
 		(status = 404, description = "This dataset doesn't exist", body = String),
 		(status = 500, description = "Could not load pipeline", body = String),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 
@@ -72,9 +73,8 @@ pub(super) async fn list_pipelines(
 	State(state): State<RouterState>,
 	Query(query): Query<PipelineListRequest>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	let dataset = match state.main_db.dataset.get_dataset(&query.dataset).await {

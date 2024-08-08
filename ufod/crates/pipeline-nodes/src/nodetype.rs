@@ -180,7 +180,7 @@ impl PipelineNodeStub for UFONodeType {
 				};
 
 				let attr = if let Some(attr) =
-					block_on(ctx.dataset.get_attr_by_name(class.handle, &by_attr))?
+					block_on(ctx.dataset.get_attr_by_name(class.handle, by_attr))?
 				{
 					attr
 				} else {

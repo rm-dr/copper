@@ -50,7 +50,7 @@ pub(in super::super) struct PipelineBuilder<NodeStubType: PipelineNodeStub> {
 	node_input_name_map_after: RefCell<HashMap<PipelineNodeID, GraphNodeIdx>>,
 }
 
-impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
+impl<NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 	pub fn build(
 		context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
 		name: &PipelineName,
@@ -213,14 +213,13 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 		// Only used for errors
 		node_id: &PipelineNodeID,
 	) -> Result<usize, PipelinePrepareError<NodeStubType>> {
-		match node_type {
-			t => t.input_with_name(&self.context, input_port_id),
-		}
-		.map_err(|error| PipelinePrepareError::NodeStubError { error })?
-		.ok_or(PipelinePrepareError::NoNodeInput {
-			node: PipelineErrorNode::Named(node_id.clone()),
-			input: input_port_id.clone(),
-		})
+		node_type
+			.input_with_name(&self.context, input_port_id)
+			.map_err(|error| PipelinePrepareError::NodeStubError { error })?
+			.ok_or(PipelinePrepareError::NoNodeInput {
+				node: PipelineErrorNode::Named(node_id.clone()),
+				input: input_port_id.clone(),
+			})
 	}
 
 	/// Find the port index and type of the output port `output_port_id`
@@ -237,21 +236,17 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 		// Only used for errors
 		node_id: &PipelineNodeID,
 	) -> Result<(usize, SDataStub<NodeStubType>), PipelinePrepareError<NodeStubType>> {
-		match node_type {
-			t => {
-				let idx = t
-					.output_with_name(&self.context, output_port_id)
-					.map_err(|error| PipelinePrepareError::NodeStubError { error })?
-					.ok_or(PipelinePrepareError::NoNodeOutput {
-						output: output_port_id.clone(),
-						node: PipelineErrorNode::Named(node_id.clone()),
-					})?;
-				let output_type = t
-					.output_type(&self.context, idx)
-					.map_err(|error| PipelinePrepareError::NodeStubError { error })?;
-				Ok((idx, output_type))
-			}
-		}
+		let idx = node_type
+			.output_with_name(&self.context, output_port_id)
+			.map_err(|error| PipelinePrepareError::NodeStubError { error })?
+			.ok_or(PipelinePrepareError::NoNodeOutput {
+				output: output_port_id.clone(),
+				node: PipelineErrorNode::Named(node_id.clone()),
+			})?;
+		let output_type = node_type
+			.output_type(&self.context, idx)
+			.map_err(|error| PipelinePrepareError::NodeStubError { error })?;
+		Ok((idx, output_type))
 	}
 
 	/// Connect `out_link` to port index `in_port` of node `node_idx`.

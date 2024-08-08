@@ -23,7 +23,7 @@ pub(super) struct DelgroupRequest {
 	responses(
 		(status = 200, description = "Successfully deleted group"),
 		(status = 400, description = "Could not delete group"),
-		(status = 500, description = "Internal server error", body=String),
+		(status = 500, description = "Internal server error", body = String),
 		(status = 401, description = "Unauthorized")
 	)
 )]
@@ -55,7 +55,7 @@ pub(super) async fn del_group(
 					);
 					return (
 						StatusCode::INTERNAL_SERVER_ERROR,
-						format!("Could not check group parent"),
+						"Could not check group parent",
 					)
 						.into_response();
 				}
@@ -89,11 +89,7 @@ pub(super) async fn del_group(
 				request_payload = ?payload,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not delete group"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not delete group").into_response();
 		}
 	};
 }

@@ -24,9 +24,10 @@ pub(in crate::api) struct NewClassRequest {
 	path = "/add",
 	responses(
 		(status = 200, description = "Successfully created new class"),
-		(status = 400, description = "Could not create new class, bad parameters", body=String),
-		(status = 404, description = "This dataset doesn't exist", body=String),
-		(status = 500, description = "Internal server error", body=String),
+		(status = 400, description = "Could not create new class, bad parameters", body = String),
+		(status = 404, description = "Bad dataset", body = String),
+		(status = 500, description = "Internal server error", body = String),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn add_class(
@@ -34,24 +35,15 @@ pub(super) async fn add_class(
 	State(state): State<RouterState>,
 	Json(payload): Json<NewClassRequest>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	// TODO: ONE function to check name
-	if payload.new_class_name == "" {
-		return (
-			StatusCode::BAD_REQUEST,
-			format!("Class name cannot be empty"),
-		)
-			.into_response();
+	if payload.new_class_name.is_empty() {
+		return (StatusCode::BAD_REQUEST, "Class name cannot be empty").into_response();
 	} else if payload.new_class_name.trim() == "" {
-		return (
-			StatusCode::BAD_REQUEST,
-			format!("Class name cannot be whitespace"),
-		)
-			.into_response();
+		return (StatusCode::BAD_REQUEST, "Class name cannot be whitespace").into_response();
 	}
 
 	let dataset = match state.main_db.dataset.get_dataset(&payload.dataset).await {
@@ -69,11 +61,7 @@ pub(super) async fn add_class(
 				dataset = payload.dataset,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get dataset").into_response();
 		}
 	};
 
@@ -96,7 +84,7 @@ pub(super) async fn add_class(
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not create new class"),
+				"Could not create new class",
 			)
 				.into_response();
 		}

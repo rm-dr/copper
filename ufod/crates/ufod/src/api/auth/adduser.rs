@@ -28,7 +28,7 @@ pub(super) struct AdduserRequest {
 	responses(
 		(status = 200, description = "Successfully created user"),
 		(status = 400, description = "Could not create user"),
-		(status = 500, description = "Internal server error", body=String),
+		(status = 500, description = "Internal server error", body = String),
 		(status = 401, description = "Unauthorized")
 	)
 )]
@@ -65,7 +65,7 @@ pub(super) async fn add_user(
 					);
 					return (
 						StatusCode::INTERNAL_SERVER_ERROR,
-						format!("Could not check group parent"),
+						"Could not check group parent",
 					)
 						.into_response();
 				}
@@ -87,7 +87,7 @@ pub(super) async fn add_user(
 	match state
 		.main_db
 		.auth
-		.new_user(&payload.username, &payload.password, payload.group.into())
+		.new_user(&payload.username, &payload.password, payload.group)
 		.await
 	{
 		Ok(()) => {
@@ -111,11 +111,11 @@ pub(super) async fn add_user(
 		}
 
 		Err(CreateUserError::BadGroup) => {
-			return (StatusCode::BAD_REQUEST, format!("Invalid group")).into_response();
+			return (StatusCode::BAD_REQUEST, "Invalid group").into_response();
 		}
 
 		Err(CreateUserError::BadPassword) => {
-			return (StatusCode::BAD_REQUEST, format!("Invalid password")).into_response();
+			return (StatusCode::BAD_REQUEST, "Invalid password").into_response();
 		}
 
 		Err(CreateUserError::DbError(e)) => {
@@ -124,11 +124,7 @@ pub(super) async fn add_user(
 				request_payload = ?payload,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not add user"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not add user").into_response();
 		}
 	};
 }

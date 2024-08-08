@@ -129,7 +129,7 @@ impl PipelineNode for AddItem {
 					is_done,
 				}) => {
 					while let Some(data) = buffer.pop_front() {
-						writer.as_mut().unwrap().write(&data[..])?;
+						writer.as_mut().unwrap().write_all(&data[..])?;
 					}
 					if *is_done {
 						let x = block_on(self.dataset.finish_blob(writer.take().unwrap()))?;
@@ -149,12 +149,10 @@ impl PipelineNode for AddItem {
 		for (attr, data) in self.attrs.iter().zip(self.data.iter_mut()) {
 			let data = match data.as_ref().unwrap() {
 				DataHold::Static(x) => x.as_db_data().unwrap(),
-				DataHold::BlobDone(handle) => MetastoreData::Blob {
-					handle: handle.clone(),
-				},
+				DataHold::BlobDone(handle) => MetastoreData::Blob { handle: *handle },
 				_ => unreachable!(),
 			};
-			attrs.push((attr.handle, data.into()));
+			attrs.push((attr.handle, data));
 		}
 		let res = block_on(self.dataset.add_item(self.class, attrs));
 
@@ -198,7 +196,7 @@ impl UFONode for AddItem {
 				};
 
 				let attrs = block_on(ctx.dataset.class_get_attrs(class.handle))?;
-				attrs.into_iter().count()
+				attrs.len()
 			}
 			_ => unreachable!(),
 		})
@@ -272,7 +270,7 @@ impl UFONode for AddItem {
 				};
 
 				let attrs = block_on(ctx.dataset.class_get_attrs(class.handle))?;
-				attrs.into_iter().count()
+				attrs.len()
 			}
 			_ => unreachable!(),
 		})

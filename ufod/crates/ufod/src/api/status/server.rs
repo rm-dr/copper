@@ -39,9 +39,8 @@ pub(super) async fn get_server_status(
 	jar: CookieJar,
 	State(state): State<RouterState>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	return (

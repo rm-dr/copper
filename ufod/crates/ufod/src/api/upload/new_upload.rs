@@ -31,13 +31,13 @@ pub(super) struct UploadStartResult {
 			description = "Internal error, check server logs. Should not appear during normal operation.",
 			body = String,
 			example = json!("error text")
-		)
+		),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn start_upload(jar: CookieJar, State(state): State<RouterState>) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	match tokio::task::spawn_blocking(move || state.uploader.new_job()).await {
@@ -66,7 +66,7 @@ pub(super) async fn start_upload(jar: CookieJar, State(state): State<RouterState
 
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("could not create upload job"),
+				"could not create upload job",
 			)
 				.into_response();
 		}

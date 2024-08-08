@@ -44,6 +44,7 @@ pub(super) struct ExtendedClassInfo {
 	responses(
 		(status = 200, description = "Classes", body = Vec<ExtendedClassInfo>),
 		(status = 500, description = "Internal server error", body = String),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn list_classes(
@@ -51,9 +52,8 @@ pub(super) async fn list_classes(
 	State(state): State<RouterState>,
 	Query(query): Query<ClassListRequest>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	let dataset = match state.main_db.dataset.get_dataset(&query.dataset).await {
@@ -71,11 +71,7 @@ pub(super) async fn list_classes(
 				dataset = query.dataset,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get dataset").into_response();
 		}
 	};
 
@@ -87,11 +83,7 @@ pub(super) async fn list_classes(
 				dataset = ?query.dataset,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get classes"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get classes").into_response();
 		}
 	};
 

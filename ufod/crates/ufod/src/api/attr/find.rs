@@ -32,6 +32,7 @@ pub(super) struct FindAttrRequest {
 		(status = 200, description = "Attribute info", body = AttrInfo),
 		(status = 404, description = "Could not find attribute", body = String),
 		(status = 500, description = "Internal server error", body = String),
+		(status = 401, description = "Unauthorized")
 	),
 )]
 pub(super) async fn find_attr(
@@ -39,9 +40,8 @@ pub(super) async fn find_attr(
 	Query(payload): Query<FindAttrRequest>,
 	State(state): State<RouterState>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(_) => {}
+	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
+		return x;
 	}
 
 	let dataset = match state.main_db.dataset.get_dataset(&payload.dataset).await {
@@ -59,11 +59,7 @@ pub(super) async fn find_attr(
 				dataset = payload.dataset,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get dataset").into_response();
 		}
 	};
 
@@ -72,7 +68,7 @@ pub(super) async fn find_attr(
 		.await
 	{
 		Ok(Some(x)) => return Json(x).into_response(),
-		Ok(None) => return (StatusCode::NOT_FOUND, format!("No such attribute")).into_response(),
+		Ok(None) => return (StatusCode::NOT_FOUND, "No such attribute").into_response(),
 		Err(MetastoreError::BadClassHandle) => {
 			return (
 				StatusCode::NOT_FOUND,
@@ -87,11 +83,7 @@ pub(super) async fn find_attr(
 				class = ?payload.class,
 				error = ?e
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get class"),
-			)
-				.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not get class").into_response();
 		}
 	};
 }
