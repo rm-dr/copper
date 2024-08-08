@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use serde::Deserialize;
 use serde_with::serde_as;
 use ufo_audiofile::common::tagtype::TagType;
@@ -7,10 +8,7 @@ use ufo_pipeline::{
 	portspec::PipelinePortSpec,
 	NDataStub,
 };
-use ufo_storage::{
-	api::ClassHandle,
-	data::{HashType, StorageData, StorageDataStub},
-};
+use ufo_storage::data::{HashType, StorageData, StorageDataStub};
 
 use crate::{input::file::FileInput, output::storage::StorageOutput};
 
@@ -143,12 +141,7 @@ impl PipelineNodeStub for UFONodeType {
 			]),
 			Self::Noop { inputs } => PipelinePortSpec::Vec(inputs),
 			Self::Hash { .. } => PipelinePortSpec::Static(&[("data", StorageDataStub::Binary)]),
-			Self::Print => PipelinePortSpec::VecOwned(vec![(
-				"data".into(),
-				StorageDataStub::Reference {
-					class: ClassHandle::from(2),
-				},
-			)]),
+			Self::Print => PipelinePortSpec::Static(&[("data", StorageDataStub::Text)]),
 
 			// Audio
 			Self::ExtractTags { .. } => {
@@ -170,9 +163,37 @@ impl PipelineNodeStub for UFONodeType {
 
 				attrs
 					.into_iter()
+					.sorted_by_key(|(_, a, _)| a.clone()) // Guarantee consistent ordering
 					.map(|(_, name, data_type)| (name.into(), data_type))
 					.collect()
 			}),
+		}
+	}
+
+	fn input_compatible_with(
+		&self,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+		input_idx: usize,
+		input_type: NDataStub<Self::NodeType>,
+	) -> bool {
+		match self {
+			// Inherit input from `input()`
+			Self::Constant { .. }
+			| Self::Noop { .. }
+			| Self::Hash { .. }
+			| Self::IfNone
+			| Self::ExtractTags { .. }
+			| Self::ExtractCovers
+			| Self::StripTags
+			| Self::File
+			| Self::Dataset { .. } => self
+				.inputs(ctx)
+				.get(input_idx)
+				.map(|x| x.1 == input_type)
+				.unwrap_or(false),
+
+			// Print can take any input type
+			Self::Print => self.inputs(ctx).get(input_idx).is_some(),
 		}
 	}
 

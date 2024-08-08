@@ -248,8 +248,9 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 			} else {
 				// Initialize all with None, in case some are disconnected.
 				let node_type = &self.pipeline.graph.get_node(node).1;
-				let mut inputs = Vec::with_capacity(node_type.inputs(&self.context).len());
-				for (_, t) in node_type.inputs(&self.context).iter() {
+				let i = node_type.inputs(&self.context);
+				let mut inputs = Vec::with_capacity(i.len());
+				for (_, t) in i.iter() {
 					inputs.push(PipelineData::new_empty(t));
 				}
 

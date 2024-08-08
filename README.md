@@ -30,8 +30,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 - Better db index names
 
 - Load and check db metadata
-- Options for hash, reference
-  - Better type checking: take (m)any types as input?
 - sanely handle duplicate album art
 
 - async binary readers
@@ -56,6 +54,9 @@ UFO's goal is to be "[Paperless] for everything," with...
   - multi-enum
   - date
 - Helpful pipeline parse errors
+- Faster node inputs() and outputs()
+  - No (less?) allocation
+  - Fewer db hits (solve by caching?)
 - Smarter pipeline scheduler
   - efficient end condition: we don't need to run ALL nodes
   - What is blocking what? (data streams)

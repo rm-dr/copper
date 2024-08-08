@@ -17,6 +17,14 @@ impl<'a, DataStub: PipelineDataStub> PipelinePortSpec<'a, DataStub> {
 		}
 	}
 
+	pub fn get(&self, idx: usize) -> Option<(PipelinePortLabel, DataStub)> {
+		match self {
+			Self::Static(x) => x.get(idx).map(|(a, b)| ((*a).into(), *b)),
+			Self::Vec(x) => x.get(idx).cloned(),
+			Self::VecOwned(x) => x.get(idx).cloned(),
+		}
+	}
+
 	pub fn is_empty(&self) -> bool {
 		self.len() == 0
 	}

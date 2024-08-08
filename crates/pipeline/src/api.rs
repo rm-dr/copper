@@ -98,13 +98,23 @@ where
 		name: &str,
 	) -> Self::NodeType;
 
-	/// Return the inputs the node generated from this stub will take
+	/// What inputs does this node produce?
+	/// The types provided here are the "defaults" for each port.
 	fn inputs(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 	) -> PipelinePortSpec<NDataStub<Self::NodeType>>;
 
-	/// Return the outputs the node generated from this stub will produce
+	/// Can the specified inport port consume the given data type?
+	/// This allows inputs to consume many types of data.
+	fn input_compatible_with(
+		&self,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+		input_idx: usize,
+		input_type: NDataStub<Self::NodeType>,
+	) -> bool;
+
+	/// What outputs does this node produce?
 	fn outputs(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,

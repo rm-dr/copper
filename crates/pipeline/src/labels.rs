@@ -5,7 +5,7 @@ use smartstring::{LazyCompact, SmartString};
 use std::fmt::Display;
 
 /// A node label in a pipeline
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Deserialize)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Deserialize, PartialOrd, Ord)]
 pub struct PipelineNodeLabel(SmartString<LazyCompact>);
 
 impl Display for PipelineNodeLabel {
@@ -57,7 +57,7 @@ impl<'a> From<&'a PipelineNodeLabel> for &'a str {
 }
 
 /// A port label in a pipeline
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Deserialize)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Deserialize, PartialOrd, Ord)]
 pub struct PipelinePortLabel(SmartString<LazyCompact>);
 
 impl Display for PipelinePortLabel {
@@ -109,7 +109,7 @@ impl<'a> From<&'a PipelinePortLabel> for &'a str {
 }
 
 /// A pipeline's name
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Deserialize)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Deserialize, PartialOrd, Ord)]
 pub struct PipelineLabel(SmartString<LazyCompact>);
 
 impl Display for PipelineLabel {

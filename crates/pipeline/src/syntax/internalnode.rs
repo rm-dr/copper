@@ -44,6 +44,18 @@ impl<StubType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<StubType>
 		}
 	}
 
+	fn input_compatible_with(
+		&self,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+		input_idx: usize,
+		input_type: NDataStub<Self::NodeType>,
+	) -> bool {
+		match self {
+			Self::Pipeline { .. } => unreachable!(),
+			Self::User(n) => n.input_compatible_with(ctx, input_idx, input_type),
+		}
+	}
+
 	fn inputs(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,

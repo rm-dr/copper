@@ -83,11 +83,12 @@ pub enum PipelinePrepareError<DataStub: PipelineDataStub> {
 	TypeMismatch {
 		/// The output we tried to connect
 		output: (PipelineErrorNode, PipelinePortLabel),
+
+		/// the type of this output
 		output_type: DataStub,
 
 		/// The input we tried to connect
 		input: NodeInput,
-		input_type: DataStub,
 	},
 
 	/// We tried to use a node with multiple outputs inline
@@ -157,12 +158,11 @@ impl<DataStub: PipelineDataStub> Display for PipelinePrepareError<DataStub> {
 			Self::TypeMismatch {
 				output,
 				input,
-				input_type,
 				output_type,
 			} => {
 				writeln!(
 					f,
-					"PipelinePrepareError: `{output:?}` ({output_type:?}) and `{input:?}` ({input_type:?}) have different types."
+					"PipelinePrepareError: `{output:?}` produces datatype {output_type:?}, but `{input:?}` cannot consume it."
 				)
 			}
 			Self::HasCycle => {
