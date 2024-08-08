@@ -11,9 +11,21 @@ import {
 	IconSettings,
 	IconUser,
 } from "@tabler/icons-react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { UserInfo } from "@/app/u/users/_grouptree";
 
 const Navbar = () => {
+	const [userInfo, setUserInfo] = useState<UserInfo | null | string>(null);
+
+	useEffect(() => {
+		fetch("/api/auth/me")
+			.then((res) => res.json())
+			.then(setUserInfo)
+			.catch((e) => {
+				setUserInfo("error");
+			});
+	}, []);
+
 	return (
 		<div className={styles.navbar}>
 			<div className={styles.banner}>
@@ -23,7 +35,13 @@ const Navbar = () => {
 			<div className={styles.usermenu}>
 				<Menu shadow="md">
 					<Menu.Target>
-						<Text>User</Text>
+						{typeof userInfo === "string" ? (
+							<Text c="red">{userInfo}</Text>
+						) : userInfo === null ? (
+							<Text c="dimmed">Loading...</Text>
+						) : (
+							<Text>{userInfo.name}</Text>
+						)}
 					</Menu.Target>
 
 					<Menu.Dropdown>

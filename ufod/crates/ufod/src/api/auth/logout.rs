@@ -11,7 +11,7 @@ use axum_extra::extract::{
 use time::OffsetDateTime;
 use tracing::info;
 
-/// Try to log in
+/// Terminate this session
 #[utoipa::path(
 	post,
 	path = "/logout",

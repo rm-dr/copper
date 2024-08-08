@@ -27,7 +27,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] UI item CRUD
   - [ ] Delete items
   - [ ] Bottom panel (edit items)
-  - [ ] Select attrs to show
   - [ ] Sort by attrs
   - [ ] List number of selected items
   - [ ] Initial layout for table
@@ -41,7 +40,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Rename users & groups
 - [ ] Change user password
 - [ ] Change self password
-- [ ] Navbar user info
 - [ ] Edit permissions
 - [ ] Dataset permissions (per group)
 - [ ] Hide datasets/groups (view permission)

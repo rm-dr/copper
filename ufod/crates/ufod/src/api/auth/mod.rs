@@ -12,6 +12,7 @@ mod deluser;
 mod listgroup;
 mod login;
 mod logout;
+mod me;
 
 use addgroup::*;
 use adduser::*;
@@ -20,12 +21,13 @@ use deluser::*;
 use listgroup::*;
 use login::*;
 use logout::*;
+use me::*;
 
 #[derive(OpenApi)]
 #[openapi(
 	tags(),
 	paths(
-		try_login, add_user, add_group, del_group, del_user, logout, list_group
+		try_login, add_user, add_group, del_group, del_user, logout, list_group, get_me
 	),
 	components(schemas(
 		LoginRequest,
@@ -43,6 +45,7 @@ pub(super) fn router() -> Router<RouterState> {
 		.route("/login", post(try_login))
 		.route("/logout", post(logout))
 		.route("/user/add", post(add_user))
+		.route("/me", get(get_me))
 		.route("/user/del", delete(del_user))
 		.route("/group/add", post(add_group))
 		.route("/group/del", delete(del_group))
