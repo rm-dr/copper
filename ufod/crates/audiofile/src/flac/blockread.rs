@@ -19,6 +19,8 @@ use crate::flac::blocks::{
 	FlacSeektableBlock, FlacStreaminfoBlock,
 };
 
+const MIN_AUDIO_FRAME_LEN: usize = 5000;
+
 /// Select which blocks we want to keep.
 /// All values are `false` by default.
 #[derive(Debug, Default, Clone, Copy)]
@@ -319,13 +321,19 @@ impl FlacBlockReader {
 						}
 					}
 
-					if data.len() > 2 {
+					if data.len() >= MIN_AUDIO_FRAME_LEN {
 						// Look for a frame sync header in the data we read
+						//
+						// This isn't the *correct* way to split audio frames (false sync bytes can occur in audio data),
+						// but it's good enough for now---we don't decode audio data anyway.
+						//
+						// We could split on every sequence of sync bytes, but that's not any less wrong than the approach here.
+						// Also, it's slower---we'd rather have few large frames than many small ones.
 
-						let first_byte = if data.len() - last_read_size < 2 {
-							3
+						let first_byte = if data.len() - last_read_size < MIN_AUDIO_FRAME_LEN {
+							MIN_AUDIO_FRAME_LEN + 1
 						} else {
-							data.len() - last_read_size + 3
+							data.len() - last_read_size + MIN_AUDIO_FRAME_LEN + 1
 						};
 
 						// `i` is the index of the first byte *after* the sync sequence.
@@ -352,7 +360,11 @@ impl FlacBlockReader {
 								.unwrap();
 
 								self.current_block = Some(FlacBlockType::AudioData {
-									data: Vec::from(&data[i - 2..i]),
+									data: {
+										let mut v = Vec::with_capacity(MIN_AUDIO_FRAME_LEN);
+										v.extend(&data[i - 2..i]);
+										v
+									},
 								});
 								continue 'outer;
 							}

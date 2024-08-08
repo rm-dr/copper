@@ -47,7 +47,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Cover inside comment
 - [ ] IDv3 complete implementation
 - [ ] Tag node types
-- [ ] Fix audioframe splitting (sync bytes)
 - [ ] Generic strip class
 - [ ] Early exit if we don't need audio
 
