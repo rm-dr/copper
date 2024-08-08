@@ -1,7 +1,7 @@
 //! Helper traits
 
+use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::labels::PipelinePortLabel;
-use ufo_storage::data::StorageDataStub;
 
 use crate::{nodetype::UFONodeType, UFOContext};
 
@@ -13,14 +13,11 @@ pub trait UFONode {
 		stub: &UFONodeType,
 		ctx: &UFOContext,
 		input_idx: usize,
-		input_type: StorageDataStub,
+		input_type: MetaDbDataStub,
 	) -> bool;
 
-	fn input_default_type(
-		stub: &UFONodeType,
-		ctx: &UFOContext,
-		input_idx: usize,
-	) -> StorageDataStub;
+	fn input_default_type(stub: &UFONodeType, ctx: &UFOContext, input_idx: usize)
+		-> MetaDbDataStub;
 
 	fn input_with_name(
 		stub: &UFONodeType,
@@ -30,7 +27,7 @@ pub trait UFONode {
 
 	fn n_outputs(stub: &UFONodeType, ctx: &UFOContext) -> usize;
 
-	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> StorageDataStub;
+	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub;
 
 	fn output_with_name(
 		stub: &UFONodeType,
@@ -41,8 +38,8 @@ pub trait UFONode {
 
 /// A shortcut implementation for nodes that provide a static set of inputs & outputs
 pub trait UFOStaticNode {
-	fn inputs() -> &'static [(&'static str, StorageDataStub)];
-	fn outputs() -> &'static [(&'static str, StorageDataStub)];
+	fn inputs() -> &'static [(&'static str, MetaDbDataStub)];
+	fn outputs() -> &'static [(&'static str, MetaDbDataStub)];
 }
 
 impl<T> UFONode for T
@@ -57,7 +54,7 @@ where
 		stub: &UFONodeType,
 		ctx: &UFOContext,
 		input_idx: usize,
-		input_type: StorageDataStub,
+		input_type: MetaDbDataStub,
 	) -> bool {
 		Self::input_default_type(stub, ctx, input_idx) == input_type
 	}
@@ -78,7 +75,7 @@ where
 		_stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-	) -> StorageDataStub {
+	) -> MetaDbDataStub {
 		Self::inputs().get(input_idx).unwrap().1
 	}
 
@@ -86,7 +83,7 @@ where
 		Self::outputs().len()
 	}
 
-	fn output_type(_stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> StorageDataStub {
+	fn output_type(_stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub {
 		Self::outputs().get(output_idx).unwrap().1
 	}
 

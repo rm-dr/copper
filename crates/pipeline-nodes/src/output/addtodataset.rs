@@ -4,23 +4,23 @@ use ufo_pipeline::{
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
-use ufo_storage::{
+use ufo_metadb::{
 	api::{AttrHandle, ClassHandle},
-	data::{StorageData, StorageDataStub},
+	data::{MetaDbData, MetaDbDataStub},
 };
 
 use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
 
 pub struct AddToDataset {
 	class: ClassHandle,
-	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, StorageDataStub)>,
-	data: Vec<StorageData>,
+	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
+	data: Vec<MetaDbData>,
 }
 
 impl AddToDataset {
 	pub fn new(
 		class: ClassHandle,
-		attrs: Vec<(AttrHandle, SmartString<LazyCompact>, StorageDataStub)>,
+		attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
 	) -> Self {
 		AddToDataset {
 			class,
@@ -32,7 +32,7 @@ impl AddToDataset {
 
 impl PipelineNode for AddToDataset {
 	type NodeContext = UFOContext;
-	type DataType = StorageData;
+	type DataType = MetaDbData;
 
 	fn init<F>(
 		&mut self,
@@ -67,7 +67,7 @@ impl PipelineNode for AddToDataset {
 
 		send_data(
 			0,
-			StorageData::Reference {
+			MetaDbData::Reference {
 				class: self.class,
 				item,
 			},
@@ -100,7 +100,7 @@ impl UFONode for AddToDataset {
 		stub: &UFONodeType,
 		ctx: &UFOContext,
 		input_idx: usize,
-		input_type: StorageDataStub,
+		input_type: MetaDbDataStub,
 	) -> bool {
 		match stub {
 			UFONodeType::AddToDataset { .. } => {
@@ -140,7 +140,7 @@ impl UFONode for AddToDataset {
 		stub: &UFONodeType,
 		ctx: &UFOContext,
 		input_idx: usize,
-	) -> StorageDataStub {
+	) -> MetaDbDataStub {
 		match stub {
 			UFONodeType::AddToDataset { class } => {
 				let class = ctx
@@ -175,13 +175,13 @@ impl UFONode for AddToDataset {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> StorageDataStub {
+	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub {
 		match stub {
 			UFONodeType::AddToDataset { class } => {
 				assert!(output_idx == 0);
 				let mut d = ctx.dataset.lock().unwrap();
 				let class = d.get_class(class).unwrap().unwrap();
-				StorageDataStub::Reference { class }
+				MetaDbDataStub::Reference { class }
 			}
 			_ => unreachable!(),
 		}

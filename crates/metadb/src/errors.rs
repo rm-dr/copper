@@ -3,7 +3,7 @@ use std::{error::Error, fmt::Display};
 use smartstring::{LazyCompact, SmartString};
 
 #[derive(Debug)]
-pub enum DatasetError {
+pub enum MetaDbError {
 	/// We haven't connected to this database yet
 	NotConnected,
 
@@ -32,7 +32,7 @@ pub enum DatasetError {
 	DuplicateClassName(SmartString<LazyCompact>),
 }
 
-impl Display for DatasetError {
+impl Display for MetaDbError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::NotConnected => write!(f, "NotConnected"),
@@ -48,9 +48,9 @@ impl Display for DatasetError {
 	}
 }
 
-impl Error for DatasetError {}
+impl Error for MetaDbError {}
 
-impl From<sqlx::Error> for DatasetError {
+impl From<sqlx::Error> for MetaDbError {
 	fn from(value: sqlx::Error) -> Self {
 		Self::SQLX(value)
 	}

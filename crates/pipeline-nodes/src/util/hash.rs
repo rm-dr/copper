@@ -5,13 +5,13 @@ use ufo_pipeline::{
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
-use ufo_storage::data::{HashType, StorageData, StorageDataStub};
+use ufo_metadb::data::{HashType, MetaDbData, MetaDbDataStub};
 
 use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
 
 #[derive(Clone)]
 pub struct Hash {
-	data: Option<StorageData>,
+	data: Option<MetaDbData>,
 	hash_type: HashType,
 }
 
@@ -26,7 +26,7 @@ impl Hash {
 
 impl PipelineNode for Hash {
 	type NodeContext = UFOContext;
-	type DataType = StorageData;
+	type DataType = MetaDbData;
 
 	fn init<F>(
 		&mut self,
@@ -51,7 +51,7 @@ impl PipelineNode for Hash {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let data = match self.data.as_ref().unwrap() {
-			StorageData::Binary { data, .. } => data,
+			MetaDbData::Binary { data, .. } => data,
 			_ => panic!("bad data type"),
 		};
 
@@ -71,7 +71,7 @@ impl PipelineNode for Hash {
 
 		send_data(
 			0,
-			StorageData::Hash {
+			MetaDbData::Hash {
 				format: self.hash_type,
 				data: Arc::new(result),
 			},
@@ -82,8 +82,8 @@ impl PipelineNode for Hash {
 }
 
 impl Hash {
-	fn inputs() -> &'static [(&'static str, StorageDataStub)] {
-		&[("data", StorageDataStub::Binary)]
+	fn inputs() -> &'static [(&'static str, MetaDbDataStub)] {
+		&[("data", MetaDbDataStub::Binary)]
 	}
 }
 
@@ -99,7 +99,7 @@ impl UFONode for Hash {
 		stub: &UFONodeType,
 		ctx: &UFOContext,
 		input_idx: usize,
-		input_type: StorageDataStub,
+		input_type: MetaDbDataStub,
 	) -> bool {
 		Self::input_default_type(stub, ctx, input_idx) == input_type
 	}
@@ -123,7 +123,7 @@ impl UFONode for Hash {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-	) -> StorageDataStub {
+	) -> MetaDbDataStub {
 		match stub {
 			UFONodeType::Hash { .. } => Self::inputs().get(input_idx).unwrap().1,
 			_ => unreachable!(),
@@ -137,11 +137,11 @@ impl UFONode for Hash {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> StorageDataStub {
+	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub {
 		match stub {
 			UFONodeType::Hash { hash_type } => {
 				assert!(output_idx == 0);
-				StorageDataStub::Hash {
+				MetaDbDataStub::Hash {
 					hash_type: *hash_type,
 				}
 			}

@@ -6,7 +6,7 @@ use ufo_pipeline::{
 	labels::PipelinePortLabel,
 	NDataStub,
 };
-use ufo_storage::data::{HashType, StorageData, StorageDataStub};
+use ufo_metadb::data::{HashType, MetaDbData, MetaDbDataStub};
 
 use super::{
 	nodeinstance::UFONodeInstance,
@@ -23,10 +23,10 @@ pub enum UFONodeType {
 	// Utility nodes
 	Print,
 	Constant {
-		value: StorageData,
+		value: MetaDbData,
 	},
 	IfNone {
-		data_type: StorageDataStub,
+		data_type: MetaDbDataStub,
 	},
 	Hash {
 		hash_type: HashType,
@@ -34,7 +34,7 @@ pub enum UFONodeType {
 	Noop {
 		#[serde(rename = "input")]
 		#[serde_as(as = "serde_with::Map<_, _>")]
-		inputs: Vec<(PipelinePortLabel, StorageDataStub)>,
+		inputs: Vec<(PipelinePortLabel, MetaDbDataStub)>,
 	},
 
 	// Audio nodes

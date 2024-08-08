@@ -12,14 +12,14 @@ use ufo_pipeline::{
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
-use ufo_storage::data::{StorageData, StorageDataStub};
+use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 use ufo_util::mime::MimeType;
 
 use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
 
 #[derive(Clone)]
 pub struct ExtractTags {
-	data: Option<StorageData>,
+	data: Option<MetaDbData>,
 	tags: Vec<TagType>,
 }
 
@@ -44,7 +44,7 @@ impl ExtractTags {
 
 impl PipelineNode for ExtractTags {
 	type NodeContext = UFOContext;
-	type DataType = StorageData;
+	type DataType = MetaDbData;
 
 	fn init<F>(
 		&mut self,
@@ -69,7 +69,7 @@ impl PipelineNode for ExtractTags {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let (data_type, data) = match self.data.as_ref().unwrap() {
-			StorageData::Binary {
+			MetaDbData::Binary {
 				format: data_type,
 				data,
 			} => (data_type, data),
@@ -85,9 +85,9 @@ impl PipelineNode for ExtractTags {
 
 		for (i, tag_type) in self.tags.iter().enumerate() {
 			if let Some(tag_value) = tagger.get_tag(tag_type) {
-				send_data(i, StorageData::Text(Arc::new(tag_value)))?;
+				send_data(i, MetaDbData::Text(Arc::new(tag_value)))?;
 			} else {
-				send_data(i, StorageData::None(StorageDataStub::Text))?;
+				send_data(i, MetaDbData::None(MetaDbDataStub::Text))?;
 			}
 		}
 
@@ -96,8 +96,8 @@ impl PipelineNode for ExtractTags {
 }
 
 impl ExtractTags {
-	fn inputs() -> &'static [(&'static str, StorageDataStub)] {
-		&[("data", StorageDataStub::Binary)]
+	fn inputs() -> &'static [(&'static str, MetaDbDataStub)] {
+		&[("data", MetaDbDataStub::Binary)]
 	}
 }
 
@@ -113,7 +113,7 @@ impl UFONode for ExtractTags {
 		stub: &UFONodeType,
 		ctx: &UFOContext,
 		input_idx: usize,
-		input_type: StorageDataStub,
+		input_type: MetaDbDataStub,
 	) -> bool {
 		Self::input_default_type(stub, ctx, input_idx) == input_type
 	}
@@ -137,7 +137,7 @@ impl UFONode for ExtractTags {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-	) -> StorageDataStub {
+	) -> MetaDbDataStub {
 		match stub {
 			UFONodeType::ExtractTags { .. } => Self::inputs().get(input_idx).unwrap().1,
 			_ => unreachable!(),
@@ -151,11 +151,11 @@ impl UFONode for ExtractTags {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> StorageDataStub {
+	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub {
 		match stub {
 			UFONodeType::ExtractTags { tags } => {
 				assert!(output_idx < tags.len());
-				StorageDataStub::Text
+				MetaDbDataStub::Text
 			}
 			_ => unreachable!(),
 		}

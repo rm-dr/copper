@@ -4,7 +4,7 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
-use ufo_storage::data::{StorageData, StorageDataStub};
+use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 use ufo_util::mime::MimeType;
 
 use crate::{helpers::UFOStaticNode, UFOContext};
@@ -23,7 +23,7 @@ impl FileReader {
 
 impl PipelineNode for FileReader {
 	type NodeContext = UFOContext;
-	type DataType = StorageData;
+	type DataType = MetaDbData;
 
 	fn init<F>(
 		&mut self,
@@ -36,7 +36,7 @@ impl PipelineNode for FileReader {
 	{
 		assert!(input.len() == 1);
 		self.path = match input.pop().unwrap() {
-			StorageData::Path(p) => Some((*p).clone()),
+			MetaDbData::Path(p) => Some((*p).clone()),
 			_ => panic!(),
 		};
 		Ok(PipelineNodeState::Pending)
@@ -58,11 +58,11 @@ impl PipelineNode for FileReader {
 		let file_format = MimeType::from_extension(p.extension().unwrap().to_str().unwrap())
 			.unwrap_or(MimeType::Blob);
 
-		send_data(0, StorageData::Path(Arc::new(p.clone())))?;
+		send_data(0, MetaDbData::Path(Arc::new(p.clone())))?;
 
 		send_data(
 			1,
-			StorageData::Binary {
+			MetaDbData::Binary {
 				format: file_format,
 				data: Arc::new(data),
 			},
@@ -73,14 +73,14 @@ impl PipelineNode for FileReader {
 }
 
 impl UFOStaticNode for FileReader {
-	fn inputs() -> &'static [(&'static str, StorageDataStub)] {
-		&[("path", StorageDataStub::Path)]
+	fn inputs() -> &'static [(&'static str, MetaDbDataStub)] {
+		&[("path", MetaDbDataStub::Path)]
 	}
 
-	fn outputs() -> &'static [(&'static str, StorageDataStub)] {
+	fn outputs() -> &'static [(&'static str, MetaDbDataStub)] {
 		&[
-			("path", StorageDataStub::Path),
-			("data", StorageDataStub::Binary),
+			("path", MetaDbDataStub::Path),
+			("data", MetaDbDataStub::Binary),
 		]
 	}
 }

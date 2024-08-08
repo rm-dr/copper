@@ -2008,9 +2008,9 @@ dependencies = [
  "anyhow",
  "serde",
  "smartstring",
+ "ufo-metadb",
  "ufo-pipeline",
  "ufo-pipeline-nodes",
- "ufo-storage",
  "ufo-util",
 ]
 
@@ -2022,6 +2022,19 @@ dependencies = [
  "serde",
  "serde_with",
  "smartstring",
+ "ufo-util",
+]
+
+[[package]]
+name = "ufo-metadb"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "itertools",
+ "serde",
+ "smartstring",
+ "sqlx",
+ "ufo-pipeline",
  "ufo-util",
 ]
 
@@ -2050,20 +2063,7 @@ dependencies = [
  "sha2",
  "smartstring",
  "ufo-audiofile",
- "ufo-pipeline",
- "ufo-storage",
- "ufo-util",
-]
-
-[[package]]
-name = "ufo-storage"
-version = "0.1.0"
-dependencies = [
- "futures",
- "itertools",
- "serde",
- "smartstring",
- "sqlx",
+ "ufo-metadb",
  "ufo-pipeline",
  "ufo-util",
 ]

@@ -7,14 +7,14 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
-use ufo_storage::data::{StorageData, StorageDataStub};
+use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 use ufo_util::mime::MimeType;
 
 use crate::{helpers::UFOStaticNode, UFOContext};
 
 #[derive(Clone)]
 pub struct ExtractCovers {
-	data: Option<StorageData>,
+	data: Option<MetaDbData>,
 }
 
 impl ExtractCovers {
@@ -25,7 +25,7 @@ impl ExtractCovers {
 
 impl PipelineNode for ExtractCovers {
 	type NodeContext = UFOContext;
-	type DataType = StorageData;
+	type DataType = MetaDbData;
 
 	fn init<F>(
 		&mut self,
@@ -50,7 +50,7 @@ impl PipelineNode for ExtractCovers {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let (data_type, data) = match self.data.as_ref().unwrap() {
-			StorageData::Binary {
+			MetaDbData::Binary {
 				format: data_type,
 				data,
 			} => (data_type, data),
@@ -71,7 +71,7 @@ impl PipelineNode for ExtractCovers {
 
 		send_data(
 			0,
-			StorageData::Binary {
+			MetaDbData::Binary {
 				format: cover_format,
 				data: Arc::new(cover_data),
 			},
@@ -82,11 +82,11 @@ impl PipelineNode for ExtractCovers {
 }
 
 impl UFOStaticNode for ExtractCovers {
-	fn inputs() -> &'static [(&'static str, ufo_storage::data::StorageDataStub)] {
-		&[("data", StorageDataStub::Binary)]
+	fn inputs() -> &'static [(&'static str, ufo_metadb::data::MetaDbDataStub)] {
+		&[("data", MetaDbDataStub::Binary)]
 	}
 
-	fn outputs() -> &'static [(&'static str, StorageDataStub)] {
-		&[("cover_data", StorageDataStub::Binary)]
+	fn outputs() -> &'static [(&'static str, MetaDbDataStub)] {
+		&[("cover_data", MetaDbDataStub::Binary)]
 	}
 }

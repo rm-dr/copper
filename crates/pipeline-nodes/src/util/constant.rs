@@ -3,24 +3,24 @@ use ufo_pipeline::{
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
-use ufo_storage::data::{StorageData, StorageDataStub};
+use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 
 use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
 
 #[derive(Clone)]
 pub struct Constant {
-	value: StorageData,
+	value: MetaDbData,
 }
 
 impl Constant {
-	pub fn new(value: StorageData) -> Self {
+	pub fn new(value: MetaDbData) -> Self {
 		Self { value }
 	}
 }
 
 impl PipelineNode for Constant {
 	type NodeContext = UFOContext;
-	type DataType = StorageData;
+	type DataType = MetaDbData;
 
 	fn init<F>(
 		&mut self,
@@ -49,7 +49,7 @@ impl UFONode for Constant {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		_input_idx: usize,
-		_input_type: StorageDataStub,
+		_input_type: MetaDbDataStub,
 	) -> bool {
 		match stub {
 			UFONodeType::Constant { .. } => false,
@@ -72,7 +72,7 @@ impl UFONode for Constant {
 		_stub: &UFONodeType,
 		_ctx: &UFOContext,
 		_input_idx: usize,
-	) -> StorageDataStub {
+	) -> MetaDbDataStub {
 		unreachable!()
 	}
 
@@ -83,7 +83,7 @@ impl UFONode for Constant {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> StorageDataStub {
+	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub {
 		match stub {
 			UFONodeType::Constant { value } => {
 				assert!(output_idx == 0);

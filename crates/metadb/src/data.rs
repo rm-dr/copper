@@ -17,10 +17,10 @@ use crate::api::{ClassHandle, ItemHandle};
 /// (for example, the `Constant` node's `value` field)
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
-pub enum StorageData {
+pub enum MetaDbData {
 	/// Typed, unset data
 	#[serde(skip)]
-	None(StorageDataStub),
+	None(MetaDbDataStub),
 
 	/// A block of text
 	Text(Arc<String>),
@@ -68,20 +68,20 @@ pub enum StorageData {
 	},
 }
 
-impl PipelineData for StorageData {
-	type DataStub = StorageDataStub;
+impl PipelineData for MetaDbData {
+	type DataStub = MetaDbDataStub;
 
 	fn as_stub(&self) -> Self::DataStub {
 		match self {
 			Self::None(t) => *t,
-			Self::Text(_) => StorageDataStub::Text,
-			Self::Path(_) => StorageDataStub::Path,
-			Self::Integer(_) => StorageDataStub::Integer,
-			Self::PositiveInteger(_) => StorageDataStub::PositiveInteger,
-			Self::Float(_) => StorageDataStub::Float,
-			Self::Hash { format, .. } => StorageDataStub::Hash { hash_type: *format },
-			Self::Binary { .. } => StorageDataStub::Binary,
-			Self::Reference { class, .. } => StorageDataStub::Reference { class: *class },
+			Self::Text(_) => MetaDbDataStub::Text,
+			Self::Path(_) => MetaDbDataStub::Path,
+			Self::Integer(_) => MetaDbDataStub::Integer,
+			Self::PositiveInteger(_) => MetaDbDataStub::PositiveInteger,
+			Self::Float(_) => MetaDbDataStub::Float,
+			Self::Hash { format, .. } => MetaDbDataStub::Hash { hash_type: *format },
+			Self::Binary { .. } => MetaDbDataStub::Binary,
+			Self::Reference { class, .. } => MetaDbDataStub::Reference { class: *class },
 		}
 	}
 
@@ -90,19 +90,19 @@ impl PipelineData for StorageData {
 	}
 }
 
-impl StorageData {
+impl MetaDbData {
 	/// Transforms a data container into its type.
-	pub fn as_stub(&self) -> StorageDataStub {
+	pub fn as_stub(&self) -> MetaDbDataStub {
 		match self {
 			Self::None(t) => *t,
-			Self::Text(_) => StorageDataStub::Text,
-			Self::Binary { .. } => StorageDataStub::Binary,
-			Self::Path(_) => StorageDataStub::Path,
-			Self::Integer(_) => StorageDataStub::Integer,
-			Self::PositiveInteger(_) => StorageDataStub::PositiveInteger,
-			Self::Float(_) => StorageDataStub::Float,
-			Self::Hash { format, .. } => StorageDataStub::Hash { hash_type: *format },
-			Self::Reference { class, .. } => StorageDataStub::Reference { class: *class },
+			Self::Text(_) => MetaDbDataStub::Text,
+			Self::Binary { .. } => MetaDbDataStub::Binary,
+			Self::Path(_) => MetaDbDataStub::Path,
+			Self::Integer(_) => MetaDbDataStub::Integer,
+			Self::PositiveInteger(_) => MetaDbDataStub::PositiveInteger,
+			Self::Float(_) => MetaDbDataStub::Float,
+			Self::Hash { format, .. } => MetaDbDataStub::Hash { hash_type: *format },
+			Self::Reference { class, .. } => MetaDbDataStub::Reference { class: *class },
 		}
 	}
 
@@ -120,7 +120,7 @@ pub enum HashType {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum StorageDataStub {
+pub enum MetaDbDataStub {
 	/// Plain text
 	Text,
 
@@ -146,7 +146,7 @@ pub enum StorageDataStub {
 	Reference { class: ClassHandle },
 }
 
-impl<'de> Deserialize<'de> for StorageDataStub {
+impl<'de> Deserialize<'de> for MetaDbDataStub {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
 		D: serde::Deserializer<'de>,
@@ -160,9 +160,9 @@ impl<'de> Deserialize<'de> for StorageDataStub {
 	}
 }
 
-impl PipelineDataStub for StorageDataStub {}
+impl PipelineDataStub for MetaDbDataStub {}
 
-impl StorageDataStub {
+impl MetaDbDataStub {
 	/// A string that represents this type in a database.
 	pub fn to_db_str(&self) -> String {
 		match self {

@@ -2,8 +2,8 @@ use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, hash::Hash};
 
 use crate::{
-	data::{StorageData, StorageDataStub},
-	errors::DatasetError,
+	data::{MetaDbData, MetaDbDataStub},
+	errors::MetaDbError,
 };
 
 pub struct AttributeOptions {
@@ -88,50 +88,46 @@ impl From<u32> for AttrHandle {
 	}
 }
 
-pub trait Dataset
+pub trait MetaDb
 where
 	Self: Send,
 {
-	fn add_class(&mut self, name: &str) -> Result<ClassHandle, DatasetError>;
+	fn add_class(&mut self, name: &str) -> Result<ClassHandle, MetaDbError>;
 	fn add_item(
 		&mut self,
 		class: ClassHandle,
-		attrs: &[(AttrHandle, StorageData)],
-	) -> Result<ItemHandle, DatasetError>;
+		attrs: &[(AttrHandle, MetaDbData)],
+	) -> Result<ItemHandle, MetaDbError>;
 	fn add_attr(
 		&mut self,
 		class: ClassHandle,
 		name: &str,
-		data_type: StorageDataStub,
+		data_type: MetaDbDataStub,
 		options: AttributeOptions,
-	) -> Result<AttrHandle, DatasetError>;
+	) -> Result<AttrHandle, MetaDbError>;
 
-	fn del_class(&mut self, class: ClassHandle) -> Result<(), DatasetError>;
-	fn del_item(&mut self, item: ItemHandle) -> Result<(), DatasetError>;
-	fn del_attr(&mut self, attr: AttrHandle) -> Result<(), DatasetError>;
+	fn del_class(&mut self, class: ClassHandle) -> Result<(), MetaDbError>;
+	fn del_item(&mut self, item: ItemHandle) -> Result<(), MetaDbError>;
+	fn del_attr(&mut self, attr: AttrHandle) -> Result<(), MetaDbError>;
 
 	//fn iter_items(&self) -> Result<impl Iterator<Item = ItemHandle>, ()>;
 	//fn iter_classes(&self) -> Result<impl Iterator<Item = ClassHandle>, ()>;
 	//fn iter_attrs(&self) -> Result<impl Iterator<Item = AttrHandle>, ()>;
 
-	fn get_class(&mut self, class_name: &str) -> Result<Option<ClassHandle>, DatasetError>;
+	fn get_class(&mut self, class_name: &str) -> Result<Option<ClassHandle>, MetaDbError>;
 	fn get_attr(
 		&mut self,
 		class: ClassHandle,
 		attr_name: &str,
-	) -> Result<Option<AttrHandle>, DatasetError>;
+	) -> Result<Option<AttrHandle>, MetaDbError>;
 
 	// TODO: take &[(_, _)] instead of data
-	fn item_set_attr(&mut self, attr: AttrHandle, data: &StorageData) -> Result<(), DatasetError>;
-	fn item_get_attr(
-		&self,
-		item: ItemHandle,
-		attr: AttrHandle,
-	) -> Result<StorageData, DatasetError>;
-	fn item_get_class(&self, item: ItemHandle) -> Result<ClassHandle, DatasetError>;
+	fn item_set_attr(&mut self, attr: AttrHandle, data: &MetaDbData) -> Result<(), MetaDbError>;
+	fn item_get_attr(&self, item: ItemHandle, attr: AttrHandle) -> Result<MetaDbData, MetaDbError>;
+	fn item_get_class(&self, item: ItemHandle) -> Result<ClassHandle, MetaDbError>;
 
-	fn class_set_name(&mut self, class: ClassHandle, name: &str) -> Result<(), DatasetError>;
-	fn class_get_name(&self, class: ClassHandle) -> Result<&str, DatasetError>;
+	fn class_set_name(&mut self, class: ClassHandle, name: &str) -> Result<(), MetaDbError>;
+	fn class_get_name(&self, class: ClassHandle) -> Result<&str, MetaDbError>;
 
 	/// Get all attributes in the given class.
 	/// Returns (attr handle, attr name, attr type)
@@ -140,11 +136,11 @@ where
 	fn class_get_attrs(
 		&mut self,
 		class: ClassHandle,
-	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, StorageDataStub)>, DatasetError>;
-	fn class_num_attrs(&self, class: ClassHandle) -> Result<usize, DatasetError>;
+	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>, MetaDbError>;
+	fn class_num_attrs(&self, class: ClassHandle) -> Result<usize, MetaDbError>;
 
-	fn attr_set_name(&mut self, attr: AttrHandle, name: &str) -> Result<(), DatasetError>;
-	fn attr_get_name(&self, attr: AttrHandle) -> Result<&str, DatasetError>;
-	fn attr_get_type(&self, attr: AttrHandle) -> Result<StorageDataStub, DatasetError>;
+	fn attr_set_name(&mut self, attr: AttrHandle, name: &str) -> Result<(), MetaDbError>;
+	fn attr_get_name(&self, attr: AttrHandle) -> Result<&str, MetaDbError>;
+	fn attr_get_type(&self, attr: AttrHandle) -> Result<MetaDbDataStub, MetaDbError>;
 	fn attr_get_class(&self, attr: AttrHandle) -> ClassHandle;
 }

@@ -3,13 +3,13 @@ use ufo_pipeline::{
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
-use ufo_storage::data::{StorageData, StorageDataStub};
+use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 
 use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
 
 #[derive(Clone)]
 pub struct Print {
-	input: Option<StorageData>,
+	input: Option<MetaDbData>,
 }
 
 impl Print {
@@ -20,7 +20,7 @@ impl Print {
 
 impl PipelineNode for Print {
 	type NodeContext = UFOContext;
-	type DataType = StorageData;
+	type DataType = MetaDbData;
 
 	fn init<F>(
 		&mut self,
@@ -42,7 +42,7 @@ impl PipelineNode for Print {
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
-		F: Fn(usize, StorageData) -> Result<(), PipelineError>,
+		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
 	{
 		println!("{:?}", self.input);
 		Ok(PipelineNodeState::Done)
@@ -61,7 +61,7 @@ impl UFONode for Print {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-		_input_type: StorageDataStub,
+		_input_type: MetaDbDataStub,
 	) -> bool {
 		match stub {
 			UFONodeType::Print => {
@@ -90,11 +90,11 @@ impl UFONode for Print {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-	) -> StorageDataStub {
+	) -> MetaDbDataStub {
 		match stub {
 			UFONodeType::Print => {
 				assert!(input_idx == 0);
-				StorageDataStub::Text
+				MetaDbDataStub::Text
 			}
 			_ => unreachable!(),
 		}
@@ -107,7 +107,7 @@ impl UFONode for Print {
 		}
 	}
 
-	fn output_type(_stub: &UFONodeType, _ctx: &UFOContext, _output_idx: usize) -> StorageDataStub {
+	fn output_type(_stub: &UFONodeType, _ctx: &UFOContext, _output_idx: usize) -> MetaDbDataStub {
 		unreachable!()
 	}
 

@@ -14,9 +14,9 @@ pub mod nodeinstance;
 pub mod nodetype;
 
 use std::sync::{Arc, Mutex};
-use ufo_storage::api::Dataset;
+use ufo_metadb::api::MetaDb;
 
 #[derive(Clone)]
 pub struct UFOContext {
-	pub dataset: Arc<Mutex<dyn Dataset>>,
+	pub dataset: Arc<Mutex<dyn MetaDb>>,
 }

@@ -3,7 +3,7 @@ use ufo_pipeline::{
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
-use ufo_storage::data::{StorageData, StorageDataStub};
+use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 
 use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
 
@@ -18,7 +18,7 @@ impl IfNone {
 
 impl PipelineNode for IfNone {
 	type NodeContext = UFOContext;
-	type DataType = StorageData;
+	type DataType = MetaDbData;
 
 	fn init<F>(
 		&mut self,
@@ -36,7 +36,7 @@ impl PipelineNode for IfNone {
 		send_data(
 			0,
 			match input {
-				StorageData::None(_) => ifnone,
+				MetaDbData::None(_) => ifnone,
 				_ => input,
 			},
 		)?;
@@ -57,7 +57,7 @@ impl UFONode for IfNone {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-		input_type: StorageDataStub,
+		input_type: MetaDbDataStub,
 	) -> bool {
 		match stub {
 			UFONodeType::IfNone { data_type } => {
@@ -87,7 +87,7 @@ impl UFONode for IfNone {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-	) -> StorageDataStub {
+	) -> MetaDbDataStub {
 		match stub {
 			UFONodeType::IfNone { data_type } => {
 				assert!(input_idx < 2);
@@ -104,7 +104,7 @@ impl UFONode for IfNone {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> StorageDataStub {
+	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub {
 		match stub {
 			UFONodeType::IfNone { data_type } => {
 				assert!(output_idx == 0);

@@ -3,24 +3,24 @@ use ufo_pipeline::{
 	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
-use ufo_storage::data::{StorageData, StorageDataStub};
+use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 
 use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
 
 #[derive(Clone)]
 pub struct Noop {
-	inputs: Vec<(PipelinePortLabel, StorageDataStub)>,
+	inputs: Vec<(PipelinePortLabel, MetaDbDataStub)>,
 }
 
 impl Noop {
-	pub fn new(inputs: Vec<(PipelinePortLabel, StorageDataStub)>) -> Self {
+	pub fn new(inputs: Vec<(PipelinePortLabel, MetaDbDataStub)>) -> Self {
 		Self { inputs }
 	}
 }
 
 impl PipelineNode for Noop {
 	type NodeContext = UFOContext;
-	type DataType = StorageData;
+	type DataType = MetaDbData;
 
 	fn init<F>(
 		&mut self,
@@ -51,7 +51,7 @@ impl UFONode for Noop {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-		input_type: StorageDataStub,
+		input_type: MetaDbDataStub,
 	) -> bool {
 		match stub {
 			UFONodeType::Noop { inputs } => inputs.get(input_idx).unwrap().1 == input_type,
@@ -78,7 +78,7 @@ impl UFONode for Noop {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-	) -> StorageDataStub {
+	) -> MetaDbDataStub {
 		match stub {
 			UFONodeType::Noop { inputs } => inputs.get(input_idx).unwrap().1,
 			_ => unreachable!(),
@@ -92,7 +92,7 @@ impl UFONode for Noop {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> StorageDataStub {
+	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub {
 		match stub {
 			UFONodeType::Noop { inputs } => inputs.get(output_idx).unwrap().1,
 			_ => unreachable!(),

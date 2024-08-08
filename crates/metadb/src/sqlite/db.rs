@@ -1,7 +1,7 @@
 use crate::{
-	api::{AttrHandle, AttributeOptions, ClassHandle, Dataset, ItemHandle},
-	data::{StorageData, StorageDataStub},
-	errors::DatasetError,
+	api::{AttrHandle, AttributeOptions, ClassHandle, ItemHandle, MetaDb},
+	data::{MetaDbData, MetaDbDataStub},
+	errors::MetaDbError,
 };
 use futures::executor::block_on;
 use itertools::Itertools;
@@ -11,7 +11,7 @@ use sqlx::{
 };
 use std::iter;
 
-pub struct SQLiteDataset {
+pub struct SQLiteMetaDB {
 	/// The path to the database we'll connect to
 	database: SmartString<LazyCompact>,
 
@@ -20,7 +20,7 @@ pub struct SQLiteDataset {
 	conn: Option<SqliteConnection>,
 }
 
-impl SQLiteDataset {
+impl SQLiteMetaDB {
 	pub fn new(database: &str) -> Self {
 		Self {
 			database: database.into(),
@@ -28,7 +28,7 @@ impl SQLiteDataset {
 		}
 	}
 
-	pub fn connect(&mut self) -> Result<(), DatasetError> {
+	pub fn connect(&mut self) -> Result<(), MetaDbError> {
 		let mut conn = block_on(SqliteConnection::connect(&self.database))?;
 
 		block_on(sqlx::query(include_str!("./init_db.sql")).execute(&mut conn)).unwrap();
@@ -49,8 +49,8 @@ impl SQLiteDataset {
 }
 
 // SQL helper functions
-impl SQLiteDataset {
-	fn get_table_name<'e, 'c, E>(executor: E, class: ClassHandle) -> Result<String, DatasetError>
+impl SQLiteMetaDB {
+	fn get_table_name<'e, 'c, E>(executor: E, class: ClassHandle) -> Result<String, MetaDbError>
 	where
 		E: Executor<'c, Database = Sqlite>,
 	{
@@ -63,7 +63,7 @@ impl SQLiteDataset {
 
 			match res {
 				Err(sqlx::Error::RowNotFound) => {
-					return Err(DatasetError::BadClassHandle);
+					return Err(MetaDbError::BadClassHandle);
 				}
 				Err(e) => return Err(e.into()),
 				Ok(res) => res.get("id"),
@@ -75,35 +75,35 @@ impl SQLiteDataset {
 
 	fn bind_storage<'a>(
 		q: Query<'a, Sqlite, SqliteArguments<'a>>,
-		storage: &'a StorageData,
+		storage: &'a MetaDbData,
 	) -> Query<'a, Sqlite, SqliteArguments<'a>> {
 		match storage {
-			StorageData::None(_) => q,
-			StorageData::Text(s) => q.bind(&**s),
-			StorageData::Path(p) => q.bind(p.to_str().unwrap()),
-			StorageData::Integer(x) => q.bind(x),
-			StorageData::PositiveInteger(x) => q.bind(i64::from_be_bytes(x.to_be_bytes())),
-			StorageData::Float(x) => q.bind(x),
-			StorageData::Hash { data, .. } => q.bind((**data).clone()),
-			StorageData::Binary { data, .. } => q.bind((**data).clone()),
-			StorageData::Reference { item, .. } => q.bind(u32::from(*item)),
+			MetaDbData::None(_) => q,
+			MetaDbData::Text(s) => q.bind(&**s),
+			MetaDbData::Path(p) => q.bind(p.to_str().unwrap()),
+			MetaDbData::Integer(x) => q.bind(x),
+			MetaDbData::PositiveInteger(x) => q.bind(i64::from_be_bytes(x.to_be_bytes())),
+			MetaDbData::Float(x) => q.bind(x),
+			MetaDbData::Hash { data, .. } => q.bind((**data).clone()),
+			MetaDbData::Binary { data, .. } => q.bind((**data).clone()),
+			MetaDbData::Reference { item, .. } => q.bind(u32::from(*item)),
 		}
 	}
 }
 
-impl Dataset for SQLiteDataset {
+impl MetaDb for SQLiteMetaDB {
 	fn add_attr(
 		&mut self,
 		class: ClassHandle,
 		attr_name: &str,
-		data_type: StorageDataStub,
+		data_type: MetaDbDataStub,
 		options: AttributeOptions,
-	) -> Result<AttrHandle, DatasetError> {
+	) -> Result<AttrHandle, MetaDbError> {
 		// Start transaction
 		let mut t = if let Some(ref mut conn) = self.conn {
 			block_on(conn.begin())?
 		} else {
-			return Err(DatasetError::NotConnected);
+			return Err(MetaDbError::NotConnected);
 		};
 
 		// Add attribute metadata
@@ -128,7 +128,7 @@ impl Dataset for SQLiteDataset {
 			match res {
 				Err(sqlx::Error::Database(e)) => {
 					if e.is_unique_violation() {
-						return Err(DatasetError::DuplicateAttrName(attr_name.into()));
+						return Err(MetaDbError::DuplicateAttrName(attr_name.into()));
 					} else {
 						return Err(sqlx::Error::Database(e).into());
 					}
@@ -144,21 +144,21 @@ impl Dataset for SQLiteDataset {
 
 		// Map internal type to sqlite type
 		let data_type_str = match data_type {
-			StorageDataStub::Text => "TEXT",
-			StorageDataStub::Path => "TEXT",
-			StorageDataStub::Integer => "INTEGER",
-			StorageDataStub::PositiveInteger => "INTEGER",
-			StorageDataStub::Float => "REAL",
-			StorageDataStub::Binary => "BLOB",
-			StorageDataStub::Reference { .. } => "INTEGER",
-			StorageDataStub::Hash { .. } => "BLOB",
+			MetaDbDataStub::Text => "TEXT",
+			MetaDbDataStub::Path => "TEXT",
+			MetaDbDataStub::Integer => "INTEGER",
+			MetaDbDataStub::PositiveInteger => "INTEGER",
+			MetaDbDataStub::Float => "REAL",
+			MetaDbDataStub::Binary => "BLOB",
+			MetaDbDataStub::Reference { .. } => "INTEGER",
+			MetaDbDataStub::Hash { .. } => "BLOB",
 		};
 
 		let not_null = if options.not_null { " NOT NULL" } else { "" };
 
 		// Add foreign key if necessary
 		let references = match data_type {
-			StorageDataStub::Reference { class } => {
+			MetaDbDataStub::Reference { class } => {
 				let id: u32 = {
 					let res = block_on(
 						sqlx::query("SELECT id FROM meta_classes WHERE id=?;")
@@ -196,12 +196,12 @@ impl Dataset for SQLiteDataset {
 		Ok(u32::try_from(new_attr_id).unwrap().into())
 	}
 
-	fn add_class(&mut self, class_name: &str) -> Result<ClassHandle, DatasetError> {
+	fn add_class(&mut self, class_name: &str) -> Result<ClassHandle, MetaDbError> {
 		// Start transaction
 		let mut t = if let Some(ref mut conn) = self.conn {
 			block_on(conn.begin())?
 		} else {
-			return Err(DatasetError::NotConnected);
+			return Err(MetaDbError::NotConnected);
 		};
 
 		// Add metadata
@@ -215,7 +215,7 @@ impl Dataset for SQLiteDataset {
 			match res {
 				Err(sqlx::Error::Database(e)) => {
 					if e.is_unique_violation() {
-						return Err(DatasetError::DuplicateClassName(class_name.into()));
+						return Err(MetaDbError::DuplicateClassName(class_name.into()));
 					} else {
 						return Err(sqlx::Error::Database(e).into());
 					}
@@ -243,13 +243,13 @@ impl Dataset for SQLiteDataset {
 	fn add_item(
 		&mut self,
 		class: ClassHandle,
-		attrs: &[(AttrHandle, StorageData)],
-	) -> Result<ItemHandle, DatasetError> {
+		attrs: &[(AttrHandle, MetaDbData)],
+	) -> Result<ItemHandle, MetaDbError> {
 		// Start transaction
 		let mut t = if let Some(ref mut conn) = self.conn {
 			block_on(conn.begin())?
 		} else {
-			return Err(DatasetError::NotConnected);
+			return Err(MetaDbError::NotConnected);
 		};
 
 		let table_name = Self::get_table_name(&mut *t, class)?;
@@ -274,7 +274,7 @@ impl Dataset for SQLiteDataset {
 
 					let column_id: u32 = match res {
 						Err(sqlx::Error::RowNotFound) => {
-							return Err(DatasetError::BadClassHandle);
+							return Err(MetaDbError::BadClassHandle);
 						}
 						Err(e) => return Err(e.into()),
 						Ok(res) => res.get("id"),
@@ -304,7 +304,7 @@ impl Dataset for SQLiteDataset {
 		let id = match res {
 			Err(sqlx::Error::Database(e)) => {
 				if e.is_unique_violation() {
-					return Err(DatasetError::UniqueViolated);
+					return Err(MetaDbError::UniqueViolated);
 				} else {
 					return Err(sqlx::Error::Database(e).into());
 				}
@@ -319,15 +319,15 @@ impl Dataset for SQLiteDataset {
 		Ok(u32::try_from(id).unwrap().into())
 	}
 
-	fn del_attr(&mut self, _attr: AttrHandle) -> Result<(), DatasetError> {
+	fn del_attr(&mut self, _attr: AttrHandle) -> Result<(), MetaDbError> {
 		unimplemented!()
 	}
 
-	fn del_class(&mut self, _class: ClassHandle) -> Result<(), DatasetError> {
+	fn del_class(&mut self, _class: ClassHandle) -> Result<(), MetaDbError> {
 		unimplemented!()
 	}
 
-	fn del_item(&mut self, _item: ItemHandle) -> Result<(), DatasetError> {
+	fn del_item(&mut self, _item: ItemHandle) -> Result<(), MetaDbError> {
 		unimplemented!()
 	}
 
@@ -335,12 +335,12 @@ impl Dataset for SQLiteDataset {
 		&mut self,
 		class: ClassHandle,
 		attr_name: &str,
-	) -> Result<Option<AttrHandle>, DatasetError> {
+	) -> Result<Option<AttrHandle>, MetaDbError> {
 		// Start transaction
 		let conn = if let Some(ref mut conn) = self.conn {
 			conn
 		} else {
-			return Err(DatasetError::NotConnected);
+			return Err(MetaDbError::NotConnected);
 		};
 
 		let res = block_on(
@@ -357,12 +357,12 @@ impl Dataset for SQLiteDataset {
 		};
 	}
 
-	fn get_class(&mut self, class_name: &str) -> Result<Option<ClassHandle>, DatasetError> {
+	fn get_class(&mut self, class_name: &str) -> Result<Option<ClassHandle>, MetaDbError> {
 		// Start transaction
 		let conn = if let Some(ref mut conn) = self.conn {
 			conn
 		} else {
-			return Err(DatasetError::NotConnected);
+			return Err(MetaDbError::NotConnected);
 		};
 
 		let res = block_on(
@@ -382,20 +382,20 @@ impl Dataset for SQLiteDataset {
 		&self,
 		_item: ItemHandle,
 		_attr: AttrHandle,
-	) -> Result<StorageData, DatasetError> {
+	) -> Result<MetaDbData, MetaDbError> {
 		unimplemented!()
 	}
 
-	fn item_get_class(&self, _item: ItemHandle) -> Result<ClassHandle, DatasetError> {
+	fn item_get_class(&self, _item: ItemHandle) -> Result<ClassHandle, MetaDbError> {
 		unimplemented!()
 	}
 
-	fn item_set_attr(&mut self, attr: AttrHandle, data: &StorageData) -> Result<(), DatasetError> {
+	fn item_set_attr(&mut self, attr: AttrHandle, data: &MetaDbData) -> Result<(), MetaDbError> {
 		// Start transaction
 		let mut t = if let Some(ref mut conn) = self.conn {
 			block_on(conn.begin())?
 		} else {
-			return Err(DatasetError::NotConnected);
+			return Err(MetaDbError::NotConnected);
 		};
 
 		// Find table and column name to modify
@@ -414,7 +414,7 @@ impl Dataset for SQLiteDataset {
 			);
 
 			match res {
-				Err(sqlx::Error::RowNotFound) => Err(DatasetError::BadAttrHandle),
+				Err(sqlx::Error::RowNotFound) => Err(MetaDbError::BadAttrHandle),
 				Err(e) => Err(e.into()),
 				Ok(res) => {
 					let class_id: u32 = res.get("meta_classes.id");
@@ -432,13 +432,13 @@ impl Dataset for SQLiteDataset {
 		// Check "not none" constraint
 		// Unique constraint is checked later.
 		if is_not_null && data.is_none() {
-			return Err(DatasetError::NotNoneViolated);
+			return Err(MetaDbError::NotNoneViolated);
 		}
 
 		// Update data
 		{
 			let q_str = match data {
-				StorageData::None(_) => {
+				MetaDbData::None(_) => {
 					format!("UPDATE \"{table_name}\" SET \"{column_name}\" = NULL;")
 				}
 				_ => format!("UPDATE \"{table_name}\" SET \"{column_name}\" = ?;"),
@@ -450,7 +450,7 @@ impl Dataset for SQLiteDataset {
 			match block_on(q.execute(&mut *t)) {
 				Err(sqlx::Error::Database(e)) => {
 					if e.is_unique_violation() {
-						return Err(DatasetError::UniqueViolated);
+						return Err(MetaDbError::UniqueViolated);
 					} else {
 						return Err(sqlx::Error::Database(e).into());
 					}
@@ -466,27 +466,27 @@ impl Dataset for SQLiteDataset {
 		Ok(())
 	}
 
-	fn class_set_name(&mut self, _class: ClassHandle, _name: &str) -> Result<(), DatasetError> {
+	fn class_set_name(&mut self, _class: ClassHandle, _name: &str) -> Result<(), MetaDbError> {
 		unimplemented!()
 	}
 
-	fn class_get_name(&self, _class: ClassHandle) -> Result<&str, DatasetError> {
+	fn class_get_name(&self, _class: ClassHandle) -> Result<&str, MetaDbError> {
 		unimplemented!()
 	}
 
-	fn class_num_attrs(&self, _class: ClassHandle) -> Result<usize, DatasetError> {
+	fn class_num_attrs(&self, _class: ClassHandle) -> Result<usize, MetaDbError> {
 		unimplemented!()
 	}
 
 	fn class_get_attrs(
 		&mut self,
 		class: ClassHandle,
-	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, StorageDataStub)>, DatasetError> {
+	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>, MetaDbError> {
 		// Start transaction
 		let conn = if let Some(ref mut conn) = self.conn {
 			conn
 		} else {
-			return Err(DatasetError::NotConnected);
+			return Err(MetaDbError::NotConnected);
 		};
 
 		let res = block_on(
@@ -502,7 +502,7 @@ impl Dataset for SQLiteDataset {
 		);
 
 		let res = match res {
-			Err(sqlx::Error::RowNotFound) => return Err(DatasetError::BadClassHandle),
+			Err(sqlx::Error::RowNotFound) => return Err(MetaDbError::BadClassHandle),
 			Err(e) => return Err(e.into()),
 			Ok(res) => res,
 		};
@@ -517,21 +517,21 @@ impl Dataset for SQLiteDataset {
 				(
 					id.into(),
 					name.into(),
-					StorageDataStub::from_db_str(data_type).unwrap(),
+					MetaDbDataStub::from_db_str(data_type).unwrap(),
 				)
 			})
 			.collect())
 	}
 
-	fn attr_set_name(&mut self, _attr: AttrHandle, _name: &str) -> Result<(), DatasetError> {
+	fn attr_set_name(&mut self, _attr: AttrHandle, _name: &str) -> Result<(), MetaDbError> {
 		unimplemented!()
 	}
 
-	fn attr_get_name(&self, _attr: AttrHandle) -> Result<&str, DatasetError> {
+	fn attr_get_name(&self, _attr: AttrHandle) -> Result<&str, MetaDbError> {
 		unimplemented!()
 	}
 
-	fn attr_get_type(&self, _attr: AttrHandle) -> Result<StorageDataStub, DatasetError> {
+	fn attr_get_type(&self, _attr: AttrHandle) -> Result<MetaDbDataStub, MetaDbError> {
 		todo!()
 	}
 
