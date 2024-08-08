@@ -9,24 +9,19 @@ import {
 } from "@/app/components/icons";
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { Code, Loader, Text } from "@mantine/core";
+import { Loader, Text } from "@mantine/core";
 import { ColumnHeader } from "./parts/columnheader";
+import { ItemData, Selected } from "../page";
+import { attrTypes } from "../../datasets/_tree/attrs";
 
-export function ItemTablePanel(params: {
-	selectedDataset: string | null;
-	selectedClass: string | null;
-}) {
+export function ItemTablePanel(params: { data: ItemData; select: Selected }) {
 	return (
 		<Panel
 			panel_id={styles.panel_itemtable}
 			icon={<XIconItems />}
 			title={"Item Table"}
 		>
-			<ItemTable
-				minCellWidth={120}
-				selectedClass={params.selectedClass}
-				selectedDataset={params.selectedDataset}
-			/>
+			<ItemTable data={params.data} select={params.select} minCellWidth={120} />
 		</Panel>
 	);
 }
@@ -56,15 +51,13 @@ const TablePlaceholder = (params: { children: ReactNode }) => {
 // (save memory for large lists)
 
 const ItemTable = (params: {
-	selectedDataset: string | null;
-	selectedClass: string | null;
+	data: ItemData;
+	select: Selected;
 
 	// Minimal cell width, in px
 	minCellWidth: number;
 }) => {
-	const page_size = 30;
 	const tableRootElement = useRef<any>(null);
-	const tableWrapperElement = useRef<any>(null);
 	const columnUidCounter = useRef(1);
 	const [columns, setColumns] = useState<
 		{
@@ -77,20 +70,15 @@ const ItemTable = (params: {
 		[{ unique_id: 0, attr: null }],
 	);
 
-	const [loading, setLoading] = useState(true);
-	const [data, setData] = useState<{}[]>([]);
-	const [dataMaxPage, setDataMaxPage] = useState(0);
-
 	// Reset table when dataset or class changes
 	useEffect(() => {
 		columnUidCounter.current = 1;
-		setData([]);
 		setColumns([{ unique_id: 0, attr: null }]);
 		tableRootElement.current.style.gridTemplateColumns = "1fr";
-	}, [params.selectedClass, params.selectedDataset]);
+	}, [params.data.class, params.data.dataset]);
 
 	const updateData = useCallback(() => {
-		const e = tableWrapperElement.current;
+		const e = tableRootElement.current;
 		if (e === null) {
 			return;
 		}
@@ -103,39 +91,9 @@ const ItemTable = (params: {
 		const isScrolledToTop = isScrolledToBottom ? false : e.scrollTop === 0;
 
 		if (isScrolledToBottom) {
-			setDataMaxPage(Math.ceil(data.length / page_size) + 1);
+			params.data.loadMore();
 		}
-	}, [tableWrapperElement, data]);
-
-	useEffect(() => {
-		async function fetchdata() {
-			setLoading(true);
-			if (params.selectedClass === null || params.selectedDataset === null) {
-				return;
-			}
-
-			for (let page = 0; page <= dataMaxPage; page++) {
-				const res = await fetch(
-					"/api/item/list?" +
-						new URLSearchParams({
-							dataset: params.selectedDataset,
-							class: params.selectedClass,
-							page_size: page_size.toString(),
-							start_at: (page * page_size).toString(),
-						}).toString(),
-				);
-				const json = await res.json();
-				setData((d) => [
-					...d.slice(0, page * page_size),
-					...json.items,
-					...d.slice(page * page_size + page_size),
-				]);
-			}
-			setLoading(false);
-		}
-
-		fetchdata();
-	}, [params.selectedClass, params.selectedDataset, dataMaxPage]);
+	}, [tableRootElement, params.data]);
 
 	const col_refs = useRef<(HTMLTableCellElement | null)[]>([null, null]);
 
@@ -461,7 +419,7 @@ const ItemTable = (params: {
 	//
 
 	let table_body;
-	if (params.selectedDataset === null) {
+	if (params.data.dataset === null) {
 		table_body = (
 			<TablePlaceholder>
 				<XIconDatabaseX style={{ height: "6rem" }} />
@@ -470,7 +428,7 @@ const ItemTable = (params: {
 				</div>
 			</TablePlaceholder>
 		);
-	} else if (params.selectedClass === null) {
+	} else if (params.data.class === null) {
 		table_body = (
 			<TablePlaceholder>
 				<XIconFolderX style={{ height: "6rem" }} />
@@ -479,7 +437,7 @@ const ItemTable = (params: {
 				</div>
 			</TablePlaceholder>
 		);
-	} else if (data.length === 0 && loading) {
+	} else if (params.data.data.length === 0 && params.data.loading) {
 		table_body = (
 			<TablePlaceholder>
 				<Loader color="var(--mantine-color-dimmed)" size="4rem" />
@@ -488,7 +446,7 @@ const ItemTable = (params: {
 				</div>
 			</TablePlaceholder>
 		);
-	} else if (data.length === 0) {
+	} else if (params.data.data.length === 0) {
 		table_body = (
 			<TablePlaceholder>
 				<XIconNoItems style={{ height: "6rem" }} />
@@ -498,15 +456,43 @@ const ItemTable = (params: {
 			</TablePlaceholder>
 		);
 	} else {
-		table_body = data.map((data_entry: any) => {
+		table_body = params.data.data.map((data_entry: any, data_idx) => {
+			const selected = params.select.selected.includes(data_idx);
 			return (
-				<tr key={data_entry.idx} className={styles.itemdata}>
+				<tr
+					key={data_entry.idx}
+					className={clsx(styles.itemdata, selected && styles.selected)}
+					onClick={(c) => {
+						if (c.ctrlKey) {
+							if (selected) {
+								params.select.deselect(data_idx);
+							} else {
+								params.select.select(data_idx);
+							}
+						} else if (c.shiftKey) {
+							params.select.select_through(data_idx);
+						} else {
+							params.select.clear();
+							params.select.select(data_idx);
+						}
+					}}
+				>
 					{columns.map(({ attr }, c_idx) => {
+						if (attr === null) {
+							return <td key={`${data_entry.idx}-${c_idx}-${attr}`}></td>;
+						}
+						const d = attrTypes.find((x) => {
+							return x.serialize_as === data_entry.attrs[attr].type;
+						});
+						if (d === undefined) {
+							return <td key={`${data_entry.idx}-${c_idx}-${attr}`}></td>;
+						}
+
 						return (
 							<td key={`${data_entry.idx}-${c_idx}-${attr}`}>
-								<ItemData
-									attr={attr === null ? null : data_entry.attrs[attr]}
-								/>
+								{d.value_preview === undefined
+									? null
+									: d.value_preview({ attr: data_entry.attrs[attr] })}
 							</td>
 						);
 					})}
@@ -531,7 +517,7 @@ const ItemTable = (params: {
 							ref={(ref) => {
 								col_refs.current[idx] = ref;
 							}}
-							key={`${params.selectedClass}-${unique_id}`}
+							key={`${params.data.class}-${unique_id}`}
 						>
 							{/*
 									Do not show first resize handle.
@@ -563,8 +549,8 @@ const ItemTable = (params: {
 										return n;
 									});
 								}}
-								selectedClass={params.selectedClass}
-								selectedDataset={params.selectedDataset}
+								selectedClass={params.data.class}
+								selectedDataset={params.data.dataset}
 							/>
 						</th>
 					))}
@@ -572,7 +558,7 @@ const ItemTable = (params: {
 			</thead>
 			<tbody>
 				{table_body}
-				{!(loading && data.length !== 0) ? null : (
+				{!(params.data.loading && params.data.data.length !== 0) ? null : (
 					<tr>
 						<td>
 							<div
@@ -594,60 +580,3 @@ const ItemTable = (params: {
 		</table>
 	);
 };
-
-function ItemData(params: { attr: any | null }) {
-	if (params.attr === null) {
-		return <Text c="dimmed">No data</Text>;
-	}
-
-	if (params.attr.type === "Text") {
-		return params.attr.value.length == 0 ? (
-			<Text c="dimmed" fs="italic">
-				empty string
-			</Text>
-		) : (
-			<Text>{params.attr.value}</Text>
-		);
-	}
-
-	if (params.attr.type === "None") {
-		return (
-			<Text c="dimmed" fs="italic">
-				Not set
-			</Text>
-		);
-	}
-
-	if (params.attr.type === "Hash") {
-		return (
-			<Text>
-				{`${params.attr.hash_type} hash: `}
-				<Code>{params.attr.value}</Code>
-			</Text>
-		);
-	}
-
-	if (params.attr.type === "Reference") {
-		return (
-			<Text c="dimmed">
-				Reference to{" "}
-				<Text c="dimmed" fs="italic" span>
-					{params.attr.class}
-				</Text>
-			</Text>
-		);
-	}
-
-	if (params.attr.type === "Blob") {
-		return <Text c="dimmed" fs="italic">{`Blob ${params.attr.handle}`}</Text>;
-	}
-
-	return (
-		<Text c="dimmed">
-			Data with type{" "}
-			<Text c="dimmed" fs="italic" span>
-				{params.attr.type}
-			</Text>
-		</Text>
-	);
-}
