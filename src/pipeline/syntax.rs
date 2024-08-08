@@ -2,6 +2,7 @@ use serde::{
 	de::{self},
 	Deserialize, Deserializer,
 };
+use smartstring::{LazyCompact, SmartString};
 use std::{collections::HashMap, fmt::Display};
 
 use super::{nodes::PipelineNodes, PipelineDataType, PortLink};
@@ -14,7 +15,7 @@ pub struct Pipeline {
 	/// Nodes in this pipeline
 	#[serde(default)]
 	#[serde(rename = "node")]
-	pub nodes: HashMap<String, PipelineNodeSpec>,
+	pub nodes: HashMap<SmartString<LazyCompact>, PipelineNodeSpec>,
 }
 
 #[derive(Debug)]
@@ -24,7 +25,7 @@ pub enum PipelineCheckResult {
 	/// There is no node named `node` in this pipeline
 	/// We tried to connect this node from `caused_by_input`.
 	NoNode {
-		node: String,
+		node: SmartString<LazyCompact>,
 		caused_by_input: PortLink,
 	},
 
@@ -32,21 +33,21 @@ pub enum PipelineCheckResult {
 	/// This is triggered when we specify an input that doesn't exist.
 	NoNodeInput {
 		node: PipelineNodeSpec,
-		input_name: String,
+		input_name: SmartString<LazyCompact>,
 	},
 
 	/// `node` has no output named `output_name`lf
 	/// We tried to connect this output from `caused_by_input`.
 	NoNodeOutput {
 		node: PipelineNodeSpec,
-		output_name: String,
+		output_name: SmartString<LazyCompact>,
 		caused_by_input: PortLink,
 	},
 
 	/// pipeline has no input named `input_name`.
 	/// We tried to connect to this input from `caused_by_input`.
 	NoPipelineInput {
-		pipeline_input_name: String,
+		pipeline_input_name: SmartString<LazyCompact>,
 		caused_by_input: PortLink,
 	},
 
@@ -175,15 +176,15 @@ impl Pipeline {
 pub struct PipelineConfig {
 	/// Names and types of pipeline inputs
 	#[serde(default)]
-	pub input: HashMap<String, PipelineDataType>,
+	pub input: HashMap<SmartString<LazyCompact>, PipelineDataType>,
 
 	/// Names and types of pipeline outputs
 	#[serde(default)]
-	pub output: HashMap<String, PipelineDataType>,
+	pub output: HashMap<SmartString<LazyCompact>, PipelineDataType>,
 
 	/// Map pipeline outputs to the node outputs that produce them
 	#[serde(default)]
-	pub outmap: HashMap<String, PipelineLink>,
+	pub outmap: HashMap<SmartString<LazyCompact>, PipelineLink>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -194,7 +195,7 @@ pub struct PipelineNodeSpec {
 
 	/// Where this node should read its input from.
 	#[serde(default)]
-	pub input: HashMap<String, PipelineLink>,
+	pub input: HashMap<SmartString<LazyCompact>, PipelineLink>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -223,7 +224,7 @@ fn parse_link<'de, D>(deserializer: D) -> Result<PortLink, D::Error>
 where
 	D: Deserializer<'de>,
 {
-	let addr_str = String::deserialize(deserializer)?;
+	let addr_str = SmartString::<LazyCompact>::deserialize(deserializer)?;
 	let mut i = addr_str.split('.');
 	let a = i.next();
 	let b = i.next();
@@ -233,7 +234,7 @@ where
 	}
 
 	Ok(PortLink {
-		node: a.unwrap().to_string(),
-		port: b.unwrap().to_string(),
+		node: a.unwrap().into(),
+		port: b.unwrap().into(),
 	})
 }

@@ -2,6 +2,7 @@ use std::{error::Error, fmt::Display, str::FromStr};
 
 use serde::Deserialize;
 use serde_with::DeserializeFromStr;
+use smartstring::{LazyCompact, SmartString};
 
 use crate::model::ItemType;
 
@@ -45,7 +46,7 @@ pub enum PipelineDataType {
 	Binary,
 }
 
-// TODO: error
+// TODO: better error
 impl FromStr for PipelineDataType {
 	type Err = String;
 
@@ -62,8 +63,8 @@ impl FromStr for PipelineDataType {
 // TODO: node id, port id type
 #[derive(Debug, Hash, PartialEq, Eq, Deserialize, Clone)]
 pub struct PortLink {
-	node: String,
-	port: String,
+	node: SmartString<LazyCompact>,
+	port: SmartString<LazyCompact>,
 }
 
 impl Display for PortLink {

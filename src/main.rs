@@ -53,7 +53,7 @@ fn main() -> Result<()> {
 	println!(
 		"{:#?}",
 		pipeline::nodes::tags::ExtractTag::run(HashMap::from([(
-			"data".to_string(),
+			"data".into(),
 			PipelineData::Binary {
 				data_type: ItemType::Audio(AudioItemType::Flac),
 				data
@@ -74,7 +74,7 @@ fn main() -> Result<()> {
 	println!(
 		"{:#?}",
 		pipeline::nodes::tags::ExtractTag::run(HashMap::from([(
-			"data".to_string(),
+			"data".into(),
 			PipelineData::Binary {
 				data_type: ItemType::Audio(AudioItemType::Mp3),
 				data

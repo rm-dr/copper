@@ -11,4 +11,5 @@ lofty = "0.19.2"
 petgraph = "0.6.5"
 serde = { version = "1.0.201", features = ["serde_derive"] }
 serde_with = "3.8.1"
+smartstring = { version = "1.0.1", features = ["serde"] }
 toml = "0.8.12"

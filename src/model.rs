@@ -5,6 +5,8 @@ use std::{
 	io::{Read, Seek},
 };
 
+use smartstring::{LazyCompact, SmartString};
+
 pub trait Uid: Clone + Copy + Eq + Hash + Debug {}
 
 // Data model
@@ -17,14 +19,14 @@ pub enum AttributeType {
 #[derive(Debug, Clone)]
 pub struct Attribute<AttrUid: Uid> {
 	pub uid: AttrUid,
-	pub name: String,
+	pub name: SmartString<LazyCompact>,
 	pub attr_type: AttributeType,
 }
 
 #[derive(Debug, Clone)]
 pub struct Class<ClassUid: Uid, AttrUid: Uid> {
 	pub uid: ClassUid,
-	pub name: String,
+	pub name: SmartString<LazyCompact>,
 	pub attributes: Vec<AttrUid>,
 }
 
@@ -34,6 +36,7 @@ pub struct Dataset<ClassUid: Uid, AttrUid: Uid> {
 }
 
 // Actual data
+// TODO: ONE data type
 #[derive(Debug, Clone)]
 pub enum AttributeValue {
 	String(String),

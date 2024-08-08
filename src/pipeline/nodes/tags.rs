@@ -3,6 +3,7 @@ use lofty::{
 	file::AudioFile,
 	tag::{Accessor, Tag},
 };
+use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::HashMap,
 	io::{Cursor, Read, Seek},
@@ -78,8 +79,8 @@ impl PipelineNode for ExtractTag {
 	}
 
 	fn run(
-		inputs: HashMap<String, PipelineData>,
-	) -> Result<HashMap<String, PipelineData>, PipelineError> {
+		inputs: HashMap<SmartString<LazyCompact>, PipelineData>,
+	) -> Result<HashMap<SmartString<LazyCompact>, PipelineData>, PipelineError> {
 		let data = inputs.get("data").unwrap();
 
 		let (data_type, data) = match data {
@@ -140,27 +141,27 @@ impl PipelineNode for ExtractTag {
 				.unwrap_or(PipelineData::None);
 
 			HashMap::from([
-				("title".to_string(), title),
-				("album".to_string(), album),
-				("artist".to_string(), artist),
-				("genre".to_string(), genre),
-				("comment".to_string(), comment),
-				("track".to_string(), track),
-				("disk".to_string(), disk),
-				("disk_total".to_string(), disk_total),
-				("year".to_string(), year),
+				("title".into(), title),
+				("album".into(), album),
+				("artist".into(), artist),
+				("genre".into(), genre),
+				("comment".into(), comment),
+				("track".into(), track),
+				("disk".into(), disk),
+				("disk_total".into(), disk_total),
+				("year".into(), year),
 			])
 		} else {
 			HashMap::from([
-				("title".to_string(), PipelineData::None),
-				("album".to_string(), PipelineData::None),
-				("artist".to_string(), PipelineData::None),
-				("genre".to_string(), PipelineData::None),
-				("comment".to_string(), PipelineData::None),
-				("track".to_string(), PipelineData::None),
-				("disk".to_string(), PipelineData::None),
-				("disk_total".to_string(), PipelineData::None),
-				("year".to_string(), PipelineData::None),
+				("title".into(), PipelineData::None),
+				("album".into(), PipelineData::None),
+				("artist".into(), PipelineData::None),
+				("genre".into(), PipelineData::None),
+				("comment".into(), PipelineData::None),
+				("track".into(), PipelineData::None),
+				("disk".into(), PipelineData::None),
+				("disk_total".into(), PipelineData::None),
+				("year".into(), PipelineData::None),
 			])
 		};
 

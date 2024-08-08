@@ -97,7 +97,7 @@ impl<'a> StorageBackend<'a> for MemStorageBackend {
 			uid,
 			Class {
 				uid,
-				name: name.to_string(),
+				name: name.into(),
 				attributes: Default::default(),
 			},
 		);
@@ -137,7 +137,7 @@ impl<'a> StorageBackend<'a> for MemStorageBackend {
 			uid,
 			Attribute {
 				uid,
-				name: name.to_string(),
+				name: name.into(),
 				attr_type: attr,
 			},
 		);
