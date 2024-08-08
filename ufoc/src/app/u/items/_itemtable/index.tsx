@@ -479,13 +479,25 @@ const ItemTable = (params: {
 				>
 					{columns.map(({ attr }, c_idx) => {
 						if (attr === null) {
-							return <td key={`${data_entry.idx}-${c_idx}-${attr}`}></td>;
+							return (
+								<td key={`${data_entry.idx}-${c_idx}-${attr}`}>
+									<Text c="dimmed" fs="italic">
+										no attribute
+									</Text>
+								</td>
+							);
 						}
 						const d = attrTypes.find((x) => {
 							return x.serialize_as === data_entry.attrs[attr].type;
 						});
 						if (d === undefined) {
-							return <td key={`${data_entry.idx}-${c_idx}-${attr}`}></td>;
+							return (
+								<td key={`${data_entry.idx}-${c_idx}-${attr}`}>
+									<Text c="dimmed" fs="italic">
+										invalid attr type
+									</Text>
+								</td>
+							);
 						}
 
 						return (
@@ -500,6 +512,7 @@ const ItemTable = (params: {
 			);
 		});
 	}
+
 	//
 	// Content
 	//
