@@ -39,9 +39,9 @@ export const _binaryAttrType: attrTypeInfo = {
 					attr: params.attr_name,
 				});
 
-			if (params.attr_val.type.startsWith("image/")) {
+			if (params.attr_val.format.startsWith("image/")) {
 				return <BlobPanelImage src={data_url} attr_val={params.attr_val} />;
-			} else if (false) {
+			} else if (params.attr_val.format.startsWith("audio/")) {
 				return <BlobPanelAudio src={data_url} attr_val={params.attr_val} />;
 			} else {
 				return (
