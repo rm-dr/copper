@@ -3,7 +3,7 @@ use std::sync::Arc;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
-	syntax::labels::PipelinePortLabel,
+	labels::PipelinePortLabel,
 };
 
 use crate::{

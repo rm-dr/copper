@@ -4,12 +4,13 @@ use std::fmt::Debug;
 use crate::{
 	api::PipelineNodeStub,
 	graph::{finalized::FinalizedGraph, util::GraphNodeIdx},
-	syntax::{labels::PipelineNodeLabel, spec::InternalNodeStub},
+	labels::PipelineNodeLabel,
+	syntax::internalnode::InternalNodeStub,
 };
 
 /// An edge in a pipeline
 #[derive(Debug, Clone)]
-pub(super) enum PipelineEdge {
+pub enum PipelineEdge {
 	/// A edge from an output port to an input port.
 	/// PTP edges carry data between nodes.
 	///
@@ -53,7 +54,7 @@ impl PipelineEdge {
 /// This is guaranteed to be correct:
 /// no dependency cycles, no port type mismatch, etc.
 #[derive(Debug)]
-pub struct Pipeline<StubType: PipelineNodeStub> {
+pub(crate) struct Pipeline<StubType: PipelineNodeStub> {
 	/// This pipeline's name.
 	/// Must be unique.
 	pub(crate) name: SmartString<LazyCompact>,

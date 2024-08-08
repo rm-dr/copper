@@ -1,11 +1,12 @@
 //#![warn(missing_docs)]
 
 mod graph;
-pub mod syntax;
+#[allow(clippy::module_inception)]
+mod pipeline;
+mod syntax;
 
 pub mod api;
 pub mod errors;
-#[allow(clippy::module_inception)]
-pub mod pipeline;
+pub mod labels;
 pub mod portspec;
 pub mod runner;

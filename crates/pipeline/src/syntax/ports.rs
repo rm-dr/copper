@@ -3,19 +3,19 @@
 use serde::{de::DeserializeOwned, Deserialize};
 use std::{fmt::Debug, str::FromStr};
 
-use crate::api::PipelineNodeStub;
-
-use super::{
+use crate::{
+	api::PipelineNodeStub,
 	labels::{PipelineNodeLabel, PipelinePortLabel},
-	spec::InternalNodeStub,
 };
+
+use super::internalnode::InternalNodeStub;
 
 /// An output port in the pipeline.
 /// (i.e, a port that produces data.)
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 #[serde(bound = "StubType: DeserializeOwned")]
-pub(super) enum NodeOutput<StubType: PipelineNodeStub> {
+pub(crate) enum NodeOutput<StubType: PipelineNodeStub> {
 	/// An output port of the pipeline
 	Pipeline {
 		/// The port's name

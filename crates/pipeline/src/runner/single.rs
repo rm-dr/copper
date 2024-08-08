@@ -10,8 +10,8 @@ use crate::{
 	api::{PipelineData, PipelineNode, PipelineNodeState, PipelineNodeStub},
 	errors::PipelineError,
 	graph::util::GraphNodeIdx,
+	labels::PipelineNodeLabel,
 	pipeline::Pipeline,
-	syntax::labels::PipelineNodeLabel,
 };
 
 /// The state of a [`PipelineSingleRunner`]

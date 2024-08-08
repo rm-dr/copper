@@ -2,12 +2,12 @@
 
 use std::{error::Error, fmt::Display};
 
-use crate::api::PipelineDataStub;
-
-use super::{
+use crate::{
+	api::PipelineDataStub,
 	labels::{PipelineNodeLabel, PipelinePortLabel},
-	ports::NodeInput,
 };
+
+use super::ports::NodeInput;
 
 /// A node specification in a [`PipelinePrepareError`]
 #[derive(Debug)]

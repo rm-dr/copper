@@ -6,8 +6,8 @@ use smartstring::{LazyCompact, SmartString};
 use ufo_audiofile::common::tagtype::TagType;
 use ufo_pipeline::{
 	api::{PipelineData, PipelineNode, PipelineNodeStub},
+	labels::PipelinePortLabel,
 	portspec::PipelinePortSpec,
-	syntax::labels::PipelinePortLabel,
 };
 use ufo_storage::api::{ClassHandle, Dataset};
 

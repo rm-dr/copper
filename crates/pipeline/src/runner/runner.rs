@@ -6,7 +6,7 @@ use crate::{
 	api::{PipelineData, PipelineNode, PipelineNodeStub},
 	errors::PipelineError,
 	pipeline::Pipeline,
-	syntax::{errors::PipelinePrepareError, spec::PipelineSpec},
+	syntax::{builder::PipelineBuilder, errors::PipelinePrepareError, spec::PipelineSpec},
 };
 
 /// A prepared data processing pipeline.
@@ -44,12 +44,14 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		let spec: PipelineSpec<StubType> = toml::from_str(&s)
 			.map_err(|error| PipelinePrepareError::CouldNotParseFile { error })?;
 
-		let p = spec.prepare(ctx.clone(), pipeline_name.clone(), &self.pipelines)?;
-		self.pipelines.push((pipeline_name.into(), Arc::new(p)));
+		let built = PipelineBuilder::new(ctx.clone(), &self.pipelines, spec)
+			.build(pipeline_name.clone().into())?;
+
+		self.pipelines.push((pipeline_name.into(), Arc::new(built)));
 		return Ok(());
 	}
 
-	pub fn get_pipeline(
+	fn get_pipeline(
 		&self,
 		pipeline_name: SmartString<LazyCompact>,
 	) -> Option<Arc<Pipeline<StubType>>> {
