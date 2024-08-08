@@ -22,7 +22,7 @@ attr."audio_data" = "binary"
 "genre" = { node = "tags", output = "Genre" }
 "ISRC" = { node = "tags", output = "ISRC" }
 "lyrics" = { node = "if_none", output = "out" }
-"audio_data" = { pipeline = "data" }
+"audio_data" = { node = "strip", output = "out" }
 
 
 [node."tags"]
@@ -48,3 +48,7 @@ type.type = "IfNone"
 input.data = { node = "tags", output = "Lyrics" }
 #input.data = "if_none.out"
 input.ifnone = { "text" = "Unknown Lyrics" }
+
+[node.strip]
+type.type = "StripTags"
+input.data = { pipeline = "data" }

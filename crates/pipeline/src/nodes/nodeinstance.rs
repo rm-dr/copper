@@ -2,7 +2,7 @@ use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
 use ufo_util::data::{PipelineData, PipelineDataType};
 
-use super::{ifnone::IfNone, nodetype::PipelineNodeType, tags::ExtractTags};
+use super::{ifnone::IfNone, nodetype::PipelineNodeType, tags::ExtractTags, StripTags};
 use crate::{errors::PipelineError, portspec::PipelinePortSpec, PipelineStatelessRunner};
 
 pub enum PipelineNodeInstance {
@@ -16,6 +16,10 @@ pub enum PipelineNodeInstance {
 		name: SmartString<LazyCompact>,
 		node: IfNone,
 	},
+	StripTags {
+		name: SmartString<LazyCompact>,
+		node: StripTags,
+	},
 }
 
 impl Debug for PipelineNodeInstance {
@@ -25,6 +29,7 @@ impl Debug for PipelineNodeInstance {
 			Self::ConstantNode(_) => write!(f, "ConstantNode"),
 			Self::ExtractTags { name, .. } => write!(f, "ExtractTags({name})"),
 			Self::IfNone { name, .. } => write!(f, "IfNone({name})"),
+			Self::StripTags { name, .. } => write!(f, "StripTags({name})"),
 		}
 	}
 }
@@ -36,6 +41,7 @@ impl PipelineStatelessRunner for PipelineNodeInstance {
 			Self::ConstantNode(x) => Ok(vec![x.clone()]),
 			Self::ExtractTags { node, .. } => node.run(data),
 			Self::IfNone { node, .. } => node.run(data),
+			Self::StripTags { node, .. } => node.run(data),
 		}
 	}
 }
@@ -57,6 +63,7 @@ impl PipelineNodeInstance {
 				("year", PipelineDataType::Text),
 			])),
 			Self::IfNone { .. } => Some(PipelineNodeType::IfNone.inputs()),
+			Self::StripTags { .. } => Some(PipelineNodeType::StripTags.inputs()),
 		}
 	}
 }

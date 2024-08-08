@@ -5,7 +5,7 @@ use ufo_util::data::PipelineDataType;
 
 use crate::portspec::PipelinePortSpec;
 
-use super::{ifnone::IfNone, nodeinstance::PipelineNodeInstance, tags::ExtractTags};
+use super::{ifnone::IfNone, nodeinstance::PipelineNodeInstance, tags::ExtractTags, StripTags};
 
 #[serde_as]
 #[derive(Debug, Deserialize, Clone)]
@@ -13,6 +13,7 @@ use super::{ifnone::IfNone, nodeinstance::PipelineNodeInstance, tags::ExtractTag
 #[serde(deny_unknown_fields)]
 pub enum PipelineNodeType {
 	ExtractTags { tags: Vec<TagType> },
+	StripTags,
 	IfNone,
 }
 
@@ -22,6 +23,10 @@ impl PipelineNodeType {
 			Self::IfNone => PipelineNodeInstance::IfNone {
 				name: name.into(),
 				node: IfNone::new(),
+			},
+			Self::StripTags => PipelineNodeInstance::StripTags {
+				name: name.into(),
+				node: StripTags::new(),
 			},
 			Self::ExtractTags { tags } => PipelineNodeInstance::ExtractTags {
 				name: name.into(),
@@ -40,6 +45,7 @@ impl PipelineNodeType {
 					.collect(),
 			),
 			Self::IfNone => PipelinePortSpec::Static(&[("out", PipelineDataType::Text)]),
+			Self::StripTags => PipelinePortSpec::Static(&[("out", PipelineDataType::Binary)]),
 		}
 	}
 
@@ -52,6 +58,7 @@ impl PipelineNodeType {
 				("data", PipelineDataType::Text),
 				("ifnone", PipelineDataType::Text),
 			]),
+			Self::StripTags => PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)]),
 		}
 	}
 }
