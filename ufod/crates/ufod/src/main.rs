@@ -56,13 +56,10 @@ async fn main() {
 	};
 
 	// Prep runner
-	let runner: PipelineRunner<UFONodeType> = PipelineRunner::new(
-		PipelineRunConfig {
-			node_threads: 2,
-			max_active_jobs: 8,
-		},
-		ctx.clone(),
-	);
+	let runner: PipelineRunner<UFONodeType> = PipelineRunner::new(PipelineRunConfig {
+		node_threads: 2,
+		max_active_jobs: 8,
+	});
 
 	// TODO: clone fewer arcs
 	let state = RouterState {

@@ -63,7 +63,6 @@ pub struct FailedJob<NodeStubType: PipelineNodeStub> {
 /// no dependency cycles, no port type mismatch, etc
 pub struct PipelineRunner<NodeStubType: PipelineNodeStub> {
 	_p: PhantomData<NodeStubType>,
-	context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
 	config: PipelineRunConfig,
 
 	/// Jobs that are actively running
@@ -85,15 +84,11 @@ pub struct PipelineRunner<NodeStubType: PipelineNodeStub> {
 
 impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 	/// Initialize a new runner
-	pub fn new(
-		config: PipelineRunConfig,
-		context: <NodeStubType::NodeType as PipelineNode>::NodeContext,
-	) -> Self {
+	pub fn new(config: PipelineRunConfig) -> Self {
 		Self {
 			_p: PhantomData,
-			context: Arc::new(context),
-
 			active_jobs: (0..config.max_active_jobs).map(|_| None).collect(),
+
 			job_queue: VecDeque::new(),
 			completed_jobs: VecDeque::new(),
 			failed_jobs: VecDeque::new(),
@@ -103,15 +98,11 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 		}
 	}
 
-	/// Get this runner's context
-	pub fn get_context(&self) -> &Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext> {
-		&self.context
-	}
-
 	/// Add a job to this runner's queue.
 	/// Returns the new job's id.
 	pub fn add_job(
 		&mut self,
+		context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
 		pipeline: Arc<Pipeline<NodeStubType>>,
 		pipeline_inputs: Vec<SDataType<NodeStubType>>,
 	) -> u128 {
@@ -121,12 +112,7 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 			inputs = ?pipeline_inputs
 		);
 
-		let runner = PipelineSingleJob::new(
-			&self.config,
-			self.context.clone(),
-			pipeline,
-			pipeline_inputs,
-		);
+		let runner = PipelineSingleJob::new(&self.config, context, pipeline, pipeline_inputs);
 		self.job_id_counter = self.job_id_counter.wrapping_add(1);
 		self.job_queue.push_back((self.job_id_counter, runner));
 		return self.job_id_counter;

@@ -67,7 +67,9 @@ pub(super) async fn run_pipeline(
 	let mut runner = state.runner.lock().await;
 	let db = state.database;
 
-	let pipeline = if let Some(pipeline) = db.load_pipeline(&pipeline_name, state.context).unwrap()
+	let pipeline = if let Some(pipeline) = db
+		.load_pipeline(&pipeline_name, state.context.clone())
+		.unwrap()
 	{
 		// TODO: cache pipelines
 		pipeline
@@ -110,7 +112,7 @@ pub(super) async fn run_pipeline(
 		}
 	};
 
-	let new_id = runner.add_job(Arc::new(pipeline), inputs);
+	let new_id = runner.add_job(state.context.clone(), Arc::new(pipeline), inputs);
 
 	if let Some(j) = bound_upload_job {
 		state
