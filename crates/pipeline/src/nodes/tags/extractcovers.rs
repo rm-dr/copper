@@ -5,30 +5,46 @@ use std::{
 use ufo_audiofile::flac::flac_read_pictures;
 use ufo_util::{data::PipelineData, mime::MimeType};
 
-use crate::{errors::PipelineError, nodes::PipelineNode};
+use crate::{
+	errors::PipelineError,
+	nodes::{PipelineNode, PipelineNodeState},
+};
 
 #[derive(Clone)]
-pub struct ExtractCovers {}
+pub struct ExtractCovers {
+	data: Option<PipelineData>,
+}
 
 impl ExtractCovers {
 	pub fn new() -> Self {
-		Self {}
+		Self { data: None }
 	}
 }
 
 impl PipelineNode for ExtractCovers {
-	fn run<F>(&self, send_data: F, input: Vec<PipelineData>) -> Result<(), PipelineError>
+	fn init<F>(
+		&mut self,
+		_send_data: F,
+		mut input: Vec<PipelineData>,
+	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{
-		let data = input.first().unwrap();
+		assert!(input.len() == 1);
+		self.data = Some(input.pop().unwrap());
+		Ok(PipelineNodeState::Pending)
+	}
 
-		let (data_type, data) = match data {
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
+	where
+		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+	{
+		let (data_type, data) = match self.data.as_ref().unwrap() {
 			PipelineData::Binary {
 				format: data_type,
 				data,
 			} => (data_type, data),
-			_ => panic!("bad data {data:#?}"),
+			_ => panic!("bad data {:#?}", self.data),
 		};
 
 		let data_read = Cursor::new(&**data);
@@ -51,6 +67,6 @@ impl PipelineNode for ExtractCovers {
 			},
 		)?;
 
-		return Ok(());
+		return Ok(PipelineNodeState::Done);
 	}
 }

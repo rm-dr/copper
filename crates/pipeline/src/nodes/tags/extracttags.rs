@@ -12,16 +12,21 @@ use ufo_util::{
 	mime::MimeType,
 };
 
-use crate::{errors::PipelineError, nodes::PipelineNode};
+use crate::{
+	errors::PipelineError,
+	nodes::{PipelineNode, PipelineNodeState},
+};
 
 #[derive(Clone)]
 pub struct ExtractTags {
+	data: Option<PipelineData>,
 	tags: Vec<TagType>,
 }
 
 impl ExtractTags {
 	pub fn new(tags: Vec<TagType>) -> Self {
 		Self {
+			data: None,
 			tags: tags.into_iter().unique().collect(),
 		}
 	}
@@ -38,13 +43,24 @@ impl ExtractTags {
 }
 
 impl PipelineNode for ExtractTags {
-	fn run<F>(&self, send_data: F, input: Vec<PipelineData>) -> Result<(), PipelineError>
+	fn init<F>(
+		&mut self,
+		_send_data: F,
+		mut input: Vec<PipelineData>,
+	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{
-		let data = input.first().unwrap();
+		assert!(input.len() == 1);
+		self.data = Some(input.pop().unwrap());
+		Ok(PipelineNodeState::Pending)
+	}
 
-		let (data_type, data) = match data {
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
+	where
+		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+	{
+		let (data_type, data) = match self.data.as_ref().unwrap() {
 			PipelineData::Binary {
 				format: data_type,
 				data,
@@ -67,6 +83,6 @@ impl PipelineNode for ExtractTags {
 			}
 		}
 
-		return Ok(());
+		return Ok(PipelineNodeState::Done);
 	}
 }

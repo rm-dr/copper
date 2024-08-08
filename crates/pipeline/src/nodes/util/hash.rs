@@ -3,16 +3,21 @@ use std::sync::Arc;
 use sha2::{Digest, Sha256};
 use ufo_util::data::PipelineData;
 
-use crate::{errors::PipelineError, nodes::PipelineNode};
+use crate::{
+	errors::PipelineError,
+	nodes::{PipelineNode, PipelineNodeState},
+};
 
 // TODO: hash datatype
 // TODO: select hash method
 #[derive(Clone)]
-pub struct Hash {}
+pub struct Hash {
+	data: Option<PipelineData>,
+}
 
 impl Hash {
 	pub fn new() -> Self {
-		Self {}
+		Self { data: None }
 	}
 }
 
@@ -23,11 +28,24 @@ impl Default for Hash {
 }
 
 impl PipelineNode for Hash {
-	fn run<F>(&self, send_data: F, input: Vec<PipelineData>) -> Result<(), PipelineError>
+	fn init<F>(
+		&mut self,
+		_send_data: F,
+		mut input: Vec<PipelineData>,
+	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{
-		let data = match input.first().unwrap() {
+		assert!(input.len() == 1);
+		self.data = Some(input.pop().unwrap());
+		Ok(PipelineNodeState::Pending)
+	}
+
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
+	where
+		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+	{
+		let data = match self.data.as_ref().unwrap() {
 			PipelineData::Binary { data, .. } => data,
 			_ => panic!("bad data type"),
 		};
@@ -38,6 +56,6 @@ impl PipelineNode for Hash {
 
 		send_data(0, PipelineData::Text(Arc::new(format!("{:X}", result))))?;
 
-		return Ok(());
+		return Ok(PipelineNodeState::Done);
 	}
 }

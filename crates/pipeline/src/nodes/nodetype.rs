@@ -11,7 +11,7 @@ use crate::{
 use super::{
 	nodeinstance::PipelineNodeInstance,
 	tags::{extractcovers::ExtractCovers, extracttags::ExtractTags, striptags::StripTags},
-	util::{hash::Hash, ifnone::IfNone, noop::Noop},
+	util::{constant::Constant, hash::Hash, ifnone::IfNone, noop::Noop},
 };
 
 #[serde_as]
@@ -77,8 +77,9 @@ impl PipelineNodeType {
 		match self {
 			// Magic
 			PipelineNodeType::Pipeline { .. } => unreachable!(),
-			PipelineNodeType::ConstantNode { .. } => PipelineNodeInstance::ConstantNode {
+			PipelineNodeType::ConstantNode { value } => PipelineNodeInstance::Constant {
 				node_type: self.clone(),
+				node: Constant::new(value.clone()),
 			},
 			PipelineNodeType::PipelineOutputs { .. } => PipelineNodeInstance::PipelineOutputs {
 				node_type: self.clone(),

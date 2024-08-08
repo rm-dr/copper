@@ -5,7 +5,7 @@ use ufo_util::data::PipelineData;
 use super::{
 	nodetype::PipelineNodeType,
 	tags::{extractcovers::ExtractCovers, extracttags::ExtractTags, striptags::StripTags},
-	util::{hash::Hash, ifnone::IfNone, noop::Noop},
+	util::{constant::Constant, hash::Hash, ifnone::IfNone, noop::Noop},
 	PipelineNode,
 };
 use crate::errors::PipelineError;
@@ -22,11 +22,12 @@ pub enum PipelineNodeInstance {
 	PipelineOutputs {
 		node_type: PipelineNodeType,
 	},
-	ConstantNode {
-		node_type: PipelineNodeType,
-	},
 
 	// Utility nodes
+	Constant {
+		node_type: PipelineNodeType,
+		node: Constant,
+	},
 	IfNone {
 		node_type: PipelineNodeType,
 		name: SmartString<LazyCompact>,
@@ -66,7 +67,7 @@ impl Debug for PipelineNodeInstance {
 		match self {
 			Self::PipelineInputs { .. } => write!(f, "PipelineInputs"),
 			Self::PipelineOutputs { .. } => write!(f, "PipelineOutputs"),
-			Self::ConstantNode { .. } => write!(f, "ConstantNode"),
+			Self::Constant { .. } => write!(f, "ConstantNode"),
 			Self::ExtractTags { name, .. } => write!(f, "ExtractTags({name})"),
 			Self::IfNone { name, .. } => write!(f, "IfNone({name})"),
 			Self::Noop { name, .. } => write!(f, "Noop({name})"),
@@ -78,7 +79,41 @@ impl Debug for PipelineNodeInstance {
 }
 
 impl PipelineNode for PipelineNodeInstance {
-	fn run<F>(&self, send_data: F, input: Vec<PipelineData>) -> Result<(), PipelineError>
+	fn init<F>(
+		&mut self,
+		// Call this when data is ready.
+		// Arguments are (port idx, data).
+		//
+		// This must be called *exactly once* for each of this port's outputs,
+		// across both `init()` and `run()`.
+		// (not enforced, but the pipeline will panic or hang if this is violated.)
+		// TODO: enforce
+		send_data: F,
+
+		input: Vec<PipelineData>,
+	) -> Result<super::PipelineNodeState, PipelineError>
+	where
+		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
+	{
+		match self {
+			// These are handled as special cases by Pipeline::run().
+			Self::PipelineInputs { .. } => unreachable!(),
+			Self::PipelineOutputs { .. } => unreachable!(),
+
+			// Utility
+			Self::Constant { node, .. } => node.init(send_data, input),
+			Self::IfNone { node, .. } => node.init(send_data, input),
+			Self::Noop { node, .. } => node.init(send_data, input),
+			Self::Hash { node, .. } => node.init(send_data, input),
+
+			// Audio
+			Self::ExtractTags { node, .. } => node.init(send_data, input),
+			Self::StripTags { node, .. } => node.init(send_data, input),
+			Self::ExtractCovers { node, .. } => node.init(send_data, input),
+		}
+	}
+
+	fn run<F>(&mut self, send_data: F) -> Result<super::PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{
@@ -88,23 +123,16 @@ impl PipelineNode for PipelineNodeInstance {
 			Self::PipelineOutputs { .. } => unreachable!(),
 
 			// Nodes that are run here
-			Self::ConstantNode { node_type } => match node_type {
-				PipelineNodeType::ConstantNode { value } => {
-					send_data(0, value.clone())?;
-					Ok(())
-				}
-				_ => unreachable!(),
-			},
+			Self::Constant { node, .. } => node.run(send_data),
 
 			// Utility
-			Self::IfNone { node, .. } => node.run(send_data, input),
-			Self::Noop { node, .. } => node.run(send_data, input),
-			Self::Hash { node, .. } => node.run(send_data, input),
-
+			Self::IfNone { node, .. } => node.run(send_data),
+			Self::Noop { node, .. } => node.run(send_data),
+			Self::Hash { node, .. } => node.run(send_data),
 			// Audio
-			Self::ExtractTags { node, .. } => node.run(send_data, input),
-			Self::StripTags { node, .. } => node.run(send_data, input),
-			Self::ExtractCovers { node, .. } => node.run(send_data, input),
+			Self::ExtractTags { node, .. } => node.run(send_data),
+			Self::StripTags { node, .. } => node.run(send_data),
+			Self::ExtractCovers { node, .. } => node.run(send_data),
 		}
 	}
 }
@@ -115,7 +143,7 @@ impl PipelineNodeInstance {
 			// Magic
 			Self::PipelineInputs { node_type, .. }
 			| Self::PipelineOutputs { node_type, .. }
-			| Self::ConstantNode { node_type, .. }
+			| Self::Constant { node_type, .. }
 
 			// Utility
 			| Self::IfNone { node_type, .. }

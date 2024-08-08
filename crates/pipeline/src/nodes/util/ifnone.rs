@@ -1,6 +1,9 @@
 use ufo_util::data::PipelineData;
 
-use crate::{errors::PipelineError, nodes::PipelineNode};
+use crate::{
+	errors::PipelineError,
+	nodes::{PipelineNode, PipelineNodeState},
+};
 
 #[derive(Clone)]
 pub struct IfNone {}
@@ -18,21 +21,26 @@ impl Default for IfNone {
 }
 
 impl PipelineNode for IfNone {
-	fn run<F>(&self, send_data: F, input: Vec<PipelineData>) -> Result<(), PipelineError>
+	fn init<F>(
+		&mut self,
+		send_data: F,
+		mut input: Vec<PipelineData>,
+	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{
-		let d = input.first().unwrap();
-		let ifnone = input.get(1).unwrap();
+		assert!(input.len() == 2);
+		let ifnone = input.pop().unwrap();
+		let input = input.pop().unwrap();
 
 		send_data(
 			0,
-			match *d {
-				PipelineData::None(_) => ifnone.clone(),
-				_ => d.clone(),
+			match input {
+				PipelineData::None(_) => ifnone,
+				_ => input,
 			},
 		)?;
 
-		return Ok(());
+		Ok(PipelineNodeState::Done)
 	}
 }

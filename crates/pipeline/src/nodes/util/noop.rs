@@ -1,27 +1,35 @@
 use ufo_util::data::{PipelineData, PipelineDataType};
 
-use crate::{errors::PipelineError, nodes::PipelineNode, syntax::labels::PipelinePortLabel};
+use crate::{
+	errors::PipelineError,
+	nodes::{PipelineNode, PipelineNodeState},
+	syntax::labels::PipelinePortLabel,
+};
 
 #[derive(Clone)]
 pub struct Noop {
-	_inputs: Vec<(PipelinePortLabel, PipelineDataType)>,
+	inputs: Vec<(PipelinePortLabel, PipelineDataType)>,
 }
 
 impl Noop {
 	pub fn new(inputs: Vec<(PipelinePortLabel, PipelineDataType)>) -> Self {
-		Self { _inputs: inputs }
+		Self { inputs }
 	}
 }
 
 impl PipelineNode for Noop {
-	fn run<F>(&self, send_data: F, input: Vec<PipelineData>) -> Result<(), PipelineError>
+	fn init<F>(
+		&mut self,
+		send_data: F,
+		input: Vec<PipelineData>,
+	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{
+		assert!(input.len() == self.inputs.len());
 		for (i, v) in input.into_iter().enumerate() {
 			send_data(i, v)?;
 		}
-
-		return Ok(());
+		Ok(PipelineNodeState::Done)
 	}
 }
