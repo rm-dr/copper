@@ -1,0 +1,14 @@
+.main {
+	display: grid;
+
+	grid-template-columns: minmax(auto, 30rem) minmax(auto, 30rem);
+	grid-template-rows: auto;
+
+	column-gap: 0.75rem;
+	row-gap: 0.75rem;
+
+	width: 100%;
+	padding: 2rem;
+	overflow-y: scroll;
+	overflow-x: scroll;
+}
