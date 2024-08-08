@@ -33,7 +33,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Show item idx in list
 
 ## 📦 API endpoints
-- [ ] Rename users & groups
 - [ ] Change user password
 - [ ] Change self password
 
