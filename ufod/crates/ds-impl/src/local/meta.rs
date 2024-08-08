@@ -1,5 +1,9 @@
 use itertools::Itertools;
-use sqlx::{query::Query, sqlite::SqliteArguments, Connection, Row, Sqlite};
+use sqlx::{
+	query::Query,
+	sqlite::{SqliteArguments, SqliteRow},
+	Connection, Row, Sqlite,
+};
 use std::{io::Read, iter, str::FromStr, sync::Arc};
 use tracing::debug;
 use ufo_ds_core::{
@@ -56,6 +60,45 @@ impl LocalDataset {
 			MetastoreData::Reference { item, .. } => q.bind(u32::from(*item)),
 			MetastoreData::Blob { handle } => q.bind(u32::from(*handle)),
 		}
+	}
+
+	fn read_storage(row: &SqliteRow, attr: &AttrInfo) -> MetastoreData {
+		let col_name = Self::get_column_name(attr.handle);
+		return match attr.data_type {
+			MetastoreDataStub::Float => MetastoreData::Float(row.get(&col_name[..])),
+			MetastoreDataStub::Boolean => MetastoreData::Boolean(row.get(&col_name[..])),
+			MetastoreDataStub::Integer => MetastoreData::Integer(row.get(&col_name[..])),
+			MetastoreDataStub::PositiveInteger => MetastoreData::PositiveInteger(
+				u64::from_be_bytes(row.get::<i64, _>(&col_name[..]).to_be_bytes()),
+			),
+			MetastoreDataStub::Text => {
+				MetastoreData::Text(Arc::new(row.get::<String, _>(&col_name[..])))
+			}
+			MetastoreDataStub::Reference { class } => MetastoreData::Reference {
+				class,
+				item: row.get::<u32, _>(&col_name[..]).into(),
+			},
+			MetastoreDataStub::Hash { hash_type } => MetastoreData::Hash {
+				format: hash_type,
+				data: Arc::new(row.get(&col_name[..])),
+			},
+			MetastoreDataStub::Blob => MetastoreData::Blob {
+				handle: row.get::<u32, _>(&col_name[..]).into(),
+			},
+			MetastoreDataStub::Binary => {
+				// TODO: don't panic on malformed db
+				let data: Vec<u8> = row.get(&col_name[..]);
+				let len = u32::from_be_bytes(data[0..4].try_into().unwrap());
+				let len = usize::try_from(len).unwrap();
+				let mime = String::from_utf8(data[4..len + 4].into()).unwrap();
+				let data = Arc::new(data[len + 4..].into());
+
+				MetastoreData::Binary {
+					format: MimeType::from_str(&mime).unwrap(),
+					data,
+				}
+			}
+		};
 	}
 
 	/// Delete all blobs that are not referenced by an attribute
@@ -177,15 +220,7 @@ impl Metastore for LocalDataset {
 		// Add foreign key if necessary
 		let references = match data_type {
 			MetastoreDataStub::Reference { class } => {
-				let id: u32 = {
-					let res = sqlx::query("SELECT id FROM meta_classes WHERE id=?;")
-						.bind(u32::from(class))
-						.fetch_one(&mut *t)
-						.await
-						.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
-					res.get("id")
-				};
-				format!(" REFERENCES \"{}\"(id)", Self::get_table_name(id.into()))
+				format!(" REFERENCES \"{}\"(id)", Self::get_table_name(class))
 			}
 
 			MetastoreDataStub::Blob => {
@@ -759,7 +794,7 @@ impl Metastore for LocalDataset {
 			// TODO: meta_attributes.id AS attr_id
 			let res = sqlx::query(
 				"
-					SELECT meta_classes.id AS class_id,
+					SELECT meta_classes.id AS class_id
 					FROM meta_attributes
 					INNER JOIN meta_classes ON meta_classes.id = meta_attributes.class_id
 					WHERE meta_attributes.id=?;
@@ -813,53 +848,12 @@ impl Metastore for LocalDataset {
 		.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		let mut out = Vec::new();
-		for r in res {
+		for row in res {
 			out.push(ItemData {
-				handle: r.get::<u32, _>("id").into(),
+				handle: row.get::<u32, _>("id").into(),
 				attrs: attrs
 					.iter()
-					.map(|attr| {
-						let col_name = Self::get_column_name(attr.handle);
-						return match attr.data_type {
-							MetastoreDataStub::Float => MetastoreData::Float(r.get(&col_name[..])),
-							MetastoreDataStub::Boolean => {
-								MetastoreData::Boolean(r.get(&col_name[..]))
-							}
-							MetastoreDataStub::Integer => {
-								MetastoreData::Integer(r.get(&col_name[..]))
-							}
-							MetastoreDataStub::PositiveInteger => MetastoreData::PositiveInteger(
-								u64::from_be_bytes(r.get::<i64, _>(&col_name[..]).to_be_bytes()),
-							),
-							MetastoreDataStub::Text => {
-								MetastoreData::Text(Arc::new(r.get::<String, _>(&col_name[..])))
-							}
-							MetastoreDataStub::Reference { class } => MetastoreData::Reference {
-								class,
-								item: r.get::<u32, _>(&col_name[..]).into(),
-							},
-							MetastoreDataStub::Hash { hash_type } => MetastoreData::Hash {
-								format: hash_type,
-								data: Arc::new(r.get(&col_name[..])),
-							},
-							MetastoreDataStub::Blob => MetastoreData::Blob {
-								handle: r.get::<u32, _>(&col_name[..]).into(),
-							},
-							MetastoreDataStub::Binary => {
-								// TODO: don't panic on malformed db
-								let data: Vec<u8> = r.get(&col_name[..]);
-								let len = u32::from_be_bytes(data[0..4].try_into().unwrap());
-								let len = usize::try_from(len).unwrap();
-								let mime = String::from_utf8(data[4..len + 4].into()).unwrap();
-								let data = Arc::new(data[len + 4..].into());
-
-								MetastoreData::Binary {
-									format: MimeType::from_str(&mime).unwrap(),
-									data,
-								}
-							}
-						};
-					})
+					.map(|attr| Self::read_storage(&row, attr))
 					.collect(),
 			})
 		}
