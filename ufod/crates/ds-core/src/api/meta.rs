@@ -142,4 +142,7 @@ where
 		page_size: u32,
 		start_at: u32,
 	) -> Result<Vec<ItemData>, MetastoreError>;
+
+	async fn get_item(&self, class: ClassHandle, item: ItemIdx)
+		-> Result<ItemData, MetastoreError>;
 }

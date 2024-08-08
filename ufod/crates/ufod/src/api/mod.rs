@@ -84,7 +84,6 @@ impl Modify for BearerSecurityAddon {
 		HashType,
 		AttributeOptions,
 		DatasetType,
-		ItemIdx,
 		BlobHandle,
 		GroupId,
 		GroupInfo,

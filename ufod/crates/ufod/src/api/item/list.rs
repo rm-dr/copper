@@ -18,8 +18,9 @@ use ufo_ds_core::{
 	},
 	data::{HashType, MetastoreData, MetastoreDataStub},
 	errors::MetastoreError,
-	handles::ItemIdx,
+	handles::{ClassHandle, ItemIdx},
 };
+use ufo_ds_impl::local::LocalDataset;
 use ufo_util::mime::MimeType;
 use utoipa::{IntoParams, ToSchema};
 
@@ -37,8 +38,8 @@ pub(super) struct ItemListRequest {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, IntoParams)]
 pub(super) struct ItemListItem {
-	idx: u32,
-	attrs: HashMap<u32, ItemListData>,
+	pub idx: u32,
+	pub attrs: HashMap<u32, ItemListData>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, IntoParams)]
@@ -74,7 +75,10 @@ pub(super) enum ItemListData {
 	},
 	Reference {
 		attr: AttrInfo,
-		class: String,
+		#[schema(value_type = u32)]
+		class: ClassHandle,
+
+		#[schema(value_type = Option<u32>)]
 		item: Option<ItemIdx>,
 	},
 	Hash {
@@ -95,6 +99,120 @@ pub(super) enum ItemListData {
 		handle: Option<BlobHandle>,
 		size: Option<u64>,
 	},
+}
+
+impl ItemListData {
+	pub async fn from_data(
+		dataset: &LocalDataset,
+		attr: AttrInfo,
+		data: &MetastoreData,
+	) -> Result<Self, Response> {
+		Ok(match data {
+			MetastoreData::None(t) => match t {
+				// These must match the serialized tags of `ItemListData`
+				MetastoreDataStub::Text => ItemListData::Text {
+					value: None,
+					attr: attr.clone(),
+				},
+				MetastoreDataStub::Binary => ItemListData::Binary {
+					attr: attr.clone(),
+					mime: None,
+					size: None,
+				},
+				MetastoreDataStub::Blob => ItemListData::Blob {
+					attr: attr.clone(),
+					mime: None,
+					handle: None,
+					size: None,
+				},
+				MetastoreDataStub::Integer => ItemListData::Integer {
+					attr: attr.clone(),
+					value: None,
+				},
+				MetastoreDataStub::PositiveInteger => ItemListData::PositiveInteger {
+					attr: attr.clone(),
+					value: None,
+				},
+				MetastoreDataStub::Boolean => ItemListData::Boolean {
+					attr: attr.clone(),
+					value: None,
+				},
+				MetastoreDataStub::Float => ItemListData::Float {
+					attr: attr.clone(),
+					value: None,
+				},
+				MetastoreDataStub::Hash { hash_type } => ItemListData::Hash {
+					attr: attr.clone(),
+					hash_type: *hash_type,
+					value: None,
+				},
+				MetastoreDataStub::Reference { class } => ItemListData::Reference {
+					attr: attr.clone(),
+					class: *class,
+					item: None,
+				},
+			},
+			MetastoreData::PositiveInteger(x) => ItemListData::PositiveInteger {
+				attr: attr.clone(),
+				value: Some(*x),
+			},
+			MetastoreData::Blob { handle } => {
+				let size = match dataset.blob_size(*handle).await {
+					Ok(x) => x,
+					Err(e) => {
+						error!(
+							message = "Could not get blob length",
+							blob = ?handle,
+							error = ?e
+						);
+						return Err((
+							StatusCode::INTERNAL_SERVER_ERROR,
+							format!("Could not get blob length"),
+						)
+							.into_response());
+					}
+				};
+
+				ItemListData::Blob {
+					attr: attr.clone(),
+					mime: Some(MimeType::Flac),
+					handle: Some(*handle),
+					size: Some(size),
+				}
+			}
+			MetastoreData::Integer(x) => ItemListData::Integer {
+				attr: attr.clone(),
+				value: Some(*x),
+			},
+			MetastoreData::Boolean(x) => ItemListData::Boolean {
+				attr: attr.clone(),
+				value: Some(*x),
+			},
+			MetastoreData::Float(x) => ItemListData::Float {
+				attr: attr.clone(),
+				value: Some(*x),
+			},
+			MetastoreData::Binary { mime, data } => ItemListData::Binary {
+				attr: attr.clone(),
+				mime: Some(mime.clone()),
+				size: Some(data.len().try_into().unwrap()),
+			},
+			MetastoreData::Text(t) => ItemListData::Text {
+				attr: attr.clone(),
+				value: Some(t.to_string()),
+			},
+			MetastoreData::Hash { format, data } => ItemListData::Hash {
+				attr: attr.clone(),
+				hash_type: *format,
+				value: Some(data.iter().map(|x| format!("{:X?}", x)).join("")),
+			},
+			MetastoreData::Reference { class, item } => ItemListData::Reference {
+				attr: attr.clone(),
+				class: *class,
+				item: Some(*item),
+			},
+		})
+	}
 }
 
 /// List all items in a class
@@ -219,152 +337,10 @@ pub(super) async fn list_item(
 	for item in itemdata.into_iter() {
 		let mut itemlistdata = HashMap::new();
 		for (attr, val) in attrs.iter().zip(item.attrs.iter()) {
-			// TODO: move to method (after making generic dataset type)
-			let d = match val {
-				MetastoreData::None(t) => match t {
-					// These must match the serialized tags of `ItemListData`
-					MetastoreDataStub::Text => ItemListData::Text {
-						value: None,
-						attr: attr.clone(),
-					},
-					MetastoreDataStub::Binary => ItemListData::Binary {
-						attr: attr.clone(),
-						mime: None,
-						size: None,
-					},
-					MetastoreDataStub::Blob => ItemListData::Blob {
-						attr: attr.clone(),
-						mime: None,
-						handle: None,
-						size: None,
-					},
-					MetastoreDataStub::Integer => ItemListData::Integer {
-						attr: attr.clone(),
-						value: None,
-					},
-					MetastoreDataStub::PositiveInteger => ItemListData::PositiveInteger {
-						attr: attr.clone(),
-						value: None,
-					},
-					MetastoreDataStub::Boolean => ItemListData::Boolean {
-						attr: attr.clone(),
-						value: None,
-					},
-					MetastoreDataStub::Float => ItemListData::Float {
-						attr: attr.clone(),
-						value: None,
-					},
-					MetastoreDataStub::Hash { hash_type } => ItemListData::Hash {
-						attr: attr.clone(),
-						hash_type: *hash_type,
-						value: None,
-					},
-					MetastoreDataStub::Reference { class } => {
-						let class = match dataset.get_class(*class).await {
-							Ok(x) => x,
-							Err(e) => {
-								error!(
-									message = "Could not get class by name",
-									dataset = query.dataset,
-									class_name = ?query.class,
-									error = ?e
-								);
-								return (
-									StatusCode::INTERNAL_SERVER_ERROR,
-									format!("Could not get class by name"),
-								)
-									.into_response();
-							}
-						};
-
-						ItemListData::Reference {
-							attr: attr.clone(),
-							class: class.name.to_string(),
-							item: None,
-						}
-					}
-				},
-				MetastoreData::PositiveInteger(x) => ItemListData::PositiveInteger {
-					attr: attr.clone(),
-					value: Some(*x),
-				},
-				MetastoreData::Blob { handle } => {
-					let size = match dataset.blob_size(*handle).await {
-						Ok(x) => x,
-						Err(e) => {
-							error!(
-								message = "Could not get blob length",
-								dataset = query.dataset,
-								blob = ?handle,
-								error = ?e
-							);
-							return (
-								StatusCode::INTERNAL_SERVER_ERROR,
-								format!("Could not get blob length"),
-							)
-								.into_response();
-						}
-					};
-
-					ItemListData::Blob {
-						attr: attr.clone(),
-						mime: Some(MimeType::Flac),
-						handle: Some(*handle),
-						size: Some(size),
-					}
-				}
-				MetastoreData::Integer(x) => ItemListData::Integer {
-					attr: attr.clone(),
-					value: Some(*x),
-				},
-				MetastoreData::Boolean(x) => ItemListData::Boolean {
-					attr: attr.clone(),
-					value: Some(*x),
-				},
-				MetastoreData::Float(x) => ItemListData::Float {
-					attr: attr.clone(),
-					value: Some(*x),
-				},
-				MetastoreData::Binary { mime, data } => ItemListData::Binary {
-					attr: attr.clone(),
-					mime: Some(mime.clone()),
-					size: Some(data.len().try_into().unwrap()),
-				},
-				MetastoreData::Text(t) => ItemListData::Text {
-					attr: attr.clone(),
-					value: Some(t.to_string()),
-				},
-				MetastoreData::Hash { format, data } => ItemListData::Hash {
-					attr: attr.clone(),
-					hash_type: *format,
-					value: Some(data.iter().map(|x| format!("{:X?}", x)).join("")),
-				},
-				MetastoreData::Reference { class, item } => {
-					let class = match dataset.get_class(*class).await {
-						Ok(x) => x,
-						Err(e) => {
-							error!(
-								message = "Could not get class by name",
-								dataset = query.dataset,
-								class_name = ?query.class,
-								error = ?e
-							);
-							return (
-								StatusCode::INTERNAL_SERVER_ERROR,
-								format!("Could not get class by name"),
-							)
-								.into_response();
-						}
-					};
-
-					ItemListData::Reference {
-						attr: attr.clone(),
-						class: class.name.into(),
-						item: Some(*item),
-					}
-				}
+			let d = match ItemListData::from_data(&dataset, attr.clone(), &val).await {
+				Ok(x) => x,
+				Err(r) => return r,
 			};
-
 			itemlistdata.insert(attr.handle.into(), d);
 		}
 
