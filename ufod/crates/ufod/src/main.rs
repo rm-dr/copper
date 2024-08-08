@@ -3,28 +3,27 @@ use futures::executor::block_on;
 use std::{path::PathBuf, sync::Arc, thread};
 use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
+use ufo_ds_core::api::Dataset;
+use ufo_ds_impl::local::LocalDataset;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use ufo_database::{api::UFODatabase, database::Database};
-use ufo_db_blobstore::fs::store::FsBlobstore;
-use ufo_db_metastore::sqlite::db::SQLiteMetastore;
-use ufo_db_pipestore::fs::FsPipestore;
 use ufo_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
 use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
 
+mod dataset;
 mod pipeline;
 mod status;
+mod upload;
 
 mod config;
-mod upload;
 use upload::uploader::Uploader;
 
 #[derive(Clone)]
 pub struct RouterState {
 	config: Arc<config::UfodConfig>,
 	runner: Arc<Mutex<PipelineRunner<UFONodeType>>>,
-	database: Arc<Database<FsBlobstore, SQLiteMetastore, FsPipestore>>,
+	database: Arc<dyn Dataset<UFONodeType>>,
 	context: Arc<UFOContext>,
 	uploader: Arc<Uploader>,
 }
@@ -38,7 +37,8 @@ pub struct RouterState {
 	nest(
 		(path = "/status", api = status::StatusApi),
 		(path = "/pipelines", api = pipeline::PipelineApi),
-		(path = "/upload", api = upload::UploadApi)
+		(path = "/upload", api = upload::UploadApi),
+		(path = "/dataset", api = dataset::DatasetApi)
 	),
 	tags(
 		(name = "ufod", description = "UFO backend daemon")
@@ -63,11 +63,10 @@ async fn main() {
 	//let config = toml::from_str(&config_string).unwrap();
 	let config = Default::default();
 
-	let database = Database::open(&PathBuf::from("./db")).unwrap();
+	let database = Arc::new(LocalDataset::open(&PathBuf::from("./db")).unwrap());
 
 	let ctx = UFOContext {
-		metastore: database.get_metastore(),
-		blobstore: database.get_blobstore(),
+		dataset: database.clone(),
 		blob_fragment_size: 1_000_000,
 	};
 
@@ -84,7 +83,7 @@ async fn main() {
 	let state = RouterState {
 		config: Arc::new(config),
 		runner: Arc::new(Mutex::new(runner)),
-		database: Arc::new(database),
+		database: database.clone(),
 		context: Arc::new(ctx),
 		uploader: Arc::new(Uploader::new("./tmp".into())),
 	};
@@ -96,6 +95,7 @@ async fn main() {
 		.nest("/upload", upload::router(state.uploader.clone()))
 		.nest("/pipelines", pipeline::router())
 		.nest("/status", status::router())
+		.nest("/dataset", dataset::router())
 		//
 		.layer(TraceLayer::new_for_http())
 		.layer(DefaultBodyLimit::max(state.config.request_body_limit))

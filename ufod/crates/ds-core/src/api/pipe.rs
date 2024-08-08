@@ -4,17 +4,16 @@ use ufo_pipeline::{
 	labels::PipelineName,
 	pipeline::pipeline::Pipeline,
 };
-use ufo_pipeline_nodes::nodetype::UFONodeType;
 
-pub trait Pipestore
+pub trait Pipestore<PipelineNodeStubType: PipelineNodeStub>
 where
 	Self: Send + Sync,
 {
 	fn load_pipeline(
 		&self,
 		name: &PipelineName,
-		context: Arc<<<UFONodeType as PipelineNodeStub>::NodeType as PipelineNode>::NodeContext>,
-	) -> Option<Pipeline<UFONodeType>>;
+		context: Arc<<PipelineNodeStubType::NodeType as PipelineNode>::NodeContext>,
+	) -> Option<Pipeline<PipelineNodeStubType>>;
 
 	fn all_pipelines(&self) -> &Vec<PipelineName>;
 }

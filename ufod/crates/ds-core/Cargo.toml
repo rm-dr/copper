@@ -1,5 +1,5 @@
 [package]
-name = "ufo-db-pipestore"
+name = "ufo-ds-core"
 description = "TODO"
 categories = { workspace = true }
 keywords = { workspace = true }
@@ -19,9 +19,6 @@ workspace = true
 [dependencies]
 ufo-util = { workspace = true }
 ufo-pipeline = { workspace = true }
-ufo-pipeline-nodes = { workspace = true }
 
 serde = { workspace = true }
 smartstring = { workspace = true }
-toml = { workspace = true }
-walkdir = { workspace = true }

@@ -1,30 +1,19 @@
 use futures::executor::block_on;
 use itertools::Itertools;
 use smartstring::{LazyCompact, SmartString};
-use sqlx::{
-	query::Query, sqlite::SqliteArguments, Connection, Executor, Row, Sqlite, SqliteConnection,
-};
-use std::{iter, path::Path, sync::Mutex};
-
-use crate::{
-	api::{AttributeOptions, Metastore},
+use sqlx::{query::Query, sqlite::SqliteArguments, Connection, Executor, Row, Sqlite};
+use std::iter;
+use ufo_ds_core::{
+	api::meta::{AttributeOptions, Metastore},
 	data::{MetastoreData, MetastoreDataStub},
 	errors::MetastoreError,
 	handles::{AttrHandle, ClassHandle, ItemHandle},
 };
 
-pub struct SQLiteMetastore {
-	/// The path to the database we'll connect to
-	//database: SmartString<LazyCompact>,
-
-	/// A connection to a database.
-	/// `None` if disconnected.
-	conn: Option<Mutex<SqliteConnection>>,
-	//TODO:async mutex
-}
+use super::LocalDataset;
 
 // SQL helper functions
-impl SQLiteMetastore {
+impl LocalDataset {
 	fn get_table_name<'e, 'c, E>(executor: E, class: ClassHandle) -> Result<String, MetastoreError>
 	where
 		E: Executor<'c, Database = Sqlite>,
@@ -40,7 +29,7 @@ impl SQLiteMetastore {
 				Err(sqlx::Error::RowNotFound) => {
 					return Err(MetastoreError::BadClassHandle);
 				}
-				Err(e) => return Err(e.into()),
+				Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
 				Ok(res) => res.get("id"),
 			}
 		};
@@ -71,29 +60,7 @@ impl SQLiteMetastore {
 	}
 }
 
-impl SQLiteMetastore {
-	pub fn create(db_file: &Path) -> Result<(), MetastoreError> {
-		assert!(!db_file.exists());
-		let db_addr = format!("sqlite:{}?mode=rwc", db_file.to_str().unwrap());
-		let mut conn = block_on(SqliteConnection::connect(&db_addr))?;
-
-		block_on(sqlx::query(include_str!("./init.sql")).execute(&mut conn)).unwrap();
-
-		Ok(())
-	}
-
-	pub fn open(db_file: &Path) -> Result<Self, MetastoreError> {
-		let db_addr = format!("sqlite:{}?mode=rw", db_file.to_str().unwrap());
-		let conn = block_on(SqliteConnection::connect(&db_addr))?;
-
-		Ok(Self {
-			//database: db_addr.into(),
-			conn: Some(Mutex::new(conn)),
-		})
-	}
-}
-
-impl Metastore for SQLiteMetastore {
+impl Metastore for LocalDataset {
 	fn add_attr(
 		&self,
 		class: ClassHandle,
@@ -102,11 +69,12 @@ impl Metastore for SQLiteMetastore {
 		options: AttributeOptions,
 	) -> Result<AttrHandle, MetastoreError> {
 		// Start transaction
-		if self.conn.is_none() {
+		let mut conn_lock = self.conn.lock().unwrap();
+		if conn_lock.is_none() {
 			return Err(MetastoreError::NotConnected);
 		}
-		let mut conn_lock = self.conn.as_ref().unwrap().lock().unwrap();
-		let mut t = block_on(conn_lock.begin())?;
+		let mut t = block_on(conn_lock.as_mut().unwrap().begin())
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		// Add attribute metadata
 		let new_attr_id = {
@@ -132,10 +100,10 @@ impl Metastore for SQLiteMetastore {
 					if e.is_unique_violation() {
 						return Err(MetastoreError::DuplicateAttrName(attr_name.into()));
 					} else {
-						return Err(sqlx::Error::Database(e).into());
+						return Err(MetastoreError::DbError(Box::new(sqlx::Error::Database(e))));
 					}
 				}
-				Err(e) => return Err(e.into()),
+				Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
 				Ok(x) => x.last_insert_rowid(),
 			}
 		};
@@ -167,7 +135,8 @@ impl Metastore for SQLiteMetastore {
 						sqlx::query("SELECT id FROM meta_classes WHERE id=?;")
 							.bind(u32::from(class))
 							.fetch_one(&mut *t),
-					)?;
+					)
+					.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 					res.get("id")
 				};
 				format!(" REFERENCES \"class_{id}\"(id)")
@@ -181,7 +150,8 @@ impl Metastore for SQLiteMetastore {
 				"ALTER TABLE \"{table_name}\" ADD \"{column_name}\" {data_type_str}{not_null}{references};",
 			))
 			.execute(&mut *t),
-		)?;
+		)
+		.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		// Add unique constraint if necessary
 		if options.unique {
@@ -190,22 +160,24 @@ impl Metastore for SQLiteMetastore {
 					"CREATE UNIQUE INDEX \"unique_{table_name}_{column_name}\" ON \"{table_name}\"(\"{column_name}\");",
 				))
 				.execute(&mut *t),
-			)?;
+			)
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 		}
 
 		// Commit transaction
-		block_on(t.commit())?;
+		block_on(t.commit()).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		Ok(u32::try_from(new_attr_id).unwrap().into())
 	}
 
 	fn add_class(&self, class_name: &str) -> Result<ClassHandle, MetastoreError> {
 		// Start transaction
-		if self.conn.is_none() {
+		let mut conn_lock = self.conn.lock().unwrap();
+		if conn_lock.is_none() {
 			return Err(MetastoreError::NotConnected);
 		}
-		let mut conn_lock = self.conn.as_ref().unwrap().lock().unwrap();
-		let mut t = block_on(conn_lock.begin())?;
+		let mut t = block_on(conn_lock.as_mut().unwrap().begin())
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		// Add metadata
 		let new_class_id = {
@@ -220,10 +192,10 @@ impl Metastore for SQLiteMetastore {
 					if e.is_unique_violation() {
 						return Err(MetastoreError::DuplicateClassName(class_name.into()));
 					} else {
-						return Err(sqlx::Error::Database(e).into());
+						return Err(MetastoreError::DbError(Box::new(sqlx::Error::Database(e))));
 					}
 				}
-				Err(e) => return Err(e.into()),
+				Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
 				Ok(res) => res.last_insert_rowid(),
 			}
 		};
@@ -235,10 +207,11 @@ impl Metastore for SQLiteMetastore {
 				"CREATE TABLE IF NOT EXISTS \"{table_name}\" (id INTEGER PRIMARY KEY NOT NULL);"
 			))
 			.execute(&mut *t),
-		)?;
+		)
+		.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		// Commit transaction
-		block_on(t.commit())?;
+		block_on(t.commit()).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		return Ok(u32::try_from(new_class_id).unwrap().into());
 	}
@@ -249,11 +222,12 @@ impl Metastore for SQLiteMetastore {
 		mut attrs: Vec<(AttrHandle, MetastoreData)>,
 	) -> Result<ItemHandle, MetastoreError> {
 		// Start transaction
-		if self.conn.is_none() {
+		let mut conn_lock = self.conn.lock().unwrap();
+		if conn_lock.is_none() {
 			return Err(MetastoreError::NotConnected);
 		}
-		let mut conn_lock = self.conn.as_ref().unwrap().lock().unwrap();
-		let mut t = block_on(conn_lock.begin())?;
+		let mut t = block_on(conn_lock.as_mut().unwrap().begin())
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		let table_name = Self::get_table_name(&mut *t, class)?;
 
@@ -279,7 +253,7 @@ impl Metastore for SQLiteMetastore {
 						Err(sqlx::Error::RowNotFound) => {
 							return Err(MetastoreError::BadClassHandle);
 						}
-						Err(e) => return Err(e.into()),
+						Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
 						Ok(res) => res.get("id"),
 					};
 
@@ -309,15 +283,15 @@ impl Metastore for SQLiteMetastore {
 				if e.is_unique_violation() {
 					return Err(MetastoreError::UniqueViolated);
 				} else {
-					return Err(sqlx::Error::Database(e).into());
+					return Err(MetastoreError::DbError(Box::new(sqlx::Error::Database(e))));
 				}
 			}
-			Err(x) => return Err(x.into()),
+			Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
 			Ok(res) => res.last_insert_rowid(),
 		};
 
 		// Commit transaction
-		block_on(t.commit())?;
+		block_on(t.commit()).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		Ok(u32::try_from(id).unwrap().into())
 	}
@@ -338,10 +312,11 @@ impl Metastore for SQLiteMetastore {
 		class: ClassHandle,
 		attr_name: &str,
 	) -> Result<Option<AttrHandle>, MetastoreError> {
-		if self.conn.is_none() {
+		let mut conn_lock = self.conn.lock().unwrap();
+		if conn_lock.is_none() {
 			return Err(MetastoreError::NotConnected);
 		}
-		let conn = &mut *self.conn.as_ref().unwrap().lock().unwrap();
+		let conn = conn_lock.as_mut().unwrap();
 
 		let res = block_on(
 			sqlx::query("SELECT id FROM meta_attributes WHERE class_id=? AND pretty_name=?;")
@@ -352,16 +327,17 @@ impl Metastore for SQLiteMetastore {
 
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Ok(None),
-			Err(e) => Err(e.into()),
+			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
 			Ok(res) => Ok(Some(res.get::<u32, _>("id").into())),
 		};
 	}
 
 	fn get_class(&self, class_name: &str) -> Result<Option<ClassHandle>, MetastoreError> {
-		if self.conn.is_none() {
+		let mut conn_lock = self.conn.lock().unwrap();
+		if conn_lock.is_none() {
 			return Err(MetastoreError::NotConnected);
 		}
-		let conn = &mut *self.conn.as_ref().unwrap().lock().unwrap();
+		let conn = conn_lock.as_mut().unwrap();
 
 		let res = block_on(
 			sqlx::query("SELECT id FROM meta_classes WHERE pretty_name=?;")
@@ -371,7 +347,7 @@ impl Metastore for SQLiteMetastore {
 
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Ok(None),
-			Err(e) => Err(e.into()),
+			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
 			Ok(res) => Ok(Some(res.get::<u32, _>("id").into())),
 		};
 	}
@@ -394,11 +370,12 @@ impl Metastore for SQLiteMetastore {
 		mut data: MetastoreData,
 	) -> Result<(), MetastoreError> {
 		// Start transaction
-		if self.conn.is_none() {
+		let mut conn_lock = self.conn.lock().unwrap();
+		if conn_lock.is_none() {
 			return Err(MetastoreError::NotConnected);
 		}
-		let mut conn_lock = self.conn.as_ref().unwrap().lock().unwrap();
-		let mut t = block_on(conn_lock.begin())?;
+		let mut t = block_on(conn_lock.as_mut().unwrap().begin())
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		// Find table and column name to modify
 		let (table_name, column_name, is_not_null): (String, String, bool) = {
@@ -417,7 +394,7 @@ impl Metastore for SQLiteMetastore {
 
 			match res {
 				Err(sqlx::Error::RowNotFound) => Err(MetastoreError::BadAttrHandle),
-				Err(e) => Err(e.into()),
+				Err(e) => Err(MetastoreError::DbError(Box::new(e))),
 				Ok(res) => {
 					let class_id: u32 = res.get("meta_classes.id");
 					let attr_id: u32 = res.get("meta_attributes.id");
@@ -454,16 +431,16 @@ impl Metastore for SQLiteMetastore {
 					if e.is_unique_violation() {
 						return Err(MetastoreError::UniqueViolated);
 					} else {
-						return Err(sqlx::Error::Database(e).into());
+						return Err(MetastoreError::DbError(Box::new(sqlx::Error::Database(e))));
 					}
 				}
-				Err(x) => return Err(x.into()),
+				Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
 				Ok(_) => {}
 			};
 		};
 
 		// Commit transaction
-		block_on(t.commit())?;
+		block_on(t.commit()).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		Ok(())
 	}
@@ -484,10 +461,11 @@ impl Metastore for SQLiteMetastore {
 		&self,
 		class: ClassHandle,
 	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, MetastoreDataStub)>, MetastoreError> {
-		if self.conn.is_none() {
+		let mut conn_lock = self.conn.lock().unwrap();
+		if conn_lock.is_none() {
 			return Err(MetastoreError::NotConnected);
 		}
-		let conn = &mut *self.conn.as_ref().unwrap().lock().unwrap();
+		let conn = conn_lock.as_mut().unwrap();
 
 		let res = block_on(
 			sqlx::query(
@@ -503,7 +481,7 @@ impl Metastore for SQLiteMetastore {
 
 		let res = match res {
 			Err(sqlx::Error::RowNotFound) => return Err(MetastoreError::BadClassHandle),
-			Err(e) => return Err(e.into()),
+			Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
 			Ok(res) => res,
 		};
 
@@ -532,10 +510,11 @@ impl Metastore for SQLiteMetastore {
 	}
 
 	fn attr_get_type(&self, attr: AttrHandle) -> Result<MetastoreDataStub, MetastoreError> {
-		if self.conn.is_none() {
+		let mut conn_lock = self.conn.lock().unwrap();
+		if conn_lock.is_none() {
 			return Err(MetastoreError::NotConnected);
 		}
-		let conn = &mut *self.conn.as_ref().unwrap().lock().unwrap();
+		let conn = conn_lock.as_mut().unwrap();
 
 		let res = block_on(
 			sqlx::query("SELECT data_type FROM meta_attributes WHERE id=?;")
@@ -544,7 +523,7 @@ impl Metastore for SQLiteMetastore {
 		);
 
 		return match res {
-			Err(e) => Err(e.into()),
+			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
 			Ok(res) => {
 				let type_string = res.get::<String, _>("data_type");
 				Ok(MetastoreDataStub::from_db_str(&type_string).unwrap())
@@ -561,10 +540,11 @@ impl Metastore for SQLiteMetastore {
 		attr: AttrHandle,
 		mut attr_value: MetastoreData,
 	) -> Result<Option<ItemHandle>, MetastoreError> {
-		if self.conn.is_none() {
+		let mut conn_lock = self.conn.lock().unwrap();
+		if conn_lock.is_none() {
 			return Err(MetastoreError::NotConnected);
 		}
-		let conn = &mut *self.conn.as_ref().unwrap().lock().unwrap();
+		let conn = conn_lock.as_mut().unwrap();
 
 		// Find table and column name to modify
 		let (table_name, column_name): (String, String) = {
@@ -584,7 +564,7 @@ impl Metastore for SQLiteMetastore {
 
 			match res {
 				Err(sqlx::Error::RowNotFound) => Err(MetastoreError::BadAttrHandle),
-				Err(e) => Err(e.into()),
+				Err(e) => Err(MetastoreError::DbError(Box::new(e))),
 				Ok(res) => {
 					let class_id: u32 = res.get("class_id");
 					let attr_id: u32 = res.get("attr_id");
@@ -601,7 +581,7 @@ impl Metastore for SQLiteMetastore {
 		let res = block_on(q.bind(u32::from(attr)).fetch_one(conn));
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Ok(None),
-			Err(e) => Err(e.into()),
+			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
 			Ok(res) => {
 				let id = res.get::<u32, _>("id");
 				Ok(Some(id.into()))

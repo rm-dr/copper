@@ -35,20 +35,20 @@ impl BlobHandle {
 pub struct BlobstoreTmpWriter {
 	file: Option<File>,
 
-	pub(crate) handle: BlobHandle,
+	pub handle: BlobHandle,
 
 	// Absolute path to blob store
-	pub(crate) blob_store_root: PathBuf,
+	pub blob_store_root: PathBuf,
 
 	// Path to this file, relative to blob_store_root
-	pub(crate) path_to_file: PathBuf,
+	pub path_to_file: PathBuf,
 
 	// Used for cleanup
-	pub(crate) is_finished: bool,
+	pub is_finished: bool,
 }
 
 impl BlobstoreTmpWriter {
-	pub(crate) fn new(blob_store_root: PathBuf, path_to_file: PathBuf, handle: BlobHandle) -> Self {
+	pub fn new(blob_store_root: PathBuf, path_to_file: PathBuf, handle: BlobHandle) -> Self {
 		let file = File::create(&path_to_file).unwrap();
 
 		Self {

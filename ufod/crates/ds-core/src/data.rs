@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
-use ufo_db_blobstore::api::BlobHandle;
 use ufo_util::mime::MimeType;
+
+use crate::api::blob::BlobHandle;
 
 use super::handles::{ClassHandle, ItemHandle};
 

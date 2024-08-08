@@ -3,9 +3,11 @@ use std::{collections::VecDeque, fmt::Debug, io::Write, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
-use ufo_db_blobstore::api::{BlobHandle, Blobstore, BlobstoreTmpWriter};
-use ufo_db_metastore::{
-	api::Metastore,
+use ufo_ds_core::{
+	api::{
+		blob::{BlobHandle, BlobstoreTmpWriter},
+		Dataset,
+	},
 	data::MetastoreData,
 	errors::MetastoreError,
 	handles::{AttrHandle, ClassHandle},
@@ -50,8 +52,7 @@ pub struct AddItemConfig {
 }
 
 pub struct AddItem {
-	metastore: Arc<dyn Metastore>,
-	blobstore: Arc<dyn Blobstore>,
+	dataset: Arc<dyn Dataset<UFONodeType>>,
 
 	class: ClassHandle,
 	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, UFODataStub)>,
@@ -69,8 +70,7 @@ impl AddItem {
 	) -> Self {
 		let data = attrs.iter().map(|_| None).collect();
 		AddItem {
-			metastore: ctx.metastore.clone(),
-			blobstore: ctx.blobstore.clone(),
+			dataset: ctx.dataset.clone(),
 
 			class,
 			attrs,
@@ -96,7 +96,7 @@ impl PipelineNode for AddItem {
 				None => {
 					self.data[port] = Some(DataHold::BlobWriting {
 						buffer: VecDeque::from([fragment]),
-						writer: Some(self.blobstore.new_blob(&format)),
+						writer: Some(self.dataset.new_blob(&format)),
 						is_done: is_last,
 					})
 				}
@@ -131,7 +131,7 @@ impl PipelineNode for AddItem {
 						writer.as_mut().unwrap().write(&data[..])?;
 					}
 					if *is_done {
-						let x = self.blobstore.finish_blob(writer.take().unwrap());
+						let x = self.dataset.finish_blob(writer.take().unwrap());
 						std::mem::swap(i, &mut Some(DataHold::BlobDone(x)));
 					}
 				}
@@ -155,7 +155,7 @@ impl PipelineNode for AddItem {
 			};
 			attrs.push((*attr, data.into()));
 		}
-		let res = self.metastore.add_item(self.class, attrs);
+		let res = self.dataset.add_item(self.class, attrs);
 
 		match res {
 			Ok(item) => {
@@ -190,8 +190,8 @@ impl UFONode for AddItem {
 	fn n_inputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
 		match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = ctx.metastore.get_class(&class[..]).unwrap().unwrap();
-				let attrs = ctx.metastore.class_get_attrs(class).unwrap();
+				let class = ctx.dataset.get_class(&class[..]).unwrap().unwrap();
+				let attrs = ctx.dataset.class_get_attrs(class).unwrap();
 
 				attrs.into_iter().count()
 			}
@@ -220,8 +220,8 @@ impl UFONode for AddItem {
 	) -> Option<usize> {
 		match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = ctx.metastore.get_class(&class[..]).unwrap().unwrap();
-				let attrs = ctx.metastore.class_get_attrs(class).unwrap();
+				let class = ctx.dataset.get_class(&class[..]).unwrap().unwrap();
+				let attrs = ctx.dataset.class_get_attrs(class).unwrap();
 
 				attrs
 					.into_iter()
@@ -236,8 +236,8 @@ impl UFONode for AddItem {
 	fn input_default_type(stub: &UFONodeType, ctx: &UFOContext, input_idx: usize) -> UFODataStub {
 		match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = ctx.metastore.get_class(&class[..]).unwrap().unwrap();
-				let attrs = ctx.metastore.class_get_attrs(class).unwrap();
+				let class = ctx.dataset.get_class(&class[..]).unwrap().unwrap();
+				let attrs = ctx.dataset.class_get_attrs(class).unwrap();
 
 				attrs.into_iter().nth(input_idx).unwrap().2.into()
 			}
@@ -248,8 +248,8 @@ impl UFONode for AddItem {
 	fn n_outputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
 		match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = ctx.metastore.get_class(&class[..]).unwrap().unwrap();
-				let attrs = ctx.metastore.class_get_attrs(class).unwrap();
+				let class = ctx.dataset.get_class(&class[..]).unwrap().unwrap();
+				let attrs = ctx.dataset.class_get_attrs(class).unwrap();
 				attrs.into_iter().count()
 			}
 			_ => unreachable!(),
@@ -260,7 +260,7 @@ impl UFONode for AddItem {
 		match stub {
 			UFONodeType::AddItem { class, .. } => {
 				assert!(output_idx == 0);
-				let class = ctx.metastore.get_class(class).unwrap().unwrap();
+				let class = ctx.dataset.get_class(class).unwrap().unwrap();
 				UFODataStub::Reference { class }
 			}
 			_ => unreachable!(),

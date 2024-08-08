@@ -5,7 +5,6 @@ use axum::{
 	Json,
 };
 use serde::{Deserialize, Serialize};
-use ufo_database::api::UFODatabase;
 use ufo_pipeline::labels::{PipelineName, PipelineNodeID};
 use ufo_pipeline_nodes::nodetype::UFONodeType;
 use utoipa::ToSchema;
@@ -45,7 +44,6 @@ pub(super) async fn get_pipeline_node(
 
 	let pipe = if let Some(pipe) = state
 		.database
-		.get_pipestore()
 		.load_pipeline(&pipeline_name, state.context.clone())
 	{
 		pipe

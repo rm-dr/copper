@@ -7,8 +7,8 @@ pub enum MetastoreError {
 	/// We haven't connected to this database yet
 	NotConnected,
 
-	/// SQL error
-	SQLX(sqlx::Error),
+	/// Database error
+	DbError(Box<dyn Error>),
 
 	/// We were given a bad attribute handle
 	BadAttrHandle,
@@ -36,7 +36,7 @@ impl Display for MetastoreError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::NotConnected => write!(f, "NotConnected"),
-			Self::SQLX(dberr) => write!(f, "DB Error: {}", dberr),
+			Self::DbError(dberr) => write!(f, "DB Error: {}", dberr),
 			Self::BadAttrHandle => write!(f, "BadAttrHandle"),
 			Self::BadClassHandle => write!(f, "BadClassHandle"),
 			Self::TypeMismatch => write!(f, "TypeMismatch"),
@@ -49,9 +49,3 @@ impl Display for MetastoreError {
 }
 
 impl Error for MetastoreError {}
-
-impl From<sqlx::Error> for MetastoreError {
-	fn from(value: sqlx::Error) -> Self {
-		Self::SQLX(value)
-	}
-}

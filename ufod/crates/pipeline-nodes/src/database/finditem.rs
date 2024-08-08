@@ -1,6 +1,6 @@
 use std::sync::Arc;
-use ufo_db_metastore::{
-	api::Metastore,
+use ufo_ds_core::{
+	api::Dataset,
 	errors::MetastoreError,
 	handles::{AttrHandle, ClassHandle},
 };
@@ -18,7 +18,7 @@ use crate::{
 };
 
 pub struct FindItem {
-	metastore: Arc<dyn Metastore>,
+	dataset: Arc<dyn Dataset<UFONodeType>>,
 	class: ClassHandle,
 	by_attr: AttrHandle,
 	attr_type: UFODataStub,
@@ -32,9 +32,10 @@ impl FindItem {
 		class: ClassHandle,
 		by_attr: AttrHandle,
 	) -> Result<Self, MetastoreError> {
-		let attr_type = ctx.metastore.attr_get_type(by_attr)?.into();
+		let attr_type = ctx.dataset.attr_get_type(by_attr)?.into();
 		Ok(FindItem {
-			metastore: ctx.metastore.clone(),
+			dataset: ctx.dataset.clone(),
+
 			class,
 			by_attr,
 			attr_type,
@@ -63,7 +64,7 @@ impl PipelineNode for FindItem {
 			return Ok(PipelineNodeState::Pending("waiting for input"));
 		}
 
-		let found = self.metastore.find_item_with_attr(
+		let found = self.dataset.find_item_with_attr(
 			self.by_attr,
 			self.attr_value.as_ref().unwrap().as_db_data().unwrap(),
 		)?;
@@ -127,9 +128,9 @@ impl UFONode for FindItem {
 		match stub {
 			UFONodeType::FindItem { class, by_attr } => {
 				assert!(input_idx == 0);
-				let class = ctx.metastore.get_class(&class[..]).unwrap().unwrap();
-				let attr = ctx.metastore.get_attr(class, &by_attr).unwrap().unwrap();
-				ctx.metastore.attr_get_type(attr).unwrap().into()
+				let class = ctx.dataset.get_class(&class[..]).unwrap().unwrap();
+				let attr = ctx.dataset.get_attr(class, &by_attr).unwrap().unwrap();
+				ctx.dataset.attr_get_type(attr).unwrap().into()
 			}
 			_ => unreachable!(),
 		}
@@ -146,7 +147,7 @@ impl UFONode for FindItem {
 		match stub {
 			UFONodeType::FindItem { class, .. } => {
 				assert!(output_idx == 0);
-				let class = ctx.metastore.get_class(class).unwrap().unwrap();
+				let class = ctx.dataset.get_class(class).unwrap().unwrap();
 				UFODataStub::Reference { class }
 			}
 			_ => unreachable!(),

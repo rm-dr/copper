@@ -7,7 +7,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
-use ufo_database::api::UFODatabase;
 use ufo_pipeline::labels::PipelineName;
 use ufo_pipeline_nodes::data::UFOData;
 use utoipa::ToSchema;
@@ -68,10 +67,7 @@ pub(super) async fn run_pipeline(
 	let mut runner = state.runner.lock().await;
 	let db = state.database;
 
-	let pipeline = if let Some(pipeline) = db
-		.get_pipestore()
-		.load_pipeline(&pipeline_name, state.context)
-	{
+	let pipeline = if let Some(pipeline) = db.load_pipeline(&pipeline_name, state.context) {
 		// TODO: cache pipelines
 		pipeline
 	} else {

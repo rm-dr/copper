@@ -23,12 +23,9 @@ workspace = true
 [dependencies]
 ufo-pipeline = { workspace = true }
 ufo-pipeline-nodes = { workspace = true }
-ufo-database = { workspace = true }
 ufo-util = { workspace = true }
-
-ufo-db-metastore = { workspace = true }
-ufo-db-pipestore = { workspace = true }
-ufo-db-blobstore = { workspace = true }
+ufo-ds-core = { workspace = true }
+ufo-ds-impl = { workspace = true }
 
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true }

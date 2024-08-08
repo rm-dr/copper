@@ -5,7 +5,6 @@ use axum::{
 	Json,
 };
 use serde::{Deserialize, Serialize};
-use ufo_database::api::UFODatabase;
 use ufo_pipeline::labels::{PipelineName, PipelineNodeID};
 use utoipa::ToSchema;
 
@@ -43,11 +42,7 @@ pub(super) async fn get_pipeline(
 	Path(pipeline_name): Path<PipelineName>,
 	State(state): State<RouterState>,
 ) -> Response {
-	let pipe = if let Some(pipe) = state
-		.database
-		.get_pipestore()
-		.load_pipeline(&pipeline_name, state.context)
-	{
+	let pipe = if let Some(pipe) = state.database.load_pipeline(&pipeline_name, state.context) {
 		pipe
 	} else {
 		return StatusCode::NOT_FOUND.into_response();

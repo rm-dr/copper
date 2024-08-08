@@ -1,14 +1,14 @@
 use smartstring::{LazyCompact, SmartString};
 
-use super::{
+use crate::{
 	data::{MetastoreData, MetastoreDataStub},
 	errors::MetastoreError,
 	handles::{AttrHandle, ClassHandle, ItemHandle},
 };
 
 pub struct AttributeOptions {
-	pub(crate) unique: bool,
-	pub(crate) not_null: bool,
+	pub unique: bool,
+	pub not_null: bool,
 }
 
 #[allow(clippy::derivable_impls)]
@@ -59,9 +59,9 @@ where
 	fn del_item(&self, item: ItemHandle) -> Result<(), MetastoreError>;
 	fn del_attr(&self, attr: AttrHandle) -> Result<(), MetastoreError>;
 
-	//fn iter_items(&self) -> Result<impl Iterator<Item = ItemHandle>, ()>;
-	//fn iter_classes(&self) -> Result<impl Iterator<Item = ClassHandle>, ()>;
-	//fn iter_attrs(&self) -> Result<impl Iterator<Item = AttrHandle>, ()>;
+	//fn iter_items(&self) -> Result<impl Iterator<Item = ItemHandle>, MetastoreError>;
+	//fn iter_classes(&self) -> Result<impl Iterator<Item = ClassHandle>, MetastoreError>;
+	//fn iter_attrs(&self) -> Result<impl Iterator<Item = AttrHandle>, MetastoreError>;
 
 	fn get_class(&self, class_name: &str) -> Result<Option<ClassHandle>, MetastoreError>;
 	fn get_attr(

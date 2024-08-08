@@ -1,6 +1,6 @@
 [package]
-name = "ufo-database"
-description = "TODO"
+name = "ufo-ds-impl"
+description = "Dataset implementations"
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }
@@ -17,7 +17,12 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
+ufo-ds-core = { workspace = true }
+ufo-pipeline = { workspace = true }
 ufo-util = { workspace = true }
-ufo-db-blobstore = { workspace = true }
-ufo-db-metastore = { workspace = true }
-ufo-db-pipestore = { workspace = true }
+
+walkdir = { workspace = true }
+sqlx = { workspace = true }
+smartstring = { workspace = true }
+futures = { workspace = true }
+itertools = { workspace = true }

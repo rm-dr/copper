@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
-use ufo_db_metastore::{
+use ufo_ds_core::{
 	data::{HashType, MetastoreData, MetastoreDataStub},
 	handles::{ClassHandle, ItemHandle},
 };

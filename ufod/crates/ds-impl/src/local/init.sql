@@ -1,3 +1,45 @@
+-- Database metadata
+CREATE TABLE meta_meta (
+	-- The name of the metadata variable
+	var TEXT PRIMARY KEY NOT NULL UNIQUE,
+
+	-- The value of the variable
+	val TEXT NOT NULL
+);
+
+
+
+
+-- Blob metadata
+CREATE TABLE meta_blobs (
+	id INTEGER PRIMARY KEY NOT NULL,
+
+	-- This blob's mime type
+	data_type TEXT NOT NULL,
+
+	-- A relative path to this blob's file
+	file_path TEXT NOT NULL UNIQUE
+);
+
+
+
+
+-- Pipelines
+CREATE TABLE IF NOT EXISTS meta_pipelines (
+	id INTEGER PRIMARY KEY NOT NULL,
+
+	-- This pipeline's name
+	pipeline_name TEXT UNIQUE NOT NULL,
+
+	-- This pipeline, serialized
+	pipeline_data TEXT UNIQUE NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_meta_pipeline_name on meta_pipelines(pipeline_name);
+
+
+
+
 -- Class metadata
 CREATE TABLE IF NOT EXISTS meta_classes (
 	id INTEGER PRIMARY KEY NOT NULL,
@@ -7,6 +49,8 @@ CREATE TABLE IF NOT EXISTS meta_classes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_meta_class_name on meta_classes(pretty_name);
+
+
 
 
 -- Attribute metadata
@@ -37,6 +81,8 @@ CREATE TABLE IF NOT EXISTS meta_attributes (
 
 CREATE INDEX IF NOT EXISTS idx_meta_attr_name on meta_attributes(pretty_name);
 CREATE INDEX IF NOT EXISTS idx_meta_attr_class on meta_attributes(class_id);
+
+
 
 
 -- Enum metadata
