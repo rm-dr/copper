@@ -19,6 +19,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 Fixes
 - [ ] Server deadlocks with two parallel clients
+- [ ] Show item idx in list
 
 ## 📦 API endpoints
 - [ ] Rename users & groups
@@ -26,18 +27,10 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Change self password
 - [ ] Rename set, class, attrs
 
-## 📦 CRUD items
-- [ ] Infinite scroll when page doesn't fill view
+## 📦 View items
 - [ ] Manage ui items
   - [ ] Delete items
   - [ ] Sort by attrs
-- [ ] Edit ui items
-  - [ ] Edit items even if they differ
-  - [ ] Show "changed" indicator
-  - [ ] "Commit" button
-  - [ ] Edit panel items
-  - [ ] Reorder attributes (ui + logic)
-  - [ ] Fix attribute index on delete
 
 ## 📦 Database migrations
 - old dbs should not be destroyed
@@ -57,12 +50,17 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] IDv3 complete implementation
 - [ ] Tag node types
 
+## 📦 Better uploads
+- [ ] Upload in parallel
+- [ ] Warn when closing window if uploading
+- [ ] View and edit queue (?)
+
 ## 📦 UI Cleanup
 - [ ] tab all interactables
 - [ ] Font
 - [ ] Panel width. Center, or change page background?
 - [ ] Prettier errors from server (markdown? might be overkill.)
-- [ ] Fade bottom of all scrolls (component)
+- [ ] Fade bottom of all scrolls (component? overscroll?)
 - [ ] Loading state for modals
 - [ ] Modal builder
 - [ ] Add attr form
@@ -71,11 +69,16 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] "No items" element in item table doesn't span columns
 - [ ] Show menu on right-click in trees
 - [ ] Always sort classes alphabetically
+- [ ] Infinite scroll when item table doesn't fill view
 
-## 📦 Better uploads
-- [ ] Upload in parallel
-- [ ] Warn when closing window if uploading
-- [ ] View and edit queue (?)
+
+## 📦 Edit items
+- [ ] Edit items even if they differ
+- [ ] Show "changed" indicator
+- [ ] "Commit" button
+- [ ] Edit panel items
+- [ ] Reorder attributes (ui + logic)
+- [ ] Fix attribute index on delete
 
 ## 📦 Pipeline editor
 - redo serialize/deserialize pipeline spec
@@ -276,6 +279,9 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Preview panel data on hover
 - [ ] Better audio player (center, fill, waveform)
 - [ ] More panel types: video, pdf
+- [ ] Go to item in reference panel (how?)
+- [ ] Reference panel backlinks
+
 ---------------------------------------------------------------------
 
 ## Expand authentication
