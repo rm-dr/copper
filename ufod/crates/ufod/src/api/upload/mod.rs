@@ -1,10 +1,7 @@
 use axum::{routing::post, Router};
-use std::sync::Arc;
 use utoipa::OpenApi;
 
-// TODO: move logic to uploader and provide methods
 use super::RouterState;
-use crate::helpers::uploader::Uploader;
 
 mod finish;
 mod new_file;
@@ -33,29 +30,10 @@ use upload::*;
 )]
 pub(super) struct UploadApi;
 
-pub(super) fn router(uploader: Arc<Uploader>) -> Router<RouterState> {
-	let mut r = Router::new();
-
-	let u = uploader.clone();
-	r = r.route("/new", post(|| async move { start_upload(u).await }));
-
-	let u = uploader.clone();
-	r = r.route(
-		"/:job_id/newfile",
-		post(|path, payload| async move { start_file(u, path, payload).await }),
-	);
-
-	let u = uploader.clone();
-	r = r.route(
-		"/:job_id/:file_handle",
-		post(|path, multipart| async move { upload(u, path, multipart).await }),
-	);
-
-	let u = uploader.clone();
-	r = r.route(
-		"/:job_id/:file_id/finish",
-		post(|path, payload| async move { finish_file(u, path, payload).await }),
-	);
-
-	return r;
+pub(super) fn router() -> Router<RouterState> {
+	return Router::new()
+		.route("/new", post(start_upload))
+		.route("/:job_id/newfile", post(start_file))
+		.route("/:job_id/:file_handle", post(upload))
+		.route("/:job_id/:file_id/finish", post(finish_file));
 }

@@ -1,13 +1,22 @@
 use futures::lock::Mutex;
 use rand::{distributions::Alphanumeric, Rng};
+use sha2::{Digest, Sha256};
 use smartstring::{LazyCompact, SmartString};
-use std::{path::PathBuf, sync::Arc, time::Instant};
+use std::{
+	fs::File,
+	io::{Read, Write},
+	path::PathBuf,
+	sync::Arc,
+	time::Instant,
+};
 use tracing::{error, info, warn};
 use ufo_pipeline::runner::runner::PipelineRunner;
 use ufo_pipeline_nodes::nodetype::UFONodeType;
 use ufo_util::mime::MimeType;
 
 use crate::config::UfodConfig;
+
+pub mod errors;
 
 const UPLOAD_ID_LENGTH: usize = 8;
 
@@ -26,15 +35,6 @@ pub struct UploadJobFile {
 	pub name: SmartString<LazyCompact>,
 	pub mime: MimeType,
 	pub is_done: bool,
-}
-
-#[derive(Debug)]
-pub enum JobBindError {
-	/// We tried to bind a job that doesn't exist
-	NoSuchJob,
-
-	/// We tried to bind a job that has already been bound
-	AlreadyBound,
 }
 
 pub struct Uploader {
@@ -147,9 +147,7 @@ impl Uploader {
 			i += 1;
 		}
 	}
-}
 
-impl Uploader {
 	/// Get a path to the given file
 	pub async fn get_job_file_path(
 		&self,
@@ -190,7 +188,7 @@ impl Uploader {
 		&self,
 		upload_job_id: &SmartString<LazyCompact>,
 		pipeline_job_id: u128,
-	) -> Result<(), JobBindError> {
+	) -> Result<(), errors::JobBindError> {
 		let mut jobs = self.jobs.lock().await;
 
 		// Try to find the given job
@@ -202,7 +200,7 @@ impl Uploader {
 				job = ?upload_job_id,
 				pipeline = pipeline_job_id
 			);
-			return Err(JobBindError::NoSuchJob);
+			return Err(errors::JobBindError::NoSuchJob);
 		};
 
 		if job.bound_to_pipeline_job.is_some() {
@@ -211,7 +209,7 @@ impl Uploader {
 				job = ?job.id,
 				pipeline = pipeline_job_id
 			);
-			return Err(JobBindError::AlreadyBound);
+			return Err(errors::JobBindError::AlreadyBound);
 		}
 
 		job.bound_to_pipeline_job = Some(pipeline_job_id);
@@ -220,6 +218,189 @@ impl Uploader {
 			upload_job = ?job.id,
 			pipeline_job = pipeline_job_id
 		);
+
+		return Ok(());
+	}
+}
+
+impl Uploader {
+	pub async fn new_job(&self) -> Result<SmartString<LazyCompact>, std::io::Error> {
+		let mut jobs = self.jobs.lock().await;
+
+		let id = loop {
+			let id = Uploader::generate_id();
+			if jobs.iter().all(|us| us.id != id) {
+				break id;
+			}
+		};
+
+		let upload_job_dir = self.config.paths.upload_dir.join(id.to_string());
+		std::fs::create_dir(&upload_job_dir)?;
+
+		let now = Instant::now();
+		jobs.push(UploadJob {
+			id: id.clone(),
+			dir: upload_job_dir,
+			started_at: now.clone(),
+			last_activity: now,
+			files: Vec::new(),
+			bound_to_pipeline_job: None,
+		});
+
+		info!(
+			message = "Created a new upload job",
+			job_id = ?id,
+		);
+
+		return Ok(id);
+	}
+
+	pub async fn new_file(
+		&self,
+		job_id: &str,
+		mime: MimeType,
+	) -> Result<SmartString<LazyCompact>, errors::UploadNewFileError> {
+		let mut jobs = self.jobs.lock().await;
+
+		let job = jobs
+			.iter_mut()
+			.find(|us| us.id == job_id)
+			.ok_or(errors::UploadNewFileError::BadUploadJob)?;
+		job.last_activity = Instant::now();
+
+		// Make a new handle for this file
+		let file_id: SmartString<LazyCompact> = loop {
+			let id = Uploader::generate_id();
+			if job.files.iter().all(|us| us.name != id) {
+				break format!("{}{}", id, mime.extension()).into();
+			}
+		};
+
+		job.files.push(UploadJobFile {
+			name: file_id.clone().into(),
+			mime: mime.clone(),
+			is_done: false,
+		});
+
+		info!(
+			message = "Created a new upload file",
+			job_id = ?job.id,
+			file_id = ?file_id,
+			file_type = ?mime
+		);
+
+		return Ok(file_id);
+	}
+
+	pub async fn finish_file(
+		&self,
+		job_id: &str,
+		file_id: &str,
+		total_fragments: u32,
+		final_hash: &str,
+	) -> Result<(), errors::UploadFinishFileError> {
+		let mut jobs = self.jobs.lock().await;
+
+		let job = jobs
+			.iter_mut()
+			.find(|us| us.id == job_id)
+			.ok_or(errors::UploadFinishFileError::BadUploadJob)?;
+		job.last_activity = Instant::now();
+
+		let file = job
+			.files
+			.iter_mut()
+			.find(|f| f.name == file_id)
+			.ok_or(errors::UploadFinishFileError::BadFileID)?;
+
+		if file.is_done {
+			return Err(errors::UploadFinishFileError::AlreadyFinished);
+		}
+
+		let final_file_path = job.dir.join(file.name.as_str());
+		let mut final_file = File::create(final_file_path)?;
+
+		let mut hasher = Sha256::new();
+		for frag_idx in 0..total_fragments {
+			let frag_path = job.dir.join(format!("{}-frag-{frag_idx}", file.name));
+			if !frag_path.is_file() {
+				return Err(errors::UploadFinishFileError::MissingFragments {
+					job_id: job_id.into(),
+					file_id: file_id.into(),
+					expected_fragments: total_fragments,
+					missing_fragment: frag_idx,
+				});
+			}
+
+			let mut f = File::open(&frag_path)?;
+			let mut data = Vec::new();
+			f.read_to_end(&mut data)?;
+			hasher.update(&data);
+			final_file.write_all(&data)?;
+			drop(f);
+			std::fs::remove_file(frag_path)?;
+		}
+
+		file.is_done = true;
+		let our_hash = format!("{:X}", hasher.finalize());
+
+		if our_hash != final_hash {
+			warn!(
+				message = "Uploaded hash does not match expected hash",
+				job = ?job_id,
+				file = ?file_id,
+				expected_hash = ?final_hash,
+				got_hash = ?our_hash
+			);
+			/*
+			return Err(UploadFinishFileError::HashDoesntMatch {
+				actual: our_hash.into(),
+				expected: final_hash.into(),
+			});
+			*/
+		}
+		info!(
+			message = "Finished uploading file",
+			job = ?job_id,
+			file = ?file_id,
+			hash = ?our_hash,
+			file_type = ?file.mime,
+		);
+
+		return Ok(());
+	}
+
+	pub async fn consume_fragment(
+		&self,
+		job_id: &str,
+		file_id: &str,
+		data: &[u8],
+		frag_idx: u32,
+	) -> Result<(), errors::UploadFragmentError> {
+		let mut jobs = self.jobs.lock().await;
+
+		let job = jobs
+			.iter_mut()
+			.find(|us| us.id == job_id)
+			.ok_or(errors::UploadFragmentError::BadUploadJob)?;
+		job.last_activity = Instant::now();
+
+		let file = job
+			.files
+			.iter_mut()
+			.find(|f| f.name == file_id)
+			.ok_or(errors::UploadFragmentError::BadFileID)?;
+
+		if file.is_done {
+			return Err(errors::UploadFragmentError::AlreadyFinished);
+		}
+
+		// Release lock, we don't need it anymore
+		let frag_path = job.dir.join(format!("{}-frag-{}", file.name, frag_idx));
+		drop(jobs);
+
+		let mut f = File::create(&frag_path)?;
+		f.write(&data)?;
 
 		return Ok(());
 	}

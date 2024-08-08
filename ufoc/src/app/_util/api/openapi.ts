@@ -859,7 +859,7 @@ export interface components {
 		/** @description A freshly-started upload file's parameters */
 		UploadNewFileResult: {
 			/** @description This file's name */
-			file_name: string;
+			file_id: string;
 		};
 		/** @description Parameters to start a new file */
 		UploadStartInfo: {

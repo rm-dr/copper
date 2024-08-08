@@ -36,7 +36,7 @@ async function start_new_file(
 		throw error;
 	}
 
-	return data.file_name;
+	return data.file_id;
 }
 
 // Upload the given `Blob`

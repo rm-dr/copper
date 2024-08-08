@@ -1,23 +1,16 @@
-use std::{
-	fs::File,
-	io::{Read, Write},
-	sync::Arc,
-	time::Instant,
-};
-
 use axum::{
-	extract::Path,
+	extract::{Path, State},
 	http::StatusCode,
 	response::{IntoResponse, Response},
 	Json,
 };
+use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use smartstring::{LazyCompact, SmartString};
-use tracing::{info, warn};
+use tracing::warn;
 use utoipa::ToSchema;
 
-use crate::helpers::uploader::Uploader;
+use crate::api::RouterState;
 
 /// Parameters to finish an uploading file
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
@@ -51,132 +44,33 @@ pub(super) struct UploadFinish {
 	)
 )]
 pub(super) async fn finish_file(
-	uploader: Arc<Uploader>,
+	jar: CookieJar,
+	State(state): State<RouterState>,
 	Path((job_id, file_id)): Path<(String, String)>,
 	Json(finish_data): Json<UploadFinish>,
 ) -> Response {
-	let mut jobs = uploader.jobs.lock().await;
+	match state.main_db.auth.auth_or_logout(&jar).await {
+		Err(x) => return x,
+		Ok(_) => {}
+	}
 
-	// Try to find the given job
-	let job = match jobs.iter_mut().find(|us| us.id == job_id) {
-		Some(x) => x,
-		None => {
+	match state
+		.uploader
+		.finish_file(&job_id, &file_id, finish_data.frag_count, &finish_data.hash)
+		.await
+	{
+		Ok(()) => {
+			return StatusCode::OK.into_response();
+		}
+		Err(e) => {
 			warn!(
-				message = "Tried to finish a file in a job that doesn't exist",
-				bad_job_id = ?job_id,
+				message = "Could not finish uploading file",
+				job_id = ?job_id,
+				file_id = ?file_id,
+				error = ?e
 			);
 
-			return (
-				StatusCode::NOT_FOUND,
-				format!("upload job {job_id} does not exist"),
-			)
-				.into_response();
+			return e.into_response();
 		}
 	};
-	job.last_activity = Instant::now();
-
-	// Try to find the given file
-	let file = match job.files.iter_mut().find(|f| f.name == file_id) {
-		Some(x) => x,
-		None => {
-			warn!(
-				message = "Tried to finish a file that doesn't exist",
-				job = ?job_id,
-				bad_file_id = ?file_id
-			);
-
-			return (
-				StatusCode::NOT_FOUND,
-				format!("upload job {job_id} does have a file with id {file_id}"),
-			)
-				.into_response();
-		}
-	};
-
-	let final_file_path = job.dir.join(file.name.as_str());
-	let mut final_file = File::create(final_file_path).unwrap();
-
-	let n_frags = finish_data.frag_count;
-	let mut hasher = Sha256::new();
-	for frag_idx in 0..n_frags {
-		let frag_path = job.dir.join(format!("{}-frag-{frag_idx}", file.name));
-		if !frag_path.is_file() {
-			warn!(
-				message = "Tried to finish file with missing fragment",
-				job = ?job_id,
-				file = ?file_id,
-				expected_frag=n_frags,
-				missing_frag=frag_idx
-			);
-
-			return (
-				StatusCode::BAD_REQUEST,
-				format!(
-					"Tried to finish file with missing fragment (idx {})",
-					frag_idx
-				),
-			)
-				.into_response();
-		}
-
-		let mut f = File::open(&frag_path).unwrap();
-		let mut data = Vec::new();
-		f.read_to_end(&mut data).unwrap();
-		hasher.update(&data);
-		final_file.write_all(&data).unwrap();
-		drop(f);
-		std::fs::remove_file(frag_path).unwrap();
-	}
-
-	file.is_done = true;
-	let our_hash = format!("{:X}", hasher.finalize());
-
-	if our_hash != finish_data.hash {
-		warn!(
-			message = "Uploaded hash does not match expected hash",
-			job = ?job_id,
-			file = ?file_id,
-			expected_hash = ?finish_data.hash,
-			got_hash = ?our_hash
-		);
-	}
-	info!(
-		message = "Finished uploading file",
-		job = ?job_id,
-		file = ?file_id,
-		hash = ?our_hash,
-		file_type = ?file.mime,
-	);
-
-	return StatusCode::OK.into_response();
-
-	/*
-	if our_hash != finish_data.hash {
-		warn!(
-			message = "Uploaded hash does not match expected hash",
-			job = ?job_id,
-			file = ?file_id,
-			expected_hash = ?finish_data.hash,
-			got_hash = ?our_hash
-		);
-
-		return (
-			StatusCode::BAD_REQUEST,
-			format!(
-				"uploaded file hash `{}` does not match expected hash `{}`",
-				our_hash, finish_data.hash
-			),
-		)
-			.into_response();
-	} else {
-		info!(
-			message = "Finished uploading file",
-			job = ?job_id,
-			file = ?file_id,
-			hash = ?our_hash
-		);
-
-		return StatusCode::OK.into_response();
-	}
-	*/
 }

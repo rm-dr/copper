@@ -1,15 +1,14 @@
-use std::{fs::File, io::Write, sync::Arc, time::Instant};
-
 use axum::{
-	extract::{Multipart, Path},
+	extract::{Multipart, Path, State},
 	http::StatusCode,
 	response::{IntoResponse, Response},
 };
+use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 use utoipa::ToSchema;
 
-use crate::helpers::uploader::Uploader;
+use crate::api::RouterState;
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 pub(super) struct UploadFragmentMetadata {
@@ -37,68 +36,15 @@ pub(super) struct UploadFragmentMetadata {
 	),
 )]
 pub(super) async fn upload(
-	uploader: Arc<Uploader>,
+	jar: CookieJar,
+	State(state): State<RouterState>,
 	Path((job_id, file_id)): Path<(String, String)>,
 	mut multipart: Multipart,
 ) -> Response {
-	let mut jobs = uploader.jobs.lock().await;
-
-	// Try to find the given job
-	let job = match jobs.iter_mut().find(|us| us.id == job_id) {
-		Some(x) => x,
-		None => {
-			warn!(
-				message = "Tried to upload a fragment to a job that doesn't exist",
-				bad_job_id = ?job_id,
-			);
-
-			return (
-				StatusCode::NOT_FOUND,
-				format!("upload job {job_id} does not exist"),
-			)
-				.into_response();
-		}
-	};
-	job.last_activity = Instant::now();
-
-	// Try to find the given file
-	let file = match job.files.iter_mut().find(|f| f.name == file_id) {
-		Some(x) => x,
-		None => {
-			warn!(
-				message = "Tried to upload a fragment to a file that doesn't exist",
-				job = ?job_id,
-				bad_file_id = ?file_id
-			);
-
-			return (
-				StatusCode::NOT_FOUND,
-				format!("upload job {job_id} does have a file with id {file_id}"),
-			)
-				.into_response();
-		}
-	};
-
-	if file.is_done {
-		warn!(
-			message = "Tried to upload a fragment to a file that has been finished",
-			job = ?job_id,
-			file_id = ?file_id
-		);
-
-		return (
-			StatusCode::BAD_REQUEST,
-			format!("file {} has already been finished", file_id),
-		)
-			.into_response();
+	match state.main_db.auth.auth_or_logout(&jar).await {
+		Err(x) => return x,
+		Ok(_) => {}
 	}
-
-	// Release lock.
-	// We don't want to hold this while processing large files.
-	// TODO: don't expire files while we're here
-	let job_dir = job.dir.clone();
-	let file = file.clone();
-	drop(jobs);
 
 	let mut meta: Option<UploadFragmentMetadata> = None;
 	let mut saw_data = false;
@@ -140,7 +86,6 @@ pub(super) async fn upload(
 						.into_response();
 				}
 
-				// TODO: better organize these errors?
 				if meta.is_none() {
 					warn!(
 						message = "File fragment received before metadata",
@@ -156,7 +101,6 @@ pub(super) async fn upload(
 				}
 
 				saw_data = true;
-				let m = meta.as_ref().unwrap();
 				let data = match field.bytes().await {
 					Ok(x) => x,
 					Err(_) => {
@@ -174,50 +118,25 @@ pub(super) async fn upload(
 					}
 				};
 
-				// TODO: consistently name "frag"
-				let frag_path = job_dir.join(format!("{}-frag-{}", file.name, m.part_idx));
-
-				let mut f = match File::create(&frag_path) {
-					Ok(f) => f,
+				match state
+					.uploader
+					.consume_fragment(&job_id, &file_id, &data, meta.as_ref().unwrap().part_idx)
+					.await
+				{
+					Ok(()) => {}
 					Err(e) => {
 						error!(
-							message = "Could not create fragment file",
+							message = "Could not consume fragment",
 							job = ?job_id,
 							file_id = ?file_id,
-							frag_path = ?frag_path,
 							error = ?e
 						);
 
-						return (
-							StatusCode::INTERNAL_SERVER_ERROR,
-							format!(
-								"could not create fragment {} of file {} in job {}",
-								m.part_idx, file_id, job_id
-							),
-						)
-							.into_response();
+						return e.into_response();
 					}
 				};
-
-				match f.write(&data) {
-					Ok(_) => {}
-					Err(e) => {
-						error!(
-							message = "Could not write fragment to file",
-							job = ?job_id,
-							file_id = ?file_id,
-							frag_path = ?frag_path,
-							error = ?e
-						);
-
-						return (
-							StatusCode::INTERNAL_SERVER_ERROR,
-							format!("could not append to file {} in job {}", file_id, job_id),
-						)
-							.into_response();
-					}
-				}
 			}
+
 			_ => {
 				warn!(
 					message = "Bad field name in fragment upload request",

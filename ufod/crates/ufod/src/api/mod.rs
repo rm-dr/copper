@@ -97,7 +97,7 @@ pub(super) fn router(state: RouterState) -> Router {
 	Router::new()
 		.merge(SwaggerUi::new("/docs").url("/docs/openapi.json", ApiDoc::openapi()))
 		//
-		.nest("/upload", upload::router(state.uploader.clone()))
+		.nest("/upload", upload::router())
 		.nest("/status", status::router())
 		.nest("/dataset", dataset::router())
 		.nest("/pipeline", pipeline::router())

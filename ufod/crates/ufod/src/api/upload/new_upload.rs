@@ -1,15 +1,16 @@
 use axum::{
+	extract::State,
 	http::StatusCode,
 	response::{IntoResponse, Response},
 	Json,
 };
+use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
-use std::{sync::Arc, time::Instant};
 use tracing::{error, info};
 use utoipa::ToSchema;
 
-use crate::helpers::uploader::{UploadJob, Uploader};
+use crate::api::RouterState;
 
 /// A freshly-started upload job's parameters
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
@@ -33,45 +34,27 @@ pub(super) struct UploadStartResult {
 		)
 	),
 )]
-
-pub(super) async fn start_upload(uploader: Arc<Uploader>) -> Response {
-	let mut jobs = uploader.jobs.lock().await;
-
-	let id = loop {
-		let id = Uploader::generate_id();
-		if jobs.iter().all(|us| us.id != id) {
-			break id;
-		}
-	};
-
-	let upload_job_dir = uploader.config.paths.upload_dir.join(id.to_string());
-	match std::fs::create_dir(&upload_job_dir) {
+pub(super) async fn start_upload(jar: CookieJar, State(state): State<RouterState>) -> Response {
+	match state.main_db.auth.auth_or_logout(&jar).await {
+		Err(x) => return x,
 		Ok(_) => {}
+	}
+
+	match state.uploader.new_job().await {
+		Ok(id) => {
+			return (StatusCode::OK, Json(UploadStartResult { job_id: id })).into_response();
+		}
 		Err(e) => {
 			error!(
 				message = "Could not create upload job",
-				job = ?id,
 				error = ?e
 			);
 
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("could not create directory for upload job `{id}`"),
+				format!("could not create upload job"),
 			)
 				.into_response();
 		}
 	}
-
-	let now = Instant::now();
-	jobs.push(UploadJob {
-		id: id.clone(),
-		dir: upload_job_dir,
-		started_at: now.clone(),
-		last_activity: now,
-		files: Vec::new(),
-		bound_to_pipeline_job: None,
-	});
-
-	info!(message = "Created upload job", job=?id);
-	return (StatusCode::OK, Json(UploadStartResult { job_id: id })).into_response();
 }
