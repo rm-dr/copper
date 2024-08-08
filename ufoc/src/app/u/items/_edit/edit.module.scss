@@ -1,0 +1,57 @@
+#panel_edititem {
+	height: 100%;
+}
+
+.edit_container {
+	overflow: scroll;
+	max-height: 100%;
+}
+
+.editrow {
+	display: flex;
+	flex-direction: row;
+	overflow: hidden;
+	background-color: var(--mantine-color-dark-7);
+	max-height: 10rem;
+	width: 75%;
+
+	.editrow_icon {
+		width: 2rem;
+		min-height: 100%;
+		background-color: var(--mantine-primary-color-8);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-bottom: 2px solid var(--mantine-primary-color-6);
+	}
+
+	.editrow_name {
+		width: 10rem;
+		min-height: 100%;
+		padding: 0.25rem;
+		background-color: var(--mantine-color-dark-6);
+		user-select: none;
+		border-bottom: 2px solid var(--mantine-color-dark-5);
+	}
+
+	.editrow_value_old {
+		overflow-y: scroll;
+		white-space: pre-line;
+		text-wrap: pretty;
+		overflow-wrap: anywhere;
+		width: calc((100% - 10rem - 2rem) / 2);
+		padding: 0.25rem;
+		padding-left: 0.5rem;
+		border-right: 2px solid var(--mantine-color-dark-6);
+		border-bottom: 2px solid var(--mantine-color-dark-6);
+	}
+
+	.editrow_value_new {
+		padding: 0.25rem;
+		overflow-x: scroll;
+		overflow-y: scroll;
+		width: calc((100% - 10rem - 2rem) / 2);
+		padding-left: 0.5rem;
+		border-bottom: 2px solid var(--mantine-color-dark-6);
+	}
+}
