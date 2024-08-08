@@ -1,5 +1,5 @@
 use crossbeam::{
-	channel::{unbounded, Receiver, Sender},
+	channel::{unbounded, Receiver, SendError, Sender},
 	select,
 };
 use futures::executor::block_on;
@@ -17,7 +17,10 @@ use ufo_util::{data::PipelineData, graph::GraphNodeIdx};
 
 use crate::{
 	errors::PipelineError,
-	nodes::{nodeinstance::PipelineNodeInstance, nodetype::PipelineNodeType, PipelineNode},
+	nodes::{
+		nodeinstance::PipelineNodeInstance, nodetype::PipelineNodeType, PipelineNode,
+		PipelineNodeState,
+	},
 	output::{storage::StorageOutput, PipelineOutput, PipelineOutputKind},
 	pipeline::Pipeline,
 	syntax::{errors::PipelinePrepareError, labels::PipelineNodeLabel, spec::PipelineSpec},
@@ -98,6 +101,32 @@ impl PipelineRunner {
 	}
 }
 
+/// A wrapper around [`PipelineNodeState`] that keeps
+/// track if a certain node is running *right now*.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NodeRunState {
+	Running,
+	NotRunning(PipelineNodeState),
+}
+
+impl NodeRunState {
+	pub fn is_running(&self) -> bool {
+		matches!(self, Self::Running)
+	}
+
+	pub fn is_done(&self) -> bool {
+		matches!(self, Self::NotRunning(PipelineNodeState::Done))
+	}
+
+	pub fn is_notstarted(&self) -> bool {
+		matches!(self, Self::NotRunning(PipelineNodeState::NotStarted))
+	}
+
+	pub fn is_pending(&self) -> bool {
+		matches!(self, Self::NotRunning(PipelineNodeState::Pending))
+	}
+}
+
 impl PipelineRunner {
 	/// Run a pipeline to completion.
 	pub fn run(
@@ -150,10 +179,16 @@ impl PipelineRunner {
 
 		// Keep track of nodes we have already run.
 		// We already initialized all input edges, so mark that node `true`.
-		let mut node_has_been_run = pipeline
+		let mut node_status = pipeline
 			.graph
 			.iter_nodes_idx()
-			.map(|(x, _)| x == input_node_idx)
+			.map(|(x, _)| {
+				if x == input_node_idx {
+					NodeRunState::NotRunning(PipelineNodeState::Done)
+				} else {
+					NodeRunState::NotRunning(PipelineNodeState::NotStarted)
+				}
+			})
 			.collect::<Vec<_>>();
 
 		// Threadpool we'll use to run nodes
@@ -176,8 +211,8 @@ impl PipelineRunner {
 		// Contents are (node index, result of `node.run()`)
 		#[allow(clippy::type_complexity)]
 		let (send_status, receive_status): (
-			Sender<(GraphNodeIdx, Result<(), PipelineError>)>,
-			Receiver<(GraphNodeIdx, Result<(), PipelineError>)>,
+			Sender<(GraphNodeIdx, Result<PipelineNodeState, PipelineError>)>,
+			Receiver<(GraphNodeIdx, Result<PipelineNodeState, PipelineError>)>,
 		) = unbounded();
 
 		// Check every node.
@@ -187,26 +222,22 @@ impl PipelineRunner {
 			for (node, (_, t)) in pipeline.graph.iter_nodes_idx() {
 				match &t {
 					PipelineNodeType::PipelineOutputs { .. } => {
-						if !node_has_been_run[node.as_usize()] {
+						if !node_status[node.as_usize()].is_done() {
 							finished_all_outputs = false;
 						}
 					}
 					_ => {}
 				}
-
-				if let Some((name, outputs)) = self.try_run_node(
+				self.try_run_node(
 					node,
 					&mut node_instances,
 					pipeline.clone(),
 					&pool,
-					&mut node_has_been_run,
+					&mut node_status,
 					&mut edge_values,
 					send_data.clone(),
 					send_status.clone(),
-				) {
-					let p = self.get_pipeline(name.into()).unwrap();
-					self.finish_pipeline(p.clone(), outputs)?;
-				}
+				)?;
 			}
 
 			// TODO: end condition.
@@ -214,46 +245,46 @@ impl PipelineRunner {
 			// TODO: handle all messages?
 			// TODO: clean up threads?
 			// TODO: quick node run, no thread
-			select! {
-				recv(receive_data) -> msg => {
-					let (node, port, data) = msg.unwrap();
 
-					// Fill every edge that is connected to
-					// this output port of this node
-					for edge_idx in pipeline
-						.graph
-						.edges_starting_at(node)
-						.iter()
-						.filter(|edge_idx| {
-							let edge = &pipeline.graph.get_edge(**edge_idx).2;
-							edge.source_port() == Some(port)
-						})
-					{
-						*edge_values.get_mut(edge_idx.as_usize()).unwrap() = EdgeValue::Data(data.clone());
-					}
+			for (node, port, data) in receive_data.try_iter() {
+				// Fill every edge that is connected to
+				// this output port of this node
+				for edge_idx in pipeline
+					.graph
+					.edges_starting_at(node)
+					.iter()
+					.filter(|edge_idx| {
+						let edge = &pipeline.graph.get_edge(**edge_idx).2;
+						edge.source_port() == Some(port)
+					}) {
+					*edge_values.get_mut(edge_idx.as_usize()).unwrap() =
+						EdgeValue::Data(data.clone());
 				}
+			}
 
-				recv(receive_status) -> msg => {
-					match msg.unwrap() {
-						(_node, Err(x)) => {
-							return Err(x);
-						},
-						(node, Ok(_)) => {
+			for (node, res) in receive_status.try_iter() {
+				match res {
+					Err(x) => {
+						return Err(x);
+					}
+					Ok(status) => {
+						*node_status.get_mut(node.as_usize()).unwrap() =
+							NodeRunState::NotRunning(status);
 
+						if status.is_done() {
 							// When a node finishes successfully, mark all
 							// `after` edges that start at it as "ready".
-							for edge_idx in pipeline
-								.graph
-								.edges_starting_at(node)
-								.iter()
-								.filter(|edge_idx| {
-									let edge = &pipeline.graph.get_edge(**edge_idx).2;
-									edge.is_after()
-								})
-							{
-								*edge_values
-									.get_mut(edge_idx.as_usize())
-									.unwrap() = EdgeValue::AfterReady;
+							for edge_idx in
+								pipeline
+									.graph
+									.edges_starting_at(node)
+									.iter()
+									.filter(|edge_idx| {
+										let edge = &pipeline.graph.get_edge(**edge_idx).2;
+										edge.is_after()
+									}) {
+								*edge_values.get_mut(edge_idx.as_usize()).unwrap() =
+									EdgeValue::AfterReady;
 							}
 						}
 					}
@@ -278,14 +309,16 @@ impl PipelineRunner {
 		node_instances: &mut Vec<(PipelineNodeLabel, Arc<Mutex<PipelineNodeInstance>>)>,
 		pipeline: Arc<Pipeline>,
 		pool: &ThreadPool,
-		node_has_been_run: &mut [bool],
+		node_status: &mut [NodeRunState],
 		edge_values: &mut [EdgeValue],
 		send_data: Sender<(GraphNodeIdx, usize, PipelineData)>,
-		send_status: Sender<(GraphNodeIdx, Result<(), PipelineError>)>,
-	) -> Option<(String, Vec<PipelineData>)> {
-		// Skip nodes we've already run
-		if *node_has_been_run.get(node.as_usize()).unwrap() {
-			return None;
+		send_status: Sender<(GraphNodeIdx, Result<PipelineNodeState, PipelineError>)>,
+	) -> Result<(), PipelineError> {
+		// Skip nodes we've already run and nodes that are running right now.
+
+		let n = node_status.get(node.as_usize()).unwrap();
+		if n.is_running() || n.is_done() {
+			return Ok(());
 		}
 
 		// Skip nodes we can't run
@@ -297,19 +330,21 @@ impl PipelineRunner {
 				EdgeValue::Data(_) => false,
 				// All `after` edges are ready => good to go!
 				EdgeValue::AfterReady => false,
-				// Input edges are consumed when a node is run.
-				// That case is handled earlier.
+				// No edges should be consumed unless this node has been started
 				EdgeValue::Consumed => {
-					let n = pipeline.graph.get_node(node);
-					unreachable!("Node {} tried to use consumed edge", n.0)
+					if !n.is_pending() {
+						let n = pipeline.graph.get_node(node);
+						unreachable!("Node {} tried to use consumed edge", n.0)
+					} else {
+						false
+					}
 				}
 			}
 		}) {
-			return None;
+			return Ok(());
 		}
 
-		// We've found a node we can run, prepare inputs.
-		let inputs = {
+		let mut prepare_inputs = || {
 			// Initialize all with None, in case some are disconnected.
 			let node_type = &pipeline.graph.get_node(node).1;
 			let mut inputs = Vec::with_capacity(node_type.inputs().len());
@@ -341,40 +376,68 @@ impl PipelineRunner {
 
 		match &pipeline.graph.get_node(node).1 {
 			PipelineNodeType::PipelineOutputs { pipeline, .. } => {
-				*node_has_been_run.get_mut(node.as_usize()).unwrap() = true;
-				return Some((pipeline.clone(), inputs));
+				*node_status.get_mut(node.as_usize()).unwrap() =
+					NodeRunState::NotRunning(PipelineNodeState::Done);
+				let p = self.get_pipeline(pipeline.into()).unwrap();
+				self.finish_pipeline(p.clone(), prepare_inputs())?;
 			}
 
 			// Otherwise, add this node to the pool.
 			_ => {
-				*node_has_been_run.get_mut(node.as_usize()).unwrap() = true;
-
-				let pool_inputs = inputs.clone();
 				let (n, node_instance) = &node_instances.get(node.as_usize()).unwrap();
 				let node_instance = node_instance.clone();
 				let n = n.clone();
 
-				pool.execute(move || {
-					let node_instance = node_instance.lock().unwrap();
+				// We MUST handle all status codes before re-running a node.
+				// TODO: clean up scheduler
 
-					println!("Running {}", n);
-
-					let res = node_instance.run(
+				// Initialize this node if we need to
+				if node_status
+					.get_mut(node.as_usize())
+					.unwrap()
+					.is_notstarted()
+				{
+					println!("Init {}", n);
+					let mut node_instance_locked = node_instance.lock().unwrap();
+					*node_status.get_mut(node.as_usize()).unwrap() = NodeRunState::Running;
+					let res = node_instance_locked.init(
 						|port, data| {
 							// This should never fail, since we never close the receiver.
 							send_data.send((node, port, data)).unwrap();
 							Ok(())
 						},
-						pool_inputs,
+						prepare_inputs(),
 					);
-
+					let done = res
+						.as_ref()
+						.ok()
+						.map(|x| *x == PipelineNodeState::Done)
+						.unwrap_or(true);
 					send_status.send((node, res)).unwrap();
-					println!("Done {}", n);
-				});
+
+					// We don't need to run nodes that finished early
+					if done {
+						return Ok(());
+					}
+				} else {
+					*node_status.get_mut(node.as_usize()).unwrap() = NodeRunState::Running;
+
+					pool.execute(move || {
+						println!("Run  {}", n);
+						let mut node_instance = node_instance.lock().unwrap();
+						let res = node_instance.run(|port, data| {
+							// This should never fail, since we never close the receiver.
+							send_data.send((node, port, data)).unwrap();
+							Ok(())
+						});
+						send_status.send((node, res)).unwrap();
+						println!("Done {}", n);
+					});
+				}
 			}
 		}
 
-		return None;
+		return Ok(());
 	}
 }
 
