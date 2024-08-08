@@ -24,7 +24,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- Remove other pipeline node?
 - How and when should we load databases?
   - (nice interop with ufod)
   - Better way to define nodes (compatible with standalone ufo)
@@ -68,6 +67,8 @@ UFO's goal is to be "[Paperless] for everything," with...
 
 
 ### Pipeline runner
+- Remove other pipeline node?
+- Improve node parsing
 - Rework pipeline errors
 - Smarter pipeline scheduler
   - efficient end condition: we don't need to run ALL nodes
@@ -77,7 +78,6 @@ UFO's goal is to be "[Paperless] for everything," with...
   - Stop reading file when all dependents are done
   - Nodes ask for other nodes (ifnone)
 - Warn on disconnected pipeline inputs
-- Detect unused nodes when building
 - Arrays & foreach (a file could have many covers)
 - Discard node---what should we do for sub-pipelines?
   - Transactions?
