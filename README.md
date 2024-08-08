@@ -9,11 +9,10 @@ UFO can replace:
 
 
 UFO's goal is to be "[Paperless] for everything," with...
-- Flexible, fast, and automable data processing (via pipelines)
+- Flexible, fast, and automatable data processing via pipelines
   - Data ingest, processing, and export
 - Fast search & metadata editing
 - A pretty web ui
-- Easy integration into an authenticated server
 
 
 [Paperless]: https://docs.paperless-ngx.com
@@ -31,7 +30,7 @@ UFO's goal is to be "[Paperless] for everything," with...
 - Ifnone general type
 
 - Load and check db metadata
-- sanely handle duplicate album art
+- elegantly handle duplicate album art
 
 - async binary readers
   - args to node one by one
@@ -39,7 +38,7 @@ UFO's goal is to be "[Paperless] for everything," with...
   - limit channel size
 - Clean up all error handling (search for unwrap, assert, and panic)
   - db errors in pipeline run & build
-  - detect bad classes?
+  - detect bad classes when building AddToDataset node
 
 
 
