@@ -69,19 +69,22 @@ mod tests {
 	use rand::Rng;
 	use sha2::{Digest, Sha256};
 
-	use crate::{
-		flac::proc::pictures::FlacPictureReader,
-		flac::tests::{FlacBlockOutput, MANIFEST},
+	use crate::flac::{
+		blockread::FlacBlockReaderError,
+		proc::pictures::FlacPictureReader,
+		tests::{FlacBlockOutput, FlacTestCase, MANIFEST},
 	};
 
-	fn test_pictures(test_name: &str, fragment_size_range: Option<std::ops::Range<usize>>) {
-		let x = MANIFEST.iter().find(|x| x.get_name() == test_name).unwrap();
-		let file_data = std::fs::read(x.get_path()).unwrap();
+	fn test_pictures(
+		test_case: &FlacTestCase,
+		fragment_size_range: Option<std::ops::Range<usize>>,
+	) -> Result<(), FlacBlockReaderError> {
+		let file_data = std::fs::read(test_case.get_path()).unwrap();
 
 		// Make sure input file is correct
 		let mut hasher = Sha256::new();
 		hasher.update(&file_data);
-		assert_eq!(x.get_in_hash(), format!("{:x}", hasher.finalize()));
+		assert_eq!(test_case.get_in_hash(), format!("{:x}", hasher.finalize()));
 
 		let mut pic = FlacPictureReader::new();
 
@@ -93,29 +96,21 @@ mod tests {
 				if head + frag_size > file_data.len() {
 					frag_size = file_data.len() - head;
 				}
-				pic.push_data(&file_data[head..head + frag_size]).unwrap();
+				pic.push_data(&file_data[head..head + frag_size])?;
 				head += frag_size;
 			}
 		} else {
-			pic.push_data(&file_data).unwrap();
+			pic.push_data(&file_data)?;
 		}
 
-		pic.finish().unwrap();
+		pic.finish()?;
 
 		let mut out = Vec::new();
 		while let Some(p) = pic.pop_picture() {
 			out.push(p);
 		}
 
-		let out_pictures = x
-			.get_blocks()
-			.unwrap()
-			.iter()
-			.filter_map(|x| match x {
-				FlacBlockOutput::Picture { .. } => Some(x),
-				_ => None,
-			})
-			.collect::<Vec<_>>();
+		let out_pictures = test_case.get_pictures().unwrap();
 
 		assert_eq!(
 			out.len(),
@@ -161,6 +156,8 @@ mod tests {
 				&format!("{:x}", hasher.finalize())
 			});
 		}
+
+		return Ok(());
 	}
 
 	macro_rules! gen_tests {
@@ -168,26 +165,61 @@ mod tests {
 			paste! {
 				#[test]
 				pub fn [<strip_small_ $test_name>]() {
-					for _ in 0..5 {
-						test_pictures(
-							stringify!($test_name),
-							Some(1..256),
-						)
+					let test_case = MANIFEST.iter().find(|x| x.get_name() == stringify!($test_name)).unwrap();
+					match test_case {
+						FlacTestCase::Error { pictures: Some(_), .. } |
+						FlacTestCase::Success { .. } => {
+							for _ in 0..5 {
+								test_pictures(
+									test_case,
+									Some(1..256),
+								).unwrap()
+							}
+						},
+
+						FlacTestCase::Error { check_error, .. } => {
+							let e = test_pictures(test_case, Some(1..256)).unwrap_err();
+							match e {
+								FlacBlockReaderError::DecodeError(e) => assert!(check_error(&e), "Unexpected error {e:?}"),
+								_ => panic!("Unexpected error {e:?}")
+							}
+						}
 					}
 				}
 
 				#[test]
 				pub fn [<strip_large_ $test_name>]() {
-					for _ in 0..5 {
-						test_pictures(
-							stringify!($test_name),
-							Some(5_000..100_000),
-						)
+					let test_case = MANIFEST.iter().find(|x| x.get_name() == stringify!($test_name)).unwrap();
+					match test_case {
+						FlacTestCase::Error { pictures: Some(_), .. } |
+						FlacTestCase::Success { .. } => {
+							for _ in 0..5 {
+								test_pictures(
+									test_case,
+									Some(5_000..100_000),
+								).unwrap()
+							}
+						},
+
+						FlacTestCase::Error { check_error, .. } => {
+							let e = test_pictures(test_case, Some(5_000..100_000)).unwrap_err();
+							match e {
+								FlacBlockReaderError::DecodeError(e) => assert!(check_error(&e), "Unexpected error {e:?}"),
+								_ => panic!("Unexpected error {e:?}")
+							}
+						}
 					}
 				}
 			}
 		};
 	}
+
+	gen_tests!(uncommon_10);
+
+	gen_tests!(faulty_06);
+	gen_tests!(faulty_07);
+	gen_tests!(faulty_10);
+	gen_tests!(faulty_11);
 
 	gen_tests!(subset_45);
 	gen_tests!(subset_46);

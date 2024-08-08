@@ -423,22 +423,20 @@ mod tests {
 	use super::*;
 	use crate::{
 		common::tagtype::TagType,
-		flac::tests::{FlacBlockOutput, VorbisCommentTestValue, MANIFEST},
+		flac::tests::{FlacBlockOutput, FlacTestCase, VorbisCommentTestValue, MANIFEST},
 	};
 
 	fn read_file(
-		test_name: &str,
+		test_case: &FlacTestCase,
 		fragment_size_range: Option<Range<usize>>,
 		selector: FlacBlockSelector,
-	) -> Vec<FlacBlock> {
-		let x = MANIFEST.iter().find(|x| x.get_name() == test_name).unwrap();
-
-		let file_data = std::fs::read(x.get_path()).unwrap();
+	) -> Result<Vec<FlacBlock>, FlacBlockReaderError> {
+		let file_data = std::fs::read(test_case.get_path()).unwrap();
 
 		// Make sure input file is correct
 		let mut hasher = Sha256::new();
 		hasher.update(&file_data);
-		assert_eq!(x.get_in_hash(), format!("{:x}", hasher.finalize()));
+		assert_eq!(test_case.get_in_hash(), format!("{:x}", hasher.finalize()));
 
 		let mut reader = FlacBlockReader::new(selector);
 		let mut out_blocks = Vec::new();
@@ -451,28 +449,27 @@ mod tests {
 				if head + frag_size > file_data.len() {
 					frag_size = file_data.len() - head;
 				}
-				reader
-					.push_data(&file_data[head..head + frag_size])
-					.unwrap();
+				reader.push_data(&file_data[head..head + frag_size])?;
 				head += frag_size;
 			}
 		} else {
-			reader.push_data(&file_data).unwrap();
+			reader.push_data(&file_data)?;
 		}
 
-		reader.finish().unwrap();
+		reader.finish()?;
 		while let Some(b) = reader.pop_block() {
 			out_blocks.push(b)
 		}
 
-		return out_blocks;
+		return Ok(out_blocks);
 	}
 
-	fn test_identical(test_name: &str, fragment_size_range: Option<Range<usize>>) {
-		let x = MANIFEST.iter().find(|x| x.get_name() == test_name).unwrap();
-
+	fn test_identical(
+		test_case: &FlacTestCase,
+		fragment_size_range: Option<Range<usize>>,
+	) -> Result<(), FlacBlockReaderError> {
 		let out_blocks = read_file(
-			test_name,
+			test_case,
 			fragment_size_range,
 			FlacBlockSelector {
 				pick_streaminfo: true,
@@ -484,7 +481,7 @@ mod tests {
 				pick_picture: true,
 				pick_audio: true,
 			},
-		);
+		)?;
 
 		let mut out = Vec::new();
 		out.write_all(&[0x66, 0x4C, 0x61, 0x43]).unwrap();
@@ -504,14 +501,16 @@ mod tests {
 		let mut hasher = Sha256::new();
 		hasher.update(out);
 		let result = format!("{:x}", hasher.finalize());
-		assert_eq!(result, x.get_in_hash(), "Output hash doesn't match");
+		assert_eq!(result, test_case.get_in_hash(), "Output hash doesn't match");
+		return Ok(());
 	}
 
-	fn test_blockread(test_name: &str, fragment_size_range: Option<Range<usize>>) {
-		let x = MANIFEST.iter().find(|x| x.get_name() == test_name).unwrap();
-
+	fn test_blockread(
+		test_case: &FlacTestCase,
+		fragment_size_range: Option<Range<usize>>,
+	) -> Result<(), FlacBlockReaderError> {
 		let out_blocks = read_file(
-			test_name,
+			test_case,
 			fragment_size_range,
 			FlacBlockSelector {
 				pick_streaminfo: true,
@@ -523,10 +522,10 @@ mod tests {
 				pick_picture: true,
 				pick_audio: true,
 			},
-		);
+		)?;
 
 		assert_eq!(
-			x.get_blocks().unwrap().len(),
+			test_case.get_blocks().unwrap().len(),
 			out_blocks
 				.iter()
 				.filter(|x| !matches!(*x, FlacBlock::AudioFrame(_)))
@@ -539,7 +538,7 @@ mod tests {
 
 		for b in out_blocks {
 			match b {
-				FlacBlock::Streaminfo(s) => match &x.get_blocks().unwrap()[result_i] {
+				FlacBlock::Streaminfo(s) => match &test_case.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::Streaminfo {
 						min_block_size,
 						max_block_size,
@@ -567,7 +566,7 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::Application(a) => match &x.get_blocks().unwrap()[result_i] {
+				FlacBlock::Application(a) => match &test_case.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::Application {
 						application_id,
 						hash,
@@ -589,7 +588,7 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::CueSheet(c) => match &x.get_blocks().unwrap()[result_i] {
+				FlacBlock::CueSheet(c) => match &test_case.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::CueSheet { hash } => {
 						assert_eq!(*hash, {
 							let mut hasher = Sha256::new();
@@ -600,14 +599,14 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::Padding(p) => match &x.get_blocks().unwrap()[result_i] {
+				FlacBlock::Padding(p) => match &test_case.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::Padding { size } => {
 						assert_eq!(*size, p.size.try_into().unwrap());
 					}
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::SeekTable(t) => match &x.get_blocks().unwrap()[result_i] {
+				FlacBlock::SeekTable(t) => match &test_case.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::Seektable { hash } => {
 						assert_eq!(*hash, {
 							let mut hasher = Sha256::new();
@@ -618,7 +617,7 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::Picture(p) => match &x.get_blocks().unwrap()[result_i] {
+				FlacBlock::Picture(p) => match &test_case.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::Picture {
 						picture_type,
 						mime,
@@ -645,7 +644,7 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::VorbisComment(v) => match &x.get_blocks().unwrap()[result_i] {
+				FlacBlock::VorbisComment(v) => match &test_case.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::VorbisComment { vendor, comments } => {
 						assert_eq!(*vendor, v.comment.vendor, "Comment vendor doesn't match");
 
@@ -697,7 +696,7 @@ mod tests {
 				FlacBlock::AudioFrame(data) => {
 					data.encode(&mut audio_data_hasher).unwrap();
 
-					if result_i != x.get_blocks().unwrap().len() {
+					if result_i != test_case.get_blocks().unwrap().len() {
 						panic!("There are metadata blocks betwen audio frames!")
 					}
 
@@ -711,9 +710,11 @@ mod tests {
 
 		// Check audio data hash
 		assert_eq!(
-			x.get_audio_hash().unwrap(),
+			test_case.get_audio_hash().unwrap(),
 			format!("{:x}", audio_data_hasher.finalize())
 		);
+
+		return Ok(());
 	}
 
 	// Helper macros to generate tests
@@ -722,46 +723,107 @@ mod tests {
 			paste! {
 				#[test]
 				pub fn [<blockread_small_ $test_name>]() {
-					for _ in 0..5 {
-						test_blockread(
-							stringify!($test_name),
-							Some(1..256),
-						)
+					let test_case = MANIFEST.iter().find(|x| x.get_name() == stringify!($test_name)).unwrap();
+
+					match test_case {
+						FlacTestCase::Success { .. } => {
+							for _ in 0..5 {
+								test_blockread(
+									test_case,
+									Some(1..256),
+								).unwrap()
+							}
+						},
+
+						FlacTestCase::Error { check_error, .. } => {
+							let e = test_blockread(test_case, Some(1..256)).unwrap_err();
+							match e {
+								FlacBlockReaderError::DecodeError(e) => assert!(check_error(&e), "Unexpected error {e:?}"),
+								_ => panic!("Unexpected error {e:?}")
+							}
+						}
 					}
 				}
 
 				#[test]
 				pub fn [<blockread_large_ $test_name>]() {
-					for _ in 0..5 {
-						test_blockread(
-							stringify!($test_name),
-							Some(5_000..100_000),
-						)
+					let test_case = MANIFEST.iter().find(|x| x.get_name() == stringify!($test_name)).unwrap();
+
+					match test_case {
+						FlacTestCase::Success { .. } => {
+							for _ in 0..5 {
+								test_blockread(
+									test_case,
+									Some(5_000..100_000),
+								).unwrap()
+							}
+						},
+
+						FlacTestCase::Error { check_error, .. } => {
+							let e = test_blockread(test_case, Some(5_000..100_000),).unwrap_err();
+							match e {
+								FlacBlockReaderError::DecodeError(e) => assert!(check_error(&e), "Unexpected error {e:?}"),
+								_ => panic!("Unexpected error {e:?}")
+							}
+						}
 					}
 				}
 
 				#[test]
 				pub fn [<identical_small_ $test_name>]() {
-					for _ in 0..5 {
-						test_identical(
-							stringify!($test_name),
-							Some(1..256),
-						)
+					let test_case = MANIFEST.iter().find(|x| x.get_name() == stringify!($test_name)).unwrap();
+
+					match test_case {
+						FlacTestCase::Success { .. } => {
+							for _ in 0..5 {
+								test_identical(
+									test_case,
+									Some(1..256),
+								).unwrap()
+							}
+						},
+
+						FlacTestCase::Error { check_error, .. } => {
+							let e = test_identical(test_case, Some(1..256)).unwrap_err();
+							match e {
+								FlacBlockReaderError::DecodeError(e) => assert!(check_error(&e), "Unexpected error {e:?}"),
+								_ => panic!("Unexpected error {e:?}")
+							}
+						}
 					}
 				}
 
 				#[test]
 				pub fn [<identical_large_ $test_name>]() {
-					for _ in 0..5 {
-						test_identical(
-							stringify!($test_name),
-							Some(5_000..100_000),
-						)
+					let test_case = MANIFEST.iter().find(|x| x.get_name() == stringify!($test_name)).unwrap();
+					match test_case {
+						FlacTestCase::Success { .. } => {
+							for _ in 0..5 {
+								test_identical(
+									test_case,
+									Some(5_000..100_000),
+								).unwrap()
+							}
+						},
+
+						FlacTestCase::Error { check_error, .. } => {
+							let e = test_identical(test_case, Some(5_000..100_000)).unwrap_err();
+							match e {
+								FlacBlockReaderError::DecodeError(e) => assert!(check_error(&e), "Unexpected error {e:?}"),
+								_ => panic!("Unexpected error {e:?}")
+							}}
 					}
 				}
 			}
 		};
 	}
+
+	gen_tests!(uncommon_10);
+
+	gen_tests!(faulty_06);
+	gen_tests!(faulty_07);
+	gen_tests!(faulty_10);
+	gen_tests!(faulty_11);
 
 	gen_tests!(subset_45);
 	gen_tests!(subset_46);

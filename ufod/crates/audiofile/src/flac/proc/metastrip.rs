@@ -101,16 +101,22 @@ mod tests {
 	use rand::Rng;
 	use sha2::{Digest, Sha256};
 
-	use crate::{flac::proc::metastrip::FlacMetaStrip, flac::tests::MANIFEST};
+	use crate::flac::{
+		blockread::FlacBlockReaderError,
+		proc::metastrip::FlacMetaStrip,
+		tests::{FlacTestCase, MANIFEST},
+	};
 
-	fn test_strip(test_name: &str, fragment_size_range: Option<std::ops::Range<usize>>) {
-		let x = MANIFEST.iter().find(|x| x.get_name() == test_name).unwrap();
-		let file_data = std::fs::read(x.get_path()).unwrap();
+	fn test_strip(
+		test_case: &FlacTestCase,
+		fragment_size_range: Option<std::ops::Range<usize>>,
+	) -> Result<(), FlacBlockReaderError> {
+		let file_data = std::fs::read(test_case.get_path()).unwrap();
 
 		// Make sure input file is correct
 		let mut hasher = Sha256::new();
 		hasher.update(&file_data);
-		assert_eq!(x.get_in_hash(), format!("{:x}", hasher.finalize()));
+		assert_eq!(test_case.get_in_hash(), format!("{:x}", hasher.finalize()));
 
 		let mut strip = FlacMetaStrip::new();
 
@@ -122,14 +128,14 @@ mod tests {
 				if head + frag_size > file_data.len() {
 					frag_size = file_data.len() - head;
 				}
-				strip.push_data(&file_data[head..head + frag_size]).unwrap();
+				strip.push_data(&file_data[head..head + frag_size])?;
 				head += frag_size;
 			}
 		} else {
-			strip.push_data(&file_data).unwrap();
+			strip.push_data(&file_data)?;
 		}
 
-		strip.finish().unwrap();
+		strip.finish()?;
 
 		let mut out_data = Vec::new();
 		strip.read_data(&mut out_data).unwrap();
@@ -140,9 +146,11 @@ mod tests {
 		let result = format!("{:x}", hasher.finalize());
 		assert_eq!(
 			result,
-			x.get_stripped_hash().unwrap(),
+			test_case.get_stripped_hash().unwrap(),
 			"Stripped FLAC hash doesn't match"
 		);
+
+		return Ok(());
 	}
 
 	macro_rules! gen_tests {
@@ -150,26 +158,61 @@ mod tests {
 			paste! {
 				#[test]
 				pub fn [<strip_small_ $test_name>]() {
-					for _ in 0..5 {
-						test_strip(
-							stringify!($test_name),
-							Some(1..256),
-						)
+					let test_case = MANIFEST.iter().find(|x| x.get_name() == stringify!($test_name)).unwrap();
+					match test_case {
+						FlacTestCase::Error { stripped_hash: Some(_), .. } |
+						FlacTestCase::Success { .. } => {
+							for _ in 0..5 {
+								test_strip(
+									test_case,
+									Some(1..256),
+								).unwrap()
+							}
+						},
+
+						FlacTestCase::Error { check_error, .. } => {
+							let e = test_strip(test_case, Some(1..256)).unwrap_err();
+							match e {
+								FlacBlockReaderError::DecodeError(e) => assert!(check_error(&e), "Unexpected error {e:?}"),
+								_ => panic!("Unexpected error {e:?}")
+							}
+						}
 					}
 				}
 
 				#[test]
 				pub fn [<strip_large_ $test_name>]() {
-					for _ in 0..5 {
-						test_strip(
-							stringify!($test_name),
-							Some(5_000..100_000),
-						)
+					let test_case = MANIFEST.iter().find(|x| x.get_name() == stringify!($test_name)).unwrap();
+					match test_case {
+						FlacTestCase::Error { stripped_hash: Some(_), .. } |
+						FlacTestCase::Success { .. } => {
+							for _ in 0..5 {
+								test_strip(
+									test_case,
+									Some(5_000..100_000),
+								).unwrap()
+							}
+						},
+
+						FlacTestCase::Error { check_error, .. } => {
+							let e = test_strip(test_case, Some(5_000..100_000)).unwrap_err();
+							match e {
+								FlacBlockReaderError::DecodeError(e) => assert!(check_error(&e), "Unexpected error {e:?}"),
+								_ => panic!("Unexpected error {e:?}")
+							}
+						}
 					}
 				}
 			}
 		};
 	}
+
+	gen_tests!(uncommon_10);
+
+	gen_tests!(faulty_06);
+	gen_tests!(faulty_07);
+	gen_tests!(faulty_10);
+	gen_tests!(faulty_11);
 
 	gen_tests!(subset_45);
 	gen_tests!(subset_46);

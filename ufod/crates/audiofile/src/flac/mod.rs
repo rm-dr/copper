@@ -60,9 +60,8 @@ mod tests {
 	use itertools::Itertools;
 	use ufo_util::mime::MimeType;
 
-	use crate::common::picturetype::PictureType;
-
 	use super::errors::FlacDecodeError;
+	use crate::common::{picturetype::PictureType, vorbiscomment::VorbisCommentError};
 
 	/// The value of a vorbis comment.
 	///
@@ -178,7 +177,15 @@ mod tests {
 			in_hash: &'static str,
 
 			/// The error we should encounter while reading this file
-			error: FlacDecodeError,
+			check_error: &'static dyn Fn(&FlacDecodeError) -> bool,
+
+			/// If some, stripping this file's metadata should produce the given hash.
+			/// If none, trying to strip metadata should produce `check_error`
+			stripped_hash: Option<&'static str>,
+
+			/// If some, the following images should be extracted from this file
+			/// If none, trying to strip images should produce `check_error`
+			pictures: Option<&'static [FlacBlockOutput]>,
 		},
 	}
 
@@ -204,7 +211,7 @@ mod tests {
 		pub fn get_stripped_hash(&self) -> Option<&str> {
 			match self {
 				Self::Success { stripped_hash, .. } => Some(stripped_hash),
-				_ => None,
+				Self::Error { stripped_hash, .. } => *stripped_hash,
 			}
 		}
 
@@ -221,10 +228,90 @@ mod tests {
 				_ => None,
 			}
 		}
+
+		pub fn get_pictures(&self) -> Option<Vec<&FlacBlockOutput>> {
+			match self {
+				Self::Success { blocks, .. } => Some(
+					blocks
+						.iter()
+						.filter_map(|x| match x {
+							FlacBlockOutput::Picture { .. } => Some(x),
+							_ => None,
+						})
+						.collect::<Vec<_>>(),
+				),
+				Self::Error { pictures, .. } => pictures.map(|x| x.iter().collect()),
+			}
+		}
 	}
 
 	/// A list of test files and their expected output
 	pub const MANIFEST: &[FlacTestCase] = &[
+		FlacTestCase::Error {
+			test_name: "uncommon_10",
+			file_path: concat!(
+				env!("CARGO_MANIFEST_DIR"),
+				"/tests/files/flac_uncommon/10 - file starting at frame header.flac"
+			),
+			in_hash: "d95f63e8101320f5ac7ffe249bc429a209eb0e10996a987301eaa63386a8faa1",
+			check_error: &|x| matches!(x, FlacDecodeError::BadMagicBytes),
+			stripped_hash: None,
+			pictures: None,
+		},
+		FlacTestCase::Error {
+			test_name: "faulty_06",
+			file_path: concat!(
+				env!("CARGO_MANIFEST_DIR"),
+				"/tests/files/flac_faulty/06 - missing streaminfo metadata block.flac"
+			),
+			in_hash: "53aed5e7fde7a652b82ba06a8382b2612b02ebbde7b0d2016276644d17cc76cd",
+			check_error: &|x| matches!(x, FlacDecodeError::BadFirstBlock),
+			stripped_hash: None,
+			pictures: None,
+		},
+		FlacTestCase::Error {
+			test_name: "faulty_07",
+			file_path: concat!(
+				env!("CARGO_MANIFEST_DIR"),
+				"/tests/files/flac_faulty/07 - other metadata blocks preceding streaminfo metadata block.flac"
+			),
+			in_hash: "6d46725991ba5da477187fde7709ea201c399d00027257c365d7301226d851ea",
+			check_error: &|x| matches!(x, FlacDecodeError::BadFirstBlock),
+			stripped_hash: None,
+			pictures: None,
+		},
+		FlacTestCase::Error {
+			test_name: "faulty_10",
+			file_path: concat!(
+				env!("CARGO_MANIFEST_DIR"),
+				"/tests/files/flac_faulty/10 - invalid vorbis comment metadata block.flac"
+			),
+			in_hash: "c79b0514a61634035a5653c5493797bbd1fcc78982116e4d429630e9e462d29b",
+			check_error: &|x| {
+				matches!(
+					x,
+					FlacDecodeError::VorbisComment(VorbisCommentError::MalformedData)
+				)
+			},
+			// This file's vorbis comment is invalid, but that shouldn't stop us from removing it.
+			// As a general rule, we should NOT encounter an error when stripping invalid blocks.
+			//
+			// We should, however, get errors when we try to strip flac files with invalid *structure*
+			// (For example, the out-of-order streaminfo test in faulty_07).
+			stripped_hash: Some("4b994f82dc1699a58e2b127058b37374220ee41dc294d4887ac14f056291a1b0"),
+			pictures: Some(&[]),
+		},
+		FlacTestCase::Error {
+			test_name: "faulty_11",
+			file_path: concat!(
+				env!("CARGO_MANIFEST_DIR"),
+				"/tests/files/flac_faulty/11 - incorrect metadata block length.flac"
+			),
+			in_hash: "3732151ba8c4e66a785165aa75a444aad814c16807ddc97b793811376acacfd6",
+			check_error: &|x| matches!(x, FlacDecodeError::BadMetablockType(127)),
+			stripped_hash: None,
+			pictures: None,
+		},
 		FlacTestCase::Success {
 			test_name: "subset_45",
 			file_path: concat!(
@@ -799,6 +886,7 @@ mod tests {
 
 	#[test]
 	fn manifest_sanity_check() {
-		assert!(MANIFEST.iter().map(|x| x.get_name()).all_unique())
+		assert!(MANIFEST.iter().map(|x| x.get_name()).all_unique());
+		assert!(MANIFEST.iter().map(|x| x.get_path()).all_unique());
 	}
 }
