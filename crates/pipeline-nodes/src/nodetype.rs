@@ -29,8 +29,7 @@ use super::{
 #[serde(deny_unknown_fields)]
 pub enum UFONodeType {
 	/// A node that provides a constant value.
-	#[serde(skip_deserializing)]
-	ConstantNode {
+	Constant {
 		value: UFOData,
 	},
 
@@ -70,7 +69,7 @@ impl PipelineNodeStub for UFONodeType {
 	) -> UFONodeInstance {
 		match self {
 			// Magic
-			UFONodeType::ConstantNode { value } => UFONodeInstance::Constant {
+			UFONodeType::Constant { value } => UFONodeInstance::Constant {
 				node_type: self.clone(),
 				node: Constant::new(value.clone()),
 			},
@@ -138,7 +137,7 @@ impl PipelineNodeStub for UFONodeType {
 	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
 		match self {
 			// Util
-			Self::ConstantNode { .. } => PipelinePortSpec::Static(&[]),
+			Self::Constant { .. } => PipelinePortSpec::Static(&[]),
 			Self::IfNone => PipelinePortSpec::Static(&[
 				("data", UFODataStub::Text),
 				("ifnone", UFODataStub::Text),
@@ -173,8 +172,8 @@ impl PipelineNodeStub for UFONodeType {
 	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
 		match self {
 			// Magic
-			Self::ConstantNode { value } => {
-				PipelinePortSpec::VecOwned(vec![("out".into(), value.as_stub())])
+			Self::Constant { value } => {
+				PipelinePortSpec::VecOwned(vec![("value".into(), value.as_stub())])
 			}
 
 			// Util

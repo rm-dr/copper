@@ -44,11 +44,10 @@ UFO's goal is to be "[Paperless] for everything," with...
 - tui, web ui
 - Docker container
 - Docs
-- Clean up node definitions
+- Dynamic node definitions
 - Fast search
 - Discard pipelines---what should we do for sub-pipelines?
   - Transactions?
-- Inline nodes (strip spaces, hash, etc)
 - Arrays & foreach (a file could have many covers)
 - Add nodes:
   - Audio metadata: bit rate, length, sample rate, etc
@@ -68,7 +67,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 - Store dataset spec in db?
 - Better db backend
 - Remove petgraph & move cycle detection
-- Clean pipeline prep() (catch as much as possible before running)
-- Standalone pipelines
-  - Web streams as pipeline input
-  - Continuously-running pipelines
+- Clean pipeline prep() (catch as many errors as possible before running)
+- Web streams as pipeline input
+- Continuously-running pipelines

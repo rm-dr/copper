@@ -1,29 +1,28 @@
-[config.input]
+[input]
 type = "File"
 
-[config.output]
-type = "Dataset"
-class = "AudioFile"
-attr."album" = "text"
-attr."artist" = "text"
-attr."albumartist" = "text"
-attr."tracknumber" = "text"
-attr."year" = "text"
-attr."genre" = "text"
-attr."ISRC" = "text"
-attr."lyrics" = "text"
-attr."audio_data" = "binary"
+[output]
+node.type = "Dataset"
+node.class = "AudioFile"
+node.attr."album" = "text"
+node.attr."artist" = "text"
+node.attr."albumartist" = "text"
+node.attr."tracknumber" = "text"
+node.attr."year" = "text"
+node.attr."genre" = "text"
+node.attr."ISRC" = "text"
+node.attr."lyrics" = "text"
+node.attr."audio_data" = "binary"
 
-[config.output_map]
-"album" = { node = "tags", output = "Album" }
-"artist" = { node = "tags", output = "Artist" }
-"albumartist" = { node = "tags", output = "AlbumArtist" }
-"tracknumber" = { node = "tags", output = "TrackNumber" }
-"year" = { node = "tags", output = "Year" }
-"genre" = { node = "tags", output = "Genre" }
-"ISRC" = { node = "tags", output = "ISRC" }
-"lyrics" = { node = "if_none", output = "out" }
-"audio_data" = { node = "strip", output = "out" }
+input."album" = { node = "tags", output = "Album" }
+input."artist" = { node = "tags", output = "Artist" }
+input."albumartist" = { node = "tags", output = "AlbumArtist" }
+input."tracknumber" = { node = "tags", output = "TrackNumber" }
+input."year" = { node = "tags", output = "Year" }
+input."genre" = { node = "tags", output = "Genre" }
+input."ISRC" = { node = "tags", output = "ISRC" }
+input."lyrics" = { node = "if_none", output = "out" }
+input."audio_data" = { node = "strip", output = "out" }
 
 
 [node."tags"]
@@ -43,8 +42,7 @@ input.data = { "pipeline" = "data" }
 [node.if_none]
 node.type = "IfNone"
 input."data" = { node = "tags", output = "Lyrics" }
-input."ifnone" = { node = "tags", output = "Album" }
-#input."ifnone" = { "text" = "Unknown Lyrics" }
+input."ifnone" = { type = "Constant", value = "Unknown Lyrics" }
 
 [node.strip]
 node.type = "StripTags"

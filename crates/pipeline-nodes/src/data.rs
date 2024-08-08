@@ -19,20 +19,28 @@ use ufo_util::mime::MimeType;
 // TODO: rename
 /// An immutable bit of data inside a pipeline.
 /// These are instances of [`PipelineDataType`].
-#[derive(Clone)]
+///
+/// Any variant that has a "deserialize" implementation
+/// may be used as a parameter in certain nodes.
+/// (for example, the `Constant` node's `value` field)
+#[derive(Clone, Deserialize)]
+#[serde(untagged)]
 pub enum UFOData {
 	/// Typed, unset data
+	#[serde(skip)]
 	None(UFODataStub),
 
 	/// A block of text
 	Text(Arc<String>),
 
+	#[serde(skip)]
 	Reference {
 		class: ClassHandle,
 		item: ItemHandle,
 	},
 
 	/// Binary data
+	#[serde(skip)]
 	Binary {
 		/// This data's media type
 		format: MimeType,

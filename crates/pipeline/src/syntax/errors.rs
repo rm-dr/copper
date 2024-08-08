@@ -4,7 +4,7 @@ use std::{error::Error, fmt::Display};
 
 use super::{
 	labels::{PipelineNodeLabel, PipelinePortLabel},
-	ports::{NodeInput, NodeOutput},
+	ports::NodeInput,
 };
 
 /// A node specification in a [`PipelinePrepareError`]
@@ -13,6 +13,9 @@ pub enum PipelineErrorNode {
 	/// The pipeline's output node
 	PipelineOutput,
 	PipelineInput,
+
+	// An inline node
+	Inline,
 
 	/// A named node created by the user
 	Named(PipelineNodeLabel),
@@ -79,8 +82,15 @@ pub enum PipelinePrepareError {
 	/// but their types don't match.
 	TypeMismatch {
 		/// The output we tried to connect
-		output: NodeOutput,
+		output: (PipelineErrorNode, PipelinePortLabel),
+
 		/// The input we tried to connect
+		input: NodeInput,
+	},
+
+	/// We tried to use a node with multiple outputs inline
+	BadInlineNode {
+		/// The input we connected to
 		input: NodeInput,
 	},
 
@@ -128,6 +138,9 @@ impl Display for PipelinePrepareError {
 					f,
 					"PipelinePrepareError: Node `{node:?}` has no input `{input}`"
 				)
+			}
+			Self::BadInlineNode { input } => {
+				writeln!(f, "PipelinePrepareError: Inline node in `{input:?}` doesn't have exactly one argument.")
 			}
 			Self::NoNodeOutput {
 				node,

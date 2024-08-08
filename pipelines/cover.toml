@@ -1,16 +1,15 @@
-[config.input]
+[input]
 type = "Noop"
 input."cover_data" = "binary"
 
-[config.output]
-type = "Dataset"
-class = "CoverArt"
-attr."image_data" = "binary"
-attr."content_hash" = "text"
+[output]
+node.type = "Dataset"
+node.class = "CoverArt"
+node.attr."image_data" = "binary"
+node.attr."content_hash" = "text"
 
-[config.output_map]
-"content_hash" = { node = "hash", output = "hash" }
-"image_data" = { pipeline = "cover_data" }
+input."content_hash" = { node = "hash", output = "hash" }
+input."image_data" = { pipeline = "cover_data" }
 
 
 [node."hash"]
