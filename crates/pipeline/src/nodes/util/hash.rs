@@ -1,9 +1,8 @@
+use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
-use sha2::{Digest, Sha256};
-use ufo_util::data::PipelineData;
-
 use crate::{
+	data::PipelineData,
 	errors::PipelineError,
 	nodes::{PipelineNode, PipelineNodeState},
 };

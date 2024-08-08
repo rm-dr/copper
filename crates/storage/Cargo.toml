@@ -21,7 +21,7 @@ ufo-util = { workspace = true }
 
 serde = { workspace = true }
 smartstring = { workspace = true }
-
+futures = { workspace = true }
 
 # TODO: should this be a workspace dep?
 sea-orm = { version = "0.12.15", features = [

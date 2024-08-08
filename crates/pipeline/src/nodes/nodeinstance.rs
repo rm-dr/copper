@@ -1,6 +1,5 @@
 use smartstring::{LazyCompact, SmartString};
 use std::fmt::Debug;
-use ufo_util::data::PipelineData;
 
 use super::{
 	nodetype::PipelineNodeType,
@@ -8,7 +7,7 @@ use super::{
 	util::{constant::Constant, hash::Hash, ifnone::IfNone, noop::Noop},
 	PipelineNode,
 };
-use crate::errors::PipelineError;
+use crate::{data::PipelineData, errors::PipelineError};
 
 pub enum PipelineNodeInstance {
 	// Each node instance must have a node_type field,

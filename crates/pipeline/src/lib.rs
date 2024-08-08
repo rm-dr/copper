@@ -1,5 +1,6 @@
 //#![warn(missing_docs)]
 
+pub mod data;
 pub mod errors;
 pub mod input;
 pub mod nodes;

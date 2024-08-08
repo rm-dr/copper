@@ -4,7 +4,10 @@ use std::{
 	path::PathBuf,
 	sync::Arc,
 };
-use ufo_util::{data::PipelineData, mime::MimeType};
+
+use ufo_util::mime::MimeType;
+
+use crate::data::PipelineData;
 
 use super::PipelineInput;
 

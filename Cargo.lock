@@ -2879,7 +2879,6 @@ name = "ufo"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "futures",
  "serde",
  "smartstring",
  "ufo-pipeline",
@@ -2903,7 +2902,6 @@ name = "ufo-pipeline"
 version = "0.1.0"
 dependencies = [
  "crossbeam",
- "futures",
  "itertools",
  "petgraph",
  "serde",
@@ -2921,6 +2919,7 @@ dependencies = [
 name = "ufo-storage"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "sea-orm",
  "sea-orm-migration",
  "serde",

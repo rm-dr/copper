@@ -1,10 +1,12 @@
 use serde::Deserialize;
 use serde_with::serde_as;
 use ufo_audiofile::common::tagtype::TagType;
-use ufo_util::data::{PipelineData, PipelineDataType};
 
 use crate::{
-	input::PipelineInputKind, output::PipelineOutputKind, portspec::PipelinePortSpec,
+	data::{PipelineData, PipelineDataType},
+	input::PipelineInputKind,
+	output::PipelineOutputKind,
+	portspec::PipelinePortSpec,
 	syntax::labels::PipelinePortLabel,
 };
 

@@ -7,8 +7,8 @@ use std::{
 	str::FromStr,
 	sync::Arc,
 };
-
-use crate::mime::MimeType;
+use ufo_storage::{StorageData, StorageDataType};
+use ufo_util::mime::MimeType;
 
 // TODO: no clone vec
 
@@ -50,6 +50,17 @@ impl PipelineData {
 			Self::None(t) => *t,
 			Self::Text(_) => PipelineDataType::Text,
 			Self::Binary { .. } => PipelineDataType::Binary,
+		}
+	}
+
+	pub fn to_storage_data(&self) -> StorageData {
+		match self {
+			Self::None(t) => StorageData::None(t.to_storage_type()),
+			Self::Text(t) => StorageData::Text(t.clone()),
+			Self::Binary { format, data } => StorageData::Binary {
+				format: format.clone(),
+				data: data.clone(),
+			},
 		}
 	}
 }
@@ -95,5 +106,14 @@ impl<'de> Deserialize<'de> for PipelineDataType {
 		let addr_str = SmartString::<LazyCompact>::deserialize(deserializer)?;
 		let s = Self::from_str(&addr_str);
 		s.map_err(serde::de::Error::custom)
+	}
+}
+
+impl PipelineDataType {
+	pub fn to_storage_type(&self) -> StorageDataType {
+		match self {
+			Self::Binary => StorageDataType::Binary,
+			Self::Text => StorageDataType::Text,
+		}
 	}
 }

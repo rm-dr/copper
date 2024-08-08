@@ -1,5 +1,6 @@
 use std::{fmt::Debug, hash::Hash};
-use ufo_util::data::{PipelineData, PipelineDataType};
+
+use crate::{StorageData, StorageDataType};
 
 pub struct AttributeOptions {
 	pub(crate) unique: bool,
@@ -22,93 +23,101 @@ impl AttributeOptions {
 	}
 }
 
-pub trait DatasetHandle:
-	Clone + Copy + Eq + Hash + Debug + Send + Sync + PartialEq + PartialOrd + Ord
-{
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ItemHandle {
+	id: usize,
+}
+
+impl From<ItemHandle> for usize {
+	fn from(value: ItemHandle) -> Self {
+		value.id
+	}
+}
+
+impl From<usize> for ItemHandle {
+	fn from(value: usize) -> Self {
+		Self { id: value }
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ClassHandle {
+	id: usize,
+}
+
+impl From<ClassHandle> for usize {
+	fn from(value: ClassHandle) -> Self {
+		value.id
+	}
+}
+
+impl From<usize> for ClassHandle {
+	fn from(value: usize) -> Self {
+		Self { id: value }
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct AttrHandle {
+	id: usize,
+}
+
+impl From<AttrHandle> for usize {
+	fn from(value: AttrHandle) -> Self {
+		value.id
+	}
+}
+
+impl From<usize> for AttrHandle {
+	fn from(value: usize) -> Self {
+		Self { id: value }
+	}
 }
 
 // TODO: better db backend. EAV is slow.
-// TODO: count attrs
-// TODO: why do we need `async_fn_in_trait`?
-#[allow(async_fn_in_trait)]
 pub trait Dataset {
-	type ClassHandle: DatasetHandle;
-	type AttrHandle: DatasetHandle;
-	type ItemHandle: DatasetHandle;
-	type ErrorType: Debug;
-
-	async fn add_class(&mut self, name: &str) -> Result<Self::ClassHandle, Self::ErrorType>;
-	async fn add_item(
+	fn add_class(&mut self, name: &str) -> Result<ClassHandle, ()>;
+	fn add_item(&mut self, class: ClassHandle) -> Result<ItemHandle, ()>;
+	fn add_item_with_attrs(
 		&mut self,
-		class: Self::ClassHandle,
-	) -> Result<Self::ItemHandle, Self::ErrorType>;
-	async fn add_item_with_attrs(
+		class: ClassHandle,
+		attrs: &[&StorageData],
+	) -> Result<ItemHandle, ()>;
+	fn add_attr(
 		&mut self,
-		class: Self::ClassHandle,
-		attrs: &[&PipelineData],
-	) -> Result<Self::ItemHandle, Self::ErrorType>;
-	async fn add_attr(
-		&mut self,
-		class: Self::ClassHandle,
+		class: ClassHandle,
 		name: &str,
-		data_type: PipelineDataType,
+		data_type: StorageDataType,
 		options: AttributeOptions,
-	) -> Result<Self::AttrHandle, Self::ErrorType>;
+	) -> Result<AttrHandle, ()>;
 
-	async fn del_class(&mut self, class: Self::ClassHandle) -> Result<(), Self::ErrorType>;
-	async fn del_item(&mut self, item: Self::ItemHandle) -> Result<(), Self::ErrorType>;
-	async fn del_attr(&mut self, attr: Self::AttrHandle) -> Result<(), Self::ErrorType>;
+	fn del_class(&mut self, class: ClassHandle) -> Result<(), ()>;
+	fn del_item(&mut self, item: ItemHandle) -> Result<(), ()>;
+	fn del_attr(&mut self, attr: AttrHandle) -> Result<(), ()>;
 
-	async fn iter_items(&self) -> Result<impl Iterator<Item = Self::ItemHandle>, Self::ErrorType>;
-	async fn iter_classes(
-		&self,
-	) -> Result<impl Iterator<Item = Self::ClassHandle>, Self::ErrorType>;
-	async fn iter_attrs(&self) -> Result<impl Iterator<Item = Self::AttrHandle>, Self::ErrorType>;
+	//fn iter_items(&self) -> Result<impl Iterator<Item = ItemHandle>, ()>;
+	//fn iter_classes(&self) -> Result<impl Iterator<Item = ClassHandle>, ()>;
+	//fn iter_attrs(&self) -> Result<impl Iterator<Item = AttrHandle>, ()>;
 
-	async fn get_class(
-		&self,
-		class_name: &str,
-	) -> Result<Option<Self::ClassHandle>, Self::ErrorType>;
-	async fn get_attr(&self, attr_name: &str) -> Result<Option<Self::AttrHandle>, Self::ErrorType>;
+	fn get_class(&self, class_name: &str) -> Result<Option<ClassHandle>, ()>;
+	fn get_attr(&self, attr_name: &str) -> Result<Option<AttrHandle>, ()>;
 
-	async fn item_set_attr(
+	fn item_set_attr(
 		&mut self,
-		item: Self::ItemHandle,
-		attr: Self::AttrHandle,
-		data: &PipelineData,
-	) -> Result<(), Self::ErrorType>;
-	async fn item_get_attr(
-		&self,
-		item: Self::ItemHandle,
-		attr: Self::AttrHandle,
-	) -> Result<PipelineData, Self::ErrorType>;
-	async fn item_get_class(
-		&self,
-		item: Self::ItemHandle,
-	) -> Result<Self::ClassHandle, Self::ErrorType>;
+		item: ItemHandle,
+		attr: AttrHandle,
+		data: &StorageData,
+	) -> Result<(), ()>;
+	fn item_get_attr(&self, item: ItemHandle, attr: AttrHandle) -> Result<StorageData, ()>;
+	fn item_get_class(&self, item: ItemHandle) -> Result<ClassHandle, ()>;
 
-	async fn class_set_name(
-		&mut self,
-		class: Self::ClassHandle,
-		name: &str,
-	) -> Result<(), Self::ErrorType>;
-	async fn class_get_name(&self, class: Self::ClassHandle) -> Result<&str, Self::ErrorType>;
-	async fn class_get_attrs(
-		&self,
-		class: Self::ClassHandle,
-	) -> Result<impl Iterator<Item = Self::AttrHandle>, Self::ErrorType>;
-	async fn class_num_attrs(&self, class: Self::ClassHandle) -> Result<usize, Self::ErrorType>;
+	fn class_set_name(&mut self, class: ClassHandle, name: &str) -> Result<(), ()>;
+	fn class_get_name(&self, class: ClassHandle) -> Result<&str, ()>;
+	//fn class_get_attrs(&self, class: ClassHandle) -> Result<impl Iterator<Item = AttrHandle>, ()>;
+	fn class_num_attrs(&self, class: ClassHandle) -> Result<usize, ()>;
 
-	async fn attr_set_name(
-		&mut self,
-		attr: Self::AttrHandle,
-		name: &str,
-	) -> Result<(), Self::ErrorType>;
-	async fn attr_get_name(&self, attr: Self::AttrHandle) -> Result<&str, Self::ErrorType>;
-	async fn attr_get_type(
-		&self,
-		attr: Self::AttrHandle,
-	) -> Result<PipelineDataType, Self::ErrorType>;
-	async fn attr_get_class(&self, attr: Self::AttrHandle) -> Self::ClassHandle;
-	// TODO: errors for bad attr
+	fn attr_set_name(&mut self, attr: AttrHandle, name: &str) -> Result<(), ()>;
+	fn attr_get_name(&self, attr: AttrHandle) -> Result<&str, ()>;
+	fn attr_get_type(&self, attr: AttrHandle) -> Result<StorageDataType, ()>;
+	fn attr_get_class(&self, attr: AttrHandle) -> ClassHandle;
 }

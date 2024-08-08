@@ -3,9 +3,10 @@ use std::{
 	sync::Arc,
 };
 use ufo_audiofile::flac::metastrip::FlacMetaStrip;
-use ufo_util::{data::PipelineData, mime::MimeType};
+use ufo_util::mime::MimeType;
 
 use crate::{
+	data::PipelineData,
 	errors::PipelineError,
 	nodes::{PipelineNode, PipelineNodeState},
 };

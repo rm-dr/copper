@@ -1,7 +1,8 @@
 //! Error helpers for pipeline spec parsing
 
 use std::{error::Error, fmt::Display};
-use ufo_util::data::PipelineDataType;
+
+use crate::data::PipelineDataType;
 
 use super::{
 	labels::{PipelineNodeLabel, PipelinePortLabel},

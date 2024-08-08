@@ -1,7 +1,11 @@
-use crate::{portspec::PipelinePortSpec, syntax::labels::PipelinePortLabel};
 use serde::Deserialize;
 use serde_with::serde_as;
-use ufo_util::data::{PipelineData, PipelineDataType};
+
+use crate::{
+	data::{PipelineData, PipelineDataType},
+	portspec::PipelinePortSpec,
+	syntax::labels::PipelinePortLabel,
+};
 
 pub mod storage;
 

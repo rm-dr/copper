@@ -1,24 +1,21 @@
-use futures::executor::block_on;
 use smartstring::{LazyCompact, SmartString};
 use std::io;
-use ufo_storage::api::Dataset;
-use ufo_util::data::{PipelineData, PipelineDataType};
+use ufo_storage::api::{ClassHandle, Dataset};
+
+use crate::data::{PipelineData, PipelineDataType};
 
 use super::PipelineOutput;
 
-pub struct StorageOutput<'a, DatasetType>
-where
-	DatasetType: Dataset,
-{
-	dataset: &'a mut DatasetType,
-	class: DatasetType::ClassHandle,
+pub struct StorageOutput<'a> {
+	dataset: &'a mut dyn Dataset,
+	class: ClassHandle,
 	attrs: Vec<(SmartString<LazyCompact>, PipelineDataType)>,
 }
 
-impl<'a, DatasetType: Dataset> StorageOutput<'a, DatasetType> {
+impl<'a> StorageOutput<'a> {
 	pub fn new(
-		dataset: &'a mut DatasetType,
-		class: DatasetType::ClassHandle,
+		dataset: &'a mut dyn Dataset,
+		class: ClassHandle,
 		attrs: Vec<(SmartString<LazyCompact>, PipelineDataType)>,
 	) -> Self {
 		StorageOutput {
@@ -29,7 +26,7 @@ impl<'a, DatasetType: Dataset> StorageOutput<'a, DatasetType> {
 	}
 }
 
-impl<'a, DatasetType: Dataset> PipelineOutput for StorageOutput<'a, DatasetType> {
+impl<'a> PipelineOutput for StorageOutput<'a> {
 	type ErrorKind = io::Error;
 
 	fn run(&mut self, data: Vec<&PipelineData>) -> Result<(), Self::ErrorKind> {
@@ -37,13 +34,15 @@ impl<'a, DatasetType: Dataset> PipelineOutput for StorageOutput<'a, DatasetType>
 		assert!(data.len() == self.attrs.len());
 
 		// TODO: errors
-		let i = block_on(self.dataset.add_item(self.class)).unwrap();
+		let i = self.dataset.add_item(self.class).unwrap();
 
 		// TODO: partial add
 		// TODO: make sure attrs exist
 		for ((attr_name, _), data) in self.attrs.iter().zip(data.iter()) {
-			let a = block_on(self.dataset.get_attr(attr_name)).unwrap().unwrap();
-			block_on(self.dataset.item_set_attr(i, a, data)).unwrap();
+			let a = self.dataset.get_attr(attr_name).unwrap().unwrap();
+			self.dataset
+				.item_set_attr(i, a, &data.to_storage_data())
+				.unwrap();
 		}
 
 		Ok(())

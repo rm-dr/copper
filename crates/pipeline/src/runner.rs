@@ -1,8 +1,4 @@
-use crossbeam::{
-	channel::{unbounded, Receiver, SendError, Sender},
-	select,
-};
-use futures::executor::block_on;
+use crossbeam::channel::{unbounded, Receiver, Sender};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	fmt::Debug,
@@ -12,10 +8,11 @@ use std::{
 	sync::{Arc, Mutex},
 };
 use threadpool::ThreadPool;
-use ufo_storage::{api::Dataset, sea::dataset::SeaDataset};
-use ufo_util::{data::PipelineData, graph::GraphNodeIdx};
+use ufo_storage::api::Dataset;
+use ufo_util::graph::GraphNodeIdx;
 
 use crate::{
+	data::PipelineData,
 	errors::PipelineError,
 	nodes::{
 		nodeinstance::PipelineNodeInstance, nodetype::PipelineNodeType, PipelineNode,
@@ -56,15 +53,15 @@ impl EdgeValue {
 /// A prepared data processing pipeline.
 /// This is guaranteed to be correct:
 /// no dependency cycles, no port type mismatch, etc
-pub struct PipelineRunner {
-	dataset: SeaDataset,
+pub struct PipelineRunner<'a> {
+	dataset: &'a mut dyn Dataset,
 	pipelines: Vec<(SmartString<LazyCompact>, Arc<Pipeline>)>,
 
 	node_runners: usize,
 }
 
-impl PipelineRunner {
-	pub fn new(dataset: SeaDataset, node_runners: usize) -> Self {
+impl<'a> PipelineRunner<'a> {
+	pub fn new(dataset: &'a mut dyn Dataset, node_runners: usize) -> Self {
 		Self {
 			dataset,
 			pipelines: Vec::new(),
@@ -127,7 +124,7 @@ impl NodeRunState {
 	}
 }
 
-impl PipelineRunner {
+impl<'a> PipelineRunner<'a> {
 	/// Run a pipeline to completion.
 	pub fn run(
 		&mut self,
@@ -441,7 +438,7 @@ impl PipelineRunner {
 	}
 }
 
-impl PipelineRunner {
+impl<'a> PipelineRunner<'a> {
 	fn finish_pipeline(
 		&mut self,
 		pipeline: Arc<Pipeline>,
@@ -449,11 +446,9 @@ impl PipelineRunner {
 	) -> Result<(), PipelineError> {
 		match &pipeline.config.output {
 			PipelineOutputKind::DataSet { attrs, class } => {
-				let c = block_on(self.dataset.get_class(&class[..]))
-					.unwrap()
-					.unwrap();
+				let c = self.dataset.get_class(&class[..]).unwrap().unwrap();
 				let mut e = StorageOutput::new(
-					&mut self.dataset,
+					self.dataset,
 					c,
 					attrs.iter().map(|(a, b)| (a.into(), *b)).collect(),
 				);

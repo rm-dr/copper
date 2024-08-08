@@ -1,6 +1,4 @@
-use ufo_util::data::PipelineDataType;
-
-use crate::syntax::labels::PipelinePortLabel;
+use crate::{data::PipelineDataType, syntax::labels::PipelinePortLabel};
 
 /// Name and datatype for a set of ports.
 #[derive(Debug, Clone)]

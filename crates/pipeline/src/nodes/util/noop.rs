@@ -1,6 +1,5 @@
-use ufo_util::data::{PipelineData, PipelineDataType};
-
 use crate::{
+	data::{PipelineData, PipelineDataType},
 	errors::PipelineError,
 	nodes::{PipelineNode, PipelineNodeState},
 	syntax::labels::PipelinePortLabel,

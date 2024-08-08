@@ -6,9 +6,7 @@ pub mod nodetype;
 pub mod tags;
 pub mod util;
 
-use ufo_util::data::PipelineData;
-
-use crate::errors::PipelineError;
+use crate::{data::PipelineData, errors::PipelineError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipelineNodeState {

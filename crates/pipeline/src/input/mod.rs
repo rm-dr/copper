@@ -1,10 +1,11 @@
 use crate::{
-	nodes::nodetype::PipelineNodeType, portspec::PipelinePortSpec,
+	data::{PipelineData, PipelineDataType},
+	nodes::nodetype::PipelineNodeType,
+	portspec::PipelinePortSpec,
 	syntax::labels::PipelinePortLabel,
 };
 use serde::Deserialize;
 use serde_with::serde_as;
-use ufo_util::data::{PipelineData, PipelineDataType};
 
 pub mod file;
 

@@ -21,7 +21,6 @@ ufo-storage = { workspace = true }
 ufo-util = { workspace = true }
 ufo-audiofile = { workspace = true }
 
-futures = { workspace = true }
 serde = { workspace = true }
 smartstring = { workspace = true }
 petgraph = { workspace = true }

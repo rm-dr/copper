@@ -6,10 +6,7 @@ use serde::Deserialize;
 use serde_with::{self, serde_as};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::HashMap, sync::Arc};
-use ufo_util::{
-	data::{PipelineData, PipelineDataType},
-	graph::{Graph, GraphNodeIdx},
-};
+use ufo_util::graph::{Graph, GraphNodeIdx};
 
 use super::{
 	errors::{PipelineErrorNode, PipelinePrepareError},
@@ -17,6 +14,7 @@ use super::{
 	ports::{NodeInput, NodeOutput},
 };
 use crate::{
+	data::{PipelineData, PipelineDataType},
 	input::PipelineInputKind,
 	nodes::nodetype::PipelineNodeType,
 	output::PipelineOutputKind,

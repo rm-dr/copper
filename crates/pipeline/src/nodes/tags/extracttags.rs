@@ -7,12 +7,10 @@ use ufo_audiofile::{
 	common::{tagtype::TagType, vorbiscomment::VorbisComment},
 	flac::flac_read_tags,
 };
-use ufo_util::{
-	data::{PipelineData, PipelineDataType},
-	mime::MimeType,
-};
+use ufo_util::mime::MimeType;
 
 use crate::{
+	data::{PipelineData, PipelineDataType},
 	errors::PipelineError,
 	nodes::{PipelineNode, PipelineNodeState},
 };
