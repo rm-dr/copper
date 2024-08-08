@@ -1,5 +1,5 @@
 import styles from "./tree.module.scss";
-import { Panel, PanelSection } from "@/app/components/panel";
+import { Panel, PanelTitle } from "@/app/components/panel";
 
 import {
 	XIconDatabase,
@@ -256,25 +256,23 @@ export function TreePanel(params: {}) {
 				icon={<XIconDatabase />}
 				title={"Manage datasets"}
 			>
-				<PanelSection icon={<XIconSettings />} title={"Control Panel"}>
-					<Button
-						radius="0"
-						onClick={() => {
-							openModal();
-						}}
-						variant="light"
-						color="green"
-						fullWidth
-						leftSection={<XIconDatabasePlus />}
-						style={{ cursor: "default" }}
-					>
-						Create a new dataset
-					</Button>
-				</PanelSection>
+				<PanelTitle icon={<XIconSettings />} title={"Control Panel"} />
+				<Button
+					radius="0"
+					onClick={() => {
+						openModal();
+					}}
+					variant="light"
+					color="green"
+					fullWidth
+					leftSection={<XIconDatabasePlus />}
+					style={{ cursor: "default" }}
+				>
+					Create a new dataset
+				</Button>
 
-				<PanelSection icon={<XIconDatabase />} title={"Datasets"}>
-					{tree}
-				</PanelSection>
+				<PanelTitle icon={<XIconDatabase />} title={"Datasets"} />
+				{tree}
 			</Panel>
 		</>
 	);

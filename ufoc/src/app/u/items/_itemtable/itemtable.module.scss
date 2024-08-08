@@ -1,19 +1,14 @@
 #panel_itemtable {
-	grid-row: 1 / 2;
-	grid-column: 1 / 2;
-	overflow: hidden;
-	min-height: 0;
-}
-
-.itemtablewrapper {
-	height: 50vh;
-	overflow: scroll;
+	height: 100%;
 }
 
 .itemtable {
 	width: 100%;
 	display: grid;
 	grid-template-columns: 1fr;
+	overflow: scroll;
+	height: 100%;
+
 	.resize_handle {
 		display: block;
 		position: absolute;
@@ -37,6 +32,7 @@
 		background-color: var(--mantine-color-dark-7);
 		position: sticky;
 		top: 0;
+		height: min-content;
 	}
 
 	thead,

@@ -1,54 +1,37 @@
+import { ReactNode } from "react";
 import styles from "./panel.module.scss";
+import clsx from "clsx";
 
-export const PanelTitle = ({ icon, title }: { icon: any; title: string }) => {
+export const PanelTitle = (params: {
+	icon: ReactNode;
+	title: string;
+	zeromargin?: boolean;
+}) => {
 	return (
-		<div className={styles.panel_title}>
-			<div className={styles.panel_icon}>{icon}</div>
-			<div className={styles.panel_title_text}>{title}</div>
+		<div
+			className={clsx(
+				styles.panel_title,
+				params.zeromargin === true && styles.panel_title_zeromargin,
+			)}
+		>
+			<div className={styles.panel_icon}>{params.icon}</div>
+			<div className={styles.panel_title_text}>{params.title}</div>
 		</div>
 	);
 };
 
 // A control panel. Each of these has a unique id,
 // which is used to position and size the panel.
-export const Panel = ({
-	icon,
-	title,
-	children,
-	panel_id,
-}: {
+export const Panel = (params: {
 	icon: any;
 	title: string;
 	children: any;
 	panel_id: string;
 }) => {
 	return (
-		<div id={panel_id} className={styles.panel_container}>
-			<div className={styles.panel}>
-				<PanelTitle icon={icon} title={title} />
-				{children}
-			</div>
-		</div>
-	);
-};
-
-// A subsection inside a panel
-export const PanelSection = ({
-	icon,
-	title,
-	children,
-}: {
-	icon?: any;
-	title?: string;
-	children: any;
-}) => {
-	return (
-		<div>
-			{icon === undefined || title === undefined ? null : (
-				<PanelTitle icon={icon} title={title} />
-			)}
-
-			<div className={styles.panel_content}>{children}</div>
+		<div className={styles.panel} id={params.panel_id}>
+			<PanelTitle icon={params.icon} title={params.title} />
+			<div className={styles.panel_content}>{params.children}</div>
 		</div>
 	);
 };

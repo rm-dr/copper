@@ -11,15 +11,28 @@ export default function Page() {
 
 	return (
 		<main className={styles.main}>
-			<ItemTablePanel
-				selectedDataset={selectedDataset}
-				selectedClass={selectedClass}
-			/>
-			<DatsetPanel
-				selectedDataset={selectedDataset}
-				setSelectedDataset={setSelectedDataset}
-				setSelectedClass={setSelectedClass}
-			/>
+			<div className={styles.wrap_top}>
+				<div className={styles.wrap_list}>
+					<ItemTablePanel
+						selectedDataset={selectedDataset}
+						selectedClass={selectedClass}
+					/>
+				</div>
+				<div className={styles.wrap_right}>
+					<DatsetPanel
+						selectedDataset={selectedDataset}
+						setSelectedDataset={setSelectedDataset}
+						setSelectedClass={setSelectedClass}
+					/>
+				</div>
+			</div>
+			<div className={styles.wrap_bottom}>
+				<DatsetPanel
+					selectedDataset={selectedDataset}
+					setSelectedDataset={setSelectedDataset}
+					setSelectedClass={setSelectedClass}
+				/>
+			</div>
 		</main>
 	);
 }

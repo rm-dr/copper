@@ -1,6 +1,6 @@
 import styles from "../page.module.scss";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { Panel, PanelSection } from "@/app/components/panel";
+import { Panel, PanelTitle } from "@/app/components/panel";
 import {
 	XIconAdjustments,
 	XIconHex,
@@ -23,22 +23,20 @@ export function usePipelinePanel(params: {
 				icon={<XIconPipeline />}
 				title={"Pipeline"}
 			>
-				<PanelSection icon={<XIconHex />} title={"Select pipeline"}>
-					<DatasetSelector onSelect={params.setSelectedDataset} />
-					<PipelineSelector
-						onSelect={params.setSelectedPipeline}
-						selectedDataset={params.selectedDataset}
-					/>
-				</PanelSection>
+				<PanelTitle icon={<XIconHex />} title={"Select pipeline"} />
+				<DatasetSelector onSelect={params.setSelectedDataset} />
+				<PipelineSelector
+					onSelect={params.setSelectedPipeline}
+					selectedDataset={params.selectedDataset}
+				/>
 
-				<PanelSection icon={<XIconAdjustments />} title={"Configure arguments"}>
-					<PanelSwitch name={"Save album art?"} onChange={console.log} />
-					<PanelText
-						name={"Genre"}
-						placeholder={"Genre..."}
-						onChange={console.log}
-					/>
-				</PanelSection>
+				<PanelTitle icon={<XIconAdjustments />} title={"Configure arguments"} />
+				<PanelSwitch name={"Save album art?"} onChange={console.log} />
+				<PanelText
+					name={"Genre"}
+					placeholder={"Genre..."}
+					onChange={console.log}
+				/>
 			</Panel>
 		</>
 	);

@@ -1,5 +1,5 @@
 import styles from "./datasets.module.scss";
-import { Panel, PanelSection } from "@/app/components/panel";
+import { Panel } from "@/app/components/panel";
 
 import { XIconDatabase, XIconFolder } from "@/app/components/icons";
 import { Dispatch, SetStateAction } from "react";
@@ -18,13 +18,11 @@ export function DatsetPanel(params: {
 				icon={<XIconDatabase />}
 				title={"Select dataset"}
 			>
-				<PanelSection>
-					<DatasetSelector onSelect={params.setSelectedDataset} />
-					<ClassSelector
-						onSelect={params.setSelectedClass}
-						selectedDataset={params.selectedDataset}
-					/>
-				</PanelSection>
+				<DatasetSelector onSelect={params.setSelectedDataset} />
+				<ClassSelector
+					onSelect={params.setSelectedClass}
+					selectedDataset={params.selectedDataset}
+				/>
 			</Panel>
 		</>
 	);

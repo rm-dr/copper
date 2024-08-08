@@ -1,5 +1,5 @@
 import styles from "./itemtable.module.scss";
-import { Panel, PanelSection } from "@/app/components/panel";
+import { Panel } from "@/app/components/panel";
 import clsx from "clsx";
 import {
 	XIconDatabaseX,
@@ -17,21 +17,17 @@ export function ItemTablePanel(params: {
 	selectedClass: string | null;
 }) {
 	return (
-		<>
-			<Panel
-				panel_id={styles.panel_itemtable}
-				icon={<XIconItems />}
-				title={"Item Table"}
-			>
-				<PanelSection>
-					<ItemTable
-						minCellWidth={120}
-						selectedClass={params.selectedClass}
-						selectedDataset={params.selectedDataset}
-					/>
-				</PanelSection>
-			</Panel>
-		</>
+		<Panel
+			panel_id={styles.panel_itemtable}
+			icon={<XIconItems />}
+			title={"Item Table"}
+		>
+			<ItemTable
+				minCellWidth={120}
+				selectedClass={params.selectedClass}
+				selectedDataset={params.selectedDataset}
+			/>
+		</Panel>
 	);
 }
 
@@ -55,6 +51,9 @@ const TablePlaceholder = (params: { children: ReactNode }) => {
 		</tr>
 	);
 };
+
+// TODO: delete top of list once we scroll too far
+// (save memory for large lists)
 
 const ItemTable = (params: {
 	selectedDataset: string | null;
@@ -520,81 +519,79 @@ const ItemTable = (params: {
 	//
 
 	return (
-		<div
-			className={styles.itemtablewrapper}
-			ref={tableWrapperElement}
+		<table
+			className={styles.itemtable}
+			ref={tableRootElement}
 			onScroll={updateData}
 		>
-			<table className={styles.itemtable} ref={tableRootElement}>
-				<thead>
-					<tr>
-						{columns.map(({ attr, unique_id }, idx: number) => (
-							<th
-								ref={(ref) => {
-									col_refs.current[idx] = ref;
-								}}
-								key={`${params.selectedClass}-${unique_id}`}
-							>
-								{/*
+			<thead>
+				<tr>
+					{columns.map(({ attr, unique_id }, idx: number) => (
+						<th
+							ref={(ref) => {
+								col_refs.current[idx] = ref;
+							}}
+							key={`${params.selectedClass}-${unique_id}`}
+						>
+							{/*
 									Do not show first resize handle.
 									Note that each header contains the *previous*
 									column's resize bar. This is a z-index hack,
 									makes sure that the resize bar goes ON TOP of
 									the previous th.
 								*/}
-								{idx === 0 ? null : (
-									<div
-										style={{ height: "100%" }}
-										onMouseDown={() => resizeStart(idx - 1)}
-										className={clsx(
-											styles.resize_handle,
-											activeResizeHandle === idx - 1 && styles.active,
-										)}
-									/>
-								)}
-								<ColumnHeader
-									attr={attr}
-									idx={idx}
-									columns={columns}
-									newCol={newColumn}
-									delCol={delColumn}
-									setAttr={(a) => {
-										setColumns((c) => {
-											const n = [...c];
-											n[idx].attr = a;
-											return n;
-										});
-									}}
-									selectedClass={params.selectedClass}
-									selectedDataset={params.selectedDataset}
-								/>
-							</th>
-						))}
-					</tr>
-				</thead>
-				<tbody>
-					{table_body}
-					{!(loading && data.length !== 0) ? null : (
-						<tr>
-							<td>
+							{idx === 0 ? null : (
 								<div
-									style={{
-										display: "flex",
-										flexDirection: "column",
-										alignItems: "center",
-										marginTop: "1rem",
-										marginBottom: "1rem",
-										color: "var(--mantine-color-dimmed)",
-									}}
-								>
-									<Loader color="var(--mantine-color-dimmed)" size="2rem" />
-								</div>
-							</td>
-						</tr>
-					)}
-				</tbody>
-			</table>
-		</div>
+									style={{ height: "100%" }}
+									onMouseDown={() => resizeStart(idx - 1)}
+									className={clsx(
+										styles.resize_handle,
+										activeResizeHandle === idx - 1 && styles.active,
+									)}
+								/>
+							)}
+							<ColumnHeader
+								attr={attr}
+								idx={idx}
+								columns={columns}
+								newCol={newColumn}
+								delCol={delColumn}
+								setAttr={(a) => {
+									setColumns((c) => {
+										const n = [...c];
+										n[idx].attr = a;
+										return n;
+									});
+								}}
+								selectedClass={params.selectedClass}
+								selectedDataset={params.selectedDataset}
+							/>
+						</th>
+					))}
+				</tr>
+			</thead>
+			<tbody>
+				{table_body}
+				{!(loading && data.length !== 0) ? null : (
+					<tr>
+						<td>
+							<div
+								style={{
+									display: "flex",
+									flexDirection: "column",
+									alignItems: "center",
+									marginTop: "1rem",
+									marginBottom: "1rem",
+									color: "var(--mantine-color-dimmed)",
+								}}
+							>
+								<Loader color="var(--mantine-color-dimmed)" size="2rem" />
+							</div>
+						</td>
+					</tr>
+				)}
+			</tbody>
+		</table>
 	);
 };
 

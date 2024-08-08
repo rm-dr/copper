@@ -105,7 +105,11 @@ export function useStatusPanel(params: {
 			>
 				<div className={styles.status_panel_content}>
 					<div>
-						<PanelTitle icon={<XIconCpu />} title={"Pipeline Jobs"} />
+						<PanelTitle
+							icon={<XIconCpu />}
+							title={"Pipeline Jobs"}
+							zeromargin
+						/>
 						<div className={styles.status_subpanel_content}>
 							<JobTable
 								pending_count={runnerstate.queued_jobs}
@@ -117,7 +121,11 @@ export function useStatusPanel(params: {
 					</div>
 
 					<div>
-						<PanelTitle icon={<XIconFileUpload />} title={"Upload Jobs"} />
+						<PanelTitle
+							icon={<XIconFileUpload />}
+							title={"Upload Jobs"}
+							zeromargin
+						/>
 						<div className={styles.status_subpanel_content}>
 							<JobTable
 								pending_count={params.uploadState.queue.length}
@@ -129,7 +137,11 @@ export function useStatusPanel(params: {
 					</div>
 
 					<div>
-						<PanelTitle icon={<XIconGrid />} title={"Control panel"} />
+						<PanelTitle
+							icon={<XIconGrid />}
+							title={"Control panel"}
+							zeromargin
+						/>
 						<div className={styles.status_subpanel_content}>
 							<div
 								style={{

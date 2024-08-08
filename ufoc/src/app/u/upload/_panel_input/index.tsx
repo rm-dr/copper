@@ -1,6 +1,6 @@
 import { Group, Progress, Text } from "@mantine/core";
 import { Dropzone } from "@mantine/dropzone";
-import { Panel, PanelSection } from "@/app/components/panel";
+import { Panel, PanelTitle } from "@/app/components/panel";
 import { Dispatch, SetStateAction } from "react";
 import styles from "../page.module.scss";
 import { UploadQueuedFile, UploadState, ppBytes } from "../util";
@@ -53,122 +53,120 @@ export function useInputPanel({
 				icon={<XIconSend />}
 				title={"Input"}
 			>
-				<PanelSection icon={<XIconPlus />} title={"Select files"}>
-					<Dropzone
-						onDrop={(dropped_files) => {
-							// Only add new files
-							// TODO: improve this check
-							const d = dropped_files.filter((file) => {
-								let is_already_there = false;
-								for (var i = 0; i < uploadState.queue.length; i++) {
-									var f = uploadState.queue[i];
-									if (f.file.path == file.path) {
-										is_already_there = true;
-									}
-									if (is_already_there) {
-										break;
-									}
+				<PanelTitle icon={<XIconPlus />} title={"Select files"} />
+				<Dropzone
+					onDrop={(dropped_files) => {
+						// Only add new files
+						// TODO: improve this check
+						const d = dropped_files.filter((file) => {
+							let is_already_there = false;
+							for (var i = 0; i < uploadState.queue.length; i++) {
+								var f = uploadState.queue[i];
+								if (f.file.path == file.path) {
+									is_already_there = true;
 								}
-								return !is_already_there;
-							});
-							setUploadState((us) => {
-								let new_files = d.map((file) => {
-									return {
-										file,
-										uid: us.file_id_counter++,
-										uploaded_bytes: 0,
-									} as UploadQueuedFile;
-								});
-
+								if (is_already_there) {
+									break;
+								}
+							}
+							return !is_already_there;
+						});
+						setUploadState((us) => {
+							let new_files = d.map((file) => {
 								return {
-									...us,
-									queue: [...us.queue, ...new_files],
-								};
+									file,
+									uid: us.file_id_counter++,
+									uploaded_bytes: 0,
+								} as UploadQueuedFile;
 							});
-						}}
-						preventDropOnDocument={true}
-						disabled={uploadState.is_uploading}
-					>
-						<Group justify="center" gap="xl" style={{ pointerEvents: "none" }}>
-							<div
-								style={{
-									marginTop: "2rem",
-									marginBottom: "2rem",
-								}}
-							>
-								<Dropzone.Accept>
-									<XIconFilePlus
-										style={{
-											height: "7rem",
-											color: "var(--mantine-color-green-6)",
-										}}
-									/>
-									<Text size="lg" inline c="green">
-										Add files to upload queue
-									</Text>
-								</Dropzone.Accept>
-								<Dropzone.Reject>
-									<XIconX
-										style={{
-											height: "7rem",
-											color: "var(--mantine-color-red-6)",
-										}}
-									/>
-									<Text size="lg" inline c="red">
-										Cannot add these files
-									</Text>
-								</Dropzone.Reject>
-								<Dropzone.Idle>
-									{uploadState.is_uploading ? (
-										<>
-											<XIconFileX
-												style={{
-													height: "7rem",
-													color: "var(--mantine-color-dimmed)",
-												}}
-											/>
-											<Text size="lg" inline c="dimmed">
-												Files cannot be added while uploading
-											</Text>
-										</>
-									) : (
-										<>
-											<XIconFile
-												style={{
-													height: "7rem",
-												}}
-											/>
-											<Text size="lg" inline>
-												Drag files here or click to open dialog
-											</Text>
-										</>
-									)}
-								</Dropzone.Idle>
-							</div>
-						</Group>
-					</Dropzone>
-				</PanelSection>
 
-				<PanelSection icon={<XIconList />} title={"File list"}>
-					<div id={styles.filelist_base}>
-						{uploadState.queue.slice(0, 30).map((f, idx) => {
-							return (
-								<FilelistEntry
-									key={f.uid}
-									file={f}
-									progress={(f.uploaded_bytes / f.file.size) * 100}
-									progress_label={ppBytes(f.file.size - f.uploaded_bytes)}
+							return {
+								...us,
+								queue: [...us.queue, ...new_files],
+							};
+						});
+					}}
+					preventDropOnDocument={true}
+					disabled={uploadState.is_uploading}
+				>
+					<Group justify="center" gap="xl" style={{ pointerEvents: "none" }}>
+						<div
+							style={{
+								marginTop: "2rem",
+								marginBottom: "2rem",
+							}}
+						>
+							<Dropzone.Accept>
+								<XIconFilePlus
+									style={{
+										height: "7rem",
+										color: "var(--mantine-color-green-6)",
+									}}
 								/>
-							);
-						})}
-					</div>
-					<div className={styles.filelist_footer_container}>
-						<div className={styles.filelist_footer}>
-							{uploadState.queue.length} pending upload
-							{uploadState.queue.length == 1 ? "" : "s"}
+								<Text size="lg" inline c="green">
+									Add files to upload queue
+								</Text>
+							</Dropzone.Accept>
+							<Dropzone.Reject>
+								<XIconX
+									style={{
+										height: "7rem",
+										color: "var(--mantine-color-red-6)",
+									}}
+								/>
+								<Text size="lg" inline c="red">
+									Cannot add these files
+								</Text>
+							</Dropzone.Reject>
+							<Dropzone.Idle>
+								{uploadState.is_uploading ? (
+									<>
+										<XIconFileX
+											style={{
+												height: "7rem",
+												color: "var(--mantine-color-dimmed)",
+											}}
+										/>
+										<Text size="lg" inline c="dimmed">
+											Files cannot be added while uploading
+										</Text>
+									</>
+								) : (
+									<>
+										<XIconFile
+											style={{
+												height: "7rem",
+											}}
+										/>
+										<Text size="lg" inline>
+											Drag files here or click to open dialog
+										</Text>
+									</>
+								)}
+							</Dropzone.Idle>
 						</div>
+					</Group>
+				</Dropzone>
+
+				<PanelTitle icon={<XIconList />} title={"File list"} />
+				<div id={styles.filelist_base}>
+					{uploadState.queue.slice(0, 30).map((f, idx) => {
+						return (
+							<FilelistEntry
+								key={f.uid}
+								file={f}
+								progress={(f.uploaded_bytes / f.file.size) * 100}
+								progress_label={ppBytes(f.file.size - f.uploaded_bytes)}
+							/>
+						);
+					})}
+				</div>
+				<div className={styles.filelist_footer_container}>
+					<div className={styles.filelist_footer}>
+						{uploadState.queue.length} pending upload
+						{uploadState.queue.length == 1 ? "" : "s"}
 					</div>
-				</PanelSection>
+				</div>
 			</Panel>
 		</>
 	);

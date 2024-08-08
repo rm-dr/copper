@@ -4,9 +4,16 @@
 	display: flex;
 	align-items: center;
 	text-align: left;
-	width: 100%;
+
+	// Ignore padding
+	margin-left: -0.5rem;
+	margin-right: -0.5rem;
+	margin-bottom: 0.5rem;
+	margin-top: 0.5rem;
+	width: calc(100% + 1rem);
+
+	// Don't forget to change content height
 	height: 2.2rem;
-	overflow: hidden;
 
 	padding: 0;
 
@@ -37,13 +44,17 @@
 	}
 }
 
+.panel_title_zeromargin {
+	margin: 0 !important;
+	margin-bottom: 0.5rem !important;
+	width: 100% !important;
+}
+
 .panel {
-	display: flex;
-	flex-direction: column;
-	justify-content: flex-start;
 	width: 100%;
 	padding: 0;
 	margin: 0;
+	overflow: hidden;
 
 	background-color: var(--mantine-color-dark-8);
 	border: 0px solid var(--mantine-color-dark-7);
@@ -52,6 +63,7 @@
 
 	// Main title
 	& > .panel_title:first-child {
+		margin: 0;
 		font-size: 1.5rem;
 		background-color: var(--mantine-primary-color-9);
 		.panel_icon {
@@ -60,8 +72,16 @@
 	}
 
 	.panel_content {
-		padding: 0.5rem;
-		display: block;
+		& > .panel_title:first-child {
+			// First child needs to ignore top padding
+			margin-top: -0.5rem !important;
+		}
+
 		width: 100%;
+		padding: 0.5rem;
+
+		// Minus header height
+		// (100% doesn't account for that)
+		height: calc(100% - 2.2rem);
 	}
 }

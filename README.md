@@ -18,6 +18,9 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release.
 The goal is a *minimal* working version: robust, usable, but possibly slow and missing fancy features.
 
 
+## Small jobs
+- Trim all names
+
 ## 📦 CRUD items
 - [ ] Hash files when uploading (incremental)
   - make sure uploads don't expire
@@ -32,12 +35,12 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Sort by attr
 
 ## 📦 Authentication
-- [ ] Pick auth method & storage
-- [ ] Login endpoint
-- [ ] Login page
 - [ ] CRUD users and groups from ui
   - group permission to create users and set groups
 - [ ] Dataset permissions (per group)
+- [ ] Hide datasets/groups (view permission)
+- [ ] Clean up permission model
+- [ ] UI Account menu
 
 ## 📦 Database migrations
 - old dbs should not be destroyed
@@ -69,6 +72,10 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - dataset tree
   - upload queue
 - [ ] Loading state for modals
+- [ ] Add attr form
+- [ ] Sidebar & top bar shadow
+- [ ] Item table dynamic height
+- [ ] "No class" tree item
 
 
 ## 📦 Better uploads
@@ -157,6 +164,11 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] asyncify blobstore
 - [ ] asyncify pipestore
 - [ ] should pipelinenodetype methods be async?
+
+## Security
+- [ ] Rate-limit api
+- [ ] Log request ips
+- [ ] Block ips
 
 ## Audit log
 - [ ] Track logins
