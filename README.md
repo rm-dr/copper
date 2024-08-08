@@ -27,44 +27,52 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- foreign key datatype
-- async binary readers
-- handle channel errors (Pending when full?)
-- args to node one by one
+- Remove pipeline data types
+- Options for hash, reference
+- Load "new item" pipeline inputs from db
 - sanely handle duplicate album art
+- Better index names
+
+- async binary readers
+  - args to node one by one
+  - handle channel errors (Pending when full?)
+  - limit channel size
 - Clean up all error handling (search for unwrap, assert, and panic)
 - clean up paths (pub use)
 
+
 ### Later:
+- classes & attrs are immutable (cannot change once made)
 - Better name
 - tui, web ui
 - async pipeline runners
 - Docker container
 - Docs
-- limit channel size
+- Clean up dependencies
+- Async database
+- Store big files on fs, not in db
+  - Incremental write to storage file
+  - Configurable path
 - Dynamic node definitions
-- Fast search
+- Fast search (index certain attributes)
 - Discard node---what should we do for sub-pipelines?
   - Transactions?
 - Arrays & foreach (a file could have many covers)
 - Add nodes:
   - Audio metadata: bit rate, length, sample rate, etc
   - Strip spaces, regex
-  - Options for hash (many types)
   - external commands
 - Add datatypes:
   - enum
   - multi-enum
   - date
-  - int/float
-  - hash (md5,sha,etc)
 - Add attribute propeties:
   - not null
   - automatic (computed by a pipeline, like hash of album art)
+  - how to enforce?
 - Save pipelines in database
 - Store dataset spec in db?
 - Better db backend
 - Remove petgraph & move cycle detection
-- Clean pipeline prep() (catch as many errors as possible before running)
 - Web streams as pipeline input
 - Continuously-running pipelines
