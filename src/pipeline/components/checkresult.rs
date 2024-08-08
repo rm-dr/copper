@@ -1,6 +1,6 @@
 use smartstring::{LazyCompact, SmartString};
 
-use super::{NodeInput, NodeOutput, PipelineNodeLabel, PipelinePortLabel};
+use super::{NodeInput, NodeOutput, PipelineNode, PipelinePort};
 use crate::pipeline::data::PipelineDataType;
 
 /// The result of a [`Pipeline::check()`].
@@ -13,37 +13,25 @@ pub enum PipelineCheckResult {
 	NodeHasReservedName { node: SmartString<LazyCompact> },
 
 	/// There is no node named `node` in this pipeline
-	/// We tried to connect this node from `caused_by_input`.
+	/// We tried to connect this node from `caused_by`.
 	NoNode {
-		node: PipelineNodeLabel,
-		caused_by_input: NodeInput,
+		node: PipelineNode,
+		caused_by: NodeInput,
 	},
 
-	/// `node` has no input named `input_name`.
+	/// `node` has no input named `input`.
 	/// This is triggered when we specify an input that doesn't exist.
 	NoNodeInput {
-		node: PipelineNodeLabel,
-		input_name: PipelinePortLabel,
+		node: PipelineNode,
+		input: PipelinePort,
 	},
 
-	/// `node` has no output named `output_name`.
-	/// We tried to connect this output from `caused_by_input`.
+	/// `node` has no output named `output`.
+	/// We tried to connect this output from `caused_by`.
 	NoNodeOutput {
-		node: PipelineNodeLabel,
-		output_name: PipelinePortLabel,
-		caused_by_input: NodeInput,
-	},
-
-	/// This pipeline has no input named `input_name`.
-	/// We tried to connect to this input from `caused_by_input`.
-	NoPipelineInput {
-		pipeline_input_name: PipelinePortLabel,
-		caused_by_input: NodeInput,
-	},
-
-	/// This pipeline has no output named `output_name`.
-	NoPipelineOutput {
-		pipeline_output_name: PipelinePortLabel,
+		node: PipelineNode,
+		output: PipelinePort,
+		caused_by: NodeInput,
 	},
 
 	/// We tried to connect `input` to `output`,
@@ -61,5 +49,5 @@ pub enum PipelineCheckResult {
 	},
 
 	/// This graph has a cycle containing `node`
-	HasCycle { node: PipelineNodeLabel },
+	HasCycle { node: PipelineNode },
 }
