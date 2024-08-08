@@ -42,7 +42,7 @@ pub enum PipelineCheckResult {
 		input_name: SmartString<LazyCompact>,
 	},
 
-	/// `node` has no output named `output_name`lf
+	/// `node` has no output named `output_name`.
 	/// We tried to connect this output from `caused_by_input`.
 	NoNodeOutput {
 		node: PipelineNodeSpec,
@@ -77,224 +77,155 @@ pub enum PipelineCheckResult {
 	HasCycle { node: PipelineNodeSpec },
 }
 
-// TODO: check for cycles
 // TODO: rename: pipeline inputs are outputs
 // TODO: pretty errors
 // TODO: warnings (disconnected input)
+// TODO: rework `PipelineLink`
+// TODO: check for unused nodes
+// TODO: add name to nodespec
 impl Pipeline {
-	pub fn check(&self) -> PipelineCheckResult {
-		for (out_name, out_link) in &self.pipeline.outmap {
-			let out_type = self.pipeline.output.get(out_name);
-			let out_type = if let Some(out_type) = out_type {
-				*out_type
-			} else {
-				return PipelineCheckResult::NoPipelineOutput {
-					pipeline_output_name: out_name.clone(),
-				};
-			};
+	/// Check a link from `output` to `input`.
+	/// Returns [`None`] if everything is ok, and an error otherwise.
+	/// [`PipelineCheckResult::Ok`] will never be returned.
+	///
+	/// This makes sure that...
+	/// - The output node exists
+	/// - The output node has the specified port
+	/// - The input node exists
+	/// - The input node has the specified port
+	/// - The input and output ports have matching types
+	fn check_link(&self, output: &PipelineLink, input: PortLink) -> Option<PipelineCheckResult> {
+		// Find the datatype of the output port we're connecting to.
+		// While doing this, make sure both the output node and port exist.
+		let output_type = match output {
+			PipelineLink::InlineText { .. } => PipelineDataType::Text,
+			PipelineLink::Link(link) => match link {
+				PortLink::Node { node, port } => {
+					let get_node = self.nodes.get(node);
 
-			match out_link {
-				PipelineLink::InlineText { .. } => {
-					if out_type != PipelineDataType::Text {
-						return PipelineCheckResult::InlineTypeMismatch {
-							inline_type: PipelineDataType::Text,
-							input: PortLink::Node {
-								node: "out".into(),
-								port: out_name.clone(),
-							},
-						};
+					if get_node.is_none() {
+						return Some(PipelineCheckResult::NoNode {
+							node: node.clone(),
+							caused_by_input: input,
+						});
+					}
+					let node = get_node.unwrap();
+					let input_spec = node.node_type.get_outputs().iter().find(|x| x.0 == port);
+
+					if input_spec.is_none() {
+						return Some(PipelineCheckResult::NoNodeOutput {
+							node: node.clone(),
+							output_name: port.clone(),
+							caused_by_input: input,
+						});
+					}
+					input_spec.unwrap().1
+				}
+				PortLink::Pinput { port } => {
+					if let Some(from_type) = self.pipeline.input.get(port) {
+						*from_type
+					} else {
+						return Some(PipelineCheckResult::NoPipelineInput {
+							pipeline_input_name: port.clone(),
+							caused_by_input: input,
+						});
 					}
 				}
-				PipelineLink::Link(link) => {
-					// Special case: we're linked to pipeline input
-					if link.node_str() == "in" {
-						let input = self.pipeline.input.get(link.port_str());
+				PortLink::Poutput { .. } => unreachable!("an output was connected to an output!"),
+			},
+		};
 
-						if let Some(oout_type) = input {
-							// Make sure input type matches output type
-							if out_type != *oout_type {
-								return PipelineCheckResult::TypeMismatch {
-									output: link.clone(),
-									input: PortLink::Node {
-										node: "out".into(),
-										port: out_name.clone(),
-									},
-								};
-							}
-						} else {
-							return PipelineCheckResult::NoPipelineInput {
-								pipeline_input_name: link.port_str().into(),
-								caused_by_input: PortLink::Node {
-									node: "out".into(),
-									port: out_name.clone(),
-								},
-							};
-						}
+		// Find the datatype of the input port we're connecting to.
+		// While doing this, make sure both the input node and port exist.
+		let input_type = match &input {
+			PortLink::Node { node, port } => {
+				let get_node = self.nodes.get(node);
 
-					// We're linked to another node's output
-					} else {
-						let source_node = self.nodes.get(link.node_str());
+				if get_node.is_none() {
+					return Some(PipelineCheckResult::NoNode {
+						node: node.clone(),
+						caused_by_input: input,
+					});
+				}
+				let node = get_node.unwrap();
+				let input = node.node_type.get_inputs().iter().find(|x| x.0 == port);
 
-						if let Some(source_node) = source_node {
-							let output = source_node
-								.node_type
-								.get_outputs()
-								.iter()
-								.find(|x| x.0 == link.port_str());
-
-							if let Some(output) = output {
-								let oout_type = output.1;
-								if out_type != oout_type {
-									return PipelineCheckResult::TypeMismatch {
-										output: link.clone(),
-										input: PortLink::Node {
-											node: "out".into(),
-											port: out_name.clone(),
-										},
-									};
-								}
-							} else {
-								return PipelineCheckResult::NoNodeOutput {
-									node: source_node.clone(),
-									output_name: link.port_str().into(),
-									caused_by_input: PortLink::Node {
-										node: "out".into(),
-										port: out_name.clone(),
-									},
-								};
-							}
-						} else {
-							return PipelineCheckResult::NoNode {
-								node: link.node_str().into(),
-								caused_by_input: PortLink::Node {
-									node: "out".into(),
-									port: out_name.clone(),
-								},
-							};
-						}
-					}
+				if input.is_none() {
+					return Some(PipelineCheckResult::NoNodeInput {
+						node: node.clone(),
+						input_name: port.clone(),
+					});
+				}
+				input.unwrap().1
+			}
+			PortLink::Poutput { port } => {
+				if let Some(from_type) = self.pipeline.output.get(port) {
+					*from_type
+				} else {
+					return Some(PipelineCheckResult::NoPipelineOutput {
+						pipeline_output_name: port.clone(),
+					});
 				}
 			}
-		}
+			PortLink::Pinput { .. } => unreachable!("an input was connected to an input!"),
+		};
 
-		// Check each nodes's input
+		// Check types
+		match output {
+			PipelineLink::InlineText { .. } => {
+				if input_type != PipelineDataType::Text {
+					return Some(PipelineCheckResult::InlineTypeMismatch {
+						inline_type: PipelineDataType::Text,
+						input,
+					});
+				}
+			}
+			PipelineLink::Link(link) => {
+				if output_type != input_type {
+					return Some(PipelineCheckResult::TypeMismatch {
+						output: link.clone(),
+						input,
+					});
+				}
+			}
+		};
+
+		return None;
+	}
+
+	pub fn check(&self) -> PipelineCheckResult {
+		// Check each node's inputs
 		for (node_name, node_spec) in &self.nodes {
 			for (input_name, out_link) in &node_spec.input {
-				// input_name: the name of THIS nodes's input we're connecting
-				// out_link: the node `input_name` is connected to
-
-				// Make sure `input_name` is a valid input for this node
-				if !node_spec
-					.node_type
-					.get_inputs()
-					.iter()
-					.any(|x| x.0 == &input_name[..])
-				{
-					return PipelineCheckResult::NoNodeInput {
-						node: node_spec.clone(),
-						input_name: input_name.clone(),
-					};
-				}
-
-				let in_type = node_spec
-					.node_type
-					.get_inputs()
-					.iter()
-					.find(|x| x.0 == &input_name[..])
-					.unwrap()
-					.1;
-
-				// Make sure `out_link` is valid
-				match out_link {
-					PipelineLink::InlineText { .. } => {
-						if in_type != PipelineDataType::Text {
-							return PipelineCheckResult::InlineTypeMismatch {
-								inline_type: PipelineDataType::Text,
-								input: PortLink::Node {
-									node: "out".into(),
-									port: input_name.clone(),
-								},
-							};
-						}
-					}
-					PipelineLink::Link(link) => {
-						// Special case: we're linked to pipeline input
-						if link.node_str() == "in" {
-							let input = self.pipeline.input.get(link.port_str());
-
-							if let Some(out_type) = input {
-								// Make sure input type matches output type
-								if in_type != *out_type {
-									return PipelineCheckResult::TypeMismatch {
-										output: link.clone(),
-										input: PortLink::Node {
-											node: node_name.clone(),
-											port: input_name.clone(),
-										},
-									};
-								}
-							} else {
-								return PipelineCheckResult::NoPipelineInput {
-									pipeline_input_name: link.port_str().into(),
-									caused_by_input: PortLink::Node {
-										node: node_name.clone(),
-										port: input_name.clone(),
-									},
-								};
-							}
-
-						// We're linked to another node's output
-						} else {
-							let source_node = self.nodes.get(link.node_str());
-
-							if let Some(source_node) = source_node {
-								let output = source_node
-									.node_type
-									.get_outputs()
-									.iter()
-									.find(|x| x.0 == link.port_str());
-
-								if let Some(output) = output {
-									let out_type = output.1;
-									if in_type != out_type {
-										return PipelineCheckResult::TypeMismatch {
-											output: link.clone(),
-											input: PortLink::Node {
-												node: node_name.clone(),
-												port: input_name.clone(),
-											},
-										};
-									}
-								} else {
-									return PipelineCheckResult::NoNodeOutput {
-										node: source_node.clone(),
-										output_name: link.port_str().into(),
-										caused_by_input: PortLink::Node {
-											node: node_name.clone(),
-											port: input_name.clone(),
-										},
-									};
-								}
-							} else {
-								return PipelineCheckResult::NoNode {
-									node: link.node_str().into(),
-									caused_by_input: PortLink::Node {
-										node: node_name.clone(),
-										port: input_name.clone(),
-									},
-								};
-							}
-						}
-					}
+				if let Some(err) = self.check_link(
+					out_link,
+					PortLink::Node {
+						node: node_name.clone(),
+						port: input_name.clone(),
+					},
+				) {
+					return err;
 				};
 			}
 		}
 
-		let mut deps = GraphMap::<&str, (), Directed>::new();
-
-		for (node_name, _) in &self.nodes {
-			deps.add_node(node_name);
+		// Check final pipeline outputs
+		for (out_name, out_link) in &self.pipeline.outmap {
+			if let Some(err) = self.check_link(
+				out_link,
+				PortLink::Poutput {
+					port: out_name.clone(),
+				},
+			) {
+				return err;
+			};
 		}
+
+		// Build graph...
+		let mut deps = GraphMap::<&str, (), Directed>::new();
+		self.nodes.iter().for_each(|(node_name, _)| {
+			deps.add_node(node_name);
+		});
 
 		for (node_name, node_spec) in &self.nodes {
 			for (_input_name, out_link) in &node_spec.input {
@@ -307,6 +238,7 @@ impl Pipeline {
 			}
 		}
 
+		// ...and check for cycles.
 		let topo = toposort(&deps, None);
 		if let Err(cycle) = topo {
 			return PipelineCheckResult::HasCycle {
