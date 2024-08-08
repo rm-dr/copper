@@ -1,8 +1,8 @@
-use std::{collections::HashMap, error::Error, fmt::Display, str::FromStr};
+use std::{error::Error, fmt::Display, str::FromStr};
 
 use serde::Deserialize;
+use serde_with::DeserializeFromStr;
 
-use self::nodes::PipelineNodes;
 use crate::model::ItemType;
 
 pub mod nodes;
@@ -39,9 +39,8 @@ pub enum PipelineData {
 	Binary { data_type: ItemType, data: Vec<u8> },
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, DeserializeFromStr, PartialEq, Eq)]
 pub enum PipelineDataType {
-	None,
 	Text,
 	Binary,
 }
@@ -52,7 +51,6 @@ impl FromStr for PipelineDataType {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		match s {
-			"none" => Ok(Self::None),
 			"text" => Ok(Self::Text),
 			"binary" => Ok(Self::Binary),
 			_ => Err("bad data type".to_string()),
@@ -62,20 +60,14 @@ impl FromStr for PipelineDataType {
 
 // TODO: enforce docs
 // TODO: node id, port id type
-#[derive(Debug, Hash, PartialEq, Eq)]
-struct OutputLink {
+#[derive(Debug, Hash, PartialEq, Eq, Deserialize, Clone)]
+pub struct PortLink {
 	node: String,
 	port: String,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
-struct InputLink {
-	node: String,
-	port: String,
-}
-
-struct Pipeline {
-	inputs: HashMap<String, ItemType>,
-	nodes: HashMap<String, PipelineNodes>,
-	links: HashMap<InputLink, OutputLink>,
+impl Display for PortLink {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}.{}", self.node, self.port)
+	}
 }

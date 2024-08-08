@@ -1,8 +1,7 @@
+use serde_with::DeserializeFromStr;
 use std::{collections::HashMap, str::FromStr};
 
-use serde::Deserialize;
-
-use super::{PipelineData, PipelineError};
+use super::{PipelineData, PipelineDataType, PipelineError};
 
 pub mod ifnone;
 pub mod tags;
@@ -11,9 +10,19 @@ pub trait PipelineNode {
 	fn run(
 		inputs: HashMap<String, PipelineData>,
 	) -> Result<HashMap<String, PipelineData>, PipelineError>;
+
+	/// List this node's inputs.
+	/// This is a list of ("output name", output type)
+	/// Input names MUST be unique. This is not enforced!
+	fn get_inputs() -> &'static [(&'static str, PipelineDataType)];
+
+	/// List this node's outputs.
+	/// This is a list of ("output name", output type)
+	/// Output names MUST be unique. This is not enforced!
+	fn get_outputs() -> &'static [(&'static str, PipelineDataType)];
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, DeserializeFromStr)]
 pub enum PipelineNodes {
 	ExtractTag,
 	IfNone,
@@ -27,6 +36,20 @@ impl PipelineNodes {
 		match self {
 			Self::ExtractTag => tags::ExtractTag::run(inputs),
 			Self::IfNone => ifnone::IfNone::run(inputs),
+		}
+	}
+
+	pub fn get_inputs(&self) -> &'static [(&'static str, PipelineDataType)] {
+		match self {
+			Self::ExtractTag => tags::ExtractTag::get_inputs(),
+			Self::IfNone => ifnone::IfNone::get_inputs(),
+		}
+	}
+
+	pub fn get_outputs(&self) -> &'static [(&'static str, PipelineDataType)] {
+		match self {
+			Self::ExtractTag => tags::ExtractTag::get_outputs(),
+			Self::IfNone => ifnone::IfNone::get_outputs(),
 		}
 	}
 }

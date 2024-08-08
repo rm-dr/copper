@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
 	model::{AudioItemType, ItemType},
-	pipeline::{PipelineData, PipelineError},
+	pipeline::{PipelineData, PipelineDataType, PipelineError},
 };
 
 use super::PipelineNode;
@@ -59,6 +59,24 @@ impl ExtractTag {
 }
 
 impl PipelineNode for ExtractTag {
+	fn get_inputs() -> &'static [(&'static str, PipelineDataType)] {
+		&[("data", PipelineDataType::Binary)]
+	}
+
+	fn get_outputs() -> &'static [(&'static str, PipelineDataType)] {
+		&[
+			("title", PipelineDataType::Text),
+			("album", PipelineDataType::Text),
+			("artist", PipelineDataType::Text),
+			("genre", PipelineDataType::Text),
+			("comment", PipelineDataType::Text),
+			("track", PipelineDataType::Text),
+			("disk", PipelineDataType::Text),
+			("disk_total", PipelineDataType::Text),
+			("year", PipelineDataType::Text),
+		]
+	}
+
 	fn run(
 		inputs: HashMap<String, PipelineData>,
 	) -> Result<HashMap<String, PipelineData>, PipelineError> {

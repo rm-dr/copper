@@ -87,8 +87,9 @@ fn main() -> Result<()> {
 	let mut f = File::open("pipeline.toml").unwrap();
 	let mut s: String = Default::default();
 	f.read_to_string(&mut s)?;
-	let config: syntax::Pipeline = toml::from_str(&s)?;
-	println!("{:#?}", config);
+	let p: syntax::Pipeline = toml::from_str(&s)?;
+	println!("{:#?}", p);
+	println!("{:?}", p.check());
 
 	Ok(())
 }
