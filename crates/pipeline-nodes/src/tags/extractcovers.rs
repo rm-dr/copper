@@ -89,7 +89,6 @@ impl PipelineNode for ExtractCovers {
 			MimeType::Flac => {
 				let pictures = flac_read_pictures(&mut self.buffer);
 				if pictures.is_err() {
-					println!("{pictures:?}");
 					return Ok(PipelineNodeState::Pending("malformed pictures"));
 				}
 				let mut pictures = pictures.unwrap();

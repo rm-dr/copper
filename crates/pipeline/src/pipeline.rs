@@ -49,11 +49,9 @@ impl PipelineEdge {
 	}
 }
 
-/// A prepared data processing pipeline.
-/// This is guaranteed to be correct:
-/// no dependency cycles, no port type mismatch, etc.
+/// A fully loaded data processing pipeline.
 #[derive(Debug)]
-pub(crate) struct Pipeline<StubType: PipelineNodeStub> {
+pub struct Pipeline<StubType: PipelineNodeStub> {
 	/// This pipeline's name.
 	/// Must be unique.
 	pub(crate) name: PipelineLabel,
@@ -63,4 +61,10 @@ pub(crate) struct Pipeline<StubType: PipelineNodeStub> {
 
 	/// This pipeline's node graph
 	pub(crate) graph: FinalizedGraph<(PipelineNodeLabel, InternalNodeStub<StubType>), PipelineEdge>,
+}
+
+impl<StubType: PipelineNodeStub> Pipeline<StubType> {
+	pub fn iter_node_labels(&self) -> impl Iterator<Item = &PipelineNodeLabel> {
+		self.graph.iter_nodes().map(|(l, _)| l)
+	}
 }

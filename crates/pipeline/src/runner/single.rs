@@ -20,7 +20,7 @@ use crate::{
 
 /// The state of a [`PipelineSingleRunner`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum SingleRunnerState {
+pub(super) enum SingleJobState {
 	/// Nodes are running, not done yet
 	Running,
 
@@ -29,7 +29,7 @@ pub(super) enum SingleRunnerState {
 }
 
 /// An instance of a single running pipeline
-pub(super) struct PipelineSingleRunner<StubType: PipelineNodeStub> {
+pub struct PipelineSingleJob<StubType: PipelineNodeStub> {
 	_p: PhantomData<StubType>,
 
 	/// The pipeline we're running
@@ -94,9 +94,28 @@ pub(super) struct PipelineSingleRunner<StubType: PipelineNodeStub> {
 	)>,
 }
 
-impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
+impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
+	/// Get the pipeline this job is running
+	pub fn get_pipeline(&self) -> &Pipeline<StubType> {
+		&*self.pipeline
+	}
+
+	/// Get the current state of all nodes in this job
+	/// Returns `None` if an unknown node name is provided.
+	pub fn get_node_status(&self, node: &PipelineNodeLabel) -> Option<(bool, PipelineNodeState)> {
+		self.node_instances
+			.iter()
+			.find(|(label, _, _, _)| label == node)
+			.map(|(_, _, status, _)| match status {
+				NodeRunState::Running => (true, PipelineNodeState::Pending("is running")),
+				NodeRunState::NotRunning(x) => (false, *x),
+			})
+	}
+}
+
+impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 	/// Make a new [`PipelineSingleRunner`]
-	pub fn new(
+	pub(super) fn new(
 		config: &'a PipelineRunConfig,
 		context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 		pipeline: Arc<Pipeline<StubType>>,
@@ -216,12 +235,16 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 			receive_status,
 		}
 	}
+}
 
-	/// Update this runner: process data and state changes that occured
-	/// since we last called `run()`, and start any nodes that can now be started.
+impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
+	/// Update this job: process state changes that occured since we last called `run()`,
+	/// deliver new data, and start nodes that should be started.
 	///
-	/// This method should be fairly fast, since it holds up the main thread.
-	pub fn run(&mut self) -> Result<SingleRunnerState, SErrorType<StubType>> {
+	/// This method should be called often, but not too often.
+	/// All computation is done in a thread pool, `run()`'s responsibility
+	/// is to update state and schedule new nodes.
+	pub(super) fn run(&mut self) -> Result<SingleJobState, SErrorType<StubType>> {
 		// Run nodes in a better order, and maybe skip a few.
 
 		// Handle all changes that occured since we last called `run()`
@@ -240,10 +263,10 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 		}
 
 		if all_nodes_done {
-			return Ok(SingleRunnerState::Done);
+			return Ok(SingleJobState::Done);
 		}
 
-		return Ok(SingleRunnerState::Running);
+		return Ok(SingleJobState::Running);
 	}
 
 	/// Helper function, written here only for convenience.
@@ -382,9 +405,22 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 						//
 						// This intentionally panics if the mutex is already locked.
 						// That should never happen!
-						println!("drop {}", self.node_instances[node.as_usize()].0);
+						debug!(
+							source = "pipeline",
+							summary = "Dropped node",
+							node = self.node_instances[node.as_usize()].0.to_string(),
+						);
+
 						let mut x = self.node_instances[node.as_usize()].3.try_lock().unwrap();
 						drop(x.take());
+
+						// Quick sanity check
+						drop(x);
+						assert!(self.node_instances[node.as_usize()]
+							.3
+							.try_lock()
+							.unwrap()
+							.is_none())
 					}
 				}
 			}

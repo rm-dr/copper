@@ -1,9 +1,9 @@
 //! Top-level pipeline runner.
-//! Asynchronously Runs a set of pipelines on multiple threads.
+//! Runs a set of jobs asyncronously and in parallel.
 
-use std::{fs::File, io::Read, marker::PhantomData, path::Path, sync::Arc};
+use std::{collections::VecDeque, fs::File, io::Read, marker::PhantomData, path::Path, sync::Arc};
 
-use super::single::{PipelineSingleRunner, SingleRunnerState};
+use super::single::{PipelineSingleJob, SingleJobState};
 use crate::{
 	api::{PipelineNode, PipelineNodeStub},
 	labels::PipelineLabel,
@@ -14,8 +14,12 @@ use crate::{
 
 /// Pipeline runner configuration
 pub struct PipelineRunConfig {
-	/// The number of threads to use to run nodes in each pipeline
+	/// The size of each job's threadpool.
+	/// A runner will use at most `node_threads * max_active_jobs` threads.
 	pub node_threads: usize,
+
+	/// The maximum number of jobs we'll run at once
+	pub max_active_jobs: usize,
 }
 
 /// A prepared data processing pipeline.
@@ -26,6 +30,9 @@ pub struct PipelineRunner<StubType: PipelineNodeStub> {
 	pipelines: Vec<Arc<Pipeline<StubType>>>,
 	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 	config: PipelineRunConfig,
+
+	active_jobs: Vec<Option<PipelineSingleJob<StubType>>>,
+	job_queue: VecDeque<PipelineSingleJob<StubType>>,
 }
 
 impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
@@ -37,14 +44,17 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		Self {
 			_p: PhantomData,
 			pipelines: Vec::new(),
-			config,
 			context: Arc::new(context),
+
+			active_jobs: (0..config.max_active_jobs).map(|_| None).collect(),
+			job_queue: VecDeque::new(),
+
+			config,
 		}
 	}
 
 	/// Load a pipeline into this runner.
-	///
-	/// A pipeline must be loaded before any instances of it are run.
+	/// A pipeline must be loaded before any jobs can be created.
 	pub fn add_pipeline(
 		&mut self,
 		path: &Path,
@@ -72,33 +82,59 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		return Ok(());
 	}
 
-	fn get_pipeline(&self, pipeline_name: &PipelineLabel) -> Option<Arc<Pipeline<StubType>>> {
+	/// Get a pipeline that has been added to this runner.
+	/// If we don't know of a pipeline with the given named, return `None`.
+	pub fn get_pipeline(&self, pipeline_name: &PipelineLabel) -> Option<&Pipeline<StubType>> {
 		self.pipelines
 			.iter()
 			.find(|x| x.name == *pipeline_name)
-			.cloned()
+			.map(|x| &**x)
 	}
 
-	/// Run a pipeline with the given inputs
-	pub fn run(
-		&self,
+	/// Add a job to this runner's queue
+	pub fn add_job(
+		&mut self,
+
 		pipeline_name: &PipelineLabel,
 		pipeline_inputs: Vec<SDataType<StubType>>,
-	) -> Result<(), SErrorType<StubType>> {
-		let pipeline = self.get_pipeline(pipeline_name).unwrap();
+	) {
+		let pipeline = self
+			.pipelines
+			.iter()
+			.find(|x| x.name == *pipeline_name)
+			.unwrap()
+			.clone();
 
-		let mut runner = PipelineSingleRunner::new(
+		let runner = PipelineSingleJob::new(
 			&self.config,
 			self.context.clone(),
 			pipeline,
 			pipeline_inputs,
 		);
+		self.job_queue.push_back(runner)
+	}
 
-		let mut s = SingleRunnerState::Running;
-		while s == SingleRunnerState::Running {
-			s = runner.run()?;
+	/// Iterate over all active jobs
+	pub fn iter_active_jobs(&self) -> impl Iterator<Item = &PipelineSingleJob<StubType>> {
+		self.active_jobs.iter().filter_map(|x| x.as_ref())
+	}
+
+	/// Update this runner: process all changes that occured since we last called `run()`,
+	pub fn run(&mut self) -> Result<(), SErrorType<StubType>> {
+		for r in &mut self.active_jobs {
+			if let Some(x) = r {
+				// Update running jobs
+				let s = x.run()?;
+				if s == SingleJobState::Done {
+					// Drop finished jobs
+					r.take();
+				}
+			} else if self.job_queue.len() != 0 {
+				// Start a new job if we have space
+				*r = self.job_queue.pop_front();
+			}
 		}
 
-		return Ok(());
+		Ok(())
 	}
 }
