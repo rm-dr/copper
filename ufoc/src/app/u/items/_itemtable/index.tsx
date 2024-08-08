@@ -1,24 +1,24 @@
 import styles from "./itemtable.module.scss";
 import { Panel } from "@/app/components/panel";
 import clsx from "clsx";
-import {
-	XIconDatabaseX,
-	XIconFolderX,
-	XIconItems,
-	XIconNoItems,
-} from "@/app/components/icons";
-
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Loader, Text } from "@mantine/core";
 import { ColumnHeader } from "./parts/columnheader";
 import { ItemData, Selected } from "../page";
 import { attrTypes } from "@/app/_util/attrs";
+import {
+	IconCircleOff,
+	IconDatabaseX,
+	IconFolderX,
+	IconListDetails,
+} from "@tabler/icons-react";
+import { XIcon } from "@/app/components/icons";
 
 export function ItemTablePanel(params: { data: ItemData; select: Selected }) {
 	return (
 		<Panel
 			panel_id={styles.panel_itemtable}
-			icon={<XIconItems />}
+			icon={<XIcon icon={IconListDetails} />}
 			title={"Item Table"}
 		>
 			<ItemTable data={params.data} select={params.select} minCellWidth={120} />
@@ -422,7 +422,7 @@ const ItemTable = (params: {
 	if (params.data.dataset === null) {
 		table_body = (
 			<TablePlaceholder>
-				<XIconDatabaseX style={{ height: "6rem" }} />
+				<XIcon icon={IconDatabaseX} style={{ height: "6rem" }} />
 				<div>
 					<Text size="1.5rem">No dataset selected</Text>
 				</div>
@@ -431,7 +431,7 @@ const ItemTable = (params: {
 	} else if (params.data.class === null) {
 		table_body = (
 			<TablePlaceholder>
-				<XIconFolderX style={{ height: "6rem" }} />
+				<XIcon icon={IconFolderX} style={{ height: "6rem" }} />
 				<div>
 					<Text size="1.5rem">No class selected</Text>
 				</div>
@@ -449,7 +449,7 @@ const ItemTable = (params: {
 	} else if (params.data.data.length === 0) {
 		table_body = (
 			<TablePlaceholder>
-				<XIconNoItems style={{ height: "6rem" }} />
+				<XIcon icon={IconCircleOff} style={{ height: "6rem" }} />
 				<div>
 					<Text size="1.5rem">No items in this class</Text>
 				</div>

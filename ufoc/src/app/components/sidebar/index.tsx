@@ -4,16 +4,17 @@ import Link from "next/link";
 import React, { useState } from "react";
 
 import styles from "./sidebar.module.scss";
-import {
-	XIconDatabaseCog,
-	XIconItems,
-	XIconUpload,
-	XIconUsers,
-} from "../icons";
 import { useDisclosure } from "@mantine/hooks";
 import { Burger, Tooltip } from "@mantine/core";
 import clsx from "clsx";
 import { usePathname } from "next/navigation";
+import {
+	IconDatabaseCog,
+	IconListDetails,
+	IconUpload,
+	IconUsers,
+} from "@tabler/icons-react";
+import { XIcon } from "../icons";
 
 const SideBar = () => {
 	const [opened, { toggle }] = useDisclosure();
@@ -23,22 +24,22 @@ const SideBar = () => {
 	const links = [
 		{
 			name: "Upload files",
-			icon: <XIconUpload />,
+			icon: <XIcon icon={IconUpload} />,
 			link: "/u/upload",
 		},
 		{
 			name: "Manage datasets",
-			icon: <XIconDatabaseCog />,
+			icon: <XIcon icon={IconDatabaseCog} />,
 			link: "/u/datasets",
 		},
 		{
 			name: "View items",
-			icon: <XIconItems />,
+			icon: <XIcon icon={IconListDetails} />,
 			link: "/u/items",
 		},
 		{
 			name: "Manage users",
-			icon: <XIconUsers />,
+			icon: <XIcon icon={IconUsers} />,
 			link: "/u/users",
 		},
 	];

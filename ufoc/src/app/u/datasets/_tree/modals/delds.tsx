@@ -1,10 +1,10 @@
-import { XIconTrash } from "@/app/components/icons";
 import { Button, Text, TextInput } from "@mantine/core";
-
 import { useDisclosure } from "@mantine/hooks";
 import { useForm } from "@mantine/form";
 import { useState } from "react";
 import { ModalBase } from "@/app/components/modal_base";
+import { XIcon } from "@/app/components/icons";
+import { IconTrash } from "@tabler/icons-react";
 
 export function useDeleteDatasetModal(params: {
 	dataset_name: string;
@@ -115,7 +115,7 @@ export function useDeleteDatasetModal(params: {
 						<Button
 							variant="filled"
 							fullWidth
-							leftSection={<XIconTrash />}
+							leftSection={<XIcon icon={IconTrash} />}
 							color="red"
 							loading={isLoading}
 							type="submit"

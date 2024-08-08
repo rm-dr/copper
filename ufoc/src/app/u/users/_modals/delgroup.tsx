@@ -1,10 +1,11 @@
-import { XIconTrash } from "@/app/components/icons";
 import { Button, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { useForm } from "@mantine/form";
 import { ModalBase } from "@/app/components/modal_base";
 import { GroupInfo } from "../_grouptree";
+import { XIcon } from "@/app/components/icons";
+import { IconTrash } from "@tabler/icons-react";
 
 export function useDeleteGroupModal(params: {
 	group: GroupInfo;
@@ -124,7 +125,7 @@ export function useDeleteGroupModal(params: {
 							variant="filled"
 							color="red"
 							fullWidth
-							leftSection={<XIconTrash />}
+							leftSection={<XIcon icon={IconTrash} />}
 							type="submit"
 						>
 							Confirm

@@ -4,16 +4,17 @@ import { Panel, PanelTitle } from "@/app/components/panel";
 import { Dispatch, SetStateAction } from "react";
 import styles from "../page.module.scss";
 import { UploadQueuedFile, UploadState } from "../util";
-import {
-	XIconFile,
-	XIconFilePlus,
-	XIconFileX,
-	XIconList,
-	XIconPlus,
-	XIconSend,
-	XIconX,
-} from "@/app/components/icons";
 import { ppBytes } from "@/app/_util/ppbytes";
+import { XIcon } from "@/app/components/icons";
+import {
+	IconFile,
+	IconFilePlus,
+	IconFileX,
+	IconList,
+	IconPlus,
+	IconSend,
+	IconX,
+} from "@tabler/icons-react";
 
 /*
 const updateScrollFade = () => {
@@ -51,10 +52,10 @@ export function useInputPanel({
 		<>
 			<Panel
 				panel_id={styles.panel_id_input}
-				icon={<XIconSend />}
+				icon={<XIcon icon={IconSend} />}
 				title={"Input"}
 			>
-				<PanelTitle icon={<XIconPlus />} title={"Select files"} />
+				<PanelTitle icon={<XIcon icon={IconPlus} />} title={"Select files"} />
 				<Dropzone
 					onDrop={(dropped_files) => {
 						// Only add new files
@@ -98,7 +99,8 @@ export function useInputPanel({
 							}}
 						>
 							<Dropzone.Accept>
-								<XIconFilePlus
+								<XIcon
+									icon={IconFilePlus}
 									style={{
 										height: "7rem",
 										color: "var(--mantine-color-green-6)",
@@ -109,7 +111,8 @@ export function useInputPanel({
 								</Text>
 							</Dropzone.Accept>
 							<Dropzone.Reject>
-								<XIconX
+								<XIcon
+									icon={IconX}
 									style={{
 										height: "7rem",
 										color: "var(--mantine-color-red-6)",
@@ -122,7 +125,8 @@ export function useInputPanel({
 							<Dropzone.Idle>
 								{uploadState.is_uploading ? (
 									<>
-										<XIconFileX
+										<XIcon
+											icon={IconFileX}
 											style={{
 												height: "7rem",
 												color: "var(--mantine-color-dimmed)",
@@ -134,7 +138,8 @@ export function useInputPanel({
 									</>
 								) : (
 									<>
-										<XIconFile
+										<XIcon
+											icon={IconFile}
 											style={{
 												height: "7rem",
 											}}
@@ -149,7 +154,7 @@ export function useInputPanel({
 					</Group>
 				</Dropzone>
 
-				<PanelTitle icon={<XIconList />} title={"File list"} />
+				<PanelTitle icon={<XIcon icon={IconList} />} title={"File list"} />
 				<div id={styles.filelist_base}>
 					{uploadState.queue.slice(0, 30).map((f, idx) => {
 						return (

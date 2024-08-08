@@ -1,11 +1,12 @@
-import { XIconAttrInt } from "@/app/components/icons";
+import { XIcon } from "@/app/components/icons";
 import { attrTypeInfo } from ".";
 import { NumberInput, Text } from "@mantine/core";
+import { IconHexagon3 } from "@tabler/icons-react";
 
 export const _intAttrType: attrTypeInfo = {
 	pretty_name: "Integer",
 	serialize_as: "Integer",
-	icon: <XIconAttrInt />,
+	icon: <XIcon icon={IconHexagon3} />,
 	extra_params: null,
 
 	value_preview: (params) => {

@@ -1,14 +1,15 @@
-import { XIconAttrBlob } from "@/app/components/icons";
 import { attrTypeInfo } from ".";
 import { Text } from "@mantine/core";
 import { ppBytes } from "../ppbytes";
 import Image from "next/image";
 import { ReactNode } from "react";
+import { XIcon } from "@/app/components/icons";
+import { IconFileDigit } from "@tabler/icons-react";
 
 export const _blobAttrType: attrTypeInfo = {
 	pretty_name: "Blob",
 	serialize_as: "Blob",
-	icon: <XIconAttrBlob />,
+	icon: <XIcon icon={IconFileDigit} />,
 	extra_params: null,
 
 	value_preview: (params) => {
@@ -48,7 +49,7 @@ export const _blobAttrType: attrTypeInfo = {
 				return (
 					<BlobPanelUnknown
 						src={data_url}
-						icon={<XIconAttrBlob style={{ height: "5rem" }} />}
+						icon={<XIcon icon={IconFileDigit} style={{ height: "5rem" }} />}
 						attr_val={params.attr_val}
 					/>
 				);

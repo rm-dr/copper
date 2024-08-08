@@ -1,18 +1,5 @@
 import styles from "./tree.module.scss";
 import { Panel, PanelTitle } from "@/app/components/panel";
-import {
-	XIconDatabase,
-	XIconDatabasePlus,
-	XIconDatabaseX,
-	XIconDots,
-	XIconEdit,
-	XIconFolder,
-	XIconFolderPlus,
-	XIconPlus,
-	XIconSettings,
-	XIconTrash,
-	XIconX,
-} from "@/app/components/icons";
 import { ActionIcon, Button, Loader, Menu, Text, rem } from "@mantine/core";
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { useNewDsModal } from "./modals/addds";
@@ -24,6 +11,20 @@ import { useAddAttrModal } from "./modals/addattr";
 import { useDeleteClassModal } from "./modals/delclass";
 import { useAddClassModal } from "./modals/addclass";
 import { useDeleteDatasetModal } from "./modals/delds";
+import {
+	IconDatabase,
+	IconDatabasePlus,
+	IconDatabaseX,
+	IconDots,
+	IconEdit,
+	IconFolder,
+	IconFolderPlus,
+	IconPlus,
+	IconSettings,
+	IconTrash,
+	IconX,
+} from "@tabler/icons-react";
+import { XIcon } from "@/app/components/icons";
 
 type TreeState = {
 	error: boolean;
@@ -132,7 +133,7 @@ export function TreePanel(params: {}) {
 					for (let ci = 0; ci < d.classes.length; ci++) {
 						const c = d.classes[ci];
 						const c_node = tree_data.push({
-							icon: <XIconFolder />,
+							icon: <XIcon icon={IconFolder} />,
 							text: c.name,
 							right: (
 								<ClassMenu
@@ -218,7 +219,8 @@ export function TreePanel(params: {}) {
 	} else if (treeState.error) {
 		tree = (
 			<Wrapper>
-				<XIconX
+				<XIcon
+					icon={IconX}
 					style={{
 						height: "5rem",
 						color: "var(--mantine-color-red-7)",
@@ -232,7 +234,8 @@ export function TreePanel(params: {}) {
 	} else if (treeData.length === 0) {
 		tree = (
 			<Wrapper>
-				<XIconDatabaseX
+				<XIcon
+					icon={IconDatabaseX}
 					style={{
 						height: "5rem",
 						color: "var(--mantine-color-dimmed)",
@@ -252,10 +255,13 @@ export function TreePanel(params: {}) {
 			{newDsModal}
 			<Panel
 				panel_id={styles.panel_tree}
-				icon={<XIconDatabase />}
+				icon={<XIcon icon={IconDatabaseX} />}
 				title={"Manage datasets"}
 			>
-				<PanelTitle icon={<XIconSettings />} title={"Control Panel"} />
+				<PanelTitle
+					icon={<XIcon icon={IconSettings} />}
+					title={"Control Panel"}
+				/>
 				<Button
 					radius="0"
 					onClick={() => {
@@ -264,13 +270,13 @@ export function TreePanel(params: {}) {
 					variant="light"
 					color="green"
 					fullWidth
-					leftSection={<XIconDatabasePlus />}
+					leftSection={<XIcon icon={IconDatabasePlus} />}
 					style={{ cursor: "default" }}
 				>
 					Create a new dataset
 				</Button>
 
-				<PanelTitle icon={<XIconDatabase />} title={"Datasets"} />
+				<PanelTitle icon={<XIcon icon={IconDatabase} />} title={"Datasets"} />
 				<div className={styles.dataset_list}>{tree}</div>
 			</Panel>
 		</>
@@ -295,7 +301,7 @@ function DatasetMenu(params: { dataset_name: string; onSuccess: () => void }) {
 			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
-						<XIconDots style={{ width: "70%", height: "70%" }} />
+						<XIcon icon={IconDots} style={{ width: "70%", height: "70%" }} />
 					</ActionIcon>
 				</Menu.Target>
 
@@ -303,14 +309,20 @@ function DatasetMenu(params: { dataset_name: string; onSuccess: () => void }) {
 					<Menu.Label>Dataset</Menu.Label>
 					<Menu.Item
 						leftSection={
-							<XIconEdit style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconEdit}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 					>
 						Rename
 					</Menu.Item>
 					<Menu.Item
 						leftSection={
-							<XIconFolderPlus style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconFolderPlus}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 						onClick={openAddClass}
 					>
@@ -322,7 +334,10 @@ function DatasetMenu(params: { dataset_name: string; onSuccess: () => void }) {
 					<Menu.Item
 						color="red"
 						leftSection={
-							<XIconTrash style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconTrash}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 						onClick={openDelete}
 					>
@@ -358,7 +373,7 @@ function ClassMenu(params: {
 			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
-						<XIconDots style={{ width: "70%", height: "70%" }} />
+						<XIcon icon={IconDots} style={{ width: "70%", height: "70%" }} />
 					</ActionIcon>
 				</Menu.Target>
 
@@ -366,14 +381,20 @@ function ClassMenu(params: {
 					<Menu.Label>Class</Menu.Label>
 					<Menu.Item
 						leftSection={
-							<XIconEdit style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconEdit}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 					>
 						Rename
 					</Menu.Item>
 					<Menu.Item
 						leftSection={
-							<XIconPlus style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconPlus}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 						onClick={openAddAttr}
 					>
@@ -385,7 +406,10 @@ function ClassMenu(params: {
 					<Menu.Item
 						color="red"
 						leftSection={
-							<XIconTrash style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconTrash}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 						onClick={openDelete}
 					>
@@ -416,7 +440,7 @@ function AttrMenu(params: {
 			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
-						<XIconDots style={{ width: "70%", height: "70%" }} />
+						<XIcon icon={IconDots} style={{ width: "70%", height: "70%" }} />
 					</ActionIcon>
 				</Menu.Target>
 
@@ -424,7 +448,10 @@ function AttrMenu(params: {
 					<Menu.Label>Attribute</Menu.Label>
 					<Menu.Item
 						leftSection={
-							<XIconEdit style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconEdit}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 					>
 						Rename
@@ -435,7 +462,10 @@ function AttrMenu(params: {
 					<Menu.Item
 						color="red"
 						leftSection={
-							<XIconTrash style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconTrash}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 						onClick={openDelAttr}
 					>

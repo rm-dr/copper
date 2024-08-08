@@ -1,10 +1,11 @@
 import { Button, Select, Text, TextInput } from "@mantine/core";
 import { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
-import { XIconDatabasePlus } from "@/app/components/icons";
 import { useForm } from "@mantine/form";
 import { ModalBase } from "@/app/components/modal_base";
 import { datasetTypes } from "@/app/_util/datasets";
+import { XIcon } from "@/app/components/icons";
+import { IconDatabasePlus } from "@tabler/icons-react";
 
 export function useNewDsModal(onSuccess: () => void) {
 	const [opened, { open, close }] = useDisclosure(false);
@@ -109,7 +110,7 @@ export function useNewDsModal(onSuccess: () => void) {
 							fullWidth
 							color="green"
 							loading={isLoading}
-							leftSection={<XIconDatabasePlus />}
+							leftSection={<XIcon icon={IconDatabasePlus} />}
 							type="submit"
 						>
 							Create

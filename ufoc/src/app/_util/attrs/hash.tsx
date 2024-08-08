@@ -1,11 +1,12 @@
 import { Select, Text, Textarea } from "@mantine/core";
 import { attrTypeInfo } from ".";
-import { XIconAttrHash } from "@/app/components/icons";
+import { IconAnalyze } from "@tabler/icons-react";
+import { XIcon } from "@/app/components/icons";
 
 export const _hashAttrType: attrTypeInfo = {
 	pretty_name: "Hash",
 	serialize_as: "Hash",
-	icon: <XIconAttrHash />,
+	icon: <XIcon icon={IconAnalyze} />,
 	extra_params: {
 		inputs_ok: checkHash,
 		node: HashParams,

@@ -1,4 +1,3 @@
-import { XIconPlus } from "@/app/components/icons";
 import {
 	Button,
 	Group,
@@ -11,6 +10,8 @@ import { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
 import { ModalBase } from "@/app/components/modal_base";
 import { attrTypes } from "@/app/_util/attrs";
+import { IconPlus } from "@tabler/icons-react";
+import { XIcon } from "@/app/components/icons";
 
 // TODO: make this a form
 
@@ -285,7 +286,7 @@ export function useAddAttrModal(params: {
 								: "red"
 						}
 						fullWidth
-						leftSection={<XIconPlus />}
+						leftSection={<XIcon icon={IconPlus} />}
 						onClick={add_attr}
 					>
 						Create Attribute

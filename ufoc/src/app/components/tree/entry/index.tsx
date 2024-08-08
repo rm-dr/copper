@@ -1,8 +1,9 @@
 import { ReactNode } from "react";
 import styles from "./tree_entry.module.scss";
 import clsx from "clsx";
-import { XIconListArrow } from "@/app/components/icons";
-import { FloatingPosition, Text, Tooltip } from "@mantine/core";
+import { FloatingPosition, Tooltip } from "@mantine/core";
+import { XIcon } from "../../icons";
+import { IconChevronDown } from "@tabler/icons-react";
 
 export function TreeEntry(params: {
 	icon: ReactNode;
@@ -38,7 +39,7 @@ export function TreeEntry(params: {
 					}
 				}}
 			>
-				{!params.expandable ? null : <XIconListArrow />}
+				{!params.expandable ? null : <XIcon icon={IconChevronDown} />}
 			</div>
 
 			<div

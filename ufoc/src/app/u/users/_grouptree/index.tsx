@@ -1,20 +1,19 @@
 import styles from "./grouptree.module.scss";
 import { Panel } from "@/app/components/panel";
-
-import {
-	XIconDatabaseX,
-	XIconDots,
-	XIconEdit,
-	XIconGroup,
-	XIconPlus,
-	XIconTrash,
-	XIconX,
-} from "@/app/components/icons";
 import { useTree, TreeNode } from "@/app/components/tree";
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { ActionIcon, Loader, Menu, Text, rem } from "@mantine/core";
 import { useAddGroupModal } from "../_modals/addgroup";
 import { useDeleteGroupModal } from "../_modals/delgroup";
+import { XIcon } from "@/app/components/icons";
+import {
+	IconDots,
+	IconEdit,
+	IconPlus,
+	IconTrash,
+	IconUsersGroup,
+	IconX,
+} from "@tabler/icons-react";
 
 type TreeState = {
 	error: boolean;
@@ -106,7 +105,7 @@ export function useGroupTreePanel() {
 					let parent_idx = out.findIndex((x) => x.uid === parent);
 
 					out.push({
-						icon: <XIconGroup />,
+						icon: <XIcon icon={IconUsersGroup} />,
 						text: g.group_info.name,
 						right: <GroupMenu group={g.group_info} onChange={update_tree} />,
 						selectable: true,
@@ -162,7 +161,8 @@ export function useGroupTreePanel() {
 	} else if (treeState.error) {
 		tree = (
 			<Wrapper>
-				<XIconX
+				<XIcon
+					icon={IconX}
 					style={{
 						height: "5rem",
 						color: "var(--mantine-color-red-7)",
@@ -180,7 +180,7 @@ export function useGroupTreePanel() {
 	const node = (
 		<Panel
 			panel_id={styles.panel_grouptree}
-			icon={<XIconGroup />}
+			icon={<XIcon icon={IconUsersGroup} />}
 			title={"Manage Groups"}
 		>
 			<div className={styles.grouptree_container}>{tree}</div>
@@ -211,7 +211,7 @@ function GroupMenu(params: { group: GroupInfo; onChange: () => void }) {
 			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
-						<XIconDots style={{ width: "70%", height: "70%" }} />
+						<XIcon icon={IconDots} style={{ width: "70%", height: "70%" }} />
 					</ActionIcon>
 				</Menu.Target>
 
@@ -220,14 +220,20 @@ function GroupMenu(params: { group: GroupInfo; onChange: () => void }) {
 					<Menu.Item
 						disabled={params.group.id.type === "RootGroup"}
 						leftSection={
-							<XIconEdit style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconEdit}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 					>
 						Rename
 					</Menu.Item>
 					<Menu.Item
 						leftSection={
-							<XIconPlus style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconPlus}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 						onClick={openAddGroupModal}
 					>
@@ -241,7 +247,10 @@ function GroupMenu(params: { group: GroupInfo; onChange: () => void }) {
 						color="red"
 						disabled={params.group.id.type === "RootGroup"}
 						leftSection={
-							<XIconTrash style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconTrash}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 						onClick={openDelGroupModal}
 					>

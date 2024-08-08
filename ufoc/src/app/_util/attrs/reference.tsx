@@ -1,12 +1,13 @@
-import { XIconAttrReference } from "@/app/components/icons";
 import { attrTypeInfo } from ".";
 import { Text } from "@mantine/core";
 import { ClassSelector } from "@/app/components/apiselect/class";
+import { IconAmpersand } from "@tabler/icons-react";
+import { XIcon } from "@/app/components/icons";
 
 export const _refAttrType: attrTypeInfo = {
 	pretty_name: "Reference",
 	serialize_as: "Reference",
-	icon: <XIconAttrReference />,
+	icon: <XIcon icon={IconAmpersand} />,
 	extra_params: {
 		inputs_ok: checkRef,
 		node: RefParams,
@@ -48,7 +49,7 @@ export const _refAttrType: attrTypeInfo = {
 						}}
 					>
 						<div>
-							<XIconAttrReference style={{ height: "5rem" }} />
+							<XIcon icon={IconAmpersand} style={{ height: "5rem" }} />
 						</div>
 						<div>
 							Reference to{" "}

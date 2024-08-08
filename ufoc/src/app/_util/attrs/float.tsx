@@ -1,11 +1,12 @@
-import { XIconAttrFloat } from "@/app/components/icons";
+import { IconDecimal } from "@tabler/icons-react";
 import { attrTypeInfo } from ".";
 import { NumberInput, Text } from "@mantine/core";
+import { XIcon } from "@/app/components/icons";
 
 export const _floatAttrType: attrTypeInfo = {
 	pretty_name: "Float",
 	serialize_as: "Float",
-	icon: <XIconAttrFloat />,
+	icon: <XIcon icon={IconDecimal} />,
 	extra_params: null,
 
 	value_preview: (params) => {

@@ -1,11 +1,12 @@
-import { XIconAttrText } from "@/app/components/icons";
+import { XIcon } from "@/app/components/icons";
 import { attrTypeInfo } from ".";
 import { Text, Textarea } from "@mantine/core";
+import { IconLetterCase } from "@tabler/icons-react";
 
 export const _textAttrType: attrTypeInfo = {
 	pretty_name: "Text",
 	serialize_as: "Text",
-	icon: <XIconAttrText />,
+	icon: <XIcon icon={IconLetterCase} />,
 	extra_params: null,
 
 	value_preview: (params) => {

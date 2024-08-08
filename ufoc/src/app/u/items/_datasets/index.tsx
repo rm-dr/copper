@@ -1,9 +1,10 @@
 import styles from "./datasets.module.scss";
 import { Panel } from "@/app/components/panel";
 
-import { XIconDatabase } from "@/app/components/icons";
 import { DatasetSelector } from "@/app/components/apiselect/dataset";
 import { ClassSelector } from "@/app/components/apiselect/class";
+import { XIcon } from "@/app/components/icons";
+import { IconDatabase } from "@tabler/icons-react";
 
 export function DatsetPanel(params: {
 	selectedDataset: string | null;
@@ -14,7 +15,7 @@ export function DatsetPanel(params: {
 		<>
 			<Panel
 				panel_id={styles.panel_datasets}
-				icon={<XIconDatabase />}
+				icon={<XIcon icon={IconDatabase} />}
 				title={"Select dataset"}
 			>
 				<DatasetSelector onSelect={params.setSelectedDataset} />

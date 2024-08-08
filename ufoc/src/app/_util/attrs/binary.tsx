@@ -1,13 +1,14 @@
-import { XIconAttrBinary } from "@/app/components/icons";
 import { attrTypeInfo } from ".";
 import { Text } from "@mantine/core";
 import { ppBytes } from "../ppbytes";
 import { BlobPanelAudio, BlobPanelImage, BlobPanelUnknown } from "./blob";
+import { XIcon } from "@/app/components/icons";
+import { IconBinary } from "@tabler/icons-react";
 
 export const _binaryAttrType: attrTypeInfo = {
 	pretty_name: "Binary",
 	serialize_as: "Binary",
-	icon: <XIconAttrBinary />,
+	icon: <XIcon icon={IconBinary} />,
 	extra_params: null,
 
 	value_preview: (params) => {
@@ -47,7 +48,7 @@ export const _binaryAttrType: attrTypeInfo = {
 				return (
 					<BlobPanelUnknown
 						src={data_url}
-						icon={<XIconAttrBinary style={{ height: "5rem" }} />}
+						icon={<XIcon icon={IconBinary} style={{ height: "5rem" }} />}
 						attr_val={params.attr_val}
 					/>
 				);

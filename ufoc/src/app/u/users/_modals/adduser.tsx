@@ -1,11 +1,11 @@
-import { XIconFolderPlus } from "@/app/components/icons";
 import { Button, PasswordInput, Text, TextInput } from "@mantine/core";
-
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { useForm } from "@mantine/form";
 import { GroupInfo } from "../_grouptree";
 import { ModalBase } from "@/app/components/modal_base";
+import { IconUserPlus } from "@tabler/icons-react";
+import { XIcon } from "@/app/components/icons";
 
 export function useAddUserModal(params: {
 	group?: GroupInfo;
@@ -142,7 +142,7 @@ export function useAddUserModal(params: {
 							fullWidth
 							color={errorMessage === null ? "green" : "red"}
 							loading={isLoading}
-							leftSection={<XIconFolderPlus />}
+							leftSection={<XIcon icon={IconUserPlus} />}
 							type="submit"
 						>
 							Create user

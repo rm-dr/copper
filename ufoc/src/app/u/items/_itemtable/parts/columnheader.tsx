@@ -1,13 +1,14 @@
 import styles from "../itemtable.module.scss";
 import { AttrSelector } from "@/app/components/apiselect/attr";
-import {
-	XIconAddLeft,
-	XIconAddRight,
-	XIconDots,
-	XIconSortDown,
-	XIconTrash,
-} from "@/app/components/icons";
+import { XIcon } from "@/app/components/icons";
 import { ActionIcon, Menu, rem } from "@mantine/core";
+import {
+	IconChevronLeftPipe,
+	IconChevronRightPipe,
+	IconDots,
+	IconSortDescending,
+	IconTrack,
+} from "@tabler/icons-react";
 
 export function ColumnHeader(params: {
 	selectedDataset: string | null;
@@ -29,7 +30,7 @@ export function ColumnHeader(params: {
 			}}
 		>
 			<div className={styles.sorticon}>
-				<XIconSortDown />
+				<XIcon icon={IconSortDescending} />
 			</div>
 			<div>
 				<AttrSelector
@@ -70,7 +71,7 @@ function ColumnMenu(params: {
 			>
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
-						<XIconDots />
+						<XIcon icon={IconDots} />
 					</ActionIcon>
 				</Menu.Target>
 
@@ -78,7 +79,10 @@ function ColumnMenu(params: {
 					<Menu.Label>Table Column</Menu.Label>
 					<Menu.Item
 						leftSection={
-							<XIconAddLeft style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconChevronLeftPipe}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 						onClick={() => {
 							params.newCol(params.idx);
@@ -88,7 +92,10 @@ function ColumnMenu(params: {
 					</Menu.Item>
 					<Menu.Item
 						leftSection={
-							<XIconAddRight style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconChevronRightPipe}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 						onClick={() => {
 							params.newCol(params.idx + 1);
@@ -100,7 +107,10 @@ function ColumnMenu(params: {
 						disabled={params.columns.length === 1}
 						color="red"
 						leftSection={
-							<XIconTrash style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconTrack}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 						onClick={() => {
 							params.delCol(params.idx);

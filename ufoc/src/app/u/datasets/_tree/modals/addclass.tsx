@@ -1,10 +1,11 @@
-import { XIconFolderPlus } from "@/app/components/icons";
 import { Button, Text, TextInput } from "@mantine/core";
 
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { ModalBase } from "@/app/components/modal_base";
 import { useForm } from "@mantine/form";
+import { XIcon } from "@/app/components/icons";
+import { IconFolderPlus } from "@tabler/icons-react";
 
 export function useAddClassModal(params: {
 	dataset_name: string;
@@ -104,7 +105,7 @@ export function useAddClassModal(params: {
 							fullWidth
 							color={errorMessage === null ? "green" : "red"}
 							loading={isLoading}
-							leftSection={<XIconFolderPlus />}
+							leftSection={<XIcon icon={IconFolderPlus} />}
 							type="submit"
 						>
 							Create class

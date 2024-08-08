@@ -1,11 +1,12 @@
-import { XIconAttrPosInt } from "@/app/components/icons";
+import { XIcon } from "@/app/components/icons";
 import { attrTypeInfo } from ".";
 import { NumberInput, Text } from "@mantine/core";
+import { IconHexagonPlus } from "@tabler/icons-react";
 
 export const _posintAttrType: attrTypeInfo = {
 	pretty_name: "Positive Integer",
 	serialize_as: "PositiveInteger",
-	icon: <XIconAttrPosInt />,
+	icon: <XIcon icon={IconHexagonPlus} />,
 	extra_params: null,
 
 	value_preview: (params) => {

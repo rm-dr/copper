@@ -1,25 +1,26 @@
 import styles from "./users.module.scss";
 import { Panel, PanelTitle } from "@/app/components/panel";
-import {
-	XIconDots,
-	XIconEdit,
-	XIconGroup,
-	XIconList,
-	XIconLock,
-	XIconNoItems,
-	XIconNoUser,
-	XIconSettings,
-	XIconTrash,
-	XIconUser,
-	XIconUserPlus,
-	XIconUsers,
-} from "@/app/components/icons";
 import { ActionIcon, Button, Menu, Switch, Text, rem } from "@mantine/core";
 import { TreeNode } from "@/app/components/tree";
 import { GroupData, UserInfo } from "../_grouptree";
 import { ReactNode } from "react";
 import { useAddUserModal } from "../_modals/adduser";
 import { useDeleteUserModal } from "../_modals/deluser";
+import { XIcon } from "@/app/components/icons";
+import {
+	IconCircleOff,
+	IconDots,
+	IconEdit,
+	IconList,
+	IconLock,
+	IconSettings2,
+	IconTrash,
+	IconUser,
+	IconUserOff,
+	IconUserPlus,
+	IconUsers,
+	IconUsersGroup,
+} from "@tabler/icons-react";
 
 const Wrapper = (params: { children: ReactNode }) => {
 	return (
@@ -71,7 +72,8 @@ export function UsersPanel(params: {
 	if (g === null) {
 		userlist = (
 			<Wrapper>
-				<XIconNoItems
+				<XIcon
+					icon={IconCircleOff}
 					style={{
 						height: "5rem",
 						color: "var(--mantine-color-dimmed)",
@@ -85,7 +87,8 @@ export function UsersPanel(params: {
 	} else if (g.data.users.length === 0) {
 		userlist = (
 			<Wrapper>
-				<XIconNoUser
+				<XIcon
+					icon={IconUserOff}
 					style={{
 						height: "5rem",
 						color: "var(--mantine-color-dimmed)",
@@ -101,7 +104,7 @@ export function UsersPanel(params: {
 			return (
 				<div key={`${x.id}`} className={styles.user_entry}>
 					<div className={styles.user_entry_icon}>
-						<XIconUser />
+						<XIcon icon={IconUser} />
 					</div>
 					<div className={styles.user_entry_text}>{x.name}</div>
 					<div className={styles.user_entry_right}>
@@ -117,10 +120,10 @@ export function UsersPanel(params: {
 			{addUserModal}
 			<Panel
 				panel_id={styles.panel_users}
-				icon={<XIconUsers />}
+				icon={<XIcon icon={IconUsers} />}
 				title={"Edit group"}
 			>
-				<PanelTitle icon={<XIconGroup />} title={"Overview"} />
+				<PanelTitle icon={<XIcon icon={IconUsersGroup} />} title={"Overview"} />
 				<div className={styles.overview_container}>
 					<div className={styles.overview_entry}>
 						<div className={styles.overview_entry_label}>Group:</div>
@@ -140,7 +143,10 @@ export function UsersPanel(params: {
 					</div>
 				</div>
 
-				<PanelTitle icon={<XIconSettings />} title={"Permissions"} />
+				<PanelTitle
+					icon={<XIcon icon={IconSettings2} />}
+					title={"Permissions"}
+				/>
 				<div className={styles.perm_container}>
 					<div className={styles.perm_entry}>
 						<div className={styles.perm_entry_switch}>
@@ -170,7 +176,7 @@ export function UsersPanel(params: {
 					</div>
 				</div>
 
-				<PanelTitle icon={<XIconList />} title={"Manage users"} />
+				<PanelTitle icon={<XIcon icon={IconList} />} title={"Manage users"} />
 				<Button
 					radius="0"
 					onClick={openModal}
@@ -179,7 +185,7 @@ export function UsersPanel(params: {
 					size="xs"
 					fullWidth
 					disabled={g === null}
-					leftSection={<XIconUserPlus />}
+					leftSection={<XIcon icon={IconUserPlus} />}
 					style={{ cursor: "default" }}
 				>
 					Create a user
@@ -203,7 +209,7 @@ function UserMenu(params: { user: UserInfo; onChange: () => void }) {
 			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
-						<XIconDots style={{ width: "70%", height: "70%" }} />
+						<XIcon icon={IconDots} style={{ width: "70%", height: "70%" }} />
 					</ActionIcon>
 				</Menu.Target>
 
@@ -211,14 +217,20 @@ function UserMenu(params: { user: UserInfo; onChange: () => void }) {
 					<Menu.Label>Edit user</Menu.Label>
 					<Menu.Item
 						leftSection={
-							<XIconEdit style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconEdit}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 					>
 						Rename
 					</Menu.Item>
 					<Menu.Item
 						leftSection={
-							<XIconLock style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconLock}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 					>
 						Change password
@@ -230,7 +242,10 @@ function UserMenu(params: { user: UserInfo; onChange: () => void }) {
 					<Menu.Item
 						color="red"
 						leftSection={
-							<XIconTrash style={{ width: rem(14), height: rem(14) }} />
+							<XIcon
+								icon={IconTrash}
+								style={{ width: rem(14), height: rem(14) }}
+							/>
 						}
 						onClick={openDelUserModal}
 					>

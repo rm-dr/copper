@@ -1,18 +1,18 @@
 import styles from "./edit.module.scss";
 import { Panel } from "@/app/components/panel";
-
-import {
-	XIconArrowRight,
-	XIconAttrBinary,
-	XIconEdit,
-	XIconTrash,
-	XIconUpload,
-} from "@/app/components/icons";
 import { ItemData, Selected } from "../page";
 import { attrTypes } from "@/app/_util/attrs";
 import { ActionIcon, Button, Text } from "@mantine/core";
 import { ppBytes } from "@/app/_util/ppbytes";
 import { useEffect, useState } from "react";
+import {
+	IconArrowRight,
+	IconBinary,
+	IconEdit,
+	IconTrash,
+	IconUpload,
+} from "@tabler/icons-react";
+import { XIcon } from "@/app/components/icons";
 
 export function EditPanel(params: { data: ItemData; select: Selected }) {
 	const selectedItem = params.data.data[params.select.selected[0]];
@@ -38,7 +38,7 @@ export function EditPanel(params: { data: ItemData; select: Selected }) {
 			<>
 				<div className={styles.paneltitle}>
 					<div className={styles.paneltitle_icon}>
-						<XIconAttrBinary />
+						<XIcon icon={IconBinary} />
 					</div>
 					<div className={styles.paneltitle_name}>{panelAttr.name}</div>
 				</div>
@@ -81,12 +81,15 @@ export function EditPanel(params: { data: ItemData; select: Selected }) {
 					</div>
 					<div>
 						<ActionIcon variant="filled" color="red">
-							<XIconTrash style={{ width: "70%", height: "70%" }} />
+							<XIcon icon={IconTrash} style={{ width: "70%", height: "70%" }} />
 						</ActionIcon>
 					</div>
 					<div>
 						<ActionIcon variant="filled">
-							<XIconUpload style={{ width: "70%", height: "70%" }} />
+							<XIcon
+								icon={IconUpload}
+								style={{ width: "70%", height: "70%" }}
+							/>
 						</ActionIcon>
 					</div>
 				</div>
@@ -97,7 +100,7 @@ export function EditPanel(params: { data: ItemData; select: Selected }) {
 		<>
 			<Panel
 				panel_id={styles.panel_edititem}
-				icon={<XIconEdit />}
+				icon={<XIcon icon={IconEdit} />}
 				title={"Edit items"}
 			>
 				<div className={styles.edit_container_rows}>
@@ -128,7 +131,7 @@ export function EditPanel(params: { data: ItemData; select: Selected }) {
 														radius="0px"
 														variant="outline"
 														fullWidth
-														rightSection={<XIconArrowRight />}
+														rightSection={<XIcon icon={IconArrowRight} />}
 														onClick={() => {
 															setPanelAttr({ name: attr, value: val });
 														}}

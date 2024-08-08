@@ -3,16 +3,17 @@ import styles from "../page.module.scss";
 import { Panel, PanelTitle } from "@/app/components/panel";
 import { useEffect, useState } from "react";
 import { UploadState } from "../util";
-import {
-	XIconCpu,
-	XIconFileUpload,
-	XIconGrid,
-	XIconHexMinus,
-	XIconServer,
-	XIconTrash,
-	XIconUpload,
-} from "@/app/components/icons";
 import { ppBytes } from "@/app/_util/ppbytes";
+import {
+	IconCpu,
+	IconFileUpload,
+	IconGridPattern,
+	IconHexagonMinus,
+	IconServer2,
+	IconTrash,
+	IconUpload,
+} from "@tabler/icons-react";
+import { XIcon } from "@/app/components/icons";
 
 type RunnerState = {
 	queued_jobs: number;
@@ -101,13 +102,13 @@ export function useStatusPanel(params: {
 		<>
 			<Panel
 				panel_id={styles.panel_id_status}
-				icon={<XIconServer />}
+				icon={<XIcon icon={IconServer2} />}
 				title={"System status"}
 			>
 				<div className={styles.status_panel_content}>
 					<div>
 						<PanelTitle
-							icon={<XIconCpu />}
+							icon={<XIcon icon={IconCpu} />}
 							title={"Pipeline Jobs"}
 							zeromargin
 						/>
@@ -123,7 +124,7 @@ export function useStatusPanel(params: {
 
 					<div>
 						<PanelTitle
-							icon={<XIconFileUpload />}
+							icon={<XIcon icon={IconFileUpload} />}
 							title={"Upload Jobs"}
 							zeromargin
 						/>
@@ -139,7 +140,7 @@ export function useStatusPanel(params: {
 
 					<div>
 						<PanelTitle
-							icon={<XIconGrid />}
+							icon={<XIcon icon={IconGridPattern} />}
 							title={"Control panel"}
 							zeromargin
 						/>
@@ -167,7 +168,7 @@ export function useStatusPanel(params: {
 												: {}
 										}
 									>
-										<XIconTrash />
+										<XIcon icon={IconTrash} />
 									</Button>
 									<Button
 										radius="0"
@@ -180,7 +181,7 @@ export function useStatusPanel(params: {
 										variant="light"
 										color="green"
 										fullWidth
-										leftSection={<XIconUpload />}
+										leftSection={<XIcon icon={IconUpload} />}
 										style={{ cursor: "default" }}
 									>
 										Upload {params.uploadState.queue.length} file
@@ -198,7 +199,7 @@ export function useStatusPanel(params: {
 												: {}
 										}
 									>
-										<XIconHexMinus />
+										<XIcon icon={IconHexagonMinus} />
 									</Button>
 								</Button.Group>
 								<UploadBar

@@ -1,5 +1,6 @@
-import { XIconServer } from "@/app/components/icons";
+import { IconServer2 } from "@tabler/icons-react";
 import { ReactNode } from "react";
+import { XIcon } from "../components/icons";
 
 /*
 	Definitions of all dataset types we support
@@ -22,7 +23,7 @@ export const datasetTypes: {
 	{
 		pretty_name: "Local",
 		serialize_as: "Local",
-		icon: <XIconServer />,
+		icon: <XIcon icon={IconServer2} />,
 		extra_params: null,
 	},
 ];
