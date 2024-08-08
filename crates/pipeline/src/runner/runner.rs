@@ -9,8 +9,8 @@ use super::single::{PipelineSingleJob, SingleJobState};
 use crate::{
 	api::{PipelineNode, PipelineNodeState, PipelineNodeStub},
 	labels::PipelineLabel,
-	pipeline::{pipeline::Pipeline, syntax::errors::PipelinePrepareError},
-	SDataStub, SDataType, SErrorType,
+	pipeline::pipeline::Pipeline,
+	SDataType, SErrorType,
 };
 
 /// Pipeline runner configuration
@@ -88,15 +88,8 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 
 	/// Load a pipeline into this runner.
 	/// A pipeline must be loaded before any jobs can be created.
-	pub fn add_pipeline(
-		&mut self,
-		pipeline_name: String,
-		toml_str: String,
-	) -> Result<(), PipelinePrepareError<SDataStub<StubType>>> {
-		let pipeline =
-			Pipeline::from_toml_str(&pipeline_name, &toml_str[..], self.context.clone()).unwrap();
+	pub fn add_pipeline(&mut self, pipeline: Pipeline<StubType>) {
 		self.pipelines.push(Arc::new(pipeline));
-		return Ok(());
 	}
 
 	/// Get a pipeline that has been added to this runner.
@@ -106,6 +99,11 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 			.iter()
 			.find(|x| x.name == *pipeline_name)
 			.map(|x| &**x)
+	}
+
+	/// Get this runner's context
+	pub fn get_context(&self) -> &Arc<<StubType::NodeType as PipelineNode>::NodeContext> {
+		&self.context
 	}
 
 	/// Add a job to this runner's queue

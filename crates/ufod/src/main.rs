@@ -45,18 +45,6 @@ async fn main() {
 
 	let database = Database::open(&PathBuf::from("./db")).unwrap();
 
-	let all = database
-		.get_pipestore()
-		.all_pipelines()
-		.iter()
-		.map(|x| {
-			(
-				x.clone(),
-				database.get_pipestore().load_pipeline(x.clone().into()),
-			)
-		})
-		.collect::<Vec<_>>();
-
 	let ctx = UFOContext {
 		metastore: database.get_metastore(),
 		blobstore: database.get_blobstore(),
@@ -69,11 +57,17 @@ async fn main() {
 			node_threads: 2,
 			max_active_jobs: 8,
 		},
-		ctx.clone(),
+		ctx,
 	);
 
-	for (l, t) in all {
-		runner.add_pipeline(l, t).unwrap();
+	// TODO: clone fewer arcs
+	let ctx = runner.get_context().clone();
+	for l in database.get_pipestore().all_pipelines() {
+		runner.add_pipeline(
+			database
+				.get_pipestore()
+				.load_pipeline(l.clone().into(), ctx.clone()),
+		);
 	}
 
 	let state = RouterState {

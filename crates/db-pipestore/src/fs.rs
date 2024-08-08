@@ -5,6 +5,7 @@ use std::{
 	path::{Path, PathBuf},
 };
 
+use ufo_pipeline::pipeline::pipeline::Pipeline;
 use walkdir::WalkDir;
 
 use super::api::Pipestore;
@@ -58,27 +59,11 @@ impl FsPipestore {
 }
 
 impl Pipestore for FsPipestore {
-	fn load_pipeline(&self, name: ufo_pipeline::labels::PipelineLabel) -> String {
-		let path_to_pipeline = self.pipe_storage_dir.join(format!("{name}.toml"));
-
-		let mut f = File::open(path_to_pipeline).unwrap();
-		let mut s = String::new();
-		f.read_to_string(&mut s).unwrap();
-		return s;
-	}
-
-	fn all_pipelines(&self) -> &[String] {
-		&self.pipeline_names
-	}
-}
-
-/*
-impl<NodeStub: PipelineNodeStub> Pipestore<NodeStub> for FsPipestore<NodeStub> {
 	fn load_pipeline(
 		&self,
 		name: ufo_pipeline::labels::PipelineLabel,
-		context: Arc<<NodeStub::NodeType as PipelineNode>::NodeContext>,
-	) -> Pipeline<NodeStub> {
+		context: std::sync::Arc<<<ufo_pipeline_nodes::nodetype::UFONodeType as ufo_pipeline::api::PipelineNodeStub>::NodeType as ufo_pipeline::api::PipelineNode>::NodeContext>,
+	) -> ufo_pipeline::pipeline::pipeline::Pipeline<ufo_pipeline_nodes::nodetype::UFONodeType> {
 		let path_to_pipeline = self.pipe_storage_dir.join(format!("{name}.toml"));
 
 		let mut f = File::open(path_to_pipeline).unwrap();
@@ -87,5 +72,8 @@ impl<NodeStub: PipelineNodeStub> Pipestore<NodeStub> for FsPipestore<NodeStub> {
 
 		Pipeline::from_toml_str((&name).into(), &s, context).unwrap()
 	}
+
+	fn all_pipelines(&self) -> &Vec<String> {
+		&self.pipeline_names
+	}
 }
-*/
