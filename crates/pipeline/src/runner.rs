@@ -135,7 +135,7 @@ impl PipelineRunner {
 				.graph
 				.iter_edges()
 				.map(|(f, _, edge)| {
-					if f == &input_node_idx {
+					if *f == input_node_idx {
 						EdgeValue::Data(
 							pipeline_inputs
 								.get(edge.source_port().unwrap())
@@ -284,7 +284,10 @@ impl PipelineRunner {
 				EdgeValue::AfterReady => false,
 				// Input edges are consumed when a node is run.
 				// That case is handled earlier.
-				EdgeValue::Consumed => unreachable!("tried to use consumed edge"),
+				EdgeValue::Consumed => {
+					let n = pipeline.graph.get_node(node);
+					unreachable!("Node {} tried to use consumed edge", n.0)
+				}
 			}
 		}) {
 			return None;
@@ -323,11 +326,14 @@ impl PipelineRunner {
 
 		match &pipeline.graph.get_node(node).1 {
 			PipelineNodeType::PipelineOutputs { pipeline, .. } => {
+				*node_has_been_run.get_mut(node.as_usize()).unwrap() = true;
 				return Some((pipeline.clone(), inputs));
 			}
 
 			// Otherwise, add this node to the pool.
 			_ => {
+				*node_has_been_run.get_mut(node.as_usize()).unwrap() = true;
+
 				let pool_inputs = inputs.clone();
 				let (n, node_instance) = &node_instances.get(node.as_usize()).unwrap();
 				let node_instance = node_instance.clone();
@@ -350,7 +356,6 @@ impl PipelineRunner {
 					send_status.send((node, res)).unwrap();
 					println!("Done {}", n);
 				});
-				*node_has_been_run.get_mut(node.as_usize()).unwrap() = true;
 			}
 		}
 

@@ -1,0 +1,13 @@
+[config.input]
+type = "Plain"
+input."data" = "binary"
+
+[config.output]
+type = "DataSet"
+class = "CoverArt"
+attr."image_data" = "binary"
+attr."content_hash" = "text"
+
+[config.output_map]
+"content_hash" = { "text" = "todo" }
+"image_data" = { pipeline = "data" }

@@ -86,6 +86,8 @@ impl PipelineSpec {
 	/// - The input and output ports have matching types
 	fn check_link(
 		&self,
+		pipelines: &Vec<(SmartString<LazyCompact>, Arc<Pipeline>)>,
+
 		output: &NodeOutput,
 		input: &NodeInput,
 	) -> Result<(), PipelinePrepareError> {
@@ -122,8 +124,26 @@ impl PipelineSpec {
 					});
 				}
 				let get_node = get_node.unwrap();
-				let a = get_node.node_type.outputs();
-				let b = a.find_with_name(port);
+				// TODO: this should be a function
+				let b = match &get_node.node_type {
+					PipelineNodeType::Pipeline { pipeline } => {
+						// `Pipeline` nodes don't know what outputs they provide,
+						// we need to find them ourselves.
+						let p = pipelines
+							.iter()
+							.find(|(x, _)| x == pipeline)
+							.map(|(_, x)| x.clone())
+							.ok_or(PipelinePrepareError::NoSuchPipeline {
+								node: node.clone(),
+								pipeline: pipeline.clone(),
+							})?;
+						// Note that we're looking at the *inputs* of `p`'s pipeline *output*.
+						// Inputs inside of p become outputs in this pipeline.
+						p.config.output.get_inputs().find_with_name(port)
+					}
+					t => t.outputs().find_with_name(port),
+				};
+
 				if b.is_none() {
 					return Err(PipelinePrepareError::NoNodeOutput {
 						node: PipelineErrorNode::Named(node.clone()),
@@ -159,8 +179,24 @@ impl PipelineSpec {
 					});
 				}
 				let get_node = get_node.unwrap();
-				let a = get_node.node_type.inputs();
-				let b = a.find_with_name(port);
+				let b = match &get_node.node_type {
+					// `Pipeline` nodes don't know what inputs they provide,
+					// we need to find them ourselves.
+					PipelineNodeType::Pipeline { pipeline } => {
+						let p = pipelines
+							.iter()
+							.find(|(x, _)| x == pipeline)
+							.map(|(_, x)| x.clone())
+							.ok_or(PipelinePrepareError::NoSuchPipeline {
+								node: node.clone(),
+								pipeline: pipeline.clone(),
+							})?;
+						// Note that we're looking at the *outputs* of `p`'s pipeline *input*.
+						// Outputs inside of p become inputs in this pipeline.
+						p.config.input.get_outputs().find_with_name(port)
+					}
+					t => t.inputs().find_with_name(port),
+				};
 
 				if b.is_none() {
 					return Err(PipelinePrepareError::NoNodeInput {
@@ -201,7 +237,7 @@ impl PipelineSpec {
 		&self,
 		// Current build state
 		graph: &mut Graph<(PipelineNodeLabel, PipelineNodeType), PipelineEdge>,
-		node_name_map: &HashMap<PipelineNodeLabel, GraphNodeIdx>,
+		node_output_name_map: &HashMap<PipelineNodeLabel, GraphNodeIdx>,
 		input_node_idx: GraphNodeIdx,
 
 		in_port: usize,
@@ -245,7 +281,7 @@ impl PipelineSpec {
 					.unwrap()
 					.0;
 				graph.add_edge(
-					*node_name_map.get(node).unwrap(),
+					*node_output_name_map.get(node).unwrap(),
 					node_idx,
 					PipelineEdge::PortToPort((out_port, in_port)),
 				);
@@ -261,15 +297,15 @@ impl PipelineSpec {
 		// TODO: pipeline name type
 		pipelines: &Vec<(SmartString<LazyCompact>, Arc<Pipeline>)>,
 	) -> Result<Pipeline, PipelinePrepareError> {
-		// Check each node's name and inputs;
-		// Build node array
-		// Initialize nodes in graph
-		let mut node_name_map: HashMap<PipelineNodeLabel, GraphNodeIdx> = HashMap::new();
+		let mut node_output_name_map: HashMap<PipelineNodeLabel, GraphNodeIdx> = HashMap::new();
+		let mut node_input_name_map: HashMap<PipelineNodeLabel, GraphNodeIdx> = HashMap::new();
+
 		let mut graph = Graph::new();
 
 		let input_node_idx = graph.add_node((
 			"INPUT".into(),
 			PipelineNodeType::PipelineInputs {
+				input_type: self.config.input.clone(),
 				outputs: self.config.input.get_outputs().to_vec(),
 			},
 		));
@@ -277,6 +313,7 @@ impl PipelineSpec {
 		let output_node_idx = graph.add_node((
 			"OUTPUT".into(),
 			PipelineNodeType::PipelineOutputs {
+				output_type: self.config.output.clone(),
 				pipeline: pipeline_name.clone().into(),
 				inputs: self.config.output.get_inputs().to_vec(),
 			},
@@ -286,6 +323,7 @@ impl PipelineSpec {
 			// Make sure all links going into this node are valid
 			for (input_name, out_link) in &node_spec.input {
 				self.check_link(
+					pipelines,
 					out_link,
 					&NodeInput::Node {
 						node: node_name.clone(),
@@ -294,20 +332,79 @@ impl PipelineSpec {
 				)?;
 			}
 
-			node_name_map.insert(
-				node_name.clone(),
-				graph.add_node((node_name.clone(), node_spec.node_type.clone())),
-			);
+			// Add this node to our graph
+			match &node_spec.node_type {
+				// If this is a `Pipeline` node, add all nodes and edges inside the sub-pipeline
+				PipelineNodeType::Pipeline { pipeline } => {
+					let p = pipelines
+						.iter()
+						.find(|(x, _)| x == pipeline)
+						.map(|(_, x)| x.clone())
+						.ok_or(PipelinePrepareError::NoSuchPipeline {
+							node: node_name.clone(),
+							pipeline: pipeline.clone(),
+						})?;
+
+					let mut new_index_map = Vec::new();
+
+					// Add other pipeline's nodes
+					for (l, other_node) in p.graph.iter_nodes() {
+						match other_node {
+							PipelineNodeType::PipelineInputs { input_type, .. } => {
+								let n = graph.add_node((
+									format!("{}::{}", node_name, l).into(),
+									input_type.to_node_type().unwrap(),
+								));
+								new_index_map.push(Some(n));
+								node_input_name_map.insert(node_name.clone(), n);
+							}
+							PipelineNodeType::PipelineOutputs { .. } => {
+								let n = graph.add_node((
+									format!("{}::{}", node_name, l).into(),
+									other_node.clone(),
+								));
+								new_index_map.push(Some(n));
+								node_output_name_map.insert(node_name.clone(), n);
+							}
+							_ => {
+								// We intentionally don't insert to node_*_name_map here,
+								// since we can't use the names of nodes in the inner
+								// pipeline inside the outer pipeline
+								new_index_map.push(Some(graph.add_node((
+									format!("{}::{}", node_name, l).into(),
+									other_node.clone(),
+								))));
+							}
+						}
+					}
+
+					// Add other pipeline's edges
+					for (f, t, e) in p.graph.iter_edges() {
+						graph.add_edge(
+							new_index_map.get(f.as_usize()).unwrap().unwrap(),
+							new_index_map.get(t.as_usize()).unwrap().unwrap(),
+							e.clone(),
+						);
+					}
+				}
+
+				// If this is a normal node, just add it.
+				_ => {
+					let n = graph.add_node((node_name.clone(), node_spec.node_type.clone()));
+					node_output_name_map.insert(node_name.clone(), n);
+					node_input_name_map.insert(node_name.clone(), n);
+				}
+			}
 		}
 
 		// Make sure all "after" specifications are valid
 		// and create their corresponding edges.
 		for (node_name, node_spec) in &self.nodes {
 			for after_name in node_spec.after.iter().unique() {
-				if let Some(after_idx) = node_name_map.get(after_name) {
+				if let Some(after_idx) = node_input_name_map.get(after_name) {
 					graph.add_edge(
 						*after_idx,
-						*node_name_map.get(node_name).unwrap(),
+						*node_input_name_map.get(node_name).unwrap(),
 						PipelineEdge::After,
 					);
 				} else {
@@ -322,6 +419,7 @@ impl PipelineSpec {
 		// Check final pipeline outputs
 		for (out_name, out_link) in &self.config.output_map {
 			self.check_link(
+				pipelines,
 				out_link,
 				&NodeInput::Pipeline {
 					port: out_name.clone(),
@@ -331,18 +429,32 @@ impl PipelineSpec {
 
 		// Build graph
 		for (node_name, node_spec) in &self.nodes {
-			let node_idx = *node_name_map.get(node_name).unwrap();
+			let node_idx = *node_input_name_map.get(node_name).unwrap();
 			for (input_name, out_link) in node_spec.input.iter() {
-				let in_port = node_spec
-					.node_type
-					.inputs()
-					.find_with_name(input_name)
-					.unwrap()
-					.0;
+				let in_port = match &node_spec.node_type {
+					// `Pipeline` nodes don't know what inputs they provide,
+					// we need to find them ourselves.
+					PipelineNodeType::Pipeline { pipeline } => {
+						let p = pipelines
+							.iter()
+							.find(|(x, _)| x == pipeline)
+							.map(|(_, x)| x.clone())
+							.ok_or(PipelinePrepareError::NoSuchPipeline {
+								node: node_name.clone(),
+								pipeline: pipeline.clone(),
+							})?;
+						// Note that we're looking at the *outputs* of `p`'s pipeline *input*.
+						// Outputs inside of p become inputs in this pipeline.
+						p.config.input.get_outputs().find_with_name(input_name)
+					}
+					t => t.inputs().find_with_name(input_name),
+				}
+				.unwrap()
+				.0;
 
 				self.add_to_graph(
 					&mut graph,
-					&node_name_map,
+					&node_output_name_map,
 					input_node_idx,
 					in_port,
 					node_idx,
@@ -352,6 +464,7 @@ impl PipelineSpec {
 		}
 
 		// Check for cycles
+		// TODO: move to Graph module
 		let mut fake_graph = GraphMap::<usize, (), Directed>::new();
 		for (from, to, _) in graph.iter_edges() {
 			// TODO: write custom cycle detection algorithm,
@@ -367,7 +480,7 @@ impl PipelineSpec {
 		for (port_label, node_output) in &self.config.output_map {
 			self.add_to_graph(
 				&mut graph,
-				&node_name_map,
+				&node_output_name_map,
 				input_node_idx,
 				self.config
 					.output
@@ -379,21 +492,6 @@ impl PipelineSpec {
 				node_output,
 			)
 		}
-
-		// Build edge maps
-		let mut edge_map = (0..nodes.len()).map(|_| Vec::new()).collect::<Vec<_>>();
-		let mut rev_edge_map = (0..nodes.len()).map(|_| Vec::new()).collect::<Vec<_>>();
-		for (i, x) in edges.iter().enumerate() {
-			edge_map[x.source_node()].push(i);
-			rev_edge_map[x.target_node()].push(i);
-		}
-
-		let node_instances = Arc::new(
-			nodes
-				.iter()
-				.map(|(name, x)| (name.clone(), x.build(name.into())))
-				.collect::<Vec<_>>(),
-		);
 
 		return Ok(Pipeline {
 			name: pipeline_name.into(),

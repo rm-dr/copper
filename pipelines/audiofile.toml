@@ -59,7 +59,7 @@ after = ["if_none"]
 node.type = "ExtractCovers"
 input.data = { "pipeline" = "data" }
 
-#[node."add_cover"]
-#node.type = "Pipeline"
-#node.pipeline = "cover"
-#input.data = { "pipeline" = "data" }
+[node."add_cover"]
+node.type = "Pipeline"
+node.pipeline = "cover"
+input.data = { "pipeline" = "data" }

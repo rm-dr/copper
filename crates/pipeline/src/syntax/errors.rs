@@ -96,6 +96,14 @@ pub enum PipelinePrepareError {
 
 	/// This graph has a cycle containing `node`
 	HasCycle,
+
+	/// A `Pipeline` node in this graph references an unknown pipeline
+	NoSuchPipeline {
+		/// The Pipeline node with a bad pipeline
+		node: PipelineNodeLabel,
+		/// The bad pipeline
+		pipeline: String,
+	},
 }
 
 impl Display for PipelinePrepareError {
@@ -155,6 +163,12 @@ impl Display for PipelinePrepareError {
 			}
 			Self::HasCycle => {
 				writeln!(f, "PipelinePrepareError: This pipeline has a cycle.")
+			}
+			Self::NoSuchPipeline { node, pipeline } => {
+				writeln!(
+					f,
+					"PipelinePrepareError: Node {node} references an unknown pipeline {pipeline}"
+				)
 			}
 		}
 	}
