@@ -4,7 +4,7 @@ export const PanelTitle = ({ icon, title }: { icon: any; title: string }) => {
 	return (
 		<div className={styles.panel_title}>
 			<div className={styles.panel_icon}>{icon}</div>
-			{title}
+			<div className={styles.panel_title_text}>{title}</div>
 		</div>
 	);
 };

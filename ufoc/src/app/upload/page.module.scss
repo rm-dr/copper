@@ -148,34 +148,6 @@
 	}
 }
 
-.panel.nopipeline {
-	opacity: 0.75;
-
-	.panel_title {
-		background-color: var(--mantine-color-gray-8);
-
-		opacity: 0.5;
-
-		.panel_icon {
-			background-color: var(--mantine-color-gray-7);
-		}
-	}
-
-	.nopipelinemsg {
-		display: block;
-		width: 100%;
-		font-size: 1rem;
-		color: var(--mantine-color-gray-6);
-
-		width: 100%;
-		text-align: center;
-
-		transition: 200ms;
-
-		user-select: none;
-	}
-}
-
 .arg {
 	display: flex;
 	flex-direction: row;

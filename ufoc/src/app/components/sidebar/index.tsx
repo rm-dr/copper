@@ -5,13 +5,15 @@ import React, { useState } from "react";
 
 import styles from "./sidebar.module.scss";
 import { XIconCpu, XIconMenu, XIconUpload } from "../icons";
+import { useDisclosure } from "@mantine/hooks";
+import { Burger, Tooltip } from "@mantine/core";
+import clsx from "clsx";
+import { usePathname } from "next/navigation";
 
 const SideBar = () => {
-	const [showCurrent, setShowCurrent] = useState(true);
-
-	const toggleCurrent = () => {
-		setShowCurrent(!showCurrent);
-	};
+	const [opened, { toggle }] = useDisclosure();
+	const [menuHover, setMenuHover] = useState(false);
+	const currentRoute = usePathname();
 
 	const links = [
 		{
@@ -29,21 +31,24 @@ const SideBar = () => {
 	return (
 		<div
 			className={
-				showCurrent
-					? `${styles.sidebar}`
-					: `${styles.sidebar} ${styles.sidebarhide}`
+				opened ? `${styles.sidebar}` : `${styles.sidebar} ${styles.sidebarhide}`
 			}
 		>
-			<div className={styles.item} onClick={toggleCurrent}>
-				<div
-					className={
-						showCurrent
-							? `${styles.itemicon} ${styles.hidebutton}`
-							: `${styles.itemicon} ${styles.hidebutton} ${styles.hidebuttonhide}`
-					}
-				>
-					{/* TODO: use mantine & place elsewhere */}
-					<XIconMenu />
+			<div
+				className={styles.menubutton}
+				onMouseDown={toggle}
+				onMouseEnter={() => {
+					setMenuHover(true);
+				}}
+				onMouseLeave={() => {
+					setMenuHover(false);
+				}}
+			>
+				<div className={styles.menuicon}>
+					<Burger
+						opened={opened}
+						color={menuHover ? "var(--mantine-color-red-5)" : "white"}
+					/>
 				</div>
 			</div>
 
@@ -51,20 +56,33 @@ const SideBar = () => {
 
 			{links.map(({ name, icon, link }, idx) => {
 				return (
-					<div key={idx} className={styles.item}>
+					<Tooltip
+						key={idx}
+						label={name}
+						position="right"
+						offset={10}
+						color="gray"
+						disabled={opened}
+					>
 						<Link href={link}>
-							<div className={styles.itemicon}>{icon}</div>
 							<div
-								className={
-									showCurrent
-										? `${styles.itemtext}`
-										: `${styles.itemtext} ${styles.itemtexthide}`
-								}
+								className={clsx(
+									styles.item,
+									currentRoute == link && styles.itemactive,
+								)}
 							>
-								{name}
+								<div className={styles.itemicon}>{icon}</div>
+								<div
+									className={clsx(
+										styles.itemtext,
+										!opened && styles.itemtexthide,
+									)}
+								>
+									{name}
+								</div>
 							</div>
 						</Link>
-					</div>
+					</Tooltip>
 				);
 			})}
 		</div>

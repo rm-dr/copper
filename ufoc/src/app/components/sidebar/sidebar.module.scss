@@ -10,10 +10,31 @@
 	overflow: hidden;
 
 	width: 12rem;
+
+	box-shadow: 0px 0px 10px 3px var(--mantine-color-black);
 }
 
 .sidebarhide {
 	width: calc(2rem + 0.5rem * 2);
+}
+
+.menubutton {
+	display: block;
+
+	width: 100%;
+	cursor: pointer;
+
+	padding: 0;
+	padding-left: 0.5rem;
+	padding-right: 0.5rem;
+	margin: 0;
+	margin-top: 0.25rem;
+	margin-bottom: 0.25rem;
+
+	.menuicon {
+		display: block;
+		width: 2rem;
+	}
 }
 
 .item {
@@ -29,32 +50,30 @@
 	overflow-wrap: none;
 	overflow: hidden;
 	word-wrap: none;
-}
 
-.itemicon {
-	display: inline-block;
-	width: 2rem;
-	vertical-align: middle;
-	align-items: center;
-	fill: var(--mantine-color-white);
-	transition-duration: 200ms;
+	color: var(--mantine-color-white);
 
-	svg {
-		margin: auto;
-		display: block;
-		height: 1.5rem;
+	&.itemactive {
+		font-weight: bold;
+		color: var(--mantine-color-red-7);
 	}
-}
 
-.hidebutton {
-	svg {
-		transition: 200ms;
+	&:hover:not(.itemactive) {
+		color: var(--mantine-color-red-5);
 	}
-}
 
-.hidebuttonhide {
-	svg {
-		transform: rotate(180deg);
+	.itemicon {
+		display: inline-block;
+		width: 2rem;
+		vertical-align: middle;
+		align-items: center;
+		transition-duration: 150ms;
+
+		svg {
+			margin: auto;
+			display: block;
+			height: 1.5rem;
+		}
 	}
 }
 
@@ -68,7 +87,6 @@
 	overflow: hidden;
 	margin: 0;
 	margin-left: 0.5rem;
-	color: var(--mantine-color-white);
 
 	opacity: 1;
 	transition-duration: 200ms;
@@ -80,16 +98,6 @@
 	opacity: 0;
 	visibility: hidden;
 	transition-delay: 200ms;
-}
-
-.item:hover {
-	.itemicon {
-		fill: var(--mantine-primary-color-5);
-	}
-
-	.itemtext {
-		color: var(--mantine-primary-color-5);
-	}
 }
 
 .break {
