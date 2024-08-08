@@ -563,7 +563,7 @@ export interface components {
 		};
 		AddJobParams: components["schemas"]["PipelineSelect"] & {
 			input: {
-				[key: string]: components["schemas"]["UFOData"] | undefined;
+				[key: string]: components["schemas"]["AddJobInput"] | undefined;
 			};
 		};
 		AddgroupRequest: {

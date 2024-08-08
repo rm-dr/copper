@@ -25,7 +25,7 @@ pub(super) struct AddJobParams {
 	#[serde(flatten)]
 	pub pipe: PipelineSelect,
 
-	#[schema(value_type = BTreeMap<String, UFOData>)]
+	#[schema(value_type = BTreeMap<String, AddJobInput>)]
 	pub input: BTreeMap<SmartString<LazyCompact>, AddJobInput>,
 }
 
