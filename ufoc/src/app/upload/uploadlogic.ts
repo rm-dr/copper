@@ -183,6 +183,7 @@ export function startUploadingFiles(params: {
 			let file_name;
 			try {
 				var c = file.file.name.split(".");
+				c.shift();
 				file_name = await uploadBlob({
 					abort_controller: upload_ac,
 					upload_job_id,
