@@ -41,6 +41,7 @@ pub struct RouterState {
 	runner: Arc<Mutex<PipelineRunner<UFONodeType>>>,
 	database: Arc<Database<FsBlobstore, SQLiteMetastore, FsPipestore>>,
 	context: Arc<UFOContext>,
+	uploader: Arc<Uploader>,
 }
 
 // TODO: openapi
@@ -78,16 +79,16 @@ async fn main() {
 
 	// TODO: clone fewer arcs
 
+	// Max body size, in bytes
+	// 2Mb = 2 * 1024 * 1024
+	let upload_size_limit = 2 * 1024 * 1024;
+
 	let state = RouterState {
 		runner: Arc::new(Mutex::new(runner)),
 		database: Arc::new(database),
 		context: Arc::new(ctx),
+		uploader: Arc::new(Uploader::new("./tmp".into())),
 	};
-
-	// Max body size, in bytes
-	// 2Mb = 2 * 1024 * 1024
-	let upload_size_limit = 2 * 1024 * 1024;
-	let uploader = Arc::new(Uploader::new("./tmp".into()));
 
 	let app = Router::new()
 		.route("/", get(root))
@@ -103,7 +104,7 @@ async fn main() {
 		)
 		// Job endpoints
 		.route("/add_job", post(add_job))
-		.nest("/upload", Uploader::get_router(uploader.clone()))
+		.nest("/upload", Uploader::get_router(state.uploader.clone()))
 		// Finish
 		.layer(DefaultBodyLimit::max(upload_size_limit))
 		.with_state(state.clone());
