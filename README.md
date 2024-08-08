@@ -20,6 +20,8 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## 📦 Fixes
 - [ ] Server deadlocks with two parallel clients
 - [ ] Show item idx in list
+- [ ] Fix unique constraint
+- [ ] Ref cycle in panel
 
 ## 📦 API endpoints
 - [ ] Rename users & groups
@@ -37,18 +39,19 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 Audiofile library
 - [ ] Tests
-  - [ ] Malformed file integrity check
-    - Out-of-spec, but blocks ok
-    - blocks don't align
-- [ ] Readvectored
+  - [ ] Test vorbis extraction
+  - [ ] "Uncommon" tests
+  - [ ] Add failing tests
+  - [ ] Many metadata blocks
+  - [ ] Many streaminfo blocks
 - [ ] FLAC complete implementation
-  - [ ] Handle errors
-  - [ ] Multiple covers (take first for now)
   - [ ] Cover inside comment
 - [ ] IDv3 complete implementation
 - [ ] Tag node types
-- Later:
-- [ ] Metastrip: detect end of file & malformed data (parse frames)
+- [ ] Fix audioframe splitting (sync bytes)
+- [ ] Generic strip class
+- [ ] Early exit if we don't need audio
+
 
 ## 📦 Better uploads
 - [ ] Upload in parallel
@@ -216,6 +219,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## Arrays in pipelines
 - Some nodes could return multiple elements (music with many covers). How should we handle this?
+- Flac node: extract all covers
 
 ## "other pipeline" node
 - append to back of job queue, no output
