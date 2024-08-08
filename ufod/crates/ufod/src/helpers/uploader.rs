@@ -38,14 +38,36 @@ pub enum JobBindError {
 }
 
 pub struct Uploader {
-	pub tmp_dir: PathBuf,
+	pub config: UfodConfig,
 	pub jobs: Mutex<Vec<UploadJob>>,
 }
 
 impl Uploader {
-	pub fn new(tmp_dir: PathBuf) -> Self {
+	pub fn open(config: UfodConfig) -> Self {
+		// Initialize upload dir
+		if !config.upload_dir.exists() {
+			info!(
+				message = "Creating upload dir because it doesn't exist",
+				dataset_dir = ?config.dataset_dir
+			);
+			std::fs::create_dir_all(&config.upload_dir).unwrap();
+		} else if config.upload_dir.is_dir() {
+			warn!(
+				message = "Upload directory isn't empty, removing",
+				directory = ?config.upload_dir
+			);
+			std::fs::remove_dir_all(&config.upload_dir).unwrap();
+			std::fs::create_dir_all(&config.upload_dir).unwrap();
+		} else {
+			error!(
+				message = "Upload dir is not a directory",
+				upload_path = ?config.upload_dir
+			);
+			panic!("Upload dir {:?} is not a directory", config.upload_dir)
+		}
+
 		Self {
-			tmp_dir,
+			config,
 			jobs: Mutex::new(Vec::new()),
 		}
 	}
@@ -64,7 +86,7 @@ impl Uploader {
 	///
 	/// This cleans up jobs that have timed out,
 	/// and jobs bound to a pipeline that has been finished.
-	pub async fn check_jobs(&self, config: &UfodConfig, runner: &PipelineRunner<UFONodeType>) {
+	pub async fn check_jobs(&self, runner: &PipelineRunner<UFONodeType>) {
 		let mut jobs = self.jobs.lock().await;
 
 		let now = Instant::now();
@@ -84,9 +106,9 @@ impl Uploader {
 			}
 
 			let offset = if j.bound_to_pipeline_job.is_some() {
-				config.delete_job_after_bound
+				self.config.delete_job_after_bound
 			} else {
-				config.delete_job_after_unbound
+				self.config.delete_job_after_unbound
 			};
 
 			// Wait for timeout even if this job is bound,

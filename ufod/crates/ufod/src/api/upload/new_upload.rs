@@ -44,7 +44,7 @@ pub(super) async fn start_upload(uploader: Arc<Uploader>) -> Response {
 		}
 	};
 
-	let upload_job_dir = uploader.tmp_dir.join(id.to_string());
+	let upload_job_dir = uploader.config.upload_dir.join(id.to_string());
 	match std::fs::create_dir(&upload_job_dir) {
 		Ok(_) => {}
 		Err(e) => {

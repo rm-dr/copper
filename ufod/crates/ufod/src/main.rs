@@ -3,7 +3,7 @@ use config::UfodConfig;
 use futures::executor::block_on;
 use std::{path::PathBuf, sync::Arc, thread};
 use tokio::sync::Mutex;
-use tracing::{error, warn};
+use tracing::info;
 use ufo_ds_impl::local::LocalDataset;
 
 use ufo_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
@@ -26,7 +26,6 @@ async fn main() {
 		))
 		.without_time()
 		.with_ansi(true)
-		//.event_format(log::LogFormatter::new(true))
 		.init();
 
 	//let mut f = File::open("./config.toml").unwrap();
@@ -35,7 +34,21 @@ async fn main() {
 	//let config = toml::from_str(&config_string).unwrap();
 	let config: UfodConfig = Default::default();
 
-	let database = Arc::new(LocalDataset::open(&PathBuf::from("./db")).unwrap());
+	// Open main database
+	if !config.main_db.exists() {
+		info!(
+			message = "Creating main database because it doesn't exist",
+			main_db_path = ?config.main_db
+		);
+		MainDB::create(&config.main_db).unwrap();
+	}
+
+	// TODO: arc config?
+	let main_db = MainDB::open(config.clone()).unwrap();
+	let uploader = Uploader::open(config.clone());
+
+	//LocalDataset::create(&PathBuf::from("./data/db")).unwrap();
+	let database = Arc::new(LocalDataset::open(&PathBuf::from("./data/db")).unwrap());
 
 	let ctx = UFOContext {
 		dataset: database.clone(),
@@ -52,7 +65,6 @@ async fn main() {
 	);
 
 	// TODO: clone fewer arcs
-	let uploader = Uploader::new(config.upload_dir.clone());
 	let state = RouterState {
 		main_db: Arc::new(main_db),
 		config: Arc::new(config),
@@ -72,7 +84,7 @@ async fn main() {
 	thread::spawn(move || loop {
 		let mut runner = block_on(state.runner.lock());
 		runner.run().unwrap();
-		block_on(state.uploader.check_jobs(&state.config, &runner));
+		block_on(state.uploader.check_jobs(&runner));
 		drop(runner);
 
 		std::thread::sleep(std::time::Duration::from_millis(10));
