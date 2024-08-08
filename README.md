@@ -31,9 +31,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## 📦 Fixes
 - [ ] Server deadlocks with two parallel clients
 - [ ] Show item idx in list
-- [ ] lychee action
 - [ ] Remove allow dead code
-- [ ] Add ts lints & tests
 - [ ] Script to run actions manually
 
 ## 📦 API endpoints
@@ -114,9 +112,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Docker file & compose
 - [ ] `crates.io`
 - [ ] CI:
-  - [ ] clippy
   - [ ] lychee
-  - [ ] cargo test
   - [ ] cargo build
   - [ ] docker build
 - [ ] Git config, rules (docs), and rebase
