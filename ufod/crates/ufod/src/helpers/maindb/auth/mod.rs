@@ -9,7 +9,7 @@ use axum_extra::extract::{
 };
 use errors::{CreateGroupError, CreateUserError, DeleteGroupError};
 use rand::{distributions::Alphanumeric, rngs::OsRng, Rng};
-use sqlx::{Connection, Row, SqliteConnection};
+use sqlx::{Row, SqliteConnection};
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::Mutex;
@@ -219,39 +219,39 @@ impl AuthProvider {
 		}
 	}
 
-	pub async fn del_group(&self, group: GroupId) -> Result<(), DeleteGroupError> {
-		if group == GroupId::RootGroup {
+	pub async fn del_group(&self, del_group: GroupId) -> Result<(), DeleteGroupError> {
+		if del_group == GroupId::RootGroup {
 			return Err(DeleteGroupError::CantDeleteRootGroup);
 		}
 
-		// Start transaction
-		let mut conn_lock = self.conn.lock().await;
-		let mut t = conn_lock
-			.begin()
+		let res = sqlx::query("SELECT id FROM groups ORDER BY id;")
+			.bind(del_group.get_id())
+			.fetch_all(&mut *self.conn.lock().await)
 			.await
 			.map_err(|e| DeleteGroupError::DbError(Box::new(e)))?;
 
-		sqlx::query("DELETE FROM groups WHERE group_parent=?;")
-			.bind(group.get_id())
-			.execute(&mut *t)
-			.await
-			.map_err(|e| DeleteGroupError::DbError(Box::new(e)))?;
+		// Reverse order so we delete child groups first
+		for row in res.into_iter().rev() {
+			let group: GroupId = row.get::<u32, _>("id").into();
+			if del_group == group
+				|| self
+					.is_group_parent(del_group, group)
+					.await
+					.map_err(|e| DeleteGroupError::DbError(Box::new(e)))?
+			{
+				sqlx::query("DELETE FROM users WHERE user_group=?;")
+					.bind(group.get_id())
+					.execute(&mut *self.conn.lock().await)
+					.await
+					.map_err(|e| DeleteGroupError::DbError(Box::new(e)))?;
 
-		sqlx::query("DELETE FROM users WHERE user_group=?;")
-			.bind(group.get_id())
-			.execute(&mut *t)
-			.await
-			.map_err(|e| DeleteGroupError::DbError(Box::new(e)))?;
-
-		sqlx::query("DELETE FROM groups WHERE id=?;")
-			.bind(group.get_id())
-			.execute(&mut *t)
-			.await
-			.map_err(|e| DeleteGroupError::DbError(Box::new(e)))?;
-
-		t.commit()
-			.await
-			.map_err(|e| DeleteGroupError::DbError(Box::new(e)))?;
+				sqlx::query("DELETE FROM groups WHERE id=?;")
+					.bind(group.get_id())
+					.execute(&mut *self.conn.lock().await)
+					.await
+					.map_err(|e| DeleteGroupError::DbError(Box::new(e)))?;
+			}
+		}
 
 		Ok(())
 	}
@@ -384,7 +384,7 @@ impl AuthProvider {
 	pub async fn list_groups(&self, starting_from: GroupId) -> Result<Vec<GroupInfo>, sqlx::Error> {
 		// A child group cannot be created after its parent,
 		// so this method will always list parent groups before child groups.
-		// UI depends on this.
+		// UI depends on this, as do some other `AuthProvider` methods.
 		let res = sqlx::query("SELECT id, group_parent FROM groups ORDER BY id;")
 			.fetch_all(&mut *self.conn.lock().await)
 			.await?;
