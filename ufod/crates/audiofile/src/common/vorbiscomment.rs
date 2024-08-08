@@ -3,7 +3,7 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	fmt::Display,
-	io::{Cursor, Read},
+	io::{Cursor, Read, Write},
 	string::FromUtf8Error,
 };
 
@@ -142,5 +142,73 @@ impl VorbisComment {
 			vendor: vendor.into(),
 			comments,
 		})
+	}
+}
+
+impl VorbisComment {
+	/// Get the number of bytes that `encode()` will write.
+	pub fn get_len(&self) -> usize {
+		let mut sum = 4 + self.vendor.len() + 4;
+
+		for (tagtype, value) in &self.comments {
+			let tagtype_str = match tagtype {
+				TagType::TrackTitle => "TITLE",
+				TagType::Album => "ALBUM",
+				TagType::TrackNumber => "TRACKNUMBER",
+				TagType::TrackArtist => "ARTIST",
+				TagType::AlbumArtist => "ALBUMARTIST",
+				TagType::Genre => "GENRE",
+				TagType::Isrc => "ISRC",
+				TagType::ReleaseDate => "DATE",
+				TagType::TrackTotal => "TOTALTRACKS",
+				TagType::Lyrics => "LYRICS",
+				TagType::Comment => "COMMENT",
+				TagType::DiskNumber => "DISKNUMBER",
+				TagType::DiskTotal => "DISKTOTAL",
+				TagType::Year => "YEAR",
+				TagType::Other(x) => x,
+			}
+			.to_uppercase();
+
+			let str = format!("{tagtype_str}={value}");
+			sum += 4 + str.len();
+		}
+
+		return sum;
+	}
+
+	/// Try to encode this vorbis comment
+	pub fn encode(&self, target: &mut impl Write) -> Result<(), std::io::Error> {
+		target.write_all(&u32::try_from(self.vendor.len()).unwrap().to_le_bytes())?;
+		target.write_all(self.vendor.as_bytes())?;
+
+		target.write_all(&u32::try_from(self.comments.len()).unwrap().to_le_bytes())?;
+
+		for (tagtype, value) in &self.comments {
+			let tagtype_str = match tagtype {
+				TagType::TrackTitle => "TITLE",
+				TagType::Album => "ALBUM",
+				TagType::TrackNumber => "TRACKNUMBER",
+				TagType::TrackArtist => "ARTIST",
+				TagType::AlbumArtist => "ALBUMARTIST",
+				TagType::Genre => "GENRE",
+				TagType::Isrc => "ISRC",
+				TagType::ReleaseDate => "DATE",
+				TagType::TrackTotal => "TOTALTRACKS",
+				TagType::Lyrics => "LYRICS",
+				TagType::Comment => "COMMENT",
+				TagType::DiskNumber => "DISKNUMBER",
+				TagType::DiskTotal => "DISKTOTAL",
+				TagType::Year => "YEAR",
+				TagType::Other(x) => x,
+			}
+			.to_uppercase();
+
+			let str = format!("{tagtype_str}={value}");
+			target.write_all(&u32::try_from(str.len()).unwrap().to_le_bytes())?;
+			target.write_all(str.as_bytes())?;
+		}
+
+		return Ok(());
 	}
 }

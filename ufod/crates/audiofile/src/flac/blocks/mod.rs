@@ -4,6 +4,9 @@
 mod header;
 pub use header::{FlacMetablockHeader, FlacMetablockType};
 
+mod audiodata;
+pub use audiodata::FlacAudioFrame;
+
 // Metadata blocks
 
 mod streaminfo;
@@ -23,6 +26,9 @@ pub use seektable::FlacSeektableBlock;
 
 mod cuesheet;
 pub use cuesheet::FlacCuesheetBlock;
+
+mod comment;
+pub use comment::FlacCommentBlock;
 
 use super::errors::{FlacDecodeError, FlacEncodeError};
 use std::io::Write;
