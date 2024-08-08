@@ -8,7 +8,7 @@ use crate::{
 	labels::{PipelineLabel, PipelineNodeLabel},
 };
 
-use super::syntax::{builder::PipelineBuilder, internalnode::InternalNodeStub, spec::PipelineSpec};
+use super::syntax::{builder::PipelineBuilder, spec::PipelineSpec};
 
 /// An edge in a pipeline
 #[derive(Debug, Clone)]
@@ -60,10 +60,9 @@ pub struct Pipeline<StubType: PipelineNodeStub> {
 	pub(crate) name: PipelineLabel,
 
 	pub(crate) input_node_idx: GraphNodeIdx,
-	pub(crate) output_node_idx: GraphNodeIdx,
 
 	/// This pipeline's node graph
-	pub(crate) graph: FinalizedGraph<(PipelineNodeLabel, InternalNodeStub<StubType>), PipelineEdge>,
+	pub(crate) graph: FinalizedGraph<(PipelineNodeLabel, StubType), PipelineEdge>,
 }
 
 impl<StubType: PipelineNodeStub> Pipeline<StubType> {
@@ -74,7 +73,7 @@ impl<StubType: PipelineNodeStub> Pipeline<StubType> {
 		context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 	) -> Result<Self, ()> {
 		let spec: PipelineSpec<StubType> = toml::from_str(toml_str).unwrap();
-		let built = PipelineBuilder::build(context, &vec![], pipeline_name, spec).unwrap();
+		let built = PipelineBuilder::build(context, pipeline_name, spec).unwrap();
 		Ok(built)
 	}
 
@@ -93,10 +92,7 @@ impl<StubType: PipelineNodeStub> Pipeline<StubType> {
 		self.graph
 			.iter_nodes()
 			.find(|(l, _)| l == node_label)
-			.map(|x| match &x.1 {
-				InternalNodeStub::Pipeline { .. } => unreachable!(),
-				InternalNodeStub::User(x) => x,
-			})
+			.map(|x| &x.1)
 	}
 
 	/// Get this pipeline's input node's label

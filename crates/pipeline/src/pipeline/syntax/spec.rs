@@ -4,7 +4,7 @@ use serde::{de::DeserializeOwned, Deserialize};
 use serde_with::{self, serde_as};
 use std::{collections::HashMap, fmt::Debug};
 
-use super::{internalnode::InternalNodeStub, ports::NodeOutput};
+use super::ports::NodeOutput;
 use crate::{
 	api::PipelineNodeStub,
 	labels::{PipelineNodeLabel, PipelinePortLabel},
@@ -18,7 +18,7 @@ use crate::{
 pub(crate) struct PipelineNodeSpec<StubType: PipelineNodeStub> {
 	/// What kind of node is this?
 	#[serde(rename = "node")]
-	pub node_type: InternalNodeStub<StubType>,
+	pub node_type: StubType,
 
 	/// Where this node should read its input from.
 	#[serde(default)]
@@ -39,7 +39,7 @@ pub(in super::super) struct PipelineSpec<StubType: PipelineNodeStub> {
 	/// This pipeline's input node.
 	/// Note that this doesn't provide an `inputs` array.
 	/// That is wired up by the code that runs this pipeline.
-	pub input: InternalNodeStub<StubType>,
+	pub input: StubType,
 
 	/// This pipeline's output node
 	pub output: PipelineNodeSpec<StubType>,

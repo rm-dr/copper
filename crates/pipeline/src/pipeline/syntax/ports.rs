@@ -8,8 +8,6 @@ use crate::{
 	labels::{PipelineNodeLabel, PipelinePortLabel},
 };
 
-use super::internalnode::InternalNodeStub;
-
 /// An output port in the pipeline.
 /// (i.e, a port that produces data.)
 #[derive(Debug, Clone, Deserialize)]
@@ -35,7 +33,7 @@ pub(crate) enum NodeOutput<StubType: PipelineNodeStub> {
 
 	/// An inline node.
 	/// This node must have EXACTLY one output.
-	Inline(InternalNodeStub<StubType>),
+	Inline(StubType),
 }
 
 // TODO: better error

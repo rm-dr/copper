@@ -6,7 +6,6 @@ use tracing::debug;
 
 use super::{
 	errors::{PipelineErrorNode, PipelinePrepareError},
-	internalnode::InternalNodeStub,
 	ports::{NodeInput, NodeOutput},
 	spec::PipelineSpec,
 };
@@ -18,7 +17,7 @@ use crate::{
 	SDataStub,
 };
 
-pub(in super::super) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
+pub(in super::super) struct PipelineBuilder<StubType: PipelineNodeStub> {
 	/// The name of the pipeline we're building
 	name: PipelineLabel,
 
@@ -28,11 +27,8 @@ pub(in super::super) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
 	/// The pipeline spec to build
 	spec: PipelineSpec<StubType>,
 
-	/// Other pipelines we've already built
-	pipelines: &'a Vec<Arc<Pipeline<StubType>>>,
-
 	/// The pipeline graph we're building
-	graph: RefCell<Graph<(PipelineNodeLabel, InternalNodeStub<StubType>), PipelineEdge>>,
+	graph: RefCell<Graph<(PipelineNodeLabel, StubType), PipelineEdge>>,
 
 	/// The index of this pipeline's input node
 	input_node_idx: GraphNodeIdx,
@@ -57,10 +53,9 @@ pub(in super::super) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
 	node_input_name_map_after: RefCell<HashMap<PipelineNodeLabel, GraphNodeIdx>>,
 }
 
-impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
+impl<'a, StubType: PipelineNodeStub> PipelineBuilder<StubType> {
 	pub fn build(
 		context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
-		pipelines: &'a Vec<Arc<Pipeline<StubType>>>,
 		name: &str,
 		spec: PipelineSpec<StubType>,
 	) -> Result<Pipeline<StubType>, PipelinePrepareError<SDataStub<StubType>>> {
@@ -82,7 +77,6 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 				name: name.into(),
 				context,
 				spec,
-				pipelines,
 				graph: RefCell::new(graph),
 				input_node_idx,
 				output_node_idx,
@@ -123,36 +117,27 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 		debug!(source = "syntax", summary = "Making nodes",);
 		// Add nodes to the graph
 		for (node_name, node_spec) in builder.spec.nodes.iter() {
-			match &node_spec.node_type {
-				InternalNodeStub::Pipeline { pipeline } => {
-					// If this is a `Pipeline` node, add the pipeline's contents
-					builder.add_pipeline(node_name, pipeline)?;
-				}
-
-				_ => {
-					// If this is a normal node, just add it.
-					let n = builder
-						.graph
-						.borrow_mut()
-						.add_node((node_name.clone(), node_spec.node_type.clone()));
-					builder
-						.node_output_name_map_ptp
-						.borrow_mut()
-						.insert(node_name.clone(), n);
-					builder
-						.node_input_name_map_ptp
-						.borrow_mut()
-						.insert(node_name.clone(), n);
-					builder
-						.node_output_name_map_after
-						.borrow_mut()
-						.insert(node_name.clone(), n);
-					builder
-						.node_input_name_map_after
-						.borrow_mut()
-						.insert(node_name.clone(), n);
-				}
-			}
+			// If this is a normal node, just add it.
+			let n = builder
+				.graph
+				.borrow_mut()
+				.add_node((node_name.clone(), node_spec.node_type.clone()));
+			builder
+				.node_output_name_map_ptp
+				.borrow_mut()
+				.insert(node_name.clone(), n);
+			builder
+				.node_input_name_map_ptp
+				.borrow_mut()
+				.insert(node_name.clone(), n);
+			builder
+				.node_output_name_map_after
+				.borrow_mut()
+				.insert(node_name.clone(), n);
+			builder
+				.node_input_name_map_after
+				.borrow_mut()
+				.insert(node_name.clone(), n);
 		}
 
 		debug!(source = "syntax", summary = "Making after edges",);
@@ -215,7 +200,6 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 			name: builder.name,
 			graph: builder.graph.into_inner().finalize(),
 			input_node_idx: builder.input_node_idx,
-			output_node_idx: builder.output_node_idx,
 		});
 	}
 
@@ -224,43 +208,20 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 	#[inline(always)]
 	fn is_input_compatible(
 		&self,
-		node_type: &InternalNodeStub<StubType>,
+		node_type: &StubType,
 		input_port_label: &PipelinePortLabel,
 		input_type: SDataStub<StubType>,
 		// Only used for errors
 		node_label: &PipelineNodeLabel,
 	) -> Result<bool, PipelinePrepareError<SDataStub<StubType>>> {
-		Ok(match node_type {
-			// `Pipeline` nodes don't know what inputs they provide,
-			// we need to find them ourselves.
-			InternalNodeStub::Pipeline { pipeline } => {
-				let p = self
-					.pipelines
-					.iter()
-					.find(|x| x.name == *pipeline)
-					.cloned()
-					.ok_or(PipelinePrepareError::NoSuchPipeline {
-						node: node_label.clone(),
-						pipeline: pipeline.clone(),
-					})?;
-				let n = &p.graph.get_node(p.input_node_idx).1;
-				let idx = n.input_with_name(&self.context, input_port_label).ok_or(
-					PipelinePrepareError::NoNodeInput {
-						node: PipelineErrorNode::Named(node_label.clone()),
-						input: input_port_label.clone(),
-					},
-				)?;
-				n.input_compatible_with(&self.context, idx, input_type)
-			}
-			t => {
-				let idx = t.input_with_name(&self.context, input_port_label).ok_or(
-					PipelinePrepareError::NoNodeInput {
-						node: PipelineErrorNode::Named(node_label.clone()),
-						input: input_port_label.clone(),
-					},
-				)?;
-				t.input_compatible_with(&self.context, idx, input_type)
-			}
+		Ok({
+			let idx = node_type
+				.input_with_name(&self.context, input_port_label)
+				.ok_or(PipelinePrepareError::NoNodeInput {
+					node: PipelineErrorNode::Named(node_label.clone()),
+					input: input_port_label.clone(),
+				})?;
+			node_type.input_compatible_with(&self.context, idx, input_type)
 		})
 	}
 
@@ -269,29 +230,13 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 	#[inline(always)]
 	fn get_input(
 		&self,
-		node_type: &InternalNodeStub<StubType>,
+		node_type: &StubType,
 		input_port_label: &PipelinePortLabel,
 
 		// Only used for errors
 		node_label: &PipelineNodeLabel,
 	) -> Result<usize, PipelinePrepareError<SDataStub<StubType>>> {
 		match node_type {
-			// `Pipeline` nodes don't know what inputs they provide,
-			// we need to find them ourselves.
-			InternalNodeStub::Pipeline { pipeline } => {
-				let p = self
-					.pipelines
-					.iter()
-					.find(|x| x.name == *pipeline)
-					.cloned()
-					.ok_or(PipelinePrepareError::NoSuchPipeline {
-						node: node_label.clone(),
-						pipeline: pipeline.clone(),
-					})?;
-
-				let n = &p.graph.get_node(p.input_node_idx).1;
-				n.input_with_name(&self.context, input_port_label)
-			}
 			t => t.input_with_name(&self.context, input_port_label),
 		}
 		.ok_or(PipelinePrepareError::NoNodeInput {
@@ -308,35 +253,13 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 	#[inline(always)]
 	fn get_output(
 		&self,
-		node_type: &InternalNodeStub<StubType>,
+		node_type: &StubType,
 		output_port_label: &PipelinePortLabel,
 
 		// Only used for errors
 		node_label: &PipelineNodeLabel,
 	) -> Result<(usize, SDataStub<StubType>), PipelinePrepareError<SDataStub<StubType>>> {
 		match node_type {
-			// `Pipeline` nodes don't know what inputs they provide,
-			// we need to find them ourselves.
-			InternalNodeStub::Pipeline { pipeline } => {
-				let p = self
-					.pipelines
-					.iter()
-					.find(|x| x.name == *pipeline)
-					.cloned()
-					.ok_or(PipelinePrepareError::NoSuchPipeline {
-						node: node_label.clone(),
-						pipeline: pipeline.clone(),
-					})?;
-				let p = &p.graph.get_node(p.output_node_idx).1;
-				let idx = p.output_with_name(&self.context, output_port_label).ok_or(
-					PipelinePrepareError::NoNodeOutput {
-						output: output_port_label.clone(),
-						node: PipelineErrorNode::Named(node_label.clone()),
-					},
-				)?;
-				let output_type = p.output_type(&self.context, idx);
-				Ok((idx, output_type))
-			}
 			t => {
 				let idx = t.output_with_name(&self.context, output_port_label).ok_or(
 					PipelinePrepareError::NoNodeOutput {
@@ -500,88 +423,6 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 				output_type,
 				input: input.clone(),
 			});
-		}
-
-		return Ok(());
-	}
-
-	/// Add a sub-pipeline to this graph.
-	///
-	/// Replaces the node named `node_name` with the contents of
-	/// the pipeline named `pipeline_name`.
-	///
-	/// The node being replaced must always be an [`InternalNodeStub::Pipeline`].
-	fn add_pipeline(
-		&self,
-		node_name: &PipelineNodeLabel,
-		pipeline_name: &PipelineLabel,
-	) -> Result<(), PipelinePrepareError<SDataStub<StubType>>> {
-		let p = self
-			.pipelines
-			.iter()
-			.find(|x| x.name == *pipeline_name)
-			.cloned()
-			.ok_or(PipelinePrepareError::NoSuchPipeline {
-				node: node_name.clone(),
-				pipeline: pipeline_name.clone(),
-			})?;
-
-		let mut new_index_map = Vec::new();
-
-		// Add other pipeline's nodes
-		for (idx, (l, other_node)) in p.graph.iter_nodes_idx() {
-			if idx == p.input_node_idx {
-				let n = self
-					.graph
-					.borrow_mut()
-					.add_node((format!("{}::{}", node_name, l).into(), other_node.clone()));
-				new_index_map.push(Some(n));
-
-				// This is why we have different name maps for "ptp" and "after" nodes.
-				// ptp nodes that end at a pipeline node should be remapped to that pipeline's INPUT.
-				// "after" nodes that end at a pipeline node should be remapped to that pipeline's OUTPUT.
-				// (so that "after" waits for the whole sub-pipeline to finish)
-				//
-				// Similarly, "after" nodes that START at a pipeline node should be moved to start at
-				// the pipeline's INPUT node, so that the whole pipeline must wait.
-				self.node_input_name_map_ptp
-					.borrow_mut()
-					.insert(node_name.clone(), n);
-				self.node_output_name_map_after
-					.borrow_mut()
-					.insert(node_name.clone(), n);
-			} else if idx == p.output_node_idx {
-				let n = self
-					.graph
-					.borrow_mut()
-					.add_node((format!("{}::{}", node_name, l).into(), other_node.clone()));
-				new_index_map.push(Some(n));
-
-				self.node_output_name_map_ptp
-					.borrow_mut()
-					.insert(node_name.clone(), n);
-				self.node_input_name_map_after
-					.borrow_mut()
-					.insert(node_name.clone(), n);
-			} else {
-				// We intentionally don't insert to node_*_name_map here,
-				// since we can't use the names of nodes in the inner
-				// pipeline inside the outer pipeline
-				new_index_map.push(Some(
-					self.graph
-						.borrow_mut()
-						.add_node((format!("{}::{}", node_name, l).into(), other_node.clone())),
-				));
-			}
-		}
-
-		// Add other pipeline's edges
-		for (f, t, e) in p.graph.iter_edges() {
-			self.graph.borrow_mut().add_edge(
-				new_index_map.get(f.as_usize()).unwrap().unwrap(),
-				new_index_map.get(t.as_usize()).unwrap().unwrap(),
-				e.clone(),
-			);
 		}
 
 		return Ok(());
