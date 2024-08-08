@@ -50,29 +50,40 @@ export const _blobAttrType: attrTypeInfo = {
 				return <>Unreachable!</>;
 			}
 
+			let inner: ReactNode | null = (
+				<_PanelBodyUnknown
+					src={data_url}
+					icon={<XIcon icon={IconFileDigit} style={{ height: "5rem" }} />}
+					attr_value={params.attr_value}
+				/>
+			);
+
 			if (
 				params.attr_value.mime != null &&
 				params.attr_value.mime.startsWith("image/")
 			) {
-				return (
+				inner = (
 					<_PanelBodyImage src={data_url} attr_value={params.attr_value} />
 				);
 			} else if (
 				params.attr_value.mime != null &&
 				params.attr_value.mime.startsWith("audio/")
 			) {
-				return (
+				inner = (
 					<_PanelBodyAudio src={data_url} attr_value={params.attr_value} />
 				);
-			} else {
-				return (
-					<_PanelBodyUnknown
-						src={data_url}
-						icon={<XIcon icon={IconFileDigit} style={{ height: "5rem" }} />}
-						attr_value={params.attr_value}
-					/>
-				);
 			}
+
+			return (
+				<a
+					target="_blank"
+					href={data_url}
+					rel="noopener noreferrer"
+					style={{ width: "100%", height: "100%", cursor: "inherit" }}
+				>
+					{inner}
+				</a>
+			);
 		},
 
 		panel_bottom: (params) => {

@@ -17,6 +17,9 @@ Poor man's issue tracker. Good enough for now, this team isn't very big.
 Projects marked with a 📦 are prerequisites for `v0.1.0` release.
 The goal is a *minimal* working version: robust, usable, but possibly slow and missing fancy features.
 
+## 📦 Fixes
+- [ ] Server deadlocks with two parallel clients
+
 ## 📦 API endpoints
 - [ ] Rename users & groups
 - [ ] Change user password
@@ -26,8 +29,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## 📦 CRUD items
 - [ ] List number of selected items
 - [ ] Polish
-  - [ ] Clean up table logic
-  - [ ] Select first panel-able attr automatically
   - [ ] Initial layout for table
 - [ ] Manage ui items
   - [ ] Delete items

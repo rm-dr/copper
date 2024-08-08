@@ -243,29 +243,14 @@ function EditPanel(params: {
 	const body =
 		selected_attr_value === undefined ||
 		selected_attr_spec === undefined ? null : (
-			<a
-				target="_blank"
-				href={
-					"/api/item/attr?" +
-					new URLSearchParams({
-						dataset: params.data.dataset || "",
-						class: params.data.class.toString() || "",
-						attr: params.panelAttr.attr.handle.toString(),
-						item_idx: params.selectedItems[0].idx.toString(),
-					})
-				}
-				rel="noopener noreferrer"
-				style={{ width: "100%", height: "100%", cursor: "inherit" }}
-			>
-				<div className={styles.panelimage}>
-					{selected_attr_spec.editor.panel_body({
-						dataset: params.data.dataset || "",
-						class: params.data.class.toString() || "",
-						item_idx: params.selectedItems[0].idx,
-						attr_value: selected_attr_value,
-					})}
-				</div>
-			</a>
+			<div className={styles.panelimage}>
+				{selected_attr_spec.editor.panel_body({
+					dataset: params.data.dataset || "",
+					class: params.data.class.toString() || "",
+					item_idx: params.selectedItems[0].idx,
+					attr_value: selected_attr_value,
+				})}
+			</div>
 		);
 
 	const bottom =
