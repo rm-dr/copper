@@ -329,6 +329,14 @@ impl Metastore for LocalDataset {
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
+		// We changed our schema, so we must clear the statement cache. If we don't, sqlx
+		// will panic if the cached statement query becomes out-of date.
+		// (e.g, if we create/delete a db column)
+		conn_lock
+			.clear_cached_statements()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
 		Ok(new_attr.into())
 	}
 
@@ -370,7 +378,6 @@ impl Metastore for LocalDataset {
 		let table_name = Self::get_table_name(new_class_id.into());
 
 		// Create new table
-
 		sqlx::query(&format!(
 			"CREATE TABLE IF NOT EXISTS \"{table_name}\" (id INTEGER PRIMARY KEY NOT NULL);"
 		))
@@ -380,6 +387,14 @@ impl Metastore for LocalDataset {
 
 		// Commit transaction
 		t.commit()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
+		// We changed our schema, so we must clear the statement cache. If we don't, sqlx
+		// will panic if the cached statement query becomes out-of date.
+		// (e.g, if we create/delete a db column)
+		conn_lock
+			.clear_cached_statements()
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
@@ -492,6 +507,14 @@ impl Metastore for LocalDataset {
 			return Err(MetastoreError::DbError(Box::new(e)));
 		};
 
+		// We changed our schema, so we must clear the statement cache. If we don't, sqlx
+		// will panic if the cached statement query becomes out-of date.
+		// (e.g, if we create/delete a db column)
+		conn_lock
+			.clear_cached_statements()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
 		// Clean up dangling blobs
 		// This locks our connection, so we must drop our existing lock first.
 		drop(conn_lock);
@@ -576,6 +599,14 @@ impl Metastore for LocalDataset {
 		if let Err(e) = t.commit().await {
 			return Err(MetastoreError::DbError(Box::new(e)));
 		};
+
+		// We changed our schema, so we must clear the statement cache. If we don't, sqlx
+		// will panic if the cached statement query becomes out-of date.
+		// (e.g, if we create/delete a db column)
+		conn_lock
+			.clear_cached_statements()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		// Clean up dangling blobs
 		// This locks our connection, so we must drop our existing lock first.
