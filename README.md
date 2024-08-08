@@ -42,7 +42,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Dataset permissions (per group)
 - [ ] Hide datasets/groups (view permission)
 - [ ] Clean up permission model
-- [ ] Login lifetimes
 - [ ] Permissions everywhere (api)
 
 ## 📦 Database migrations

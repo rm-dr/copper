@@ -11,7 +11,7 @@ use errors::{CreateGroupError, CreateUserError, DeleteGroupError};
 use rand::{distributions::Alphanumeric, rngs::OsRng, Rng};
 use sqlx::{Row, SqliteConnection};
 use std::sync::Arc;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
 use tracing::error;
 
@@ -52,6 +52,10 @@ impl AuthProvider {
 		AuthToken {
 			user,
 			token: token.into(),
+			// TODO: config
+			expires: OffsetDateTime::now_utc()
+				.checked_add(Duration::days(7))
+				.unwrap(),
 		}
 	}
 
@@ -119,6 +123,13 @@ impl AuthProvider {
 
 		for t in self.active_tokens.lock().await.iter() {
 			if t.token == token {
+				// Expired logins are invalid
+				// These will be cleaned up by `auth_or_logout`
+				// (if the browser doesn't do so automatically)
+				if t.expires < OffsetDateTime::now_utc() {
+					return Ok(None);
+				}
+
 				return match self.get_user(t.user).await {
 					Ok(user) => Ok(Some(user)),
 					Err(sqlx::Error::RowNotFound) => {

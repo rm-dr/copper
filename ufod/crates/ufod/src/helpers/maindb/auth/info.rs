@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
+use time::OffsetDateTime;
 use utoipa::ToSchema;
 
 use super::GroupPermissions;
@@ -67,4 +68,5 @@ pub struct UserInfo {
 pub struct AuthToken {
 	pub user: UserId,
 	pub token: SmartString<LazyCompact>,
+	pub expires: OffsetDateTime,
 }
