@@ -633,55 +633,64 @@ export interface components {
 		};
 		ItemListData:
 			| {
+					attr: components["schemas"]["AttrInfo"];
 					/** @enum {string} */
 					type: "PositiveInteger";
 					/** Format: int64 */
 					value?: number | null;
 			  }
 			| {
+					attr: components["schemas"]["AttrInfo"];
 					/** @enum {string} */
 					type: "Integer";
 					/** Format: int64 */
 					value?: number | null;
 			  }
 			| {
+					attr: components["schemas"]["AttrInfo"];
 					/** @enum {string} */
 					type: "Float";
 					/** Format: double */
 					value?: number | null;
 			  }
 			| {
+					attr: components["schemas"]["AttrInfo"];
 					/** @enum {string} */
 					type: "Boolean";
 					value?: boolean | null;
 			  }
 			| {
+					attr: components["schemas"]["AttrInfo"];
 					/** @enum {string} */
 					type: "Text";
 					value?: string | null;
 			  }
 			| {
+					attr: components["schemas"]["AttrInfo"];
 					class: string;
 					item?: components["schemas"]["ItemIdx"] | null;
 					/** @enum {string} */
 					type: "Reference";
 			  }
 			| {
+					attr: components["schemas"]["AttrInfo"];
 					hash_type: components["schemas"]["HashType"];
 					/** @enum {string} */
 					type: "Hash";
 					value?: string | null;
 			  }
 			| {
-					mime?: components["schemas"]["MimeType"] | null;
+					attr: components["schemas"]["AttrInfo"];
+					mime?: string | null;
 					/** Format: int64 */
 					size?: number | null;
 					/** @enum {string} */
 					type: "Binary";
 			  }
 			| {
+					attr: components["schemas"]["AttrInfo"];
 					handle?: components["schemas"]["BlobHandle"] | null;
-					mime?: components["schemas"]["MimeType"] | null;
+					mime?: string | null;
 					/** Format: int64 */
 					size?: number | null;
 					/** @enum {string} */
@@ -765,17 +774,6 @@ export interface components {
 					/** @enum {string} */
 					type: "Reference";
 			  };
-		/** @description A media type, conveniently parsed */
-		MimeType:
-			| {
-					/** @description A mimetype we didn't recognize */
-					Unknown: string;
-			  }
-			| "Blob"
-			| "Png"
-			| "Jpg"
-			| "Flac"
-			| "Mp3";
 		NewAttrParams: {
 			/** Format: int32 */
 			class: number;

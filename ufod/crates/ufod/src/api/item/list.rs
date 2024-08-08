@@ -14,11 +14,11 @@ use tracing::error;
 use ufo_ds_core::{
 	api::{
 		blob::{BlobHandle, Blobstore},
-		meta::Metastore,
+		meta::{AttrInfo, Metastore},
 	},
 	data::{HashType, MetastoreData, MetastoreDataStub},
 	errors::MetastoreError,
-	handles::{AttrHandle, ItemIdx},
+	handles::ItemIdx,
 };
 use ufo_util::mime::MimeType;
 use utoipa::{IntoParams, ToSchema};
@@ -38,7 +38,7 @@ pub(super) struct ItemListRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema, IntoParams)]
 pub(super) struct ItemListItem {
 	idx: u32,
-	attrs: HashMap<String, ItemListData>,
+	attrs: HashMap<u32, ItemListData>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, IntoParams)]
@@ -53,52 +53,43 @@ pub(super) struct ItemListResponse {
 #[serde(tag = "type")]
 pub(super) enum ItemListData {
 	PositiveInteger {
-		#[schema(value_type = u32)]
-		attr: AttrHandle,
+		attr: AttrInfo,
 		value: Option<u64>,
 	},
 	Integer {
-		#[schema(value_type = u32)]
-		attr: AttrHandle,
+		attr: AttrInfo,
 		value: Option<i64>,
 	},
 	Float {
-		#[schema(value_type = u32)]
-		attr: AttrHandle,
+		attr: AttrInfo,
 		value: Option<f64>,
 	},
 	Boolean {
-		#[schema(value_type = u32)]
-		attr: AttrHandle,
+		attr: AttrInfo,
 		value: Option<bool>,
 	},
 	Text {
-		#[schema(value_type = u32)]
-		attr: AttrHandle,
+		attr: AttrInfo,
 		value: Option<String>,
 	},
 	Reference {
-		#[schema(value_type = u32)]
-		attr: AttrHandle,
+		attr: AttrInfo,
 		class: String,
 		item: Option<ItemIdx>,
 	},
 	Hash {
-		#[schema(value_type = u32)]
-		attr: AttrHandle,
+		attr: AttrInfo,
 		hash_type: HashType,
 		value: Option<String>,
 	},
 	Binary {
-		#[schema(value_type = u32)]
-		attr: AttrHandle,
+		attr: AttrInfo,
 		#[schema(value_type = Option<String>)]
 		mime: Option<MimeType>,
 		size: Option<u64>,
 	},
 	Blob {
-		#[schema(value_type = u32)]
-		attr: AttrHandle,
+		attr: AttrInfo,
 		#[schema(value_type = Option<String>)]
 		mime: Option<MimeType>,
 		handle: Option<BlobHandle>,
@@ -153,13 +144,13 @@ pub(super) async fn list_item(
 		}
 		Err(e) => {
 			error!(
-				message = "Could not get dataset by name",
+				message = "Could not get dataset",
 				dataset = query.dataset,
 				error = ?e
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset by name"),
+				format!("Could not get dataset"),
 			)
 				.into_response();
 		}
@@ -234,37 +225,37 @@ pub(super) async fn list_item(
 					// These must match the serialized tags of `ItemListData`
 					MetastoreDataStub::Text => ItemListData::Text {
 						value: None,
-						attr: attr.handle,
+						attr: attr.clone(),
 					},
 					MetastoreDataStub::Binary => ItemListData::Binary {
-						attr: attr.handle,
+						attr: attr.clone(),
 						mime: None,
 						size: None,
 					},
 					MetastoreDataStub::Blob => ItemListData::Blob {
-						attr: attr.handle,
+						attr: attr.clone(),
 						mime: None,
 						handle: None,
 						size: None,
 					},
 					MetastoreDataStub::Integer => ItemListData::Integer {
-						attr: attr.handle,
+						attr: attr.clone(),
 						value: None,
 					},
 					MetastoreDataStub::PositiveInteger => ItemListData::PositiveInteger {
-						attr: attr.handle,
+						attr: attr.clone(),
 						value: None,
 					},
 					MetastoreDataStub::Boolean => ItemListData::Boolean {
-						attr: attr.handle,
+						attr: attr.clone(),
 						value: None,
 					},
 					MetastoreDataStub::Float => ItemListData::Float {
-						attr: attr.handle,
+						attr: attr.clone(),
 						value: None,
 					},
 					MetastoreDataStub::Hash { hash_type } => ItemListData::Hash {
-						attr: attr.handle,
+						attr: attr.clone(),
 						hash_type: *hash_type,
 						value: None,
 					},
@@ -287,14 +278,14 @@ pub(super) async fn list_item(
 						};
 
 						ItemListData::Reference {
-							attr: attr.handle,
+							attr: attr.clone(),
 							class: class.name.to_string(),
 							item: None,
 						}
 					}
 				},
 				MetastoreData::PositiveInteger(x) => ItemListData::PositiveInteger {
-					attr: attr.handle,
+					attr: attr.clone(),
 					value: Some(*x),
 				},
 				MetastoreData::Blob { handle } => {
@@ -316,35 +307,35 @@ pub(super) async fn list_item(
 					};
 
 					ItemListData::Blob {
-						attr: attr.handle,
+						attr: attr.clone(),
 						mime: Some(MimeType::Flac),
 						handle: Some(*handle),
 						size: Some(size),
 					}
 				}
 				MetastoreData::Integer(x) => ItemListData::Integer {
-					attr: attr.handle,
+					attr: attr.clone(),
 					value: Some(*x),
 				},
 				MetastoreData::Boolean(x) => ItemListData::Boolean {
-					attr: attr.handle,
+					attr: attr.clone(),
 					value: Some(*x),
 				},
 				MetastoreData::Float(x) => ItemListData::Float {
-					attr: attr.handle,
+					attr: attr.clone(),
 					value: Some(*x),
 				},
 				MetastoreData::Binary { mime, data } => ItemListData::Binary {
-					attr: attr.handle,
+					attr: attr.clone(),
 					mime: Some(mime.clone()),
 					size: Some(data.len().try_into().unwrap()),
 				},
 				MetastoreData::Text(t) => ItemListData::Text {
-					attr: attr.handle,
+					attr: attr.clone(),
 					value: Some(t.to_string()),
 				},
 				MetastoreData::Hash { format, data } => ItemListData::Hash {
-					attr: attr.handle,
+					attr: attr.clone(),
 					hash_type: *format,
 					value: Some(data.iter().map(|x| format!("{:X?}", x)).join("")),
 				},
@@ -367,14 +358,14 @@ pub(super) async fn list_item(
 					};
 
 					ItemListData::Reference {
-						attr: attr.handle,
+						attr: attr.clone(),
 						class: class.name.into(),
 						item: Some(*item),
 					}
 				}
 			};
 
-			itemlistdata.insert(attr.name.to_string(), d);
+			itemlistdata.insert(attr.handle.into(), d);
 		}
 
 		out.push(ItemListItem {
