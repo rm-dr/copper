@@ -2,7 +2,7 @@ use std::io::{Cursor, Read};
 
 use crate::{flac::errors::FlacError, FileBlockDecode};
 
-/// A FLAC file's Streaminfo block.
+/// A streaminfo block in a flac file
 pub struct FlacStreaminfoBlock {
 	/// The minimum block size (in samples) used in the stream.
 	pub min_block_size: u32,

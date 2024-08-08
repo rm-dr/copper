@@ -8,3 +8,15 @@ pub use header::{FlacMetablockHeader, FlacMetablockType};
 
 mod picture;
 pub use picture::FlacPictureBlock;
+
+mod padding;
+pub use padding::FlacPaddingBlock;
+
+mod application;
+pub use application::FlacApplicationBlock;
+
+mod seektable;
+pub use seektable::FlacSeektableBlock;
+
+mod cuesheet;
+pub use cuesheet::FlacCuesheetBlock;
