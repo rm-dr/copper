@@ -11,7 +11,6 @@ use ufo_ds_core::{
 	handles::ItemIdx,
 };
 use ufo_ds_impl::DatasetType;
-use ufo_util::mime::MimeType;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -86,7 +85,6 @@ impl Modify for BearerSecurityAddon {
 		AttributeOptions,
 		DatasetType,
 		ItemIdx,
-		MimeType,
 		BlobHandle,
 		GroupId,
 		GroupInfo,

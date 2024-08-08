@@ -14,7 +14,6 @@ use ufo_ds_core::{
 	api::{blob::Blobstore, meta::Metastore},
 	data::MetastoreData,
 	errors::MetastoreError,
-	handles::AttrHandle,
 };
 use utoipa::{IntoParams, ToSchema};
 
@@ -22,9 +21,7 @@ use utoipa::{IntoParams, ToSchema};
 pub(super) struct ItemAttrRequest {
 	pub dataset: String,
 
-	#[schema(value_type = u32)]
-	pub attr: AttrHandle,
-
+	pub attr: u32,
 	pub item_idx: u32,
 }
 
@@ -75,7 +72,7 @@ pub(super) async fn get_item_attr(
 		}
 	};
 
-	let attr = match dataset.get_attr(query.attr).await {
+	let attr = match dataset.get_attr(query.attr.into()).await {
 		Ok(x) => x,
 		Err(MetastoreError::BadAttrHandle) => {
 			return (

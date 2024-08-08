@@ -18,7 +18,7 @@ use ufo_ds_core::{
 	},
 	data::{HashType, MetastoreData, MetastoreDataStub},
 	errors::MetastoreError,
-	handles::ItemIdx,
+	handles::{AttrHandle, ItemIdx},
 };
 use ufo_util::mime::MimeType;
 use utoipa::{IntoParams, ToSchema};
@@ -53,33 +53,53 @@ pub(super) struct ItemListResponse {
 #[serde(tag = "type")]
 pub(super) enum ItemListData {
 	PositiveInteger {
+		#[schema(value_type = u32)]
+		attr: AttrHandle,
 		value: Option<u64>,
 	},
 	Integer {
+		#[schema(value_type = u32)]
+		attr: AttrHandle,
 		value: Option<i64>,
 	},
 	Float {
+		#[schema(value_type = u32)]
+		attr: AttrHandle,
 		value: Option<f64>,
 	},
 	Boolean {
+		#[schema(value_type = u32)]
+		attr: AttrHandle,
 		value: Option<bool>,
 	},
 	Text {
+		#[schema(value_type = u32)]
+		attr: AttrHandle,
 		value: Option<String>,
 	},
 	Reference {
+		#[schema(value_type = u32)]
+		attr: AttrHandle,
 		class: String,
 		item: Option<ItemIdx>,
 	},
 	Hash {
+		#[schema(value_type = u32)]
+		attr: AttrHandle,
 		hash_type: HashType,
 		value: Option<String>,
 	},
 	Binary {
+		#[schema(value_type = u32)]
+		attr: AttrHandle,
+		#[schema(value_type = Option<String>)]
 		mime: Option<MimeType>,
 		size: Option<u64>,
 	},
 	Blob {
+		#[schema(value_type = u32)]
+		attr: AttrHandle,
+		#[schema(value_type = Option<String>)]
 		mime: Option<MimeType>,
 		handle: Option<BlobHandle>,
 		size: Option<u64>,
@@ -212,23 +232,39 @@ pub(super) async fn list_item(
 			let d = match val {
 				MetastoreData::None(t) => match t {
 					// These must match the serialized tags of `ItemListData`
-					MetastoreDataStub::Text => ItemListData::Text { value: None },
+					MetastoreDataStub::Text => ItemListData::Text {
+						value: None,
+						attr: attr.handle,
+					},
 					MetastoreDataStub::Binary => ItemListData::Binary {
+						attr: attr.handle,
 						mime: None,
 						size: None,
 					},
 					MetastoreDataStub::Blob => ItemListData::Blob {
+						attr: attr.handle,
 						mime: None,
 						handle: None,
 						size: None,
 					},
-					MetastoreDataStub::Integer => ItemListData::Integer { value: None },
-					MetastoreDataStub::PositiveInteger => {
-						ItemListData::PositiveInteger { value: None }
-					}
-					MetastoreDataStub::Boolean => ItemListData::Boolean { value: None },
-					MetastoreDataStub::Float => ItemListData::Float { value: None },
+					MetastoreDataStub::Integer => ItemListData::Integer {
+						attr: attr.handle,
+						value: None,
+					},
+					MetastoreDataStub::PositiveInteger => ItemListData::PositiveInteger {
+						attr: attr.handle,
+						value: None,
+					},
+					MetastoreDataStub::Boolean => ItemListData::Boolean {
+						attr: attr.handle,
+						value: None,
+					},
+					MetastoreDataStub::Float => ItemListData::Float {
+						attr: attr.handle,
+						value: None,
+					},
 					MetastoreDataStub::Hash { hash_type } => ItemListData::Hash {
+						attr: attr.handle,
 						hash_type: *hash_type,
 						value: None,
 					},
@@ -251,14 +287,16 @@ pub(super) async fn list_item(
 						};
 
 						ItemListData::Reference {
+							attr: attr.handle,
 							class: class.name.to_string(),
 							item: None,
 						}
 					}
 				},
-				MetastoreData::PositiveInteger(x) => {
-					ItemListData::PositiveInteger { value: Some(*x) }
-				}
+				MetastoreData::PositiveInteger(x) => ItemListData::PositiveInteger {
+					attr: attr.handle,
+					value: Some(*x),
+				},
 				MetastoreData::Blob { handle } => {
 					let size = match dataset.blob_size(*handle).await {
 						Ok(x) => x,
@@ -278,22 +316,35 @@ pub(super) async fn list_item(
 					};
 
 					ItemListData::Blob {
+						attr: attr.handle,
 						mime: Some(MimeType::Flac),
 						handle: Some(*handle),
 						size: Some(size),
 					}
 				}
-				MetastoreData::Integer(x) => ItemListData::Integer { value: Some(*x) },
-				MetastoreData::Boolean(x) => ItemListData::Boolean { value: Some(*x) },
-				MetastoreData::Float(x) => ItemListData::Float { value: Some(*x) },
+				MetastoreData::Integer(x) => ItemListData::Integer {
+					attr: attr.handle,
+					value: Some(*x),
+				},
+				MetastoreData::Boolean(x) => ItemListData::Boolean {
+					attr: attr.handle,
+					value: Some(*x),
+				},
+				MetastoreData::Float(x) => ItemListData::Float {
+					attr: attr.handle,
+					value: Some(*x),
+				},
 				MetastoreData::Binary { mime, data } => ItemListData::Binary {
+					attr: attr.handle,
 					mime: Some(mime.clone()),
 					size: Some(data.len().try_into().unwrap()),
 				},
 				MetastoreData::Text(t) => ItemListData::Text {
+					attr: attr.handle,
 					value: Some(t.to_string()),
 				},
 				MetastoreData::Hash { format, data } => ItemListData::Hash {
+					attr: attr.handle,
 					hash_type: *format,
 					value: Some(data.iter().map(|x| format!("{:X?}", x)).join("")),
 				},
@@ -316,6 +367,7 @@ pub(super) async fn list_item(
 					};
 
 					ItemListData::Reference {
+						attr: attr.handle,
 						class: class.name.into(),
 						item: Some(*item),
 					}
