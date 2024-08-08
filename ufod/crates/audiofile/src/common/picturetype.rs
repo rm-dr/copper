@@ -75,4 +75,31 @@ impl PictureType {
 			_ => return Err(PictureTypeError { idx }),
 		})
 	}
+
+	/// Return the index of this picture type
+	pub fn to_idx(&self) -> u32 {
+		match self {
+			PictureType::Other => 0,
+			PictureType::PngFileIcon => 1,
+			PictureType::OtherFileIcon => 2,
+			PictureType::FrontCover => 3,
+			PictureType::BackCover => 4,
+			PictureType::LeafletPage => 5,
+			PictureType::Media => 6,
+			PictureType::LeadArtist => 7,
+			PictureType::Artist => 8,
+			PictureType::Conductor => 9,
+			PictureType::BandOrchestra => 10,
+			PictureType::Composer => 11,
+			PictureType::Lyricist => 12,
+			PictureType::RecLocation => 13,
+			PictureType::DuringRecording => 14,
+			PictureType::DuringPerformance => 15,
+			PictureType::VideoScreenCapture => 16,
+			PictureType::ABrightColoredFish => 17,
+			PictureType::Illustration => 18,
+			PictureType::ArtistLogotype => 19,
+			PictureType::PublisherLogotype => 20,
+		}
+	}
 }

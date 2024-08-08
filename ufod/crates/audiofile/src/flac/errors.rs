@@ -1,12 +1,10 @@
-//! FLAC parsing errors
+//! FLAC errors
 use crate::common::{picturetype::PictureTypeError, vorbiscomment::VorbisCommentError};
 use std::{error::Error, fmt::Display, string::FromUtf8Error};
 
-// TODO: refactor errors?
-
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub enum FlacError {
+pub enum FlacDecodeError {
 	// TODO: multiple comment blocks are an error
 	/// FLAC does not start with 0x66 0x4C 0x61 0x43
 	BadMagicBytes,
@@ -36,7 +34,7 @@ pub enum FlacError {
 	PictureTypeError(PictureTypeError),
 }
 
-impl Display for FlacError {
+impl Display for FlacDecodeError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::IoError(_) => write!(f, "io error while reading flac"),
@@ -52,7 +50,7 @@ impl Display for FlacError {
 	}
 }
 
-impl Error for FlacError {
+impl Error for FlacDecodeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		Some(match self {
 			Self::IoError(e) => e,
@@ -64,26 +62,55 @@ impl Error for FlacError {
 	}
 }
 
-impl From<std::io::Error> for FlacError {
+impl From<std::io::Error> for FlacDecodeError {
 	fn from(value: std::io::Error) -> Self {
 		Self::IoError(value)
 	}
 }
 
-impl From<VorbisCommentError> for FlacError {
+impl From<VorbisCommentError> for FlacDecodeError {
 	fn from(value: VorbisCommentError) -> Self {
 		Self::VorbisComment(value)
 	}
 }
 
-impl From<FromUtf8Error> for FlacError {
+impl From<FromUtf8Error> for FlacDecodeError {
 	fn from(value: FromUtf8Error) -> Self {
 		Self::FailedStringDecode(value)
 	}
 }
 
-impl From<PictureTypeError> for FlacError {
+impl From<PictureTypeError> for FlacDecodeError {
 	fn from(value: PictureTypeError) -> Self {
 		Self::PictureTypeError(value)
+	}
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub enum FlacEncodeError {
+	/// We encountered an i/o error while processing
+	IoError(std::io::Error),
+}
+
+impl Display for FlacEncodeError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::IoError(_) => write!(f, "io error while encoding block"),
+		}
+	}
+}
+
+impl Error for FlacEncodeError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		Some(match self {
+			Self::IoError(e) => e,
+		})
+	}
+}
+
+impl From<std::io::Error> for FlacEncodeError {
+	fn from(value: std::io::Error) -> Self {
+		Self::IoError(value)
 	}
 }

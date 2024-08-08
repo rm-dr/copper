@@ -7,8 +7,6 @@ use std::{
 	string::FromUtf8Error,
 };
 
-use crate::FileBlockDecode;
-
 use super::tagtype::TagType;
 
 #[derive(Debug)]
@@ -77,10 +75,9 @@ pub struct VorbisComment {
 	pub comments: Vec<(TagType, String)>,
 }
 
-impl FileBlockDecode for VorbisComment {
-	type DecodeErrorType = VorbisCommentError;
-
-	fn decode(data: &[u8]) -> Result<Self, Self::DecodeErrorType> {
+impl VorbisComment {
+	/// Try to decode the given data as a vorbis comment block
+	pub fn decode(data: &[u8]) -> Result<Self, VorbisCommentError> {
 		let mut d = Cursor::new(data);
 
 		// This is re-used whenever we need to read four bytes

@@ -1,4 +1,6 @@
-use crate::{flac::errors::FlacError, FileBlockDecode};
+use crate::flac::errors::{FlacDecodeError, FlacEncodeError};
+
+use super::{FlacMetablockDecode, FlacMetablockEncode, FlacMetablockHeader, FlacMetablockType};
 
 // TODO: parse
 
@@ -8,10 +10,26 @@ pub struct FlacSeektableBlock {
 	pub data: Vec<u8>,
 }
 
-impl FileBlockDecode for FlacSeektableBlock {
-	type DecodeErrorType = FlacError;
-
-	fn decode(data: &[u8]) -> Result<Self, Self::DecodeErrorType> {
+impl FlacMetablockDecode for FlacSeektableBlock {
+	fn decode(data: &[u8]) -> Result<Self, FlacDecodeError> {
 		Ok(Self { data: data.into() })
+	}
+}
+
+impl FlacMetablockEncode for FlacSeektableBlock {
+	fn encode(
+		&self,
+		is_last: bool,
+		target: &mut impl std::io::Write,
+	) -> Result<(), FlacEncodeError> {
+		let header = FlacMetablockHeader {
+			block_type: FlacMetablockType::Seektable,
+			length: self.data.len().try_into().unwrap(),
+			is_last,
+		};
+
+		header.encode(target)?;
+		target.write_all(&self.data)?;
+		return Ok(());
 	}
 }

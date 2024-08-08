@@ -6,8 +6,8 @@ use std::{
 };
 
 use super::{
-	blocks::{FlacMetablockHeader, FlacMetablockType},
-	errors::FlacError,
+	blocks::{FlacMetablockDecode, FlacMetablockHeader, FlacMetablockType},
+	errors::FlacDecodeError,
 };
 use crate::{
 	common::vorbiscomment::VorbisComment,
@@ -15,7 +15,6 @@ use crate::{
 		FlacApplicationBlock, FlacCuesheetBlock, FlacPaddingBlock, FlacPictureBlock,
 		FlacSeektableBlock, FlacStreaminfoBlock,
 	},
-	FileBlockDecode,
 };
 
 /// Select which blocks we want to keep.
@@ -137,7 +136,7 @@ impl FlacBlockReader {
 	/// Pass the given data through this block extractor.
 	/// Output data is stored in an internal buffer, and should be accessed
 	/// through `Read`.
-	pub fn push_data(&mut self, buf: &[u8]) -> Result<(), FlacError> {
+	pub fn push_data(&mut self, buf: &[u8]) -> Result<(), FlacDecodeError> {
 		let mut buf = Cursor::new(buf);
 		let mut last_read_size = 1;
 
@@ -153,7 +152,7 @@ impl FlacBlockReader {
 
 					if *left_to_read == 0 {
 						if *data != [0x66, 0x4C, 0x61, 0x43] {
-							return Err(FlacError::BadMagicBytes);
+							return Err(FlacDecodeError::BadMagicBytes);
 						};
 
 						self.current_block = Some(FlacBlockType::MetablockHeader {
@@ -176,7 +175,7 @@ impl FlacBlockReader {
 						let header = FlacMetablockHeader::decode(data)?;
 						if *is_first && !matches!(header.block_type, FlacMetablockType::Streaminfo)
 						{
-							return Err(FlacError::BadFirstBlock);
+							return Err(FlacDecodeError::BadFirstBlock);
 						}
 
 						self.current_block = Some(FlacBlockType::MetaBlock {
@@ -254,7 +253,7 @@ impl FlacBlockReader {
 					// (`if` makes sure we only do this once)
 					if data.len() - last_read_size <= 2 {
 						if !(data[0] == 0b1111_1111 && data[1] & 0b1111_1100 == 0b1111_1000) {
-							return Err(FlacError::BadSyncBytes);
+							return Err(FlacDecodeError::BadSyncBytes);
 						}
 					}
 
@@ -314,7 +313,7 @@ impl FlacBlockReader {
 	///
 	/// `finish()` should be called exactly once once we have finished each stream.
 	/// Finishing twice or pushing data to a finished reader results in a panic.
-	pub fn finish(&mut self) -> Result<(), FlacError> {
+	pub fn finish(&mut self) -> Result<(), FlacDecodeError> {
 		match self.current_block.take() {
 			None => {
 				panic!("Called `finish()` on a finished reader")
@@ -323,11 +322,11 @@ impl FlacBlockReader {
 			Some(FlacBlockType::AudioData { data }) => {
 				// We can't run checks if we don't have enough data.
 				if data.len() <= 2 {
-					return Err(FlacError::MalformedBlock);
+					return Err(FlacDecodeError::MalformedBlock);
 				}
 
 				if !(data[0] == 0b1111_1111 && data[1] & 0b1111_1100 == 0b1111_1000) {
-					return Err(FlacError::BadSyncBytes);
+					return Err(FlacDecodeError::BadSyncBytes);
 				}
 
 				if self.selector.pick_audio {
@@ -340,7 +339,7 @@ impl FlacBlockReader {
 
 			// All other blocks have a known length and
 			// are finished automatically.
-			_ => return Err(FlacError::MalformedBlock),
+			_ => return Err(FlacDecodeError::MalformedBlock),
 		}
 	}
 }
@@ -349,12 +348,16 @@ impl FlacBlockReader {
 mod tests {
 	use itertools::Itertools;
 	use paste::paste;
+	use rand::Rng;
 	use sha2::{Digest, Sha256};
-	use std::path::{Path, PathBuf};
+	use std::{
+		io::Write,
+		path::{Path, PathBuf},
+	};
 	use ufo_util::mime::MimeType;
 
 	use super::*;
-	use crate::common::picturetype::PictureType;
+	use crate::{common::picturetype::PictureType, flac::blocks::FlacMetablockEncode};
 
 	enum FlacBlockOutput {
 		Application {
@@ -373,6 +376,17 @@ mod tests {
 			md5_signature: &'static str,
 		},
 		CueSheet {
+			// Hash of this block's data, without the header.
+			// This is easy to get with
+			//
+			// ```notrust
+			// metaflac \
+			//	--list \
+			//	--block-number=<n> \
+			//	--data-format=binary-headerless \
+			//	<file> \
+			//	| sha256sum
+			//```
 			hash: &'static str,
 		},
 		Seektable {
@@ -396,23 +410,13 @@ mod tests {
 		},
 	}
 
-	fn test_block_whole(
+	fn read_file(
 		test_file_path: &Path,
-		in_hash: &str,
-		result: &[FlacBlockOutput],
-		audio_hash: &str,
-	) -> Result<(), FlacError> {
-		let selector = FlacBlockSelector {
-			pick_streaminfo: true,
-			pick_padding: true,
-			pick_application: true,
-			pick_seektable: true,
-			pick_vorbiscomment: true,
-			pick_cuesheet: true,
-			pick_picture: true,
-			pick_audio: true,
-		};
+		fragment_size_range: Option<std::ops::Range<usize>>,
 
+		selector: FlacBlockSelector,
+		in_hash: &str,
+	) -> Result<Vec<FlacBlock>, FlacDecodeError> {
 		let file_data = std::fs::read(test_file_path).unwrap();
 
 		// Make sure input file is correct
@@ -420,27 +424,123 @@ mod tests {
 		hasher.update(&file_data);
 		assert_eq!(in_hash, format!("{:x}", hasher.finalize()));
 
-		let mut x = FlacBlockReader::new(selector);
-
-		x.push_data(&file_data)?;
-		x.finish()?;
-
-		let mut all_audio_frames = Vec::new();
+		let mut reader = FlacBlockReader::new(selector);
 		let mut out_blocks = Vec::new();
-		while let Some(b) = x.pop_block() {
-			match b {
-				FlacBlock::AudioFrame(f) => {
-					all_audio_frames.extend(f);
+
+		// Push file data to the reader, in parts or as a whole.
+		if let Some(fragment_size_range) = fragment_size_range {
+			let mut head = 0;
+			while head < file_data.len() {
+				let mut frag_size = rand::thread_rng().gen_range(fragment_size_range.clone());
+				if head + frag_size > file_data.len() {
+					frag_size = file_data.len() - head;
 				}
-				_ => out_blocks.push(b),
+				reader.push_data(&file_data[head..head + frag_size])?;
+				head += frag_size;
+			}
+		} else {
+			reader.push_data(&file_data)?;
+		}
+
+		reader.finish()?;
+		while let Some(b) = reader.pop_block() {
+			out_blocks.push(b)
+		}
+
+		return Ok(out_blocks);
+	}
+
+	fn test_strip(
+		test_file_path: &Path,
+		fragment_size_range: Option<std::ops::Range<usize>>,
+		in_hash: &str,
+		out_hash: &str,
+	) -> Result<(), FlacDecodeError> {
+		let out_blocks = read_file(
+			test_file_path,
+			fragment_size_range,
+			FlacBlockSelector {
+				pick_streaminfo: true,
+				pick_padding: false,
+				pick_application: false,
+				pick_seektable: true,
+				pick_vorbiscomment: false,
+				pick_cuesheet: true,
+				pick_picture: false,
+				pick_audio: true,
+			},
+			in_hash,
+		)?;
+
+		let mut out = Vec::new();
+		out.write_all(&[0x66, 0x4C, 0x61, 0x43])?;
+
+		for i in 0..out_blocks.len() {
+			let b = &out_blocks[i];
+			let is_last = if i == out_blocks.len() - 1 {
+				false
+			} else {
+				!matches!(b, FlacBlock::AudioFrame(_))
+					&& matches!(&out_blocks[i + 1], FlacBlock::AudioFrame(_))
+			};
+
+			match b {
+				FlacBlock::Streaminfo(i) => i.encode(is_last, &mut out).unwrap(),
+				FlacBlock::CueSheet(c) => c.encode(is_last, &mut out).unwrap(),
+				FlacBlock::SeekTable(s) => s.encode(is_last, &mut out).unwrap(),
+				FlacBlock::AudioFrame(a) => out.extend(a),
+				_ => unreachable!(),
 			}
 		}
 
-		assert_eq!(result.len(), out_blocks.len());
+		let mut hasher = Sha256::new();
+		hasher.update(out);
+		let result = format!("{:x}", hasher.finalize());
+		assert_eq!(result, out_hash, "Stripped FLAC hash doesn't match");
 
-		for (b, r) in out_blocks.iter().zip(result.iter()) {
+		return Ok(());
+	}
+
+	fn test_blockread(
+		test_file_path: &Path,
+		fragment_size_range: Option<std::ops::Range<usize>>,
+		in_hash: &str,
+		result: &[FlacBlockOutput],
+		audio_hash: &str,
+	) -> Result<(), FlacDecodeError> {
+		let out_blocks = read_file(
+			test_file_path,
+			fragment_size_range,
+			FlacBlockSelector {
+				pick_streaminfo: true,
+				pick_padding: true,
+				pick_application: true,
+				pick_seektable: true,
+				pick_vorbiscomment: true,
+				pick_cuesheet: true,
+				pick_picture: true,
+				pick_audio: true,
+			},
+			in_hash,
+		)?;
+
+		assert_eq!(
+			result.len(),
+			out_blocks
+				.iter()
+				.filter(|x| !matches!(*x, FlacBlock::AudioFrame(_)))
+				.count(),
+			"Number of blocks didn't match"
+		);
+
+		println!("{:?}", out_blocks.len());
+
+		let mut audio_data_hasher = Sha256::new();
+		let mut result_i = 0;
+
+		for b in out_blocks {
 			match b {
-				FlacBlock::Streaminfo(s) => match r {
+				FlacBlock::Streaminfo(s) => match &result[result_i] {
 					FlacBlockOutput::Streaminfo {
 						min_block_size,
 						max_block_size,
@@ -452,7 +552,7 @@ mod tests {
 						total_samples,
 						md5_signature,
 					} => {
-						assert_eq!(*min_block_size, s.min_block_size);
+						assert_eq!(*min_block_size, s.min_block_size,);
 						assert_eq!(*max_block_size, s.max_block_size);
 						assert_eq!(*min_frame_size, s.min_frame_size);
 						assert_eq!(*max_frame_size, s.max_frame_size);
@@ -468,7 +568,7 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::Application(a) => match r {
+				FlacBlock::Application(a) => match &result[result_i] {
 					FlacBlockOutput::Application {
 						application_id,
 						hash,
@@ -490,7 +590,7 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::CueSheet(c) => match r {
+				FlacBlock::CueSheet(c) => match &result[result_i] {
 					FlacBlockOutput::CueSheet { hash } => {
 						assert_eq!(*hash, {
 							let mut hasher = Sha256::new();
@@ -501,14 +601,14 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::Padding(p) => match r {
+				FlacBlock::Padding(p) => match &result[result_i] {
 					FlacBlockOutput::Padding { size } => {
 						assert_eq!(*size, p.size.try_into().unwrap());
 					}
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::SeekTable(t) => match r {
+				FlacBlock::SeekTable(t) => match &result[result_i] {
 					FlacBlockOutput::Seektable { hash } => {
 						assert_eq!(*hash, {
 							let mut hasher = Sha256::new();
@@ -519,7 +619,7 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::Picture(p) => match r {
+				FlacBlock::Picture(p) => match &result[result_i] {
 					FlacBlockOutput::Picture {
 						picture_type,
 						mime,
@@ -548,16 +648,23 @@ mod tests {
 
 				FlacBlock::VorbisComment(_) => {}
 
-				FlacBlock::AudioFrame(_) => {
-					unreachable!()
+				FlacBlock::AudioFrame(data) => {
+					audio_data_hasher.update(data);
+
+					if result_i != result.len() {
+						panic!("There are metadata blocks betwen audio frames!")
+					}
+
+					// Don't increment result_i
+					continue;
 				}
 			}
+
+			result_i += 1;
 		}
 
 		// Check audio data hash
-		let mut hasher = Sha256::new();
-		hasher.update(all_audio_frames);
-		assert_eq!(audio_hash, format!("{:x}", hasher.finalize()));
+		assert_eq!(audio_hash, format!("{:x}", audio_data_hasher.finalize()));
 
 		return Ok(());
 	}
@@ -578,17 +685,52 @@ mod tests {
 					$result:expr,
 
 					// The expected hash of audio data
-					$audio_hash:literal
+					//
+					// Get this hash by running `metaflac --remove-all --dont-use-padding`,
+					// then by manually deleting remaining headers in a hex editor
+					// (Remember that the sync sequence is 0xFF 0xF8)
+					$audio_hash:literal,
+
+					// The hash of this file with tags stripped
+					$stripped_hash:literal
 				) => {
 			paste! {
 				#[test]
-				pub fn [<blockread_ $file_name>]() {
-					test_block_whole(
-						$file_path,
-						$in_hash,
-						$result,
-						$audio_hash
-					).unwrap()
+				pub fn [<blockread_small_ $file_name>]() {
+					for _ in 0..5 {
+						test_blockread(
+							$file_path,
+							Some(1..256),
+							$in_hash,
+							$result,
+							$audio_hash
+						).unwrap()
+					}
+				}
+
+				#[test]
+				pub fn [<blockread_large_ $file_name>]() {
+					for _ in 0..5 {
+						test_blockread(
+							$file_path,
+							Some(5_000..100_000),
+							$in_hash,
+							$result,
+							$audio_hash
+						).unwrap()
+					}
+				}
+
+				#[test]
+				pub fn [<blockread_strip_ $file_name>]() {
+					for _ in 0..5 {
+						test_strip(
+							$file_path,
+							Some(5_000..100_000),
+							$in_hash,
+							$stripped_hash
+						).unwrap()
+					}
 				}
 			}
 		};
@@ -613,13 +755,9 @@ mod tests {
 			},
 			FlacBlockOutput::VorbisComment { hash: "idk" }
 		],
-		// Get this hash by running `metaflac --remove-all --dont-use-padding`,
-		// then by manually deleting remaining headers in a hex editor
-		// (Remember that the sync sequence is 0xFF 0xF8)
-		"3fb3482ebc1724559bdd57f34de472458563d78a676029614e76e32b5d2b8816"
+		"3fb3482ebc1724559bdd57f34de472458563d78a676029614e76e32b5d2b8816",
+		"31631ac227ebe2689bac7caa1fa964b47e71a9f1c9c583a04ea8ebd9371508d0"
 	);
-
-	// metaflac --list a --block-number=1 --data-format=binary-headerless | sha256sum
 
 	test_success!(
 		subset_46,
@@ -640,7 +778,8 @@ mod tests {
 			},
 			FlacBlockOutput::VorbisComment { hash: "idk" }
 		],
-		"a1eed422462b386a932b9eb3dff3aea3687b41eca919624fb574aadb7eb50040"
+		"a1eed422462b386a932b9eb3dff3aea3687b41eca919624fb574aadb7eb50040",
+		"9e57cd77f285fc31f87fa4e3a31ab8395d68d5482e174c8e0d0bba9a0c20ba27"
 	);
 
 	test_success!(
@@ -659,7 +798,8 @@ mod tests {
 			total_samples: 232608,
 			md5_signature: "bba30c5f70789910e404b7ac727c3853"
 		},],
-		"5ee1450058254087f58c91baf0f70d14bde8782cf2dc23c741272177fe0fce6e"
+		"5ee1450058254087f58c91baf0f70d14bde8782cf2dc23c741272177fe0fce6e",
+		"9a62c79f634849e74cb2183f9e3a9bd284f51e2591c553008d3e6449967eef85"
 	);
 
 	test_success!(
@@ -684,7 +824,8 @@ mod tests {
 			},
 			FlacBlockOutput::VorbisComment { hash: "idk" }
 		],
-		"c2d691f2c4c986fe3cd5fd7864d9ba9ce6dd68a4ffc670447f008434b13102c2"
+		"c2d691f2c4c986fe3cd5fd7864d9ba9ce6dd68a4ffc670447f008434b13102c2",
+		"abc9a0c40a29c896bc6e1cc0b374db1c8e157af716a5a3c43b7db1591a74c4e8"
 	);
 
 	test_success!(
@@ -707,7 +848,8 @@ mod tests {
 			FlacBlockOutput::VorbisComment { hash: "idk" },
 			FlacBlockOutput::Padding { size: 16777215 }
 		],
-		"5007be7109b28b0149d1b929d2a0e93a087381bd3e68cf2a3ef78ea265ea20c3"
+		"5007be7109b28b0149d1b929d2a0e93a087381bd3e68cf2a3ef78ea265ea20c3",
+		"a2283bbacbc4905ad3df1bf9f43a0ea7aa65cf69523d84a7dd8eb54553cc437e"
 	);
 
 	test_success!(
@@ -739,7 +881,8 @@ mod tests {
 				img_data: "b78c3a48fde4ebbe8e4090e544caeb8f81ed10020d57cc50b3265f9b338d8563",
 			},
 		],
-		"9778b25c5d1f56cfcd418e550baed14f9d6a4baf29489a83ed450fbebb28de8c"
+		"9778b25c5d1f56cfcd418e550baed14f9d6a4baf29489a83ed450fbebb28de8c",
+		"20df129287d94f9ae5951b296d7f65fcbed92db423ba7db4f0d765f1f0a7e18c"
 	);
 
 	test_success!(
@@ -761,7 +904,8 @@ mod tests {
 			},
 			FlacBlockOutput::VorbisComment { hash: "idk" }
 		],
-		"76419865d10eb22a74f020423a4e515e800f0177441676afd0418557c2d76c36"
+		"76419865d10eb22a74f020423a4e515e800f0177441676afd0418557c2d76c36",
+		"c0ca6c6099b5d9ec53d6bb370f339b2b1570055813a6cd3616fac2db83a2185e"
 	);
 
 	test_success!(
@@ -787,7 +931,8 @@ mod tests {
 				hash: "cfc0b8969e4ba6bd507999ba89dea2d274df69d94749d6ae3cf117a7780bba09"
 			}
 		],
-		"89ad1a5c86a9ef35d33189c81c8a90285a23964a13f8325bf2c02043e8c83d63"
+		"89ad1a5c86a9ef35d33189c81c8a90285a23964a13f8325bf2c02043e8c83d63",
+		"cc4a0afb95ec9bcde8ee33f13951e494dc4126a9a3a668d79c80ce3c14a3acd9"
 	);
 
 	test_success!(
@@ -815,7 +960,8 @@ mod tests {
 				hash: "70638a241ca06881a52c0a18258ea2d8946a830137a70479c49746d2a1344bdd"
 			},
 		],
-		"e993070f2080f2c598be1d61d208e9187a55ddea4be1d2ed1f8043e7c03e97a5"
+		"e993070f2080f2c598be1d61d208e9187a55ddea4be1d2ed1f8043e7c03e97a5",
+		"57c5b945e14c6fcd06916d6a57e5b036d67ff35757893c24ed872007aabbcf4b"
 	);
 
 	test_success!(
@@ -837,7 +983,8 @@ mod tests {
 			},
 			FlacBlockOutput::VorbisComment { hash: "idk" }
 		],
-		"4721b784058410c6263f73680079e9a71aee914c499afcf5580c121fce00e874"
+		"4721b784058410c6263f73680079e9a71aee914c499afcf5580c121fce00e874",
+		"5c8b92b83c0fa17821add38263fa323d1c66cfd2ee57aca054b50bd05b9df5c2"
 	);
 
 	test_success!(
@@ -880,7 +1027,8 @@ mod tests {
 			},
 			FlacBlockOutput::Padding { size: 16777215 }
 		],
-		"f1285b77cec7fa9a0979033244489a9d06b8515b2158e9270087a65a4007084d"
+		"f1285b77cec7fa9a0979033244489a9d06b8515b2158e9270087a65a4007084d",
+		"401038fce06aff5ebdc7a5f2fc01fa491cbf32d5da9ec99086e414b2da3f8449"
 	);
 
 	test_success!(
@@ -912,7 +1060,8 @@ mod tests {
 				img_data: "7a3ed658f80f433eee3914fff451ea0312807de0af709e37cc6a4f3f6e8a47c6",
 			},
 		],
-		"ccfe90b0f15cd9662f7a18f40cd4c347538cf8897a08228e75351206f7804573"
+		"ccfe90b0f15cd9662f7a18f40cd4c347538cf8897a08228e75351206f7804573",
+		"31a38d59db2010790b7abf65ec0cc03f2bbe1fed5952bc72bee4ca4d0c92e79f"
 	);
 
 	test_success!(
@@ -944,7 +1093,8 @@ mod tests {
 				img_data: "d804e5c7b9ee5af694b5e301c6cdf64508ff85997deda49d2250a06a964f10b2",
 			},
 		],
-		"39bf9981613ac2f35d253c0c21b76a48abba7792c27da5dbf23e6021e2e6673f"
+		"39bf9981613ac2f35d253c0c21b76a48abba7792c27da5dbf23e6021e2e6673f",
+		"3328201dd56289b6c81fa90ff26cb57fa9385cb0db197e89eaaa83efd79a58b1"
 	);
 
 	test_success!(
@@ -976,7 +1126,8 @@ mod tests {
 				img_data: "e33cccc1d799eb2bb618f47be7099cf02796df5519f3f0e1cc258606cf6e8bb1",
 			},
 		],
-		"30e3292e9f56cf88658eeadfdec8ad3a440690ce6d813e1b3374f60518c8e0ae"
+		"30e3292e9f56cf88658eeadfdec8ad3a440690ce6d813e1b3374f60518c8e0ae",
+		"4cd771e27870e2a586000f5b369e0426183a521b61212302a2f5802b046910b2"
 	);
 
 	test_success!(
@@ -1008,7 +1159,8 @@ mod tests {
 				img_data: "a431123040c74f75096237f20544a7fb56b4eb71ddea62efa700b0a016f5b2fc",
 			},
 		],
-		"b208c73d274e65b27232bfffbfcbcf4805ee3cbc9cfbf7d2104db8f53370273b"
+		"b208c73d274e65b27232bfffbfcbcf4805ee3cbc9cfbf7d2104db8f53370273b",
+		"d5215e16c6b978fc2c3e6809e1e78981497cb8514df297c5169f3b4a28fd875c"
 	);
 
 	test_success!(
@@ -1080,6 +1232,7 @@ mod tests {
 				img_data: "a431123040c74f75096237f20544a7fb56b4eb71ddea62efa700b0a016f5b2fc",
 			}
 		],
-		"9778b25c5d1f56cfcd418e550baed14f9d6a4baf29489a83ed450fbebb28de8c"
+		"9778b25c5d1f56cfcd418e550baed14f9d6a4baf29489a83ed450fbebb28de8c",
+		"20df129287d94f9ae5951b296d7f65fcbed92db423ba7db4f0d765f1f0a7e18c"
 	);
 }

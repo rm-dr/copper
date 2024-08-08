@@ -2,16 +2,14 @@
 
 use std::io::{Read, Seek, SeekFrom};
 
-use crate::FileBlockDecode;
-
 use super::{
-	blocks::{FlacMetablockHeader, FlacMetablockType, FlacPictureBlock},
-	errors::FlacError,
+	blocks::{FlacMetablockDecode, FlacMetablockHeader, FlacMetablockType, FlacPictureBlock},
+	errors::FlacDecodeError,
 };
 
 /// Try to extract flac pictures from the given reader.
 /// `read` should provide a complete FLAC file.
-pub fn flac_read_pictures<R>(mut read: R) -> Result<Vec<FlacPictureBlock>, FlacError>
+pub fn flac_read_pictures<R>(mut read: R) -> Result<Vec<FlacPictureBlock>, FlacDecodeError>
 where
 	R: Read + Seek,
 {
@@ -19,7 +17,7 @@ where
 	let mut block = [0u8; 4];
 	read.read_exact(&mut block)?;
 	if block != [0x66, 0x4C, 0x61, 0x43] {
-		return Err(FlacError::BadMagicBytes);
+		return Err(FlacDecodeError::BadMagicBytes);
 	};
 
 	// How about pictures in vorbis blocks?

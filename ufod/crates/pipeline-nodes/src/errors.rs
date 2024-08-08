@@ -2,7 +2,7 @@
 
 use std::{error::Error, fmt::Display};
 
-use ufo_audiofile::flac::errors::FlacError;
+use ufo_audiofile::flac::errors::FlacDecodeError;
 use ufo_ds_core::errors::{BlobstoreError, MetastoreError};
 
 /// An error we encountered while running a pipeline
@@ -12,7 +12,7 @@ pub enum PipelineError {
 	IoError(std::io::Error),
 
 	/// We could not understand a flac file TODO: refactor
-	FlacError(FlacError),
+	FlacError(FlacDecodeError),
 
 	/// A metadata operation returned an error
 	MetastoreError(MetastoreError),
@@ -60,8 +60,8 @@ impl From<std::io::Error> for PipelineError {
 	}
 }
 
-impl From<FlacError> for PipelineError {
-	fn from(value: FlacError) -> Self {
+impl From<FlacDecodeError> for PipelineError {
+	fn from(value: FlacDecodeError) -> Self {
 		Self::FlacError(value)
 	}
 }

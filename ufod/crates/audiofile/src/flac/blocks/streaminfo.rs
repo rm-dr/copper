@@ -1,6 +1,8 @@
 use std::io::{Cursor, Read};
 
-use crate::{flac::errors::FlacError, FileBlockDecode};
+use crate::flac::errors::{FlacDecodeError, FlacEncodeError};
+
+use super::{FlacMetablockDecode, FlacMetablockEncode, FlacMetablockHeader, FlacMetablockType};
 
 /// A streaminfo block in a flac file
 pub struct FlacStreaminfoBlock {
@@ -37,44 +39,42 @@ pub struct FlacStreaminfoBlock {
 	pub md5_signature: [u8; 16],
 }
 
-impl FileBlockDecode for FlacStreaminfoBlock {
-	type DecodeErrorType = FlacError;
-
-	fn decode(data: &[u8]) -> Result<Self, Self::DecodeErrorType> {
+impl FlacMetablockDecode for FlacStreaminfoBlock {
+	fn decode(data: &[u8]) -> Result<Self, FlacDecodeError> {
 		let mut d = Cursor::new(data);
 
 		let min_block_size = {
 			let mut block = [0u8; 4];
 			d.read_exact(&mut block[2..])
-				.map_err(|_| FlacError::MalformedBlock)?;
+				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 			u32::from_be_bytes(block)
 		};
 
 		let max_block_size = {
 			let mut block = [0u8; 4];
 			d.read_exact(&mut block[2..])
-				.map_err(|_| FlacError::MalformedBlock)?;
+				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 			u32::from_be_bytes(block)
 		};
 
 		let min_frame_size = {
 			let mut block = [0u8; 4];
 			d.read_exact(&mut block[1..])
-				.map_err(|_| FlacError::MalformedBlock)?;
+				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 			u32::from_be_bytes(block)
 		};
 
 		let max_frame_size = {
 			let mut block = [0u8; 4];
 			d.read_exact(&mut block[1..])
-				.map_err(|_| FlacError::MalformedBlock)?;
+				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 			u32::from_be_bytes(block)
 		};
 
 		let (sample_rate, channels, bits_per_sample, total_samples) = {
 			let mut block = [0u8; 8];
 			d.read_exact(&mut block)
-				.map_err(|_| FlacError::MalformedBlock)?;
+				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 
 			(
 				// 20 bits: sample rate in hz
@@ -117,7 +117,7 @@ impl FileBlockDecode for FlacStreaminfoBlock {
 		let md5_signature = {
 			let mut block = [0u8; 16];
 			d.read_exact(&mut block)
-				.map_err(|_| FlacError::MalformedBlock)?;
+				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 			block
 		};
 
@@ -132,5 +132,67 @@ impl FileBlockDecode for FlacStreaminfoBlock {
 			total_samples,
 			md5_signature,
 		})
+	}
+}
+
+impl FlacMetablockEncode for FlacStreaminfoBlock {
+	fn encode(
+		&self,
+		is_last: bool,
+		target: &mut impl std::io::Write,
+	) -> Result<(), FlacEncodeError> {
+		let header = FlacMetablockHeader {
+			block_type: FlacMetablockType::Streaminfo,
+			length: 34,
+			is_last,
+		};
+
+		header.encode(target)?;
+
+		// TODO: enforce sizes
+
+		target.write_all(&self.min_block_size.to_be_bytes()[2..])?;
+		target.write_all(&self.max_block_size.to_be_bytes()[2..])?;
+		target.write_all(&self.min_frame_size.to_be_bytes()[1..])?;
+		target.write_all(&self.max_frame_size.to_be_bytes()[1..])?;
+
+		// Layout of the next 8 bytes:
+		// [8]: full bytes
+		// [4 ]: first 4 bits are from this
+		// [ 3]: next 3 bits are from this
+		//
+		// [8][8][4  ]: Sample rate
+		// [ ][ ][ 3 ]: channels
+		// [ ][ ][  1][4 ]: bits per sample
+		// [ ][ ][   ][ 4][8 x 4]: total samples
+
+		let mut out = [0u8; 8];
+
+		let sample_rate = &self.sample_rate.to_be_bytes()[1..4];
+		out[0] = (sample_rate[0] << 4) & 0b1111_0000;
+		out[0] |= (sample_rate[1] >> 4) & 0b0000_1111;
+		out[1] = (sample_rate[1] << 4) & 0b1111_0000;
+		out[1] |= (sample_rate[2] >> 4) & 0b000_1111;
+		out[2] = (sample_rate[2] << 4) & 0b1111_0000;
+
+		let channels = self.channels - 1;
+		out[2] |= (channels << 1) & 0b0000_1110;
+
+		let bits_per_sample = self.bits_per_sample - 1;
+		out[2] |= (bits_per_sample >> 4) & 0b0000_0001;
+		out[3] |= (bits_per_sample << 4) & 0b1111_0000;
+
+		let total_samples = self.total_samples.to_be_bytes();
+		out[3] |= total_samples[10] & 0b0000_1111;
+		out[4] = total_samples[12];
+		out[5] = total_samples[13];
+		out[6] = total_samples[14];
+		out[7] = total_samples[15];
+
+		target.write_all(&out)?;
+
+		target.write_all(&self.md5_signature)?;
+
+		return Ok(());
 	}
 }

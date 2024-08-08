@@ -1,5 +1,5 @@
 //! FLAC metablock headers. See spec.
-use crate::{flac::errors::FlacError, FileBlockDecode, FileBlockEncode};
+use crate::flac::errors::{FlacDecodeError, FlacEncodeError};
 
 // TODO: enfoce length limits
 
@@ -19,7 +19,7 @@ pub enum FlacMetablockType {
 impl FlacMetablockType {
 	/// Read and parse a metablock header from the given reader.
 	/// Returns (block_type, block_data_length, is_last)
-	pub(crate) fn from_id(id: u8) -> Result<Self, FlacError> {
+	pub(crate) fn from_id(id: u8) -> Result<Self, FlacDecodeError> {
 		return Ok(match id & 0b01111111 {
 			0 => FlacMetablockType::Streaminfo,
 			1 => FlacMetablockType::Padding,
@@ -28,7 +28,7 @@ impl FlacMetablockType {
 			4 => FlacMetablockType::VorbisComment,
 			5 => FlacMetablockType::Cuesheet,
 			6 => FlacMetablockType::Picture,
-			x => return Err(FlacError::BadMetablockType(x)),
+			x => return Err(FlacDecodeError::BadMetablockType(x)),
 		});
 	}
 }
@@ -47,12 +47,11 @@ pub struct FlacMetablockHeader {
 	pub is_last: bool,
 }
 
-impl FileBlockDecode for FlacMetablockHeader {
-	type DecodeErrorType = FlacError;
-
-	fn decode(header: &[u8]) -> Result<Self, Self::DecodeErrorType> {
+impl FlacMetablockHeader {
+	/// Try to decode the given bytes as a flac metablock header
+	pub fn decode(header: &[u8]) -> Result<Self, FlacDecodeError> {
 		if header.len() != 4 {
-			return Err(FlacError::MalformedBlock);
+			return Err(FlacDecodeError::MalformedBlock);
 		}
 
 		return Ok(Self {
@@ -63,10 +62,9 @@ impl FileBlockDecode for FlacMetablockHeader {
 	}
 }
 
-impl FileBlockEncode for FlacMetablockHeader {
-	type EncodeErrorType = std::convert::Infallible;
-
-	fn encode(&self) -> Result<Vec<u8>, Self::EncodeErrorType> {
+impl FlacMetablockHeader {
+	/// Try to encode this header
+	pub fn encode(&self, target: &mut impl std::io::Write) -> Result<(), FlacEncodeError> {
 		let mut block_type = match self.block_type {
 			FlacMetablockType::Streaminfo => 0,
 			FlacMetablockType::Padding => 1,
@@ -82,6 +80,8 @@ impl FileBlockEncode for FlacMetablockHeader {
 		};
 
 		let x = self.length.to_be_bytes();
-		return Ok(vec![block_type, x[1], x[2], x[3]]);
+		target.write_all(&[block_type, x[1], x[2], x[3]])?;
+
+		return Ok(());
 	}
 }
