@@ -3,8 +3,7 @@ use axum::{
 	Router,
 };
 use list::list_classes;
-use serde::{Deserialize, Serialize};
-use utoipa::{OpenApi, ToSchema};
+use utoipa::OpenApi;
 
 use super::RouterState;
 
@@ -16,17 +15,11 @@ use add::*;
 use del::*;
 use list::*;
 
-#[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub(in crate::api) struct ClassSelect {
-	pub dataset: String,
-	pub class: String,
-}
-
 #[derive(OpenApi)]
 #[openapi(
 	tags(),
 	paths(list_classes, add_class, del_class),
-	components(schemas(ClassInfoRequest, ClassInfo, AttrInfo, ClassSelect))
+	components(schemas(ClassListRequest, ExtendedClassInfo, NewClassRequest, DelClassRequest))
 )]
 pub(super) struct ClassApi;
 

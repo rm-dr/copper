@@ -5,11 +5,18 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
+use serde::Deserialize;
 use tracing::error;
 use ufo_ds_core::{api::meta::Metastore, errors::MetastoreError};
+use utoipa::ToSchema;
 
-use super::ClassSelect;
 use crate::api::RouterState;
+
+#[derive(Deserialize, ToSchema, Debug)]
+pub(in crate::api) struct NewClassRequest {
+	pub dataset: String,
+	pub new_class_name: String,
+}
 
 /// Create a new class
 #[utoipa::path(
@@ -25,21 +32,21 @@ use crate::api::RouterState;
 pub(super) async fn add_class(
 	jar: CookieJar,
 	State(state): State<RouterState>,
-	Json(payload): Json<ClassSelect>,
+	Json(payload): Json<NewClassRequest>,
 ) -> Response {
 	match state.main_db.auth.auth_or_logout(&jar).await {
 		Err(x) => return x,
 		Ok(_) => {}
 	}
 
-	// TODO: ONE function to check name?
-	if payload.class == "" {
+	// TODO: ONE function to check name
+	if payload.new_class_name == "" {
 		return (
 			StatusCode::BAD_REQUEST,
 			format!("Class name cannot be empty"),
 		)
 			.into_response();
-	} else if payload.class.trim() == "" {
+	} else if payload.new_class_name.trim() == "" {
 		return (
 			StatusCode::BAD_REQUEST,
 			format!("Class name cannot be whitespace"),
@@ -58,19 +65,19 @@ pub(super) async fn add_class(
 		}
 		Err(e) => {
 			error!(
-				message = "Could not get dataset by name",
+				message = "Could not get dataset",
 				dataset = payload.dataset,
 				error = ?e
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset by name"),
+				format!("Could not get dataset"),
 			)
 				.into_response();
 		}
 	};
 
-	let res = dataset.add_class(&payload.class).await;
+	let res = dataset.add_class(&payload.new_class_name).await;
 
 	match res {
 		Ok(_) => return StatusCode::OK.into_response(),
@@ -89,7 +96,7 @@ pub(super) async fn add_class(
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not create new class: {e}"),
+				format!("Could not create new class"),
 			)
 				.into_response();
 		}

@@ -3,7 +3,10 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
 use ufo_ds_core::{
-	api::{blob::BlobHandle, meta::AttributeOptions},
+	api::{
+		blob::BlobHandle,
+		meta::{AttrInfo, AttributeOptions, ClassInfo},
+	},
 	data::{HashType, MetastoreDataStub},
 	handles::ItemIdx,
 };
@@ -88,7 +91,9 @@ impl Modify for BearerSecurityAddon {
 		GroupId,
 		GroupInfo,
 		UserId,
-		UserInfo
+		UserInfo,
+		AttrInfo,
+		ClassInfo
 	))
 )]
 struct ApiDoc;

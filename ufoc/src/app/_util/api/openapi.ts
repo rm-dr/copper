@@ -38,6 +38,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/attr/find": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Find an attribute by name */
+		get: operations["find_attr"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/auth/group/add": {
 		parameters: {
 			query?: never;
@@ -506,17 +523,12 @@ export interface components {
 			username: string;
 		};
 		AttrInfo: {
+			/** Format: int32 */
+			class: number;
 			data_type: components["schemas"]["MetastoreDataStub"];
-			/**
-			 * Format: int32
-			 * @description This attribute's unique handle
-			 */
+			/** Format: int32 */
 			handle: number;
-			/** @description This attribute's name */
 			name: string;
-		};
-		AttrSelect: components["schemas"]["ClassSelect"] & {
-			attr: string;
 		};
 		AttributeOptions: {
 			unique: boolean;
@@ -526,21 +538,11 @@ export interface components {
 			id: number;
 		};
 		ClassInfo: {
-			/** @description This class' attributes */
-			attrs: components["schemas"]["AttrInfo"][];
-			/**
-			 * Format: int32
-			 * @description This class' unique handle
-			 */
+			/** Format: int32 */
 			handle: number;
-			/** @description This class' name */
 			name: string;
 		};
-		ClassInfoRequest: {
-			dataset: string;
-		};
-		ClassSelect: {
-			class: string;
+		ClassListRequest: {
 			dataset: string;
 		};
 		/** @description Completed pipeline job status */
@@ -566,6 +568,16 @@ export interface components {
 		 * @enum {string}
 		 */
 		DatasetType: "Local";
+		DelAttrRequest: {
+			/** Format: int32 */
+			attr: number;
+			dataset: string;
+		};
+		DelClassRequest: {
+			/** Format: int32 */
+			class: number;
+			dataset: string;
+		};
 		DeleteDatasetRequest: {
 			/** @description The dataset to delete from. */
 			dataset_name: string;
@@ -577,6 +589,23 @@ export interface components {
 		DeluserRequest: {
 			/** Format: int32 */
 			user: number;
+		};
+		ExtendedClassInfo: {
+			/** @description This class' attributes */
+			attrs: components["schemas"]["AttrInfo"][];
+			/**
+			 * Format: int32
+			 * @description This class' unique handle
+			 */
+			handle: number;
+			/** @description This class' name */
+			name: string;
+		};
+		FindAttrRequest: {
+			attr_name: string;
+			/** Format: int32 */
+			class: number;
+			dataset: string;
 		};
 		GroupId:
 			| {
@@ -666,7 +695,8 @@ export interface components {
 			idx: number;
 		};
 		ItemListRequest: {
-			class: string;
+			/** Format: int32 */
+			class: number;
 			dataset: string;
 			/**
 			 * Format: int32
@@ -746,9 +776,17 @@ export interface components {
 			| "Jpg"
 			| "Flac"
 			| "Mp3";
-		NewClassAttrParams: components["schemas"]["AttrSelect"] & {
+		NewAttrParams: {
+			/** Format: int32 */
+			class: number;
 			data_type: components["schemas"]["MetastoreDataStub"];
+			dataset: string;
+			new_attr_name: string;
 			options: components["schemas"]["AttributeOptions"];
+		};
+		NewClassRequest: {
+			dataset: string;
+			new_class_name: string;
 		};
 		/** @description Types of datasets we support, with options */
 		NewDatasetParams: {
@@ -853,6 +891,7 @@ export interface components {
 			hash: string;
 		};
 		UploadFragmentMetadata: {
+			part_hash: string;
 			/** Format: int32 */
 			part_idx: number;
 		};
@@ -898,7 +937,7 @@ export interface operations {
 		};
 		requestBody: {
 			content: {
-				"application/json": components["schemas"]["NewClassAttrParams"];
+				"application/json": components["schemas"]["NewAttrParams"];
 			};
 		};
 		responses: {
@@ -947,7 +986,7 @@ export interface operations {
 		};
 		requestBody: {
 			content: {
-				"application/json": components["schemas"]["AttrSelect"];
+				"application/json": components["schemas"]["DelAttrRequest"];
 			};
 		};
 		responses: {
@@ -968,6 +1007,48 @@ export interface operations {
 				};
 			};
 			/** @description Unknown dataset, class, or attribute */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+		};
+	};
+	find_attr: {
+		parameters: {
+			query: {
+				dataset: string;
+				class: number;
+				attr_name: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Attribute info */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["AttrInfo"];
+				};
+			};
+			/** @description Could not find attribute */
 			404: {
 				headers: {
 					[name: string]: unknown;
@@ -1329,7 +1410,7 @@ export interface operations {
 		};
 		requestBody: {
 			content: {
-				"application/json": components["schemas"]["ClassSelect"];
+				"application/json": components["schemas"]["NewClassRequest"];
 			};
 		};
 		responses: {
@@ -1378,7 +1459,7 @@ export interface operations {
 		};
 		requestBody: {
 			content: {
-				"application/json": components["schemas"]["ClassSelect"];
+				"application/json": components["schemas"]["DelClassRequest"];
 			};
 		};
 		responses: {
@@ -1435,7 +1516,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					"application/json": components["schemas"]["ClassInfo"][];
+					"application/json": components["schemas"]["ExtendedClassInfo"][];
 				};
 			};
 			/** @description Internal server error */
@@ -1583,8 +1664,7 @@ export interface operations {
 		parameters: {
 			query: {
 				dataset: string;
-				class: string;
-				attr: string;
+				attr: number;
 				item_idx: number;
 			};
 			header?: never;
@@ -1633,7 +1713,7 @@ export interface operations {
 		parameters: {
 			query: {
 				dataset: string;
-				class: string;
+				class: number;
 				/** @description How many items to list per page */
 				page_size: number;
 				/** @description The index of the first item to return */

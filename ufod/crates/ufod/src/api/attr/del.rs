@@ -5,11 +5,20 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
+use serde::Deserialize;
 use tracing::error;
-use ufo_ds_core::api::meta::Metastore;
+use ufo_ds_core::{api::meta::Metastore, errors::MetastoreError, handles::AttrHandle};
+use utoipa::ToSchema;
 
-use super::AttrSelect;
 use crate::api::RouterState;
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub(super) struct DelAttrRequest {
+	pub dataset: String,
+
+	#[schema(value_type = u32)]
+	pub attr: AttrHandle,
+}
 
 /// Delete an attribute
 #[utoipa::path(
@@ -25,88 +34,55 @@ use crate::api::RouterState;
 pub(super) async fn del_attr(
 	jar: CookieJar,
 	State(state): State<RouterState>,
-	Json(payload): Json<AttrSelect>,
+	Json(payload): Json<DelAttrRequest>,
 ) -> Response {
 	match state.main_db.auth.auth_or_logout(&jar).await {
 		Err(x) => return x,
 		Ok(_) => {}
 	}
 
-	let dataset = match state
-		.main_db
-		.dataset
-		.get_dataset(&payload.class.dataset)
-		.await
-	{
+	let dataset = match state.main_db.dataset.get_dataset(&payload.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
 				StatusCode::NOT_FOUND,
-				format!("Dataset `{}` does not exist", payload.class.dataset),
+				format!("Dataset `{}` does not exist", payload.dataset),
 			)
 				.into_response()
 		}
 		Err(e) => {
 			error!(
-				message = "Could not get dataset by name",
-				dataset = payload.class.dataset,
+				message = "Could not get dataset",
+				dataset = payload.dataset,
 				error = ?e
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset by name"),
+				format!("Could not get dataset"),
 			)
 				.into_response();
 		}
 	};
 
-	let class = match dataset.get_class_by_name(&payload.class.class).await {
-		Ok(Some(x)) => x,
-		Ok(None) => {
+	let attr = match dataset.get_attr(payload.attr).await {
+		Ok(x) => x,
+		Err(MetastoreError::BadAttrHandle) => {
 			return (
 				StatusCode::NOT_FOUND,
-				format!("Class `{}` does not exist", payload.class.class),
+				format!("Attribute `{:?}` does not exist", payload.attr),
 			)
 				.into_response()
 		}
 		Err(e) => {
 			error!(
-				message = "Could not get class by name",
-				dataset = payload.class.dataset,
-				payload.class.class = ?payload.class.class,
+				message = "Could not get attribute",
+				dataset = payload.dataset,
+				attr = ?payload.attr,
 				error = ?e
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get class by name: {e}"),
-			)
-				.into_response();
-		}
-	};
-
-	let attr = match dataset.get_attr_by_name(class.handle, &payload.attr).await {
-		Ok(Some(x)) => x,
-		Ok(None) => {
-			return (
-				StatusCode::NOT_FOUND,
-				format!(
-					"Class `{}` does not have the attribute `{}`",
-					payload.class.class, payload.attr
-				),
-			)
-				.into_response()
-		}
-		Err(e) => {
-			error!(
-				message = "Could not get attribute by name",
-				dataset = payload.class.dataset,
-				payload.class.class = ?payload.class.class,
-				attr_name = ?payload.attr,
-				error = ?e
-			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not attribute by name: {e}"),
+				format!("Could not get attribute"),
 			)
 				.into_response();
 		}
@@ -119,15 +95,13 @@ pub(super) async fn del_attr(
 		Err(e) => {
 			error!(
 				message = "Could not delete attribute",
-				dataset = payload.class.dataset,
-				class = ?class,
-				payload.class.class = ?payload.class.class,
-				attr_name = payload.attr,
+				dataset = payload.dataset,
+				attr = ?payload.attr,
 				error = ?e
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not delete attribute: {e}"),
+				format!("Could not delete attribute"),
 			)
 				.into_response();
 		}

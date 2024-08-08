@@ -1,35 +1,30 @@
 use axum::{
-	routing::{delete, post},
+	routing::{delete, get, post},
 	Router,
 };
-use serde::{Deserialize, Serialize};
-use utoipa::{OpenApi, ToSchema};
+use utoipa::OpenApi;
 
-use super::{class::ClassSelect, RouterState};
+use super::RouterState;
 
 mod add;
 mod del;
+mod find;
 
 use add::*;
 use del::*;
-
-#[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub(in crate::api) struct AttrSelect {
-	#[serde(flatten)]
-	pub class: ClassSelect,
-	pub attr: String,
-}
+use find::*;
 
 #[derive(OpenApi)]
 #[openapi(
 	tags(),
-	paths(del_attr, add_attr),
-	components(schemas(AttrSelect, NewClassAttrParams))
+	paths(del_attr, add_attr, find_attr),
+	components(schemas(NewAttrParams, DelAttrRequest, FindAttrRequest))
 )]
 pub(super) struct AttrApi;
 
 pub(super) fn router() -> Router<RouterState> {
 	Router::new()
 		.route("/add", post(add_attr))
+		.route("/find", get(find_attr))
 		.route("/del", delete(del_attr))
 }

@@ -20,11 +20,11 @@ export function useAddClassModal(params: {
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			class: "",
+			new_class_name: "",
 			dataset: params.dataset_name,
 		},
 		validate: {
-			class: (value) =>
+			new_class_name: (value) =>
 				value.trim().length === 0 ? "Name cannot be empty" : null,
 		},
 	});
@@ -80,8 +80,8 @@ export function useAddClassModal(params: {
 						data-autofocus
 						placeholder="New class name"
 						disabled={isLoading}
-						key={form.key("class")}
-						{...form.getInputProps("class")}
+						key={form.key("new_class_name")}
+						{...form.getInputProps("new_class_name")}
 					/>
 					<Button.Group style={{ marginTop: "1rem" }}>
 						<Button

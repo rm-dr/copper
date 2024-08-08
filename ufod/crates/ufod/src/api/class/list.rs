@@ -10,19 +10,18 @@ use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use tracing::error;
 use ufo_ds_core::{
-	api::meta::Metastore,
-	data::MetastoreDataStub,
-	handles::{AttrHandle, ClassHandle},
+	api::meta::{AttrInfo, Metastore},
+	handles::ClassHandle,
 };
 use utoipa::{IntoParams, ToSchema};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, IntoParams)]
-pub(super) struct ClassInfoRequest {
+pub(super) struct ClassListRequest {
 	dataset: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub(super) struct ClassInfo {
+pub(super) struct ExtendedClassInfo {
 	/// This class' name
 	#[schema(value_type = String)]
 	name: SmartString<LazyCompact>,
@@ -35,36 +34,22 @@ pub(super) struct ClassInfo {
 	attrs: Vec<AttrInfo>,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub(super) struct AttrInfo {
-	/// This attribute's name
-	#[schema(value_type = String)]
-	name: SmartString<LazyCompact>,
-
-	/// This attribute's unique handle
-	#[schema(value_type = u32)]
-	handle: AttrHandle,
-
-	/// This attribute's data type
-	data_type: MetastoreDataStub,
-}
-
 /// Get this dataset's classes
 #[utoipa::path(
 	get,
 	path = "/list",
 	params(
-		ClassInfoRequest
+		ClassListRequest
 	),
 	responses(
-		(status = 200, description = "Classes", body = Vec<ClassInfo>),
+		(status = 200, description = "Classes", body = Vec<ExtendedClassInfo>),
 		(status = 500, description = "Internal server error", body = String),
 	),
 )]
 pub(super) async fn list_classes(
 	jar: CookieJar,
 	State(state): State<RouterState>,
-	Query(query): Query<ClassInfoRequest>,
+	Query(query): Query<ClassListRequest>,
 ) -> Response {
 	match state.main_db.auth.auth_or_logout(&jar).await {
 		Err(x) => return x,
@@ -129,17 +114,10 @@ pub(super) async fn list_classes(
 			}
 		};
 
-		out.push(ClassInfo {
+		out.push(ExtendedClassInfo {
 			name: class.name,
 			handle: class.handle,
-			attrs: attrs
-				.into_iter()
-				.map(|attr| AttrInfo {
-					name: attr.name,
-					handle: attr.handle,
-					data_type: attr.data_type,
-				})
-				.collect(),
+			attrs,
 		});
 	}
 

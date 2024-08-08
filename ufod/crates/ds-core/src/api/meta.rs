@@ -39,17 +39,26 @@ pub struct ItemData {
 	pub attrs: Vec<MetastoreData>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AttrInfo {
+	#[schema(value_type = u32)]
 	pub handle: AttrHandle,
+
+	#[schema(value_type = u32)]
 	pub class: ClassHandle,
+
+	#[schema(value_type = String)]
 	pub name: SmartString<LazyCompact>,
+
 	pub data_type: MetastoreDataStub,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ClassInfo {
+	#[schema(value_type = u32)]
 	pub handle: ClassHandle,
+
+	#[schema(value_type = String)]
 	pub name: SmartString<LazyCompact>,
 }
 

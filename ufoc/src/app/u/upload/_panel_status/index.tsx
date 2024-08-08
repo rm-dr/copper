@@ -17,13 +17,6 @@ import { XIcon } from "@/app/components/icons";
 import { APIclient } from "@/app/_util/api";
 import { paths } from "@/app/_util/api/openapi";
 
-type RunnerState = {
-	queued_jobs: number;
-	finished_jobs: number;
-	failed_jobs: number;
-	error: boolean;
-};
-
 export function useStatusPanel(params: {
 	uploadState: UploadState;
 	selectedPipeline: string | null;

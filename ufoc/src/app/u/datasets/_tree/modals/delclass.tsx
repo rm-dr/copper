@@ -6,10 +6,11 @@ import { useForm } from "@mantine/form";
 import { IconTrash } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
 import { APIclient } from "@/app/_util/api";
+import { components } from "@/app/_util/api/openapi";
 
 export function useDeleteClassModal(params: {
 	dataset_name: string;
-	class_name: string;
+	class: components["schemas"]["ClassInfo"];
 	onSuccess: () => void;
 }) {
 	const [isLoading, setLoading] = useState(false);
@@ -20,7 +21,6 @@ export function useDeleteClassModal(params: {
 		mode: "uncontrolled",
 		initialValues: {
 			class: "",
-			dataset: params.dataset_name,
 		},
 		validate: {
 			class: (value) => {
@@ -28,17 +28,10 @@ export function useDeleteClassModal(params: {
 					return "This field is required";
 				}
 
-				if (value !== params.class_name) {
+				if (value !== params.class.name) {
 					return "Class name doesn't match";
 				}
 
-				return null;
-			},
-
-			dataset: (value) => {
-				if (value !== params.dataset_name) {
-					return "Dataset name doesn't match";
-				}
 				return null;
 			},
 		},
@@ -72,7 +65,7 @@ export function useDeleteClassModal(params: {
 
 					<Text c="red" size="sm">
 						Enter
-						<Text c="orange" span>{` ${params.class_name} `}</Text>
+						<Text c="orange" span>{` ${params.class.name} `}</Text>
 						below to confirm.
 					</Text>
 				</div>
@@ -81,7 +74,12 @@ export function useDeleteClassModal(params: {
 						setLoading(true);
 						setErrorMessage(null);
 
-						APIclient.DELETE("/class/del", { body: values })
+						APIclient.DELETE("/class/del", {
+							body: {
+								dataset: params.dataset_name,
+								class: params.class.handle,
+							},
+						})
 							.then(({ data, error }) => {
 								if (error !== undefined) {
 									throw error;

@@ -13,13 +13,13 @@ import { attrTypes } from "@/app/_util/attrs";
 import { IconPlus } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
 import { APIclient } from "@/app/_util/api";
-import { paths } from "@/app/_util/api/openapi";
+import { components, paths } from "@/app/_util/api/openapi";
 
 // TODO: make this a form
 
 export function useAddAttrModal(params: {
 	dataset_name: string;
-	class_name: string;
+	class: components["schemas"]["ClassInfo"];
 	onSuccess: () => void;
 }) {
 	const [opened, { open, close }] = useDisclosure(false);
@@ -117,9 +117,9 @@ export function useAddAttrModal(params: {
 
 		APIclient.POST("/attr/add", {
 			body: {
-				class: params.class_name,
+				class: params.class.handle,
 				dataset: params.dataset_name,
-				attr: newAttrName,
+				new_attr_name: newAttrName,
 				data_type,
 				options: {
 					unique: false,
@@ -205,7 +205,7 @@ export function useAddAttrModal(params: {
 				>
 					<Text c="dimmed" size="sm">
 						Add an attribute to the class
-						<Text c="gray" span>{` ${params.class_name}`}</Text>:
+						<Text c="gray" span>{` ${params.class.name}`}</Text>:
 					</Text>
 				</div>
 				<TextInput
@@ -301,12 +301,12 @@ export function useAddAttrModal(params: {
 					{errorMessage.response
 						? errorMessage.response
 						: errorMessage.name
-							? errorMessage.name
-							: errorMessage.type
-								? errorMessage.type
-								: errorMessage.extra_params
-									? errorMessage.extra_params
-									: ""}
+						? errorMessage.name
+						: errorMessage.type
+						? errorMessage.type
+						: errorMessage.extra_params
+						? errorMessage.extra_params
+						: ""}
 				</Text>
 			</ModalBase>
 		),

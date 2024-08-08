@@ -17,6 +17,7 @@ use ufo_ds_core::{
 		meta::Metastore,
 	},
 	data::{HashType, MetastoreData, MetastoreDataStub},
+	errors::MetastoreError,
 	handles::ItemIdx,
 };
 use ufo_util::mime::MimeType;
@@ -25,7 +26,7 @@ use utoipa::{IntoParams, ToSchema};
 #[derive(Debug, Serialize, Deserialize, ToSchema, IntoParams)]
 pub(super) struct ItemListRequest {
 	pub dataset: String,
-	pub class: String,
+	pub class: u32,
 
 	/// How many items to list per page
 	pub page_size: u32,
@@ -143,39 +144,23 @@ pub(super) async fn list_item(
 				.into_response();
 		}
 	};
-
-	let class = match dataset.get_class_by_name(&query.class).await {
-		Ok(Some(x)) => x,
-		Ok(None) => {
-			return (
-				StatusCode::NOT_FOUND,
-				format!("Class `{}` does not exist", query.class),
-			)
-				.into_response()
-		}
-		Err(e) => {
-			error!(
-				message = "Could not get class by name",
-				dataset = query.dataset,
-				class_name = ?query.class,
-				error = ?e
-			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get class by name {e}"),
-			)
-				.into_response();
-		}
-	};
-
 	// The scope here is necessary, res must be dropped to avoid an error.
 	let itemdata = {
 		let res = dataset
-			.get_items(class.handle, query.page_size, query.start_at)
+			.get_items(query.class.into(), query.page_size, query.start_at)
 			.await;
 
 		match res {
 			Ok(x) => x,
+
+			Err(MetastoreError::BadClassHandle) => {
+				return (
+					StatusCode::NOT_FOUND,
+					format!("Class `{}` does not exist", query.class),
+				)
+					.into_response()
+			}
+
 			Err(e) => {
 				error!(
 					message = "Could not get items",
@@ -184,7 +169,7 @@ pub(super) async fn list_item(
 				);
 				return (
 					StatusCode::INTERNAL_SERVER_ERROR,
-					format!("Could not get items: {e}"),
+					format!("Could not get items"),
 				)
 					.into_response();
 			}
@@ -192,9 +177,18 @@ pub(super) async fn list_item(
 	};
 
 	let attrs = {
-		let res = dataset.class_get_attrs(class.handle).await;
+		let res = dataset.class_get_attrs(query.class.into()).await;
 		match res {
 			Ok(x) => x,
+
+			Err(MetastoreError::BadClassHandle) => {
+				return (
+					StatusCode::NOT_FOUND,
+					format!("Class `{}` does not exist", query.class),
+				)
+					.into_response()
+			}
+
 			Err(e) => {
 				error!(
 					message = "Could not get attrs",

@@ -5,21 +5,26 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tracing::{debug, error};
 use ufo_ds_core::{
-	api::meta::AttributeOptions, api::meta::Metastore, data::MetastoreDataStub,
+	api::meta::{AttributeOptions, Metastore},
+	data::MetastoreDataStub,
 	errors::MetastoreError,
+	handles::ClassHandle,
 };
 use utoipa::ToSchema;
 
-use super::AttrSelect;
 use crate::api::RouterState;
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub(super) struct NewClassAttrParams {
-	#[serde(flatten)]
-	pub attr: AttrSelect,
+#[derive(Debug, Deserialize, ToSchema)]
+pub(super) struct NewAttrParams {
+	pub dataset: String,
+
+	#[schema(value_type = u32)]
+	pub class: ClassHandle,
+
+	pub new_attr_name: String,
 
 	/// The new attribute's data type
 	pub data_type: MetastoreDataStub,
@@ -42,7 +47,7 @@ pub(super) struct NewClassAttrParams {
 pub(super) async fn add_attr(
 	jar: CookieJar,
 	State(state): State<RouterState>,
-	Json(payload): Json<NewClassAttrParams>,
+	Json(payload): Json<NewAttrParams>,
 ) -> Response {
 	match state.main_db.auth.auth_or_logout(&jar).await {
 		Err(x) => return x,
@@ -54,13 +59,13 @@ pub(super) async fn add_attr(
 		payload = ?payload
 	);
 
-	if payload.attr.attr == "" {
+	if payload.new_attr_name == "" {
 		return (
 			StatusCode::BAD_REQUEST,
 			format!("Attribute name cannot be empty"),
 		)
 			.into_response();
-	} else if payload.attr.attr.trim() == "" {
+	} else if payload.new_attr_name.trim() == "" {
 		return (
 			StatusCode::BAD_REQUEST,
 			format!("Attribute name cannot be whitespace"),
@@ -68,53 +73,48 @@ pub(super) async fn add_attr(
 			.into_response();
 	}
 
-	let dataset = match state
-		.main_db
-		.dataset
-		.get_dataset(&payload.attr.class.dataset)
-		.await
-	{
+	let dataset = match state.main_db.dataset.get_dataset(&payload.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
 				StatusCode::NOT_FOUND,
-				format!("Dataset `{}` does not exist", payload.attr.class.dataset),
+				format!("Dataset `{}` does not exist", payload.dataset),
 			)
 				.into_response()
 		}
 		Err(e) => {
 			error!(
-				message = "Could not get dataset by name",
-				dataset = payload.attr.class.dataset,
+				message = "Could not get dataset",
+				dataset = payload.dataset,
 				error = ?e
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get dataset by name"),
+				format!("Could not get dataset"),
 			)
 				.into_response();
 		}
 	};
 
-	let class = match dataset.get_class_by_name(&payload.attr.class.class).await {
-		Ok(Some(x)) => x,
-		Ok(None) => {
+	let class = match dataset.get_class(payload.class).await {
+		Ok(x) => x,
+		Err(MetastoreError::BadClassHandle) => {
 			return (
 				StatusCode::NOT_FOUND,
-				format!("Class `{}` does not exist", payload.attr.class.class),
+				format!("Class `{:?}` does not exist", payload.class),
 			)
 				.into_response()
 		}
 		Err(e) => {
 			error!(
-				message = "Could not get class by name",
-				dataset = payload.attr.class.dataset,
-				class_name = ?payload.attr.class.class,
+				message = "Could not get class",
+				dataset = payload.dataset,
+				class = ?payload.class,
 				error = ?e
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get class by name"),
+				format!("Could not get class"),
 			)
 				.into_response();
 		}
@@ -123,7 +123,7 @@ pub(super) async fn add_attr(
 	let res = dataset
 		.add_attr(
 			class.handle,
-			&payload.attr.attr,
+			&payload.new_attr_name,
 			payload.data_type,
 			payload.options,
 		)
@@ -141,8 +141,8 @@ pub(super) async fn add_attr(
 		Err(e) => {
 			error!(
 				message = "Could not create new attribute",
-				dataset = payload.attr.class.dataset,
-				class = ?payload.attr.class.class,
+				dataset = payload.dataset,
+				class = ?payload.class,
 				error = ?e
 			);
 			return (

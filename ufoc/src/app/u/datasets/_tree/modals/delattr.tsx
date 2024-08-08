@@ -6,11 +6,12 @@ import { useForm } from "@mantine/form";
 import { XIcon } from "@/app/components/icons";
 import { IconTrash } from "@tabler/icons-react";
 import { APIclient } from "@/app/_util/api";
+import { components } from "@/app/_util/api/openapi";
 
 export function useDeleteAttrModal(params: {
 	dataset_name: string;
-	class_name: string;
-	attr_name: string;
+	class: components["schemas"]["ClassInfo"];
+	attr: components["schemas"]["AttrInfo"];
 	onSuccess: () => void;
 }) {
 	const [opened, { open, close }] = useDisclosure(false);
@@ -20,34 +21,18 @@ export function useDeleteAttrModal(params: {
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			class: params.class_name,
-			dataset: params.dataset_name,
-			attr: "",
+			attr_name: "",
 		},
 		validate: {
-			attr: (value) => {
+			attr_name: (value) => {
 				if (value.trim().length === 0) {
 					return "This field is required";
 				}
 
-				if (value !== params.attr_name) {
+				if (value !== params.attr.name) {
 					return "Attribute name doesn't match";
 				}
 
-				return null;
-			},
-
-			class: (value) => {
-				if (value !== params.class_name) {
-					return "Class name doesn't match";
-				}
-				return null;
-			},
-
-			dataset: (value) => {
-				if (value !== params.dataset_name) {
-					return "Dataset name doesn't match";
-				}
 				return null;
 			},
 		},
@@ -79,7 +64,7 @@ export function useDeleteAttrModal(params: {
 					</Text>
 					<Text c="red" size="sm">
 						Enter
-						<Text c="orange" span>{` ${params.attr_name} `}</Text>
+						<Text c="orange" span>{` ${params.attr.name} `}</Text>
 						below to confirm.
 					</Text>
 				</div>
@@ -88,7 +73,12 @@ export function useDeleteAttrModal(params: {
 						setLoading(true);
 						setErrorMessage(null);
 
-						APIclient.DELETE("/attr/del", { body: values })
+						APIclient.DELETE("/attr/del", {
+							body: {
+								dataset: params.dataset_name,
+								attr: params.attr.handle,
+							},
+						})
 							.then(({ data, error }) => {
 								if (error !== undefined) {
 									throw error;

@@ -26,6 +26,7 @@ import {
 } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
 import { APIclient } from "@/app/_util/api";
+import { components } from "@/app/_util/api/openapi";
 
 type TreeState = {
 	error: boolean;
@@ -81,31 +82,22 @@ export function TreePanel(params: {}) {
 
 				return Promise.all(
 					data.map(async ({ ds_type, name: dataset }) => {
-						const res = await fetch(
-							"/api/class/list?" +
-								new URLSearchParams({
+						const { data, error } = await APIclient.GET("/class/list", {
+							params: {
+								query: {
 									dataset,
-								}).toString(),
-						);
-						const data: {
-							name: string;
-							attrs: { name: string; data_type: { type: string } }[];
-						}[] = await res.json();
+								},
+							},
+						});
+
+						if (error !== undefined) {
+							throw error;
+						}
 
 						return {
 							name: dataset,
 							type: ds_type,
-							classes: data.map((x) => {
-								return {
-									name: x.name,
-									attrs: x.attrs.map((y) => {
-										return {
-											name: y.name,
-											type: y.data_type.type,
-										};
-									}),
-								};
-							}),
+							classes: data,
 						};
 					}),
 				);
@@ -140,7 +132,7 @@ export function TreePanel(params: {}) {
 							right: (
 								<ClassMenu
 									dataset_name={d.name}
-									class_name={c.name}
+									class={c}
 									onSuccess={update_tree}
 								/>
 							),
@@ -152,15 +144,17 @@ export function TreePanel(params: {}) {
 						});
 
 						for (const a of c.attrs) {
-							let a_type = attrTypes.find((x) => x.serialize_as === a.type);
+							let a_type = attrTypes.find(
+								(x) => x.serialize_as === a.data_type.type,
+							);
 							tree_data.push({
 								icon: a_type?.icon,
 								text: a.name,
 								right: (
 									<AttrMenu
 										dataset_name={d.name}
-										class_name={c.name}
-										attr_name={a.name}
+										class={c}
+										attr={a}
 										onSuccess={update_tree}
 									/>
 								),
@@ -352,18 +346,18 @@ function DatasetMenu(params: { dataset_name: string; onSuccess: () => void }) {
 
 function ClassMenu(params: {
 	dataset_name: string;
-	class_name: string;
+	class: components["schemas"]["ClassInfo"];
 	onSuccess: () => void;
 }) {
 	const { open: openDelete, modal: modalDelete } = useDeleteClassModal({
 		dataset_name: params.dataset_name,
-		class_name: params.class_name,
+		class: params.class,
 		onSuccess: params.onSuccess,
 	});
 
 	const { open: openAddAttr, modal: modalAddAttr } = useAddAttrModal({
 		dataset_name: params.dataset_name,
-		class_name: params.class_name,
+		class: params.class,
 		onSuccess: params.onSuccess,
 	});
 
@@ -424,14 +418,14 @@ function ClassMenu(params: {
 
 function AttrMenu(params: {
 	dataset_name: string;
-	class_name: string;
-	attr_name: string;
+	class: components["schemas"]["ClassInfo"];
+	attr: components["schemas"]["AttrInfo"];
 	onSuccess: () => void;
 }) {
 	const { open: openDelAttr, modal: modalDelAttr } = useDeleteAttrModal({
 		dataset_name: params.dataset_name,
-		class_name: params.class_name,
-		attr_name: params.attr_name,
+		class: params.class,
+		attr: params.attr,
 		onSuccess: params.onSuccess,
 	});
 
