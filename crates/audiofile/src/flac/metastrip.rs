@@ -148,8 +148,8 @@ impl<R: Read + Seek> Read for FlacMetaStrip<R> {
 			let space_left = buf.len() - bytes_written;
 			let n_to_write = space_left.min(4);
 			let start_at = usize::try_from(self.position).unwrap();
-			for i in start_at..n_to_write {
-				buf[bytes_written] = magic_bytes[i];
+			for b in magic_bytes.iter().take(n_to_write).skip(start_at) {
+				buf[bytes_written] = *b;
 				bytes_written += 1;
 				self.position += 1;
 			}
@@ -187,8 +187,8 @@ impl<R: Read + Seek> Read for FlacMetaStrip<R> {
 				let space_left = buf.len() - bytes_written;
 				let n_to_write = space_left.min(4);
 				let start_at = usize::try_from(byte_in_block).unwrap();
-				for i in start_at..n_to_write {
-					buf[bytes_written] = header[i];
+				for b in header.iter().take(n_to_write).skip(start_at) {
+					buf[bytes_written] = *b;
 					bytes_written += 1;
 					self.position += 1;
 				}

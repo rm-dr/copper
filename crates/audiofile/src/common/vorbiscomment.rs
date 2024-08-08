@@ -89,7 +89,7 @@ impl VorbisComment {
 				String::from_utf8(text)?
 			};
 			let (var, val) = comment
-				.split_once("=")
+				.split_once('=')
 				.ok_or(VorbisCommentError::MalformedCommentString(comment.clone()))?;
 			comments.push((
 				match &var.to_uppercase()[..] {

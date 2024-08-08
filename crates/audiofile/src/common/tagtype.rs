@@ -62,7 +62,7 @@ impl<'b, 'a: 'b> From<&'a TagType> for &'b str {
 			TagType::TrackTitle => "Title",
 			TagType::TrackArtist => "Artist",
 			TagType::Year => "Year",
-			TagType::Other(x) => &x,
+			TagType::Other(x) => x,
 		}
 	}
 }

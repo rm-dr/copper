@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use serde::Deserialize;
 use serde_with::serde_as;
 use ufo_audiofile::common::tagtype::TagType;
@@ -9,7 +7,7 @@ use crate::{portspec::PipelinePortSpec, syntax::labels::PipelinePortLabel};
 
 use super::{
 	nodeinstance::PipelineNodeInstance,
-	tags::{striptags::StripTags, tags::ExtractTags},
+	tags::{extracttags::ExtractTags, striptags::StripTags},
 	util::ifnone::IfNone,
 };
 
@@ -42,7 +40,7 @@ pub enum PipelineNodeType {
 	/// These can only be created as inline nodes.
 	#[serde(skip_deserializing)]
 	ConstantNode {
-		value: Arc<PipelineData>,
+		value: PipelineData,
 	},
 
 	ExtractTags {
@@ -88,8 +86,8 @@ impl PipelineNodeType {
 		match self {
 			Self::PipelineOutputs { .. } => PipelinePortSpec::Static(&[]),
 			Self::PipelineInputs { outputs, .. } => PipelinePortSpec::Vec(outputs),
-			Self::ConstantNode { value: data } => {
-				PipelinePortSpec::VecOwned(vec![("out".into(), data.as_ref().get_type())])
+			Self::ConstantNode { value } => {
+				PipelinePortSpec::VecOwned(vec![("out".into(), value.get_type())])
 			}
 			Self::ExtractTags { tags } => PipelinePortSpec::VecOwned(
 				tags.iter()

@@ -298,7 +298,7 @@ impl Dataset for SeaDataset {
 					id: ActiveValue::NotSet,
 					attr: ActiveValue::Set(attr.into()),
 					item: ActiveValue::Set(item.into()),
-					value: ActiveValue::Set(data.clone()),
+					value: ActiveValue::Set((**data).clone()),
 					format: ActiveValue::Set(
 						match format {
 							BinaryFormat::Blob => "blob",
@@ -325,7 +325,7 @@ impl Dataset for SeaDataset {
 					id: ActiveValue::NotSet,
 					attr: ActiveValue::Set(attr.into()),
 					item: ActiveValue::Set(item.into()),
-					value: ActiveValue::Set(text.clone()),
+					value: ActiveValue::Set((**text).clone()),
 				};
 				let _res = ValueStr::insert(new_value)
 					.on_conflict(

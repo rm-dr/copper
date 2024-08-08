@@ -1,6 +1,5 @@
 use crate::portspec::PipelinePortSpec;
 use serde::Deserialize;
-use std::sync::Arc;
 use ufo_util::data::{PipelineData, PipelineDataType};
 
 pub mod file;
@@ -8,7 +7,7 @@ pub mod file;
 pub trait PipelineInput {
 	type ErrorKind: Send + Sync;
 
-	fn run(self) -> Result<Vec<Arc<PipelineData>>, Self::ErrorKind>;
+	fn run(self) -> Result<Vec<PipelineData>, Self::ErrorKind>;
 }
 
 #[derive(Debug, Deserialize, Clone)]

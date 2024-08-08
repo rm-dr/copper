@@ -35,13 +35,13 @@ impl ExtractTags {
 }
 
 impl PipelineNode for ExtractTags {
-	fn run<F>(&self, send_data: F, input: Vec<Arc<PipelineData>>) -> Result<(), PipelineError>
+	fn run<F>(&self, send_data: F, input: Vec<PipelineData>) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, Arc<PipelineData>) -> Result<(), PipelineError>,
+		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{
 		let data = input.first().unwrap();
 
-		let (data_type, data) = match data.as_ref() {
+		let (data_type, data) = match data {
 			PipelineData::Binary {
 				format: data_type,
 				data,
@@ -49,24 +49,20 @@ impl PipelineNode for ExtractTags {
 			_ => panic!(),
 		};
 
-		let mut data_read = Cursor::new(data);
+		let mut data_read = Cursor::new(&**data);
 		let tagger = match data_type {
 			BinaryFormat::Audio(x) => match x {
 				AudioFormat::Flac => Self::parse_flac(&mut data_read),
 				AudioFormat::Mp3 => unimplemented!(),
 			},
 			_ => return Err(PipelineError::UnsupportedDataType),
-		};
-		if let Err(e) = tagger {
-			return Err(e);
-		}
-		let tagger = tagger.unwrap();
+		}?;
 
 		for (i, tag_type) in self.tags.iter().enumerate() {
 			if let Some(tag_value) = tagger.get_tag(tag_type) {
-				send_data(i, Arc::new(PipelineData::Text(tag_value)))?;
+				send_data(i, PipelineData::Text(Arc::new(tag_value)))?;
 			} else {
-				send_data(i, Arc::new(PipelineData::None(PipelineDataType::Text)))?;
+				send_data(i, PipelineData::None(PipelineDataType::Text))?;
 			}
 		}
 

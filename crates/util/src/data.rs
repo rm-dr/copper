@@ -5,6 +5,7 @@ use smartstring::{LazyCompact, SmartString};
 use std::{
 	fmt::{Debug, Display},
 	str::FromStr,
+	sync::Arc,
 };
 
 // TODO: binary format contains data?
@@ -38,21 +39,22 @@ pub enum BinaryFormat {
 }
 
 // TODO: rename
-/// A bit of data inside a pipeline.
+/// An immutable bit of data inside a pipeline.
 /// These are instances of [`PipelineDataType`].
+#[derive(Clone)]
 pub enum PipelineData {
 	/// Typed, unset data
 	None(PipelineDataType),
 
 	/// A block of text
-	Text(String),
+	Text(Arc<String>),
 
 	/// Binary data
 	Binary {
 		/// How to interpret this data
 		format: BinaryFormat,
 		/// The data
-		data: Vec<u8>,
+		data: Arc<Vec<u8>>,
 	},
 }
 

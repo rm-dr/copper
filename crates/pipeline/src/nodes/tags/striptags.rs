@@ -16,14 +16,20 @@ impl StripTags {
 	}
 }
 
+impl Default for StripTags {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl PipelineNode for StripTags {
-	fn run<F>(&self, send_data: F, input: Vec<Arc<PipelineData>>) -> Result<(), PipelineError>
+	fn run<F>(&self, send_data: F, input: Vec<PipelineData>) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, Arc<PipelineData>) -> Result<(), PipelineError>,
+		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{
 		let data = input.first().unwrap();
 
-		let (data_type, data) = match data.as_ref() {
+		let (data_type, data) = match data {
 			PipelineData::Binary {
 				format: data_type,
 				data,
@@ -32,7 +38,7 @@ impl PipelineNode for StripTags {
 		};
 
 		// TODO: stream data
-		let data_read = Cursor::new(data);
+		let data_read = Cursor::new(&**data);
 		let stripped = match data_type {
 			BinaryFormat::Audio(x) => match x {
 				AudioFormat::Flac => {
@@ -48,10 +54,10 @@ impl PipelineNode for StripTags {
 
 		send_data(
 			0,
-			Arc::new(PipelineData::Binary {
+			PipelineData::Binary {
 				format: BinaryFormat::Audio(AudioFormat::Flac),
-				data: stripped,
-			}),
+				data: Arc::new(stripped),
+			},
 		)?;
 
 		return Ok(());

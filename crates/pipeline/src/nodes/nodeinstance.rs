@@ -1,10 +1,10 @@
 use smartstring::{LazyCompact, SmartString};
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 use ufo_util::data::PipelineData;
 
 use super::{
 	nodetype::PipelineNodeType,
-	tags::{striptags::StripTags, tags::ExtractTags},
+	tags::{extracttags::ExtractTags, striptags::StripTags},
 	util::ifnone::IfNone,
 };
 use crate::{errors::PipelineError, PipelineNode};
@@ -53,9 +53,9 @@ impl Debug for PipelineNodeInstance {
 }
 
 impl PipelineNode for PipelineNodeInstance {
-	fn run<F>(&self, send_data: F, input: Vec<Arc<PipelineData>>) -> Result<(), PipelineError>
+	fn run<F>(&self, send_data: F, input: Vec<PipelineData>) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, Arc<PipelineData>) -> Result<(), PipelineError>,
+		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{
 		match self {
 			// Inputs and Outputs do nothing, these are handled
@@ -84,7 +84,7 @@ impl PipelineNodeInstance {
 			| Self::ConstantNode { node_type, .. }
 			| Self::ExtractTags { node_type, .. }
 			| Self::IfNone { node_type, .. }
-			| Self::StripTags { node_type, .. } => &node_type,
+			| Self::StripTags { node_type, .. } => node_type,
 		}
 	}
 }

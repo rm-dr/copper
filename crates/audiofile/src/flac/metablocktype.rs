@@ -29,7 +29,7 @@ impl FlacMetablockType {
 		};
 
 		if is_last {
-			block_type = block_type | 0b10000000;
+			block_type |= 0b1000_0000;
 		};
 
 		let x = length.to_be_bytes();
@@ -59,7 +59,7 @@ impl FlacMetablockType {
 			6 => FlacMetablockType::Picture,
 			x => return Err(FlacError::BadMetablockType(x)),
 		};
-		let length = u32::from_be_bytes([0, block[1], block[2], block[3]].try_into().unwrap());
+		let length = u32::from_be_bytes([0, block[1], block[2], block[3]]);
 
 		return Ok((block_type, length, is_last));
 	}

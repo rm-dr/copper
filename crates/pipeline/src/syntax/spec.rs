@@ -222,7 +222,7 @@ impl PipelineSpec {
 				nodes.push((
 					"".into(),
 					PipelineNodeType::ConstantNode {
-						value: Arc::new(PipelineData::Text(text.clone())),
+						value: PipelineData::Text(Arc::new(text.clone())),
 					},
 				));
 			}

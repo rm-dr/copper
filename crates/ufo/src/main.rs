@@ -48,7 +48,7 @@ fn main() -> Result<()> {
 				c,
 				attrs.iter().map(|(a, b)| (a.into(), *b)).collect(),
 			);
-			e.run(o.iter().map(|x| x.as_ref()).collect())?;
+			e.run(o.iter().collect())?;
 		}
 	}
 

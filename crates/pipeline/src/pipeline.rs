@@ -38,12 +38,12 @@ impl Debug for NodePort {
 #[derive(Debug)]
 enum EdgeValue {
 	Uninitialized,
-	Data(Arc<PipelineData>),
+	Data(PipelineData),
 	Consumed,
 }
 
 impl EdgeValue {
-	fn unwrap(self) -> Arc<PipelineData> {
+	fn unwrap(self) -> PipelineData {
 		match self {
 			Self::Data(x) => x,
 			_ => panic!("tried to unwrap a non-Data Edgevalue"),
@@ -113,8 +113,8 @@ impl Pipeline {
 	pub fn run(
 		&self,
 		node_threads: usize,
-		pipeline_inputs: Vec<Arc<PipelineData>>,
-	) -> Result<Vec<Arc<PipelineData>>, PipelineError> {
+		pipeline_inputs: Vec<PipelineData>,
+	) -> Result<Vec<PipelineData>, PipelineError> {
 		assert!(pipeline_inputs.len() == self.config.input.get_outputs().len());
 
 		// The data inside each edge.
@@ -144,14 +144,16 @@ impl Pipeline {
 		// Channel for node data. Nodes send their outputs here once they are ready.
 		//
 		// Contents are (node index, port index, data)
+		#[allow(clippy::type_complexity)]
 		let (send_data, receive_data): (
-			Sender<(usize, usize, Arc<PipelineData>)>,
-			Receiver<(usize, usize, Arc<PipelineData>)>,
+			Sender<(usize, usize, PipelineData)>,
+			Receiver<(usize, usize, PipelineData)>,
 		) = unbounded();
 
 		// Channel for node status. A node's return status is sent here when it finishes.
 		//
 		// Contents are (node index, result of `node.run()`)
+		#[allow(clippy::type_complexity)]
 		let (send_status, receive_status): (
 			Sender<(usize, Result<(), PipelineError>)>,
 			Receiver<(usize, Result<(), PipelineError>)>,
@@ -213,11 +215,11 @@ impl Pipeline {
 		n: usize,
 		pipeline: &Pipeline,
 		pool: &ThreadPool,
-		node_has_been_run: &mut Vec<bool>,
-		edge_values: &mut Vec<EdgeValue>,
-		send_data: Sender<(usize, usize, Arc<PipelineData>)>,
+		node_has_been_run: &mut [bool],
+		edge_values: &mut [EdgeValue],
+		send_data: Sender<(usize, usize, PipelineData)>,
 		send_status: Sender<(usize, Result<(), PipelineError>)>,
-	) -> Option<Vec<Arc<PipelineData>>> {
+	) -> Option<Vec<PipelineData>> {
 		// Skip nodes we've already run
 		if *node_has_been_run.get(n).unwrap() {
 			return None;
@@ -244,7 +246,7 @@ impl Pipeline {
 			let instance = &pipeline.nodes.get(n).unwrap().1.lock().unwrap();
 			let mut inputs = Vec::with_capacity(instance.get_type().inputs().len());
 			for (_, t) in instance.get_type().inputs().iter() {
-				inputs.push(Arc::new(PipelineData::None(t)));
+				inputs.push(PipelineData::None(t));
 			}
 
 			// Now, fill input values

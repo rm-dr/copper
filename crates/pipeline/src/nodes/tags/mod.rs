@@ -1,2 +1,2 @@
+pub mod extracttags;
 pub mod striptags;
-pub mod tags;
