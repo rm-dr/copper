@@ -44,7 +44,7 @@ export function AttrSelector(params: {
 }) {
 	return (
 		<ApiSelector
-			onSelect={console.log}
+			onSelect={params.onSelect}
 			update_params={{
 				dataset: params.selectedDataset,
 				class: params.selectedClass,
