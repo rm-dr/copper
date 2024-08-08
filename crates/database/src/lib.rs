@@ -1,4 +1,6 @@
 //#![warn(missing_docs)]
 
+pub mod api;
 pub mod blobstore;
-pub mod metadb;
+pub mod database;
+pub mod metastore;

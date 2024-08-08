@@ -1,102 +1,38 @@
 use std::{
-	fs::File,
-	io::Write,
 	path::{Path, PathBuf},
 	sync::Mutex,
 };
 
 use futures::executor::block_on;
-use smartstring::{LazyCompact, SmartString};
 use sqlx::{Connection, Row, SqliteConnection};
 use ufo_util::mime::MimeType;
 
-use super::super::api::{BlobHandle, BlobStore};
+use crate::blobstore::api::{BlobHandle, BlobstoreTmpWriter};
 
-pub struct FsBlobStoreCreateParams {
-	pub root_dir: PathBuf,
-}
+use super::super::api::Blobstore;
 
-#[derive(Debug, Clone)]
-pub struct FsBlobHandle {
-	name: SmartString<LazyCompact>,
-	mime: MimeType,
-}
-
-impl BlobHandle for FsBlobHandle {
-	fn to_db_str(&self) -> String {
-		self.name.to_string()
-	}
-
-	fn from_db_str(s: &str) -> Self {
-		Self {
-			name: s.into(),
-			mime: MimeType::Blob,
-		}
-	}
-
-	fn get_type(&self) -> &MimeType {
-		&self.mime
-	}
-}
-
-pub struct FsBlobWriter {
-	file: Option<File>,
-	handle: FsBlobHandle,
-
-	// Used for cleanup
-	relative_path: PathBuf,
-	blob_storage_root: PathBuf,
-	is_finished: bool,
-}
-
-impl Write for FsBlobWriter {
-	fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-		self.file.as_mut().unwrap().write(buf)
-	}
-
-	fn flush(&mut self) -> std::io::Result<()> {
-		self.file.as_mut().unwrap().flush()
-	}
-}
-
-// TODO: tmp dir
-// TODO: test this
-impl Drop for FsBlobWriter {
-	fn drop(&mut self) {
-		self.file.take().unwrap().flush().unwrap();
-
-		// If we never finished this writer, delete the file.
-		if !self.is_finished {
-			std::fs::remove_file(self.blob_storage_root.join(&self.relative_path)).unwrap();
-		}
-	}
-}
-
-pub struct FsBlobStore {
+pub struct FsBlobstore {
 	root: PathBuf,
 	idx: Mutex<u32>,
 	conn: Mutex<SqliteConnection>,
 }
 
-unsafe impl Send for FsBlobStore {}
+unsafe impl Send for FsBlobstore {}
 
-impl BlobStore for FsBlobStore {
-	type Handle = FsBlobHandle;
-	type Writer = FsBlobWriter;
-	type CreateParams = FsBlobStoreCreateParams;
-
-	fn create(
-		db_root_dir: &Path,
-		blob_db_name: &str,
-		params: FsBlobStoreCreateParams,
+impl FsBlobstore {
+	pub(crate) fn create(
+		root_dir: &Path,
+		blob_db_file: &Path,
+		blob_storage_dir: &Path,
 	) -> Result<(), ()> {
-		if params.root_dir.exists() {
+		let blob_db_absolute = root_dir.join(&blob_db_file);
+		let blob_storage_dir_absolute = root_dir.join(&blob_storage_dir);
+
+		if blob_storage_dir.exists() {
 			return Err(());
 		}
-		std::fs::create_dir(db_root_dir.join(&params.root_dir)).unwrap();
-
-		let database = db_root_dir.join(blob_db_name);
-		let db_addr = format!("sqlite:{}?mode=rwc", database.to_str().unwrap());
+		std::fs::create_dir(blob_storage_dir_absolute).unwrap();
+		let db_addr = format!("sqlite:{}?mode=rwc", blob_db_absolute.to_str().unwrap());
 		let mut conn = block_on(SqliteConnection::connect(&db_addr)).unwrap();
 
 		block_on(sqlx::query(include_str!("./init.sql")).execute(&mut conn)).unwrap();
@@ -107,7 +43,7 @@ impl BlobStore for FsBlobStore {
 				.bind("idx_counter")
 				.bind(0)
 				.bind("blob_dir")
-				.bind(params.root_dir.to_str().unwrap())
+				.bind(blob_storage_dir.to_str().unwrap())
 				.execute(&mut conn),
 		)
 		.unwrap();
@@ -115,7 +51,7 @@ impl BlobStore for FsBlobStore {
 		Ok(())
 	}
 
-	fn open(db_root_dir: &Path, blob_db_name: &str) -> Result<Self, ()> {
+	pub(crate) fn open(db_root_dir: &Path, blob_db_name: &str) -> Result<Self, ()> {
 		let database = db_root_dir.join(blob_db_name);
 		let db_addr = format!("sqlite:{}?mode=rwc", database.to_str().unwrap());
 		let mut conn = block_on(SqliteConnection::connect(&db_addr)).unwrap();
@@ -142,8 +78,10 @@ impl BlobStore for FsBlobStore {
 			conn: Mutex::new(conn),
 		})
 	}
+}
 
-	fn new_blob(&mut self, mime: &MimeType) -> Self::Writer {
+impl Blobstore for FsBlobstore {
+	fn new_blob(&mut self, mime: &MimeType) -> BlobstoreTmpWriter {
 		let mut li = self.idx.lock().unwrap();
 		let i = *li;
 		*li += 1;
@@ -155,28 +93,21 @@ impl BlobStore for FsBlobStore {
 		)
 		.unwrap();
 
-		let blob_storage_root = self.root.clone();
-		let relative_path = format!("{i}{}", mime.extension()).into();
-		let f = File::create(blob_storage_root.join(&relative_path)).unwrap();
+		let relative_path: PathBuf = format!("{i}{}", mime.extension()).into();
+		let name = format!("{i}");
 
-		FsBlobWriter {
-			file: Some(f),
-			handle: FsBlobHandle {
-				name: format!("{i}").into(),
-				mime: mime.clone(),
-			},
-			is_finished: false,
-
-			blob_storage_root,
-			relative_path,
-		}
+		BlobstoreTmpWriter::new(
+			self.root.clone(),
+			self.root.join(relative_path),
+			BlobHandle::new(&name, mime),
+		)
 	}
 
-	fn finish_blob(&mut self, mut blob: Self::Writer) -> FsBlobHandle {
+	fn finish_blob(&mut self, mut blob: BlobstoreTmpWriter) -> BlobHandle {
 		block_on(
 			sqlx::query("INSERT INTO blobs (data_type, file_path) VALUES (?, ?);")
-				.bind(blob.handle.mime.to_db_str())
-				.bind(blob.relative_path.to_str().unwrap())
+				.bind(blob.handle.get_type().to_db_str())
+				.bind(blob.path_to_file.to_str().unwrap())
 				.execute(&mut *self.conn.lock().unwrap()),
 		)
 		.unwrap();

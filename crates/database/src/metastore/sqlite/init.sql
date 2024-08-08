@@ -1,12 +1,3 @@
--- Database metadata
-CREATE TABLE IF NOT EXISTS meta_meta (
-	-- The name of the metadata variable
-	var TEXT PRIMARY KEY NOT NULL UNIQUE,
-
-	-- The value of the variable
-	val TEXT NOT NULL
-);
-
 -- Class metadata
 CREATE TABLE IF NOT EXISTS meta_classes (
 	id INTEGER PRIMARY KEY NOT NULL,

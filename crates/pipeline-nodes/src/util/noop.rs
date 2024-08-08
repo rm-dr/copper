@@ -1,4 +1,4 @@
-use ufo_database::metadb::data::MetaDbDataStub;
+use ufo_database::metastore::data::MetastoreDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
@@ -21,7 +21,7 @@ pub struct Noop {
 impl Noop {
 	pub fn new(
 		_ctx: &<Self as PipelineNode>::NodeContext,
-		inputs: Vec<(PipelinePortLabel, MetaDbDataStub)>,
+		inputs: Vec<(PipelinePortLabel, MetastoreDataStub)>,
 	) -> Self {
 		Self {
 			received_input: inputs
@@ -95,7 +95,7 @@ impl UFONode for Noop {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-		input_type: MetaDbDataStub,
+		input_type: MetastoreDataStub,
 	) -> bool {
 		match stub {
 			UFONodeType::Noop { inputs } => inputs.get(input_idx).unwrap().1 == input_type,
@@ -122,7 +122,7 @@ impl UFONode for Noop {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-	) -> MetaDbDataStub {
+	) -> MetastoreDataStub {
 		match stub {
 			UFONodeType::Noop { inputs } => inputs.get(input_idx).unwrap().1,
 			_ => unreachable!(),
@@ -136,7 +136,7 @@ impl UFONode for Noop {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub {
+	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetastoreDataStub {
 		match stub {
 			UFONodeType::Noop { inputs } => inputs.get(output_idx).unwrap().1,
 			_ => unreachable!(),

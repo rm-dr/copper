@@ -3,18 +3,19 @@ use clap::{Parser, Subcommand};
 use crossterm::style::Stylize;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::{fmt::Write, path::PathBuf};
+use ufo_database::{
+	api::UFODatabase,
+	blobstore::fs::store::FsBlobstore,
+	database::Database,
+	metastore::{
+		api::AttributeOptions,
+		data::{HashType, MetastoreDataStub},
+		sqlite::db::SQLiteMetastore,
+	},
+};
 use ufod::{AddJobParams, RunnerStatus, RunningNodeState};
 use url::Url;
 use walkdir::WalkDir;
-
-use ufo_database::{
-	blobstore::fs::store::FsBlobStore,
-	metadb::{
-		api::{AttributeOptions, UFODb, UFODbNew},
-		data::{HashType, MetaDbDataStub},
-		sqlite::db::SQLiteDB,
-	},
-};
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
@@ -81,50 +82,48 @@ fn main() -> Result<()> {
 				std::fs::create_dir(&db_root).unwrap();
 			}
 
-			SQLiteDB::<FsBlobStore>::create(&db_root).unwrap();
-
-			let pipeline_dir = db_root.join("pipelines");
-			std::fs::create_dir(&pipeline_dir).unwrap();
+			Database::<FsBlobstore, SQLiteMetastore>::create(&db_root).unwrap();
 
 			// Everything below this point should be done in UI
 			{
-				let mut db = SQLiteDB::<FsBlobStore>::open(&db_root).unwrap();
+				let mut database = Database::open(&PathBuf::from("./db")).unwrap();
+				let db = database.get_metastore();
 
 				let x = db.add_class("AudioFile").unwrap();
 				let cover_art = db.add_class("CoverArt").unwrap();
 
-				db.add_attr(x, "title", MetaDbDataStub::Text, AttributeOptions::new())
+				db.add_attr(x, "title", MetastoreDataStub::Text, AttributeOptions::new())
 					.unwrap();
-				db.add_attr(x, "album", MetaDbDataStub::Text, AttributeOptions::new())
+				db.add_attr(x, "album", MetastoreDataStub::Text, AttributeOptions::new())
 					.unwrap();
-				db.add_attr(x, "artist", MetaDbDataStub::Text, AttributeOptions::new())
+				db.add_attr(x, "artist", MetastoreDataStub::Text, AttributeOptions::new())
 					.unwrap();
 				db.add_attr(
 					x,
 					"albumartist",
-					MetaDbDataStub::Text,
+					MetastoreDataStub::Text,
 					AttributeOptions::new(),
 				)
 				.unwrap();
 				db.add_attr(
 					x,
 					"tracknumber",
-					MetaDbDataStub::Text,
+					MetastoreDataStub::Text,
 					AttributeOptions::new(),
 				)
 				.unwrap();
-				db.add_attr(x, "year", MetaDbDataStub::Text, AttributeOptions::new())
+				db.add_attr(x, "year", MetastoreDataStub::Text, AttributeOptions::new())
 					.unwrap();
-				db.add_attr(x, "genre", MetaDbDataStub::Text, AttributeOptions::new())
+				db.add_attr(x, "genre", MetastoreDataStub::Text, AttributeOptions::new())
 					.unwrap();
-				db.add_attr(x, "ISRC", MetaDbDataStub::Text, AttributeOptions::new())
+				db.add_attr(x, "ISRC", MetastoreDataStub::Text, AttributeOptions::new())
 					.unwrap();
-				db.add_attr(x, "lyrics", MetaDbDataStub::Text, AttributeOptions::new())
+				db.add_attr(x, "lyrics", MetastoreDataStub::Text, AttributeOptions::new())
 					.unwrap();
 				db.add_attr(
 					x,
 					"cover_art",
-					MetaDbDataStub::Reference { class: cover_art },
+					MetastoreDataStub::Reference { class: cover_art },
 					AttributeOptions::new(),
 				)
 				.unwrap();
@@ -132,14 +131,14 @@ fn main() -> Result<()> {
 				db.add_attr(
 					x,
 					"audio_data",
-					MetaDbDataStub::Blob,
+					MetastoreDataStub::Blob,
 					AttributeOptions::new().not_null(true),
 				)
 				.unwrap();
 				db.add_attr(
 					x,
 					"audio_hash",
-					MetaDbDataStub::Hash {
+					MetastoreDataStub::Hash {
 						hash_type: HashType::SHA256,
 					},
 					AttributeOptions::new().not_null(true),
@@ -149,14 +148,14 @@ fn main() -> Result<()> {
 				db.add_attr(
 					cover_art,
 					"image_data",
-					MetaDbDataStub::Binary,
+					MetastoreDataStub::Binary,
 					AttributeOptions::new(),
 				)
 				.unwrap();
 				db.add_attr(
 					cover_art,
 					"content_hash",
-					MetaDbDataStub::Hash {
+					MetastoreDataStub::Hash {
 						hash_type: HashType::SHA256,
 					},
 					AttributeOptions::new().unique(true),

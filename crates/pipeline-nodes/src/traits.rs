@@ -1,6 +1,6 @@
 //! Helper traits
 
-use ufo_database::metadb::data::MetaDbDataStub;
+use ufo_database::metastore::data::MetastoreDataStub;
 use ufo_pipeline::labels::PipelinePortLabel;
 
 use crate::{nodetype::UFONodeType, UFOContext};
@@ -13,11 +13,14 @@ pub trait UFONode {
 		stub: &UFONodeType,
 		ctx: &UFOContext,
 		input_idx: usize,
-		input_type: MetaDbDataStub,
+		input_type: MetastoreDataStub,
 	) -> bool;
 
-	fn input_default_type(stub: &UFONodeType, ctx: &UFOContext, input_idx: usize)
-		-> MetaDbDataStub;
+	fn input_default_type(
+		stub: &UFONodeType,
+		ctx: &UFOContext,
+		input_idx: usize,
+	) -> MetastoreDataStub;
 
 	fn input_with_name(
 		stub: &UFONodeType,
@@ -27,7 +30,7 @@ pub trait UFONode {
 
 	fn n_outputs(stub: &UFONodeType, ctx: &UFOContext) -> usize;
 
-	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub;
+	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> MetastoreDataStub;
 
 	fn output_with_name(
 		stub: &UFONodeType,
@@ -38,8 +41,8 @@ pub trait UFONode {
 
 /// A shortcut implementation for nodes that provide a static set of inputs & outputs
 pub trait UFOStaticNode {
-	fn inputs() -> &'static [(&'static str, MetaDbDataStub)];
-	fn outputs() -> &'static [(&'static str, MetaDbDataStub)];
+	fn inputs() -> &'static [(&'static str, MetastoreDataStub)];
+	fn outputs() -> &'static [(&'static str, MetastoreDataStub)];
 }
 
 impl<T> UFONode for T
@@ -54,7 +57,7 @@ where
 		stub: &UFONodeType,
 		ctx: &UFOContext,
 		input_idx: usize,
-		input_type: MetaDbDataStub,
+		input_type: MetastoreDataStub,
 	) -> bool {
 		Self::input_default_type(stub, ctx, input_idx) == input_type
 	}
@@ -75,7 +78,7 @@ where
 		_stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-	) -> MetaDbDataStub {
+	) -> MetastoreDataStub {
 		Self::inputs().get(input_idx).unwrap().1
 	}
 
@@ -83,7 +86,7 @@ where
 		Self::outputs().len()
 	}
 
-	fn output_type(_stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub {
+	fn output_type(_stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetastoreDataStub {
 		Self::outputs().get(output_idx).unwrap().1
 	}
 

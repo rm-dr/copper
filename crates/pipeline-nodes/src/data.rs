@@ -1,8 +1,8 @@
 use serde::Deserialize;
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
-use ufo_database::metadb::{
-	api::{ClassHandle, ItemHandle},
-	data::{HashType, MetaDbData, MetaDbDataStub},
+use ufo_database::metastore::{
+	data::{HashType, MetastoreData, MetastoreDataStub},
+	handles::{ClassHandle, ItemHandle},
 };
 use ufo_pipeline::api::PipelineData;
 use ufo_util::mime::MimeType;
@@ -20,7 +20,7 @@ use ufo_util::mime::MimeType;
 pub enum UFOData {
 	/// Typed, unset data
 	#[serde(skip)]
-	None(MetaDbDataStub),
+	None(MetastoreDataStub),
 
 	/// A block of text
 	Text(Arc<String>),
@@ -90,21 +90,21 @@ pub enum UFOData {
 // TODO: better debug
 
 impl PipelineData for UFOData {
-	type DataStub = MetaDbDataStub;
+	type DataStub = MetastoreDataStub;
 
 	fn as_stub(&self) -> Self::DataStub {
 		match self {
 			Self::None(t) => *t,
-			Self::Text(_) => MetaDbDataStub::Text,
-			Self::Path(_) => MetaDbDataStub::Path,
-			Self::Integer(_) => MetaDbDataStub::Integer,
-			Self::PositiveInteger(_) => MetaDbDataStub::PositiveInteger,
-			Self::Boolean(_) => MetaDbDataStub::Boolean,
-			Self::Float(_) => MetaDbDataStub::Float,
-			Self::Hash { format, .. } => MetaDbDataStub::Hash { hash_type: *format },
-			Self::Binary { .. } => MetaDbDataStub::Binary,
-			Self::Blob { .. } => MetaDbDataStub::Blob,
-			Self::Reference { class, .. } => MetaDbDataStub::Reference { class: *class },
+			Self::Text(_) => MetastoreDataStub::Text,
+			Self::Path(_) => MetastoreDataStub::Path,
+			Self::Integer(_) => MetastoreDataStub::Integer,
+			Self::PositiveInteger(_) => MetastoreDataStub::PositiveInteger,
+			Self::Boolean(_) => MetastoreDataStub::Boolean,
+			Self::Float(_) => MetastoreDataStub::Float,
+			Self::Hash { format, .. } => MetastoreDataStub::Hash { hash_type: *format },
+			Self::Binary { .. } => MetastoreDataStub::Binary,
+			Self::Blob { .. } => MetastoreDataStub::Blob,
+			Self::Reference { class, .. } => MetastoreDataStub::Reference { class: *class },
 		}
 	}
 
@@ -122,26 +122,26 @@ impl UFOData {
 		matches!(self, Self::Blob { .. })
 	}
 
-	pub fn as_db_data(&self) -> Option<MetaDbData> {
+	pub fn as_db_data(&self) -> Option<MetastoreData> {
 		Some(match self {
 			UFOData::Blob { .. } => return None,
 
-			UFOData::None(x) => MetaDbData::None(*x),
-			UFOData::Text(x) => MetaDbData::Text(x.clone()),
-			UFOData::Float(x) => MetaDbData::Float(*x),
-			UFOData::Path(x) => MetaDbData::Path(x.clone()),
-			UFOData::Boolean(x) => MetaDbData::Boolean(*x),
-			UFOData::Hash { format, data } => MetaDbData::Hash {
+			UFOData::None(x) => MetastoreData::None(*x),
+			UFOData::Text(x) => MetastoreData::Text(x.clone()),
+			UFOData::Float(x) => MetastoreData::Float(*x),
+			UFOData::Path(x) => MetastoreData::Path(x.clone()),
+			UFOData::Boolean(x) => MetastoreData::Boolean(*x),
+			UFOData::Hash { format, data } => MetastoreData::Hash {
 				format: *format,
 				data: data.clone(),
 			},
-			UFOData::Binary { format, data } => MetaDbData::Binary {
+			UFOData::Binary { format, data } => MetastoreData::Binary {
 				format: format.clone(),
 				data: data.clone(),
 			},
-			UFOData::Integer(x) => MetaDbData::Integer(*x),
-			UFOData::PositiveInteger(x) => MetaDbData::PositiveInteger(*x),
-			UFOData::Reference { class, item } => MetaDbData::Reference {
+			UFOData::Integer(x) => MetastoreData::Integer(*x),
+			UFOData::PositiveInteger(x) => MetastoreData::PositiveInteger(*x),
+			UFOData::Reference { class, item } => MetastoreData::Reference {
 				class: *class,
 				item: *item,
 			},

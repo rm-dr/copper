@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use serde_with::serde_as;
 use ufo_audiofile::common::tagtype::TagType;
-use ufo_database::metadb::data::{HashType, MetaDbDataStub};
+use ufo_database::metastore::data::{HashType, MetastoreDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeStub},
 	labels::PipelinePortLabel,
@@ -36,7 +36,7 @@ pub enum UFONodeType {
 		value: UFOData,
 	},
 	IfNone {
-		data_type: MetaDbDataStub,
+		data_type: MetastoreDataStub,
 	},
 	Hash {
 		hash_type: HashType,
@@ -44,7 +44,7 @@ pub enum UFONodeType {
 	Noop {
 		#[serde(rename = "input")]
 		#[serde_as(as = "serde_with::Map<_, _>")]
-		inputs: Vec<(PipelinePortLabel, MetaDbDataStub)>,
+		inputs: Vec<(PipelinePortLabel, MetastoreDataStub)>,
 	},
 
 	// Audio nodes
@@ -129,8 +129,8 @@ impl PipelineNodeStub for UFONodeType {
 			},
 			UFONodeType::AddItem { class, config } => {
 				let mut d = ctx.database.lock().unwrap();
-				let class = d.get_class(class).unwrap().unwrap();
-				let attrs = d.class_get_attrs(class).unwrap();
+				let class = d.get_metastore().get_class(class).unwrap().unwrap();
+				let attrs = d.get_metastore().class_get_attrs(class).unwrap();
 
 				UFONodeInstance::AddItem {
 					node_type: self.clone(),
@@ -142,8 +142,12 @@ impl PipelineNodeStub for UFONodeType {
 			UFONodeType::FindItem { class, by_attr } => {
 				let mut d = ctx.database.lock().unwrap();
 				// TODO: handle errors
-				let class = d.get_class(class).unwrap().unwrap();
-				let attrs = d.get_attr(class, &by_attr).unwrap().unwrap();
+				let class = d.get_metastore().get_class(class).unwrap().unwrap();
+				let attrs = d
+					.get_metastore()
+					.get_attr(class, &by_attr)
+					.unwrap()
+					.unwrap();
 				drop(d);
 
 				UFONodeInstance::FindItem {

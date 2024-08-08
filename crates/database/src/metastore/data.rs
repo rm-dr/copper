@@ -1,18 +1,18 @@
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
-use ufo_pipeline::api::{PipelineData, PipelineDataStub};
+use ufo_pipeline::api::PipelineDataStub;
 use ufo_util::mime::MimeType;
 
-use crate::blobstore::fs::store::FsBlobHandle;
+use crate::blobstore::api::BlobHandle;
 
-use super::api::{ClassHandle, ItemHandle};
+use super::handles::{ClassHandle, ItemHandle};
 
 /// Bits of data inside a metadata db.
 #[derive(Debug, Clone)]
-pub enum MetaDbData {
+pub enum MetastoreData {
 	/// Typed, unset data
-	None(MetaDbDataStub),
+	None(MetastoreDataStub),
 
 	/// A block of text
 	Text(Arc<String>),
@@ -49,7 +49,7 @@ pub enum MetaDbData {
 	},
 
 	/// Big binary data stored in the blob store.
-	Blob { handle: FsBlobHandle },
+	Blob { handle: BlobHandle },
 
 	Reference {
 		/// The item class this
@@ -60,31 +60,7 @@ pub enum MetaDbData {
 	},
 }
 
-impl PipelineData for MetaDbData {
-	type DataStub = MetaDbDataStub;
-
-	fn as_stub(&self) -> Self::DataStub {
-		match self {
-			Self::None(t) => *t,
-			Self::Text(_) => MetaDbDataStub::Text,
-			Self::Path(_) => MetaDbDataStub::Path,
-			Self::Integer(_) => MetaDbDataStub::Integer,
-			Self::PositiveInteger(_) => MetaDbDataStub::PositiveInteger,
-			Self::Boolean(_) => MetaDbDataStub::Boolean,
-			Self::Float(_) => MetaDbDataStub::Float,
-			Self::Hash { format, .. } => MetaDbDataStub::Hash { hash_type: *format },
-			Self::Binary { .. } => MetaDbDataStub::Binary,
-			Self::Blob { .. } => MetaDbDataStub::Blob,
-			Self::Reference { class, .. } => MetaDbDataStub::Reference { class: *class },
-		}
-	}
-
-	fn new_empty(stub: Self::DataStub) -> Self {
-		Self::None(stub)
-	}
-}
-
-impl MetaDbData {
+impl MetastoreData {
 	pub fn is_none(&self) -> bool {
 		matches!(self, Self::None(_))
 	}
@@ -102,7 +78,7 @@ pub enum HashType {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum MetaDbDataStub {
+pub enum MetastoreDataStub {
 	/// Plain text
 	Text,
 
@@ -134,7 +110,7 @@ pub enum MetaDbDataStub {
 	Reference { class: ClassHandle },
 }
 
-impl<'de> Deserialize<'de> for MetaDbDataStub {
+impl<'de> Deserialize<'de> for MetastoreDataStub {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
 		D: serde::Deserializer<'de>,
@@ -148,9 +124,9 @@ impl<'de> Deserialize<'de> for MetaDbDataStub {
 	}
 }
 
-impl PipelineDataStub for MetaDbDataStub {}
+impl PipelineDataStub for MetastoreDataStub {}
 
-impl MetaDbDataStub {
+impl MetastoreDataStub {
 	/// A string that represents this type in a database.
 	pub fn to_db_str(&self) -> String {
 		match self {

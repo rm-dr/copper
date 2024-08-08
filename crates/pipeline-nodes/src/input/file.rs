@@ -1,5 +1,5 @@
 use std::{fs::File, io::Read, path::PathBuf, sync::Arc};
-use ufo_database::metadb::data::MetaDbDataStub;
+use ufo_database::metastore::data::MetastoreDataStub;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 
@@ -101,14 +101,14 @@ impl PipelineNode for FileReader {
 }
 
 impl UFOStaticNode for FileReader {
-	fn inputs() -> &'static [(&'static str, MetaDbDataStub)] {
-		&[("path", MetaDbDataStub::Path)]
+	fn inputs() -> &'static [(&'static str, MetastoreDataStub)] {
+		&[("path", MetastoreDataStub::Path)]
 	}
 
-	fn outputs() -> &'static [(&'static str, MetaDbDataStub)] {
+	fn outputs() -> &'static [(&'static str, MetastoreDataStub)] {
 		&[
-			("path", MetaDbDataStub::Path),
-			("data", MetaDbDataStub::Blob),
+			("path", MetastoreDataStub::Path),
+			("data", MetastoreDataStub::Blob),
 		]
 	}
 }

@@ -1,4 +1,4 @@
-use ufo_database::metadb::data::MetaDbDataStub;
+use ufo_database::metastore::data::MetastoreDataStub;
 use ufo_pipeline::{
 	api::{PipelineData, PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
@@ -53,7 +53,7 @@ impl UFONode for Constant {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		_input_idx: usize,
-		_input_type: MetaDbDataStub,
+		_input_type: MetastoreDataStub,
 	) -> bool {
 		match stub {
 			UFONodeType::Constant { .. } => false,
@@ -76,7 +76,7 @@ impl UFONode for Constant {
 		_stub: &UFONodeType,
 		_ctx: &UFOContext,
 		_input_idx: usize,
-	) -> MetaDbDataStub {
+	) -> MetastoreDataStub {
 		unreachable!()
 	}
 
@@ -87,7 +87,7 @@ impl UFONode for Constant {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub {
+	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetastoreDataStub {
 		match stub {
 			UFONodeType::Constant { value } => {
 				assert!(output_idx == 0);

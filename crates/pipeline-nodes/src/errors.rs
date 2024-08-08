@@ -3,7 +3,7 @@
 use std::{error::Error, fmt::Display};
 
 use ufo_audiofile::flac::errors::FlacError;
-use ufo_database::metadb::errors::MetaDbError;
+use ufo_database::metastore::errors::MetastoreError;
 
 /// An error we encountered while running a pipeline
 #[derive(Debug)]
@@ -15,7 +15,7 @@ pub enum PipelineError {
 	FlacError(FlacError),
 
 	/// A database operation returned an error
-	DatabaseError(MetaDbError),
+	DatabaseError(MetastoreError),
 
 	FileSystemError(Box<dyn Error>),
 	UnsupportedDataType,
@@ -58,8 +58,8 @@ impl From<FlacError> for PipelineError {
 	}
 }
 
-impl From<MetaDbError> for PipelineError {
-	fn from(value: MetaDbError) -> Self {
+impl From<MetastoreError> for PipelineError {
+	fn from(value: MetastoreError) -> Self {
 		Self::DatabaseError(value)
 	}
 }

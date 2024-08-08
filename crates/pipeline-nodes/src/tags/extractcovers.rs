@@ -3,7 +3,7 @@ use std::{
 	sync::Arc,
 };
 use ufo_audiofile::flac::flac_read_pictures;
-use ufo_database::metadb::data::MetaDbDataStub;
+use ufo_database::metastore::data::MetastoreDataStub;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 
@@ -91,7 +91,7 @@ impl PipelineNode for ExtractCovers {
 				},
 			)?;
 		} else {
-			send_data(0, UFOData::None(MetaDbDataStub::Binary))?;
+			send_data(0, UFOData::None(MetastoreDataStub::Binary))?;
 		}
 
 		return Ok(PipelineNodeState::Done);
@@ -99,11 +99,11 @@ impl PipelineNode for ExtractCovers {
 }
 
 impl UFOStaticNode for ExtractCovers {
-	fn inputs() -> &'static [(&'static str, MetaDbDataStub)] {
-		&[("data", MetaDbDataStub::Blob)]
+	fn inputs() -> &'static [(&'static str, MetastoreDataStub)] {
+		&[("data", MetastoreDataStub::Blob)]
 	}
 
-	fn outputs() -> &'static [(&'static str, MetaDbDataStub)] {
-		&[("cover_data", MetaDbDataStub::Binary)]
+	fn outputs() -> &'static [(&'static str, MetastoreDataStub)] {
+		&[("cover_data", MetastoreDataStub::Binary)]
 	}
 }

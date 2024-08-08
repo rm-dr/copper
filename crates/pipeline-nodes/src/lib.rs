@@ -17,12 +17,11 @@ pub mod nodeinstance;
 pub mod nodetype;
 
 use std::sync::{Arc, Mutex};
-
-use ufo_database::{blobstore::fs::store::FsBlobStore, metadb::api::UFODb};
+use ufo_database::api::UFODatabase;
 
 #[derive(Clone)]
 pub struct UFOContext {
-	pub database: Arc<Mutex<dyn UFODb<FsBlobStore>>>,
+	pub database: Arc<Mutex<dyn UFODatabase>>,
 
 	/// The maximum size, in bytes, of a blob channel fragment
 	pub blob_fragment_size: usize,

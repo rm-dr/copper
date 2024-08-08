@@ -12,7 +12,7 @@ use axum::{
 	routing::{get, post},
 	Json, Router,
 };
-use ufo_database::metadb::{api::UFODbNew, sqlite::db::SQLiteDB};
+use ufo_database::database::Database;
 use ufo_pipeline::{
 	api::PipelineNodeState,
 	labels::PipelineLabel,
@@ -44,7 +44,7 @@ async fn main() {
 		//.event_format(log::LogFormatter::new(true))
 		.init();
 
-	let database = SQLiteDB::open(&PathBuf::from("./db")).unwrap();
+	let database = Database::open(&PathBuf::from("./db")).unwrap();
 
 	let ctx = UFOContext {
 		database: Arc::new(Mutex::new(database)),

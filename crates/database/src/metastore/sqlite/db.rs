@@ -1,13 +1,8 @@
-use crate::{
-	blobstore::{
-		api::{BlobHandle, BlobStore},
-		fs::store::{FsBlobStore, FsBlobStoreCreateParams},
-	},
-	metadb::{
-		api::{AttrHandle, AttributeOptions, ClassHandle, ItemHandle, UFODb, UFODbNew},
-		data::{MetaDbData, MetaDbDataStub},
-		errors::MetaDbError,
-	},
+use crate::metastore::{
+	api::{AttributeOptions, Metastore},
+	data::{MetastoreData, MetastoreDataStub},
+	errors::MetastoreError,
+	handles::{AttrHandle, ClassHandle, ItemHandle},
 };
 
 use futures::executor::block_on;
@@ -18,12 +13,9 @@ use sqlx::{
 };
 use std::{iter, path::Path};
 
-pub struct SQLiteDB<BlobStoreType: BlobStore> {
-	/// The "large binary storage" backend
-	blobstore: BlobStoreType,
-
+pub struct SQLiteMetastore {
 	/// The path to the database we'll connect to
-	database: SmartString<LazyCompact>,
+	//database: SmartString<LazyCompact>,
 
 	/// A connection to a database.
 	/// `None` if disconnected.
@@ -31,8 +23,8 @@ pub struct SQLiteDB<BlobStoreType: BlobStore> {
 }
 
 // SQL helper functions
-impl<BlobStoreType: BlobStore> SQLiteDB<BlobStoreType> {
-	fn get_table_name<'e, 'c, E>(executor: E, class: ClassHandle) -> Result<String, MetaDbError>
+impl SQLiteMetastore {
+	fn get_table_name<'e, 'c, E>(executor: E, class: ClassHandle) -> Result<String, MetastoreError>
 	where
 		E: Executor<'c, Database = Sqlite>,
 	{
@@ -45,7 +37,7 @@ impl<BlobStoreType: BlobStore> SQLiteDB<BlobStoreType> {
 
 			match res {
 				Err(sqlx::Error::RowNotFound) => {
-					return Err(MetaDbError::BadClassHandle);
+					return Err(MetastoreError::BadClassHandle);
 				}
 				Err(e) => return Err(e.into()),
 				Ok(res) => res.get("id"),
@@ -57,105 +49,62 @@ impl<BlobStoreType: BlobStore> SQLiteDB<BlobStoreType> {
 
 	fn bind_storage<'a>(
 		q: Query<'a, Sqlite, SqliteArguments<'a>>,
-		storage: &'a mut MetaDbData,
+		storage: &'a mut MetastoreData,
 	) -> Query<'a, Sqlite, SqliteArguments<'a>> {
 		match storage {
 			// We MUST bind something, even for null values.
 			// If we don't, the null value's '?' won't be used
 			// and all following fields will be shifted left.
-			MetaDbData::None(_) => q.bind(None::<u32>),
-			MetaDbData::Text(s) => q.bind(&**s),
-			MetaDbData::Path(p) => q.bind(p.to_str().unwrap()),
-			MetaDbData::Integer(x) => q.bind(&*x),
-			MetaDbData::PositiveInteger(x) => q.bind(i64::from_be_bytes(x.to_be_bytes())),
-			MetaDbData::Boolean(x) => q.bind(*x),
-			MetaDbData::Float(x) => q.bind(&*x),
-			MetaDbData::Hash { data, .. } => q.bind(&**data),
-			MetaDbData::Binary { data, .. } => q.bind(&**data),
-			MetaDbData::Reference { item, .. } => q.bind(u32::from(*item)),
-			MetaDbData::Blob { handle } => q.bind(handle.to_db_str()),
+			MetastoreData::None(_) => q.bind(None::<u32>),
+			MetastoreData::Text(s) => q.bind(&**s),
+			MetastoreData::Path(p) => q.bind(p.to_str().unwrap()),
+			MetastoreData::Integer(x) => q.bind(&*x),
+			MetastoreData::PositiveInteger(x) => q.bind(i64::from_be_bytes(x.to_be_bytes())),
+			MetastoreData::Boolean(x) => q.bind(*x),
+			MetastoreData::Float(x) => q.bind(&*x),
+			MetastoreData::Hash { data, .. } => q.bind(&**data),
+			MetastoreData::Binary { data, .. } => q.bind(&**data),
+			MetastoreData::Reference { item, .. } => q.bind(u32::from(*item)),
+			MetastoreData::Blob { handle } => q.bind(handle.to_db_str()),
 		}
 	}
 }
 
-impl<BlobStoreType: BlobStore> UFODbNew<BlobStoreType> for SQLiteDB<BlobStoreType> {
-	fn create(db_root: &Path) -> Result<(), MetaDbError> {
-		// `db_root` must exist and be empty
-		if db_root.is_dir() {
-			if db_root.read_dir().unwrap().next().is_some() {
-				panic!("TODO: proper error")
-			}
-		} else if db_root.exists() {
-			panic!()
-		}
-
-		FsBlobStore::create(
-			db_root,
-			"blobstore.sqlite",
-			FsBlobStoreCreateParams {
-				root_dir: "./blobstore".into(),
-			},
-		)
-		.unwrap();
-
-		let database = db_root.join("metadata.sqlite");
-		let db_addr = format!("sqlite:{}?mode=rwc", database.to_str().unwrap());
-
+impl SQLiteMetastore {
+	pub(crate) fn create(db_file: &Path) -> Result<(), MetastoreError> {
+		assert!(!db_file.exists());
+		let db_addr = format!("sqlite:{}?mode=rwc", db_file.to_str().unwrap());
 		let mut conn = block_on(SqliteConnection::connect(&db_addr))?;
 
 		block_on(sqlx::query(include_str!("./init.sql")).execute(&mut conn)).unwrap();
 
-		block_on(
-			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?, ?);")
-				.bind("ufo_version")
-				.bind(env!("CARGO_PKG_VERSION"))
-				.execute(&mut conn),
-		)
-		.unwrap();
-
 		Ok(())
 	}
 
-	fn open(db_dir: &Path) -> Result<Self, MetaDbError> {
-		let database = db_dir.join("metadata.sqlite");
-		let db_addr = format!("sqlite:{}?mode=rw", database.to_str().unwrap());
+	pub(crate) fn open(db_file: &Path) -> Result<Self, MetastoreError> {
+		let db_addr = format!("sqlite:{}?mode=rw", db_file.to_str().unwrap());
 		let conn = block_on(SqliteConnection::connect(&db_addr))?;
 
 		Ok(Self {
-			database: db_addr.into(),
+			//database: db_addr.into(),
 			conn: Some(conn),
-			blobstore: BlobStoreType::open(db_dir, "blobstore.sqlite").unwrap(),
 		})
 	}
 }
 
-impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> {
-	fn new_blob(
-		&mut self,
-		mime: &ufo_util::mime::MimeType,
-	) -> <BlobStoreType as BlobStore>::Writer {
-		self.blobstore.new_blob(mime)
-	}
-
-	fn finish_blob(
-		&mut self,
-		blob: <BlobStoreType as BlobStore>::Writer,
-	) -> <BlobStoreType as BlobStore>::Handle {
-		self.blobstore.finish_blob(blob)
-	}
-
+impl Metastore for SQLiteMetastore {
 	fn add_attr(
 		&mut self,
 		class: ClassHandle,
 		attr_name: &str,
-		data_type: MetaDbDataStub,
+		data_type: MetastoreDataStub,
 		options: AttributeOptions,
-	) -> Result<AttrHandle, MetaDbError> {
+	) -> Result<AttrHandle, MetastoreError> {
 		// Start transaction
 		let mut t = if let Some(ref mut conn) = self.conn {
 			block_on(conn.begin())?
 		} else {
-			return Err(MetaDbError::NotConnected);
+			return Err(MetastoreError::NotConnected);
 		};
 
 		// Add attribute metadata
@@ -180,7 +129,7 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 			match res {
 				Err(sqlx::Error::Database(e)) => {
 					if e.is_unique_violation() {
-						return Err(MetaDbError::DuplicateAttrName(attr_name.into()));
+						return Err(MetastoreError::DuplicateAttrName(attr_name.into()));
 					} else {
 						return Err(sqlx::Error::Database(e).into());
 					}
@@ -196,23 +145,23 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 
 		// Map internal type to sqlite type
 		let data_type_str = match data_type {
-			MetaDbDataStub::Text => "TEXT",
-			MetaDbDataStub::Path => "TEXT",
-			MetaDbDataStub::Integer => "INTEGER",
-			MetaDbDataStub::PositiveInteger => "INTEGER",
-			MetaDbDataStub::Boolean => "INTEGER",
-			MetaDbDataStub::Float => "REAL",
-			MetaDbDataStub::Binary => "BLOB",
-			MetaDbDataStub::Blob => "TEXT",
-			MetaDbDataStub::Reference { .. } => "INTEGER",
-			MetaDbDataStub::Hash { .. } => "BLOB",
+			MetastoreDataStub::Text => "TEXT",
+			MetastoreDataStub::Path => "TEXT",
+			MetastoreDataStub::Integer => "INTEGER",
+			MetastoreDataStub::PositiveInteger => "INTEGER",
+			MetastoreDataStub::Boolean => "INTEGER",
+			MetastoreDataStub::Float => "REAL",
+			MetastoreDataStub::Binary => "BLOB",
+			MetastoreDataStub::Blob => "TEXT",
+			MetastoreDataStub::Reference { .. } => "INTEGER",
+			MetastoreDataStub::Hash { .. } => "BLOB",
 		};
 
 		let not_null = if options.not_null { " NOT NULL" } else { "" };
 
 		// Add foreign key if necessary
 		let references = match data_type {
-			MetaDbDataStub::Reference { class } => {
+			MetastoreDataStub::Reference { class } => {
 				let id: u32 = {
 					let res = block_on(
 						sqlx::query("SELECT id FROM meta_classes WHERE id=?;")
@@ -250,12 +199,12 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 		Ok(u32::try_from(new_attr_id).unwrap().into())
 	}
 
-	fn add_class(&mut self, class_name: &str) -> Result<ClassHandle, MetaDbError> {
+	fn add_class(&mut self, class_name: &str) -> Result<ClassHandle, MetastoreError> {
 		// Start transaction
 		let mut t = if let Some(ref mut conn) = self.conn {
 			block_on(conn.begin())?
 		} else {
-			return Err(MetaDbError::NotConnected);
+			return Err(MetastoreError::NotConnected);
 		};
 
 		// Add metadata
@@ -269,7 +218,7 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 			match res {
 				Err(sqlx::Error::Database(e)) => {
 					if e.is_unique_violation() {
-						return Err(MetaDbError::DuplicateClassName(class_name.into()));
+						return Err(MetastoreError::DuplicateClassName(class_name.into()));
 					} else {
 						return Err(sqlx::Error::Database(e).into());
 					}
@@ -297,13 +246,13 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 	fn add_item(
 		&mut self,
 		class: ClassHandle,
-		mut attrs: Vec<(AttrHandle, MetaDbData)>,
-	) -> Result<ItemHandle, MetaDbError> {
+		mut attrs: Vec<(AttrHandle, MetastoreData)>,
+	) -> Result<ItemHandle, MetastoreError> {
 		// Start transaction
 		let mut t = if let Some(ref mut conn) = self.conn {
 			block_on(conn.begin())?
 		} else {
-			return Err(MetaDbError::NotConnected);
+			return Err(MetastoreError::NotConnected);
 		};
 
 		let table_name = Self::get_table_name(&mut *t, class)?;
@@ -328,7 +277,7 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 
 					let column_id: u32 = match res {
 						Err(sqlx::Error::RowNotFound) => {
-							return Err(MetaDbError::BadClassHandle);
+							return Err(MetastoreError::BadClassHandle);
 						}
 						Err(e) => return Err(e.into()),
 						Ok(res) => res.get("id"),
@@ -358,7 +307,7 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 		let id = match res {
 			Err(sqlx::Error::Database(e)) => {
 				if e.is_unique_violation() {
-					return Err(MetaDbError::UniqueViolated);
+					return Err(MetastoreError::UniqueViolated);
 				} else {
 					return Err(sqlx::Error::Database(e).into());
 				}
@@ -373,15 +322,15 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 		Ok(u32::try_from(id).unwrap().into())
 	}
 
-	fn del_attr(&mut self, _attr: AttrHandle) -> Result<(), MetaDbError> {
+	fn del_attr(&mut self, _attr: AttrHandle) -> Result<(), MetastoreError> {
 		unimplemented!()
 	}
 
-	fn del_class(&mut self, _class: ClassHandle) -> Result<(), MetaDbError> {
+	fn del_class(&mut self, _class: ClassHandle) -> Result<(), MetastoreError> {
 		unimplemented!()
 	}
 
-	fn del_item(&mut self, _item: ItemHandle) -> Result<(), MetaDbError> {
+	fn del_item(&mut self, _item: ItemHandle) -> Result<(), MetastoreError> {
 		unimplemented!()
 	}
 
@@ -389,11 +338,11 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 		&mut self,
 		class: ClassHandle,
 		attr_name: &str,
-	) -> Result<Option<AttrHandle>, MetaDbError> {
+	) -> Result<Option<AttrHandle>, MetastoreError> {
 		let conn = if let Some(ref mut conn) = self.conn {
 			conn
 		} else {
-			return Err(MetaDbError::NotConnected);
+			return Err(MetastoreError::NotConnected);
 		};
 
 		let res = block_on(
@@ -410,12 +359,12 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 		};
 	}
 
-	fn get_class(&mut self, class_name: &str) -> Result<Option<ClassHandle>, MetaDbError> {
+	fn get_class(&mut self, class_name: &str) -> Result<Option<ClassHandle>, MetastoreError> {
 		// Start transaction
 		let conn = if let Some(ref mut conn) = self.conn {
 			conn
 		} else {
-			return Err(MetaDbError::NotConnected);
+			return Err(MetastoreError::NotConnected);
 		};
 
 		let res = block_on(
@@ -435,20 +384,24 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 		&mut self,
 		_item: ItemHandle,
 		_attr: AttrHandle,
-	) -> Result<MetaDbData, MetaDbError> {
+	) -> Result<MetastoreData, MetastoreError> {
 		unimplemented!()
 	}
 
-	fn item_get_class(&mut self, _item: ItemHandle) -> Result<ClassHandle, MetaDbError> {
+	fn item_get_class(&mut self, _item: ItemHandle) -> Result<ClassHandle, MetastoreError> {
 		unimplemented!()
 	}
 
-	fn item_set_attr(&mut self, attr: AttrHandle, mut data: MetaDbData) -> Result<(), MetaDbError> {
+	fn item_set_attr(
+		&mut self,
+		attr: AttrHandle,
+		mut data: MetastoreData,
+	) -> Result<(), MetastoreError> {
 		// Start transaction
 		let mut t = if let Some(ref mut conn) = self.conn {
 			block_on(conn.begin())?
 		} else {
-			return Err(MetaDbError::NotConnected);
+			return Err(MetastoreError::NotConnected);
 		};
 
 		// Find table and column name to modify
@@ -467,7 +420,7 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 			);
 
 			match res {
-				Err(sqlx::Error::RowNotFound) => Err(MetaDbError::BadAttrHandle),
+				Err(sqlx::Error::RowNotFound) => Err(MetastoreError::BadAttrHandle),
 				Err(e) => Err(e.into()),
 				Ok(res) => {
 					let class_id: u32 = res.get("meta_classes.id");
@@ -485,13 +438,13 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 		// Check "not none" constraint
 		// Unique constraint is checked later.
 		if is_not_null && data.is_none() {
-			return Err(MetaDbError::NotNoneViolated);
+			return Err(MetastoreError::NotNoneViolated);
 		}
 
 		// Update data
 		{
 			let q_str = match data {
-				MetaDbData::None(_) => {
+				MetastoreData::None(_) => {
 					format!("UPDATE \"{table_name}\" SET \"{column_name}\" = NULL;")
 				}
 				_ => format!("UPDATE \"{table_name}\" SET \"{column_name}\" = ?;"),
@@ -503,7 +456,7 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 			match block_on(q.execute(&mut *t)) {
 				Err(sqlx::Error::Database(e)) => {
 					if e.is_unique_violation() {
-						return Err(MetaDbError::UniqueViolated);
+						return Err(MetastoreError::UniqueViolated);
 					} else {
 						return Err(sqlx::Error::Database(e).into());
 					}
@@ -519,27 +472,27 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 		Ok(())
 	}
 
-	fn class_set_name(&mut self, _class: ClassHandle, _name: &str) -> Result<(), MetaDbError> {
+	fn class_set_name(&mut self, _class: ClassHandle, _name: &str) -> Result<(), MetastoreError> {
 		unimplemented!()
 	}
 
-	fn class_get_name(&mut self, _class: ClassHandle) -> Result<&str, MetaDbError> {
+	fn class_get_name(&mut self, _class: ClassHandle) -> Result<&str, MetastoreError> {
 		unimplemented!()
 	}
 
-	fn class_num_attrs(&mut self, _class: ClassHandle) -> Result<usize, MetaDbError> {
+	fn class_num_attrs(&mut self, _class: ClassHandle) -> Result<usize, MetastoreError> {
 		unimplemented!()
 	}
 
 	fn class_get_attrs(
 		&mut self,
 		class: ClassHandle,
-	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>, MetaDbError> {
+	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, MetastoreDataStub)>, MetastoreError> {
 		// Start transaction
 		let conn = if let Some(ref mut conn) = self.conn {
 			conn
 		} else {
-			return Err(MetaDbError::NotConnected);
+			return Err(MetastoreError::NotConnected);
 		};
 
 		let res = block_on(
@@ -555,7 +508,7 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 		);
 
 		let res = match res {
-			Err(sqlx::Error::RowNotFound) => return Err(MetaDbError::BadClassHandle),
+			Err(sqlx::Error::RowNotFound) => return Err(MetastoreError::BadClassHandle),
 			Err(e) => return Err(e.into()),
 			Ok(res) => res,
 		};
@@ -570,25 +523,25 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 				(
 					id.into(),
 					name.into(),
-					MetaDbDataStub::from_db_str(data_type).unwrap(),
+					MetastoreDataStub::from_db_str(data_type).unwrap(),
 				)
 			})
 			.collect())
 	}
 
-	fn attr_set_name(&mut self, _attr: AttrHandle, _name: &str) -> Result<(), MetaDbError> {
+	fn attr_set_name(&mut self, _attr: AttrHandle, _name: &str) -> Result<(), MetastoreError> {
 		unimplemented!()
 	}
 
-	fn attr_get_name(&mut self, _attr: AttrHandle) -> Result<&str, MetaDbError> {
+	fn attr_get_name(&mut self, _attr: AttrHandle) -> Result<&str, MetastoreError> {
 		unimplemented!()
 	}
 
-	fn attr_get_type(&mut self, attr: AttrHandle) -> Result<MetaDbDataStub, MetaDbError> {
+	fn attr_get_type(&mut self, attr: AttrHandle) -> Result<MetastoreDataStub, MetastoreError> {
 		let conn = if let Some(ref mut conn) = self.conn {
 			conn
 		} else {
-			return Err(MetaDbError::NotConnected);
+			return Err(MetastoreError::NotConnected);
 		};
 
 		let res = block_on(
@@ -601,7 +554,7 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 			Err(e) => Err(e.into()),
 			Ok(res) => {
 				let type_string = res.get::<String, _>("data_type");
-				Ok(MetaDbDataStub::from_db_str(&type_string).unwrap())
+				Ok(MetastoreDataStub::from_db_str(&type_string).unwrap())
 			}
 		};
 	}
@@ -613,12 +566,12 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 	fn find_item_with_attr(
 		&mut self,
 		attr: AttrHandle,
-		mut attr_value: MetaDbData,
-	) -> Result<Option<ItemHandle>, MetaDbError> {
+		mut attr_value: MetastoreData,
+	) -> Result<Option<ItemHandle>, MetastoreError> {
 		let conn = if let Some(ref mut conn) = self.conn {
 			conn
 		} else {
-			return Err(MetaDbError::NotConnected);
+			return Err(MetastoreError::NotConnected);
 		};
 
 		// Find table and column name to modify
@@ -638,7 +591,7 @@ impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> 
 			);
 
 			match res {
-				Err(sqlx::Error::RowNotFound) => Err(MetaDbError::BadAttrHandle),
+				Err(sqlx::Error::RowNotFound) => Err(MetastoreError::BadAttrHandle),
 				Err(e) => Err(e.into()),
 				Ok(res) => {
 					let class_id: u32 = res.get("class_id");

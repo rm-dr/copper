@@ -4,7 +4,7 @@ use std::{
 	sync::Arc,
 };
 use ufo_audiofile::{common::tagtype::TagType, flac::flac_read_tags};
-use ufo_database::metadb::data::MetaDbDataStub;
+use ufo_database::metastore::data::MetastoreDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
@@ -98,7 +98,7 @@ impl PipelineNode for ExtractTags {
 			if let Some(tag_value) = tagger.get_tag(tag_type) {
 				send_data(i, UFOData::Text(Arc::new(tag_value)))?;
 			} else {
-				send_data(i, UFOData::None(MetaDbDataStub::Text))?;
+				send_data(i, UFOData::None(MetastoreDataStub::Text))?;
 			}
 		}
 
@@ -107,8 +107,8 @@ impl PipelineNode for ExtractTags {
 }
 
 impl ExtractTags {
-	fn inputs() -> &'static [(&'static str, MetaDbDataStub)] {
-		&[("data", MetaDbDataStub::Blob)]
+	fn inputs() -> &'static [(&'static str, MetastoreDataStub)] {
+		&[("data", MetastoreDataStub::Blob)]
 	}
 }
 
@@ -124,7 +124,7 @@ impl UFONode for ExtractTags {
 		stub: &UFONodeType,
 		ctx: &UFOContext,
 		input_idx: usize,
-		input_type: MetaDbDataStub,
+		input_type: MetastoreDataStub,
 	) -> bool {
 		Self::input_default_type(stub, ctx, input_idx) == input_type
 	}
@@ -148,7 +148,7 @@ impl UFONode for ExtractTags {
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
 		input_idx: usize,
-	) -> MetaDbDataStub {
+	) -> MetastoreDataStub {
 		match stub {
 			UFONodeType::ExtractTags { .. } => Self::inputs().get(input_idx).unwrap().1,
 			_ => unreachable!(),
@@ -162,11 +162,11 @@ impl UFONode for ExtractTags {
 		}
 	}
 
-	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub {
+	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> MetastoreDataStub {
 		match stub {
 			UFONodeType::ExtractTags { tags } => {
 				assert!(output_idx < tags.len());
-				MetaDbDataStub::Text
+				MetastoreDataStub::Text
 			}
 			_ => unreachable!(),
 		}

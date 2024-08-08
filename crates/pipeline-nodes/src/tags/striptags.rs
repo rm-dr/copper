@@ -3,7 +3,7 @@ use std::{
 	sync::Arc,
 };
 use ufo_audiofile::flac::metastrip::{FlacMetaStrip, FlacMetaStripSelector};
-use ufo_database::metadb::data::MetaDbDataStub;
+use ufo_database::metastore::data::MetastoreDataStub;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 
@@ -103,11 +103,11 @@ impl PipelineNode for StripTags {
 }
 
 impl UFOStaticNode for StripTags {
-	fn inputs() -> &'static [(&'static str, MetaDbDataStub)] {
-		&[("data", MetaDbDataStub::Blob)]
+	fn inputs() -> &'static [(&'static str, MetastoreDataStub)] {
+		&[("data", MetastoreDataStub::Blob)]
 	}
 
-	fn outputs() -> &'static [(&'static str, MetaDbDataStub)] {
-		&[("out", MetaDbDataStub::Blob)]
+	fn outputs() -> &'static [(&'static str, MetastoreDataStub)] {
+		&[("out", MetastoreDataStub::Blob)]
 	}
 }
