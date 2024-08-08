@@ -31,6 +31,7 @@ ufo-db-metastore = { workspace = true }
 ufo-db-pipestore = { workspace = true }
 ufo-db-blobstore = { workspace = true }
 
+futures = { workspace = true }
 sha2 = { workspace = true }
 rand = { workspace = true }
 bytes = { workspace = true }
