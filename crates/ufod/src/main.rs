@@ -8,7 +8,7 @@ use config::UfodConfig;
 use futures::executor::block_on;
 use std::{path::PathBuf, sync::Arc, thread};
 use tokio::sync::Mutex;
-use tracing::debug;
+use tower_http::trace::TraceLayer;
 use ufo_api::{
 	data::{ApiData, ApiDataStub},
 	pipeline::{AddJobParams, AddJobResult, NodeInfo, PipelineInfo},
@@ -52,7 +52,9 @@ pub struct RouterState {
 #[tokio::main]
 async fn main() {
 	tracing_subscriber::fmt()
-		.with_env_filter(concat!("ufo_pipeline=error,sqlx=error,debug"))
+		.with_env_filter(concat!(
+			"ufo_pipeline=error,sqlx=warn,tower_http=info,debug"
+		))
 		.without_time()
 		.with_ansi(true)
 		//.event_format(log::LogFormatter::new(true))
@@ -107,6 +109,7 @@ async fn main() {
 		.route("/add_job", post(add_job))
 		.nest("/upload", Uploader::get_router(state.uploader.clone()))
 		// Finish
+		.layer(TraceLayer::new_for_http())
 		.layer(DefaultBodyLimit::max(state.config.request_body_limit))
 		.with_state(state.clone());
 
