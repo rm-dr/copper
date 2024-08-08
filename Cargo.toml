@@ -25,7 +25,7 @@ rpath = false
 
 [workspace]
 members = ["crates/*"]
-default-members = ["crates/ufoc", "crates/ufod"]
+default-members = ["crates/ufod"]
 resolver = "2"
 
 
@@ -58,16 +58,8 @@ ufo-db-blobstore = { path = "crates/db-blobstore" }
 ufo-db-metastore = { path = "crates/db-metastore" }
 ufo-db-pipestore = { path = "crates/db-pipestore" }
 
-
-ufoc = { path = "crates/ufoc" }
 ufod = { path = "crates/ufod" }
 
-
-# Cli
-clap = { version = "4.5.4", features = ["derive"] }
-indicatif = { version = "0.17.8", features = ["improved_unicode"] }
-nu-ansi-term = "0.50.0"
-crossterm = "0.27.0"
 
 # Logging
 tracing = "0.1"
@@ -108,3 +100,4 @@ serde_with = "3.8.1"
 
 # Other
 sqlx = { version = "0.7", features = ["sqlite", "runtime-async-std"] }
+#clap = { version = "4.5.4", features = ["derive"] }
