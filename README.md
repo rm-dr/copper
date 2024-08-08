@@ -36,7 +36,8 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Rename users & groups
 - [ ] Change user password
 - [ ] Change self password
-- [ ] Rename set, class, attrs
+- [ ] Rename dataset
+- [ ] Check name method
 
 ## 📦 View items
 - [ ] Manage ui items
