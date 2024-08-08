@@ -1,0 +1,9 @@
+depcheck:
+  ignoreMatches:
+    [
+      "postcss-preset-mantine",
+      "@svgr/webpack",
+      "@types/node",
+      "@types/react-dom",
+      "typescript",
+    ]
