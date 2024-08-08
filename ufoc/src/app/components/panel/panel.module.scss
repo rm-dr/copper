@@ -1,0 +1,59 @@
+// This style is set for subtitles.
+// Main title is re-styled below.
+.panel_title {
+	display: block;
+	align-items: center;
+	text-align: left;
+	width: 100%;
+	padding: 0;
+
+	user-select: none;
+	transition: 200ms;
+	color: var(--mantine-color-white);
+
+	font-size: 1rem;
+	font-weight: 300;
+	background-color: var(--mantine-color-gray-8);
+
+	.panel_icon {
+		display: inline-block;
+		vertical-align: middle;
+		align-items: center;
+		transition: 200ms;
+
+		width: 2rem;
+		height: 2rem;
+		padding: 4px;
+		margin-right: 0.5rem;
+		background-color: var(--mantine-color-gray-7);
+	}
+}
+
+.panel {
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
+	width: 100%;
+	padding: 0;
+	margin: 0;
+
+	background-color: var(--mantine-color-gray-9);
+	border: 0px solid var(--mantine-color-gray-8);
+	border-radius: 0px;
+	transition: 200ms;
+
+	// Main title
+	& > .panel_title:first-child {
+		font-size: 1.2rem;
+		background-color: var(--mantine-color-red-9);
+		.panel_icon {
+			background-color: var(--mantine-color-red-7);
+		}
+	}
+
+	.panel_content {
+		padding: 0.5rem;
+		display: block;
+		width: 100%;
+	}
+}

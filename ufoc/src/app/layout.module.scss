@@ -1,0 +1,23 @@
+.navbarContainer {
+	width: 100%;
+	height: 4rem;
+	overflow: hidden;
+}
+
+.lowercontent {
+	display: flex;
+	flex-direction: row;
+	height: 100%;
+	width: 100%;
+	overflow: hidden;
+}
+
+.sidebarContainer {
+	height: 100%;
+}
+
+.contentContainer {
+	flex-grow: 1;
+	height: 100%;
+	overflow-y: scroll;
+}

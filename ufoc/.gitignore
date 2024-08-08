@@ -1,0 +1,7 @@
+# NPM
+/node_modules
+npm-debug.log*
+
+# Next.js
+/.next/
+next-env.d.ts

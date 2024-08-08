@@ -1,0 +1,21 @@
+:root[data-mantine-color-scheme="light"] {
+	--mantine-color-body: var(--mantine-color-white) !important;
+}
+
+:root[data-mantine-color-scheme="dark"] {
+	--mantine-color-body: var(--mantine-color-black) !important;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	width: 100vw;
+	height: 100vh;
+	overflow: hidden;
+}
+
+a {
+	color: inherit;
+	text-decoration: none;
+}
