@@ -2,7 +2,7 @@
 type = "Noop"
 input."cover_data" = "binary"
 
-[output]
+[node."add_item"]
 node.type = "AddItem"
 node.class = "CoverArt"
 

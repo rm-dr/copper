@@ -37,7 +37,7 @@ pub struct RouterState {
 #[openapi(
 	nest(
 		(path = "/status", api = status::StatusApi),
-		(path = "/pipeline", api = pipeline::PipelineApi),
+		(path = "/pipelines", api = pipeline::PipelineApi),
 		(path = "/upload", api = upload::UploadApi)
 	),
 	tags(

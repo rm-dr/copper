@@ -1,7 +1,7 @@
 [input]
 type = "File"
 
-[output]
+[node."add_file"]
 node.type = "AddItem"
 node.class = "AudioFile"
 input."title" = { node = "tags", output = "Title" }
