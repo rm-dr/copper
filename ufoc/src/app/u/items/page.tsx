@@ -8,7 +8,7 @@ import { EditPanel } from "./_edit";
 import { components } from "@/app/_util/api/openapi";
 import { APIclient } from "@/app/_util/api";
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 50;
 
 export type ItemData = {
 	loading: boolean;

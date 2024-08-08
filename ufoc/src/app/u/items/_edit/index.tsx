@@ -93,12 +93,17 @@ export function EditPanel(params: {
 		return { first_panel, attr_values };
 	}, [selectedItems]);
 
+	const title =
+		selectedItems.length <= 1
+			? "Edit items"
+			: `Edit items (${selectedItems.length} selected)`;
+
 	return (
 		<>
 			<Panel
 				panel_id={styles.panel_edititem as string}
 				icon={<XIcon icon={IconEdit} />}
-				title={"Edit items"}
+				title={title}
 			>
 				<div className={styles.edit_container_rows}>
 					{selectedItems.length === 0

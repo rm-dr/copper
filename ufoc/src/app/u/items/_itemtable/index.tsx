@@ -46,6 +46,7 @@ export function ItemTablePanel(params: {
 	minCellWidth: number;
 }) {
 	const tableRootElement = useRef<any>(null);
+	const tableWrapperElement = useRef<any>(null);
 	const columnUidCounter = useRef(0);
 	const first_n = params.sel.attrs?.slice(0, 3);
 
@@ -80,7 +81,7 @@ export function ItemTablePanel(params: {
 	});
 
 	const updateData = useCallback(() => {
-		const e = tableRootElement.current;
+		const e = tableWrapperElement.current;
 		if (e === null) {
 			return;
 		}
@@ -95,7 +96,7 @@ export function ItemTablePanel(params: {
 		if (isScrolledToBottom) {
 			params.load_more_items();
 		}
-	}, [tableRootElement, params]);
+	}, [params]);
 
 	const col_refs = useRef<(HTMLTableCellElement | null)[]>([null, null]);
 
@@ -541,102 +542,107 @@ export function ItemTablePanel(params: {
 			icon={<XIcon icon={IconListDetails} />}
 			title={"Item Table"}
 		>
-			<table
-				className={styles.itemtable}
-				ref={tableRootElement}
+			<div
+				className={styles.itemtablewrapper}
+				ref={tableWrapperElement}
 				onScroll={updateData}
-				style={{
-					gridTemplateColumns: columns.map((_) => "1fr").join(" "),
-				}}
 			>
-				<thead>
-					<tr>
-						{columns.map(({ attr, unique_id }, idx: number) => (
-							<th
-								ref={(ref) => {
-									col_refs.current[idx] = ref;
-								}}
-								key={`${params.sel.class_idx}-${unique_id}`}
-							>
-								{/*
+				<table
+					className={styles.itemtable}
+					ref={tableRootElement}
+					style={{
+						gridTemplateColumns: columns.map((_) => "1fr").join(" "),
+					}}
+				>
+					<thead>
+						<tr>
+							{columns.map(({ attr, unique_id }, idx: number) => (
+								<th
+									ref={(ref) => {
+										col_refs.current[idx] = ref;
+									}}
+									key={`${params.sel.class_idx}-${unique_id}`}
+								>
+									{/*
 									Do not show first resize handle.
 									Note that each header contains the *previous*
 									column's resize bar. This is a z-index hack,
 									makes sure that the resize bar goes ON TOP of
 									the previous th.
 								*/}
-								{idx === 0 ? null : (
-									<div
-										style={{ height: "100%" }}
-										onMouseDown={(e) => {
-											if (e.button === 0) {
-												resizeStart(idx - 1);
-											}
-										}}
-										className={clsx(
-											styles.resize_handle,
-											activeResizeHandle === idx - 1 && styles.active,
-										)}
-									/>
-								)}
-								<ColumnHeader
-									attr={attr}
-									idx={idx}
-									n_columns={columns.length}
-									newCol={newColumn}
-									delCol={delColumn}
-									setAttr={(a) => {
-										if (a === null || params.sel.dataset === null) {
-											setColumns((c) => {
-												const n = [...c];
-												n[idx].attr = null;
-												return n;
-											});
-										} else {
-											APIclient.GET("/attr/get", {
-												params: {
-													query: {
-														dataset: params.sel.dataset,
-														attr: a,
-													},
-												},
-											}).then(({ data, error }) => {
-												if (error !== undefined) {
-													throw error;
+									{idx === 0 ? null : (
+										<div
+											style={{ height: "100%" }}
+											onMouseDown={(e) => {
+												if (e.button === 0) {
+													resizeStart(idx - 1);
 												}
-
+											}}
+											className={clsx(
+												styles.resize_handle,
+												activeResizeHandle === idx - 1 && styles.active,
+											)}
+										/>
+									)}
+									<ColumnHeader
+										attr={attr}
+										idx={idx}
+										n_columns={columns.length}
+										newCol={newColumn}
+										delCol={delColumn}
+										setAttr={(a) => {
+											if (a === null || params.sel.dataset === null) {
 												setColumns((c) => {
 													const n = [...c];
-													n[idx].attr = data;
+													n[idx].attr = null;
 													return n;
 												});
-											});
-										}
-									}}
-									selectedClass={params.sel.class_idx}
-									selectedDataset={params.sel.dataset}
-								/>
-							</th>
-						))}
-					</tr>
-				</thead>
-				<tbody>{table_body}</tbody>
-			</table>
-			{table_bottom}
-			{!params.data.loading ? null : (
-				<div
-					style={{
-						display: "flex",
-						flexDirection: "column",
-						alignItems: "center",
-						marginTop: "1rem",
-						marginBottom: "1rem",
-						color: "var(--mantine-color-dimmed)",
-					}}
-				>
-					<Loader color="var(--mantine-color-dimmed)" size="2rem" />
-				</div>
-			)}
+											} else {
+												APIclient.GET("/attr/get", {
+													params: {
+														query: {
+															dataset: params.sel.dataset,
+															attr: a,
+														},
+													},
+												}).then(({ data, error }) => {
+													if (error !== undefined) {
+														throw error;
+													}
+
+													setColumns((c) => {
+														const n = [...c];
+														n[idx].attr = data;
+														return n;
+													});
+												});
+											}
+										}}
+										selectedClass={params.sel.class_idx}
+										selectedDataset={params.sel.dataset}
+									/>
+								</th>
+							))}
+						</tr>
+					</thead>
+					<tbody>{table_body}</tbody>
+				</table>
+				{!params.data.loading ? null : (
+					<div
+						style={{
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+							marginTop: "1rem",
+							marginBottom: "1rem",
+							color: "var(--mantine-color-dimmed)",
+						}}
+					>
+						<Loader color="var(--mantine-color-dimmed)" size="2rem" />
+					</div>
+				)}
+				{table_bottom}
+			</div>
 		</Panel>
 	);
 }

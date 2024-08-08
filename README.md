@@ -27,7 +27,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Rename set, class, attrs
 
 ## 📦 CRUD items
-- [ ] List number of selected items
+- [ ] Infinite scroll when page doesn't fill view
 - [ ] Manage ui items
   - [ ] Delete items
   - [ ] Sort by attrs
