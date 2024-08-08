@@ -47,8 +47,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## 📦 Better pipelines
 - redo serialize/deserialize pipeline spec
 - show error when class ref is invalid (if class was deleted)
-- Tag node types
-- Node spec codegen?
 - Better type checking
 - How to exit early (don't read file if done)
 
