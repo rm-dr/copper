@@ -8,25 +8,32 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use ufo_database::api::UFODatabase;
-use ufo_pipeline::{api::PipelineNodeStub, labels::PipelineName};
-use ufo_pipeline_nodes::data::{UFOData, UFODataStub};
+use ufo_pipeline::labels::PipelineName;
+use ufo_pipeline_nodes::data::UFOData;
 use utoipa::ToSchema;
 
 use crate::RouterState;
 
-use super::apidata::{ApiData, ApiDataStub};
+#[derive(Deserialize, Serialize, ToSchema, Debug)]
+#[serde(tag = "type")]
+pub(super) enum AddJobInput {
+	File {
+		#[schema(value_type = String)]
+		upload_job: SmartString<LazyCompact>,
+
+		#[schema(value_type = String)]
+		file_name: SmartString<LazyCompact>,
+	},
+}
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub struct AddJobParams {
-	pub input: Vec<ApiData>,
-
-	#[schema(value_type = Option<String>)]
-	pub bound_upload_job: Option<SmartString<LazyCompact>>,
+pub(super) struct AddJobParams {
+	pub input: AddJobInput,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 #[serde(tag = "type")]
-pub enum AddJobResult {
+pub(super) enum AddJobResult {
 	Ok, // TODO: return job id
 	BadPipeline {
 		#[schema(value_type = Option<String>)]
@@ -40,9 +47,10 @@ pub enum AddJobResult {
 		bad_input_idx: usize,
 	},
 }
-/// Get details about a pipeline
+
+/// Start a pipeline job
 #[utoipa::path(
-	get,
+	post,
 	path = "/{pipeline_name}/run",
 	params(
 		("pipeline_name" = String, description = "Pipeline name"),
@@ -73,93 +81,41 @@ pub(super) async fn run_pipeline(
 		.into_response();
 	};
 
-	let ctx = runner.get_context();
-	let in_node = pipeline.input_node_id();
-	let in_node = pipeline.get_node(in_node).unwrap();
+	let bound_upload_job: Option<SmartString<LazyCompact>>;
+	let inputs = match payload.input {
+		AddJobInput::File {
+			upload_job,
+			file_name,
+		} => {
+			bound_upload_job = Some(upload_job.clone());
 
-	// Check number of arguments
-	let expected_inputs = in_node.n_inputs(ctx);
-	if expected_inputs != payload.input.len() {
-		return Json(AddJobResult::InvalidNumberOfArguments {
-			got: payload.input.len(),
-			expected: expected_inputs,
-		})
-		.into_response();
-	}
-
-	// Check type of each argument
-	for (i, data) in payload.input.iter().enumerate() {
-		let t = match data {
-			ApiData::None(t) => match t {
-				ApiDataStub::Text => UFODataStub::Text,
-				ApiDataStub::Blob => UFODataStub::Path,
-				ApiDataStub::Integer => UFODataStub::Integer,
-				ApiDataStub::PositiveInteger => UFODataStub::PositiveInteger,
-				ApiDataStub::Boolean => UFODataStub::Boolean,
-				ApiDataStub::Float => UFODataStub::Float,
-			},
-			ApiData::Text(_) => UFODataStub::Text,
-			ApiData::Blob { .. } => UFODataStub::Path,
-			ApiData::Integer(_) => UFODataStub::Integer,
-			ApiData::PositiveInteger(_) => UFODataStub::PositiveInteger,
-			ApiData::Boolean(_) => UFODataStub::Boolean,
-			ApiData::Float(_) => UFODataStub::Float,
-		};
-
-		if !in_node.input_compatible_with(ctx, 0, t) {
-			return Json(AddJobResult::InvalidInputType { bad_input_idx: i }).into_response();
-		}
-	}
-
-	let mut inputs = Vec::new();
-	for i in payload.input {
-		let x = match i {
-			ApiData::None(t) => UFOData::None(match t {
-				ApiDataStub::Text => UFODataStub::Text,
-				ApiDataStub::Blob => UFODataStub::Path,
-				ApiDataStub::Integer => UFODataStub::Integer,
-				ApiDataStub::PositiveInteger => UFODataStub::PositiveInteger,
-				ApiDataStub::Boolean => UFODataStub::Boolean,
-				ApiDataStub::Float => UFODataStub::Float,
-			}),
-			ApiData::Text(t) => UFOData::Text(Arc::new(t)),
-			ApiData::Blob { file_name } => {
-				let j = payload.bound_upload_job.as_ref();
-
-				if j.is_none() {
-					panic!();
-				}
-				let j = j.unwrap();
-
-				if !state
-					.uploader
-					.has_file_been_finished(j, &file_name)
-					.await
-					.unwrap()
-				{
-					panic!("unfinished file!")
-				}
-
-				let p = state.uploader.get_job_file_path(j, &file_name).await;
-
-				if let Some(p) = p {
-					UFOData::Path(p)
-				} else {
-					panic!("bad job")
-				}
+			if !state
+				.uploader
+				.has_file_been_finished(&upload_job, &file_name)
+				.await
+				.unwrap()
+			{
+				panic!("unfinished file!")
 			}
-			ApiData::Integer(i) => UFOData::Integer(i),
-			ApiData::PositiveInteger(i) => UFOData::PositiveInteger(i),
-			ApiData::Boolean(b) => UFOData::Boolean(b),
-			ApiData::Float(f) => UFOData::Float(f),
-		};
 
-		inputs.push(x);
-	}
+			let path = state
+				.uploader
+				.get_job_file_path(&upload_job, &file_name)
+				.await;
+
+			let path = if let Some(path) = path {
+				UFOData::Path(path)
+			} else {
+				panic!("bad job")
+			};
+
+			vec![path]
+		}
+	};
 
 	let new_id = runner.add_job(Arc::new(pipeline), inputs);
 
-	if let Some(j) = payload.bound_upload_job {
+	if let Some(j) = bound_upload_job {
 		state
 			.uploader
 			.bind_job_to_pipeline(&j, new_id)

@@ -34,6 +34,6 @@ pub(super) fn router() -> Router<RouterState> {
 	Router::new()
 		.route("/", get(get_all_pipelines))
 		.route("/:pipeline_name", get(get_pipeline))
-		.route("/:pipeline_name/run", get(run_pipeline))
+		.route("/:pipeline_name/run", post(run_pipeline))
 		.route("/:pipeline_name/:node_id", get(get_pipeline_node))
 }
