@@ -1,8 +1,10 @@
 use std::io::{Read, Seek, SeekFrom};
 
-use super::{errors::FlacError, read_metablock_header, FlacMetablockType};
+use super::{errors::FlacError, metablocktype::FlacMetablockType};
 
 // TODO: tests
+// TODO: select blocks to keep
+// TODO: implement Seek
 
 /// Given a reader to flac data, write another flac file
 /// with all non-essential metadata flags stripped.
@@ -49,7 +51,7 @@ impl<R: Read + Seek> FlacMetaStrip<R> {
 		let mut new_meta_len = 4u64; // Initial 4 bytes for "fLaC" header
 		let mut old_meta_len = 4u64;
 		loop {
-			let (block_type, length, is_last) = read_metablock_header(&mut read)?;
+			let (block_type, length, is_last) = FlacMetablockType::parse_header(&mut read)?;
 
 			let keep_block = match block_type {
 				FlacMetablockType::Streaminfo => true,
