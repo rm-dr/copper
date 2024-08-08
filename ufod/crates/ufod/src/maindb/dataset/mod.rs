@@ -149,14 +149,10 @@ impl DatasetProvider {
 		&self,
 		dataset_name: &str,
 	) -> Result<Option<Arc<LocalDataset>>, sqlx::Error> {
+		let mut ods = self.open_datasets.lock().await;
+
 		// If this dataset is already open, we have nothing to do
-		if let Some(ds) = self
-			.open_datasets
-			.lock()
-			.await
-			.iter()
-			.find(|x| x.0 == dataset_name)
-		{
+		if let Some(ds) = ods.iter().find(|x| x.0 == dataset_name) {
 			return Ok(Some(ds.1.clone()));
 		}
 
@@ -182,10 +178,7 @@ impl DatasetProvider {
 				.unwrap(),
 		);
 
-		self.open_datasets
-			.lock()
-			.await
-			.insert(entry.name.clone(), ds.clone());
+		ods.insert(entry.name.clone(), ds.clone());
 
 		Ok(Some(match entry.ds_type {
 			DatasetType::Local => ds,
