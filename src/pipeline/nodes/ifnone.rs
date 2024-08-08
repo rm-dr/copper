@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::PipelineNodeType;
 use crate::pipeline::{
-	components::labels::PipelinePort,
+	components::labels::PipelinePortLabel,
 	data::{PipelineData, PipelineDataType},
 	errors::PipelineError,
 };
@@ -10,31 +10,33 @@ use crate::pipeline::{
 pub struct IfNone {}
 
 impl PipelineNodeType for IfNone {
-	fn get_input(input: &PipelinePort) -> Option<PipelineDataType> {
+	fn get_input(input: &PipelinePortLabel) -> Option<PipelineDataType> {
 		match AsRef::as_ref(input) {
 			"data" | "ifnone" => Some(PipelineDataType::Text),
 			_ => None,
 		}
 	}
 
-	fn get_output(input: &PipelinePort) -> Option<PipelineDataType> {
+	fn get_output(input: &PipelinePortLabel) -> Option<PipelineDataType> {
 		match AsRef::as_ref(input) {
 			"out" => Some(PipelineDataType::Text),
 			_ => None,
 		}
 	}
 
-	fn get_inputs() -> impl Iterator<Item = PipelinePort> {
+	fn get_inputs() -> impl Iterator<Item = PipelinePortLabel> {
 		["data", "ifnone"].iter().map(|x| (*x).into())
 	}
 
-	fn get_outputs() -> impl Iterator<Item = PipelinePort> {
+	fn get_outputs() -> impl Iterator<Item = PipelinePortLabel> {
 		["out"].iter().map(|x| (*x).into())
 	}
 
-	fn run<F>(get_input: F) -> Result<HashMap<PipelinePort, Option<PipelineData>>, PipelineError>
+	fn run<F>(
+		get_input: F,
+	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError>
 	where
-		F: Fn(&PipelinePort) -> Option<PipelineData>,
+		F: Fn(&PipelinePortLabel) -> Option<PipelineData>,
 	{
 		// TODO: don't clone, link (replace Option<>)
 		let ifnone = get_input(&"ifnone".into()).unwrap();

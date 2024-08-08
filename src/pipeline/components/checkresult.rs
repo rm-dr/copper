@@ -1,7 +1,7 @@
 use smartstring::{LazyCompact, SmartString};
 
 use super::{
-	labels::{PipelineNode, PipelinePort},
+	labels::{PipelineNode, PipelinePortLabel},
 	ports::{NodeInput, NodeOutput},
 };
 use crate::pipeline::data::PipelineDataType;
@@ -26,14 +26,14 @@ pub enum PipelineCheckResult {
 	/// This is triggered when we specify an input that doesn't exist.
 	NoNodeInput {
 		node: PipelineNode,
-		input: PipelinePort,
+		input: PipelinePortLabel,
 	},
 
 	/// `node` has no output named `output`.
 	/// We tried to connect this output from `caused_by`.
 	NoNodeOutput {
 		node: PipelineNode,
-		output: PipelinePort,
+		output: PipelinePortLabel,
 		caused_by: NodeInput,
 	},
 

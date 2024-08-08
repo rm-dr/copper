@@ -12,10 +12,28 @@ pub enum PipelineNode {
 	///
 	/// This node's outputs are the data provided to the pipeline,
 	/// and its inputs are the data this pipeline produces.
-	OuterNode,
+	External,
 
 	/// A named node in this pipeline
-	Node(SmartString<LazyCompact>),
+	Node(PipelineNodeLabel),
+}
+
+impl PipelineNode {
+	/// Convert this into a [`PipelineNodeLabel`].
+	/// Returns `None` if this is a [`PipelineNode::External`].
+	pub fn to_label(self) -> Option<PipelineNodeLabel> {
+		match self {
+			Self::External => None,
+			Self::Node(x) => Some(x),
+		}
+	}
+
+	pub fn to_label_ref(&self) -> Option<&PipelineNodeLabel> {
+		match self {
+			Self::External => None,
+			Self::Node(x) => Some(x),
+		}
+	}
 }
 
 impl<'de> Deserialize<'de> for PipelineNode {
@@ -32,16 +50,28 @@ impl Display for PipelineNode {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::Node(x) => x.fmt(f),
-			Self::OuterNode => write!(f, "{}", PIPELINE_NODE_NAME),
+			Self::External => write!(f, "{}", PIPELINE_NODE_NAME),
 		}
+	}
+}
+
+impl From<PipelineNodeLabel> for PipelineNode {
+	fn from(value: PipelineNodeLabel) -> Self {
+		Self::Node(value)
+	}
+}
+
+impl From<&PipelineNodeLabel> for PipelineNode {
+	fn from(value: &PipelineNodeLabel) -> Self {
+		Self::Node(value.clone())
 	}
 }
 
 impl AsRef<str> for PipelineNode {
 	fn as_ref(&self) -> &str {
 		match self {
-			Self::Node(x) => x,
-			Self::OuterNode => PIPELINE_NODE_NAME,
+			Self::Node(x) => x.into(),
+			Self::External => PIPELINE_NODE_NAME,
 		}
 	}
 }
@@ -49,7 +79,7 @@ impl AsRef<str> for PipelineNode {
 impl From<&str> for PipelineNode {
 	fn from(s: &str) -> Self {
 		if s == PIPELINE_NODE_NAME {
-			PipelineNode::OuterNode
+			PipelineNode::External
 		} else {
 			PipelineNode::Node(s.into())
 		}
@@ -65,8 +95,8 @@ impl From<SmartString<LazyCompact>> for PipelineNode {
 impl From<PipelineNode> for SmartString<LazyCompact> {
 	fn from(value: PipelineNode) -> Self {
 		match value {
-			PipelineNode::Node(x) => x,
-			PipelineNode::OuterNode => PIPELINE_NODE_NAME.into(),
+			PipelineNode::Node(x) => x.into(),
+			PipelineNode::External => PIPELINE_NODE_NAME.into(),
 		}
 	}
 }
@@ -74,8 +104,8 @@ impl From<PipelineNode> for SmartString<LazyCompact> {
 impl From<&PipelineNode> for SmartString<LazyCompact> {
 	fn from(value: &PipelineNode) -> Self {
 		match value {
-			PipelineNode::Node(x) => x.clone(),
-			PipelineNode::OuterNode => PIPELINE_NODE_NAME.into(),
+			PipelineNode::Node(x) => x.into(),
+			PipelineNode::External => PIPELINE_NODE_NAME.into(),
 		}
 	}
 }
@@ -83,54 +113,100 @@ impl From<&PipelineNode> for SmartString<LazyCompact> {
 impl<'a> From<&'a PipelineNode> for &'a str {
 	fn from(value: &'a PipelineNode) -> Self {
 		match value {
-			PipelineNode::Node(x) => x,
-			PipelineNode::OuterNode => PIPELINE_NODE_NAME,
+			PipelineNode::Node(x) => x.into(),
+			PipelineNode::External => PIPELINE_NODE_NAME,
 		}
 	}
 }
 
 /// A port label in a pipeline pipeline
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Deserialize)]
-pub struct PipelinePort(SmartString<LazyCompact>);
+pub struct PipelineNodeLabel(SmartString<LazyCompact>);
 
-impl Display for PipelinePort {
+impl Display for PipelineNodeLabel {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		self.0.fmt(f)
 	}
 }
 
-impl AsRef<str> for PipelinePort {
+impl AsRef<str> for PipelineNodeLabel {
 	fn as_ref(&self) -> &str {
 		&self.0
 	}
 }
 
-impl From<SmartString<LazyCompact>> for PipelinePort {
+impl From<SmartString<LazyCompact>> for PipelineNodeLabel {
 	fn from(s: SmartString<LazyCompact>) -> Self {
-		PipelinePort(s)
+		PipelineNodeLabel(s)
 	}
 }
 
-impl From<PipelinePort> for SmartString<LazyCompact> {
-	fn from(value: PipelinePort) -> Self {
+impl From<PipelineNodeLabel> for SmartString<LazyCompact> {
+	fn from(value: PipelineNodeLabel) -> Self {
 		value.0
 	}
 }
 
-impl From<&PipelinePort> for SmartString<LazyCompact> {
-	fn from(value: &PipelinePort) -> Self {
+impl From<&PipelineNodeLabel> for SmartString<LazyCompact> {
+	fn from(value: &PipelineNodeLabel) -> Self {
 		value.0.clone()
 	}
 }
 
-impl From<&str> for PipelinePort {
+impl From<&str> for PipelineNodeLabel {
 	fn from(s: &str) -> Self {
-		PipelinePort(s.into())
+		PipelineNodeLabel(s.into())
 	}
 }
 
-impl<'a> From<&'a PipelinePort> for &'a str {
-	fn from(value: &'a PipelinePort) -> Self {
+impl<'a> From<&'a PipelineNodeLabel> for &'a str {
+	fn from(value: &'a PipelineNodeLabel) -> Self {
+		&value.0
+	}
+}
+
+/// A port label in a pipeline pipeline
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Deserialize)]
+pub struct PipelinePortLabel(SmartString<LazyCompact>);
+
+impl Display for PipelinePortLabel {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		self.0.fmt(f)
+	}
+}
+
+impl AsRef<str> for PipelinePortLabel {
+	fn as_ref(&self) -> &str {
+		&self.0
+	}
+}
+
+impl From<SmartString<LazyCompact>> for PipelinePortLabel {
+	fn from(s: SmartString<LazyCompact>) -> Self {
+		PipelinePortLabel(s)
+	}
+}
+
+impl From<PipelinePortLabel> for SmartString<LazyCompact> {
+	fn from(value: PipelinePortLabel) -> Self {
+		value.0
+	}
+}
+
+impl From<&PipelinePortLabel> for SmartString<LazyCompact> {
+	fn from(value: &PipelinePortLabel) -> Self {
+		value.0.clone()
+	}
+}
+
+impl From<&str> for PipelinePortLabel {
+	fn from(s: &str) -> Self {
+		PipelinePortLabel(s.into())
+	}
+}
+
+impl<'a> From<&'a PipelinePortLabel> for &'a str {
+	fn from(value: &'a PipelinePortLabel) -> Self {
 		&value.0
 	}
 }

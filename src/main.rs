@@ -18,7 +18,6 @@ use crate::{
 	pipeline::{
 		components::pipeline::Pipeline,
 		data::{AudioFormat, BinaryFormat, PipelineData},
-		nodes::PipelineNodeType,
 	},
 };
 

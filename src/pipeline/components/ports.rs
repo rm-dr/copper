@@ -2,7 +2,7 @@ use serde::{de::Visitor, Deserialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Display, str::FromStr};
 
-use super::labels::{PipelineNode, PipelinePort};
+use super::labels::{PipelineNode, PipelinePortLabel};
 
 /// An output port in the pipeline.
 /// (i.e, a port that produces data.)
@@ -11,7 +11,7 @@ pub enum NodeOutput {
 	/// An output port of a node
 	Node {
 		node: PipelineNode,
-		port: PipelinePort,
+		port: PipelinePortLabel,
 	},
 
 	/// Inline static text
@@ -97,7 +97,7 @@ pub enum NodeInput {
 	/// An input port of a node
 	Node {
 		node: PipelineNode,
-		port: PipelinePort,
+		port: PipelinePortLabel,
 	},
 }
 

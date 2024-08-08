@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::pipeline::{
-	components::labels::PipelinePort,
+	components::labels::PipelinePortLabel,
 	data::{AudioFormat, BinaryFormat, PipelineData, PipelineDataType},
 	errors::PipelineError,
 };
@@ -60,14 +60,14 @@ impl ExtractTag {
 }
 
 impl PipelineNodeType for ExtractTag {
-	fn get_input(input: &PipelinePort) -> Option<PipelineDataType> {
+	fn get_input(input: &PipelinePortLabel) -> Option<PipelineDataType> {
 		match AsRef::as_ref(input) {
 			"data" => Some(PipelineDataType::Binary),
 			_ => None,
 		}
 	}
 
-	fn get_output(input: &PipelinePort) -> Option<PipelineDataType> {
+	fn get_output(input: &PipelinePortLabel) -> Option<PipelineDataType> {
 		match AsRef::as_ref(input) {
 			"title" => Some(PipelineDataType::Text),
 			"album" => Some(PipelineDataType::Text),
@@ -82,11 +82,11 @@ impl PipelineNodeType for ExtractTag {
 		}
 	}
 
-	fn get_inputs() -> impl Iterator<Item = PipelinePort> {
+	fn get_inputs() -> impl Iterator<Item = PipelinePortLabel> {
 		["data"].iter().map(|x| (*x).into())
 	}
 
-	fn get_outputs() -> impl Iterator<Item = PipelinePort> {
+	fn get_outputs() -> impl Iterator<Item = PipelinePortLabel> {
 		[
 			"title",
 			"album",
@@ -102,9 +102,9 @@ impl PipelineNodeType for ExtractTag {
 		.map(|x| (*x).into())
 	}
 
-	fn run<F>(get_input: F) -> Result<HashMap<PipelinePort, Option<PipelineData>>, PipelineError>
+	fn run<F>(get_input: F) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError>
 	where
-		F: Fn(&PipelinePort) -> Option<PipelineData>,
+		F: Fn(&PipelinePortLabel) -> Option<PipelineData>,
 	{
 		let data = get_input(&"data".into()).unwrap();
 
