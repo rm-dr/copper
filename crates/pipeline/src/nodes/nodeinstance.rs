@@ -66,8 +66,8 @@ impl PipelineNode for PipelineNodeInstance {
 		match self {
 			// Inputs and Outputs do nothing, these are handled
 			// as special cases by Pipeline::run().
-			Self::PipelineInputs { .. } => Ok(()),
-			Self::PipelineOutputs { .. } => Ok(()),
+			Self::PipelineInputs { .. } => unreachable!(),
+			Self::PipelineOutputs { .. } => unreachable!(),
 			Self::ConstantNode { node_type } => match node_type {
 				PipelineNodeType::ConstantNode { value } => {
 					send_data(0, value.clone())?;

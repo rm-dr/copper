@@ -25,7 +25,7 @@ impl PipelineNode for ExtractCovers {
 				format: data_type,
 				data,
 			} => (data_type, data),
-			_ => panic!(),
+			_ => panic!("bad data {data:#?}"),
 		};
 
 		let data_read = Cursor::new(&**data);
