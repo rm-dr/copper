@@ -54,7 +54,9 @@ async function fetchdata(params: {
 	maxPage: number;
 
 	setLoading: (loading: boolean) => void;
-	setData: Dispatch<SetStateAction<{}[]>>;
+	setData: Dispatch<
+		SetStateAction<{ idx: number; attrs: { [attr: string]: any } }[]>
+	>;
 }) {
 	// TODO: data isn't loaded if more than PAGE_SIZE items fit on the screen
 	params.setLoading(true);
@@ -87,13 +89,15 @@ export type ItemData = {
 	dataset: string | null;
 	class: string | null;
 	loading: boolean;
-	data: any[];
+	data: { idx: number; attrs: { [attr: string]: any } }[];
 	loadMore: () => void;
 };
 
 function useItemData(params: { dataset: string | null; class: string | null }) {
 	const [loading, setLoading] = useState(true);
-	const [data, setData] = useState<{}[]>([]);
+	const [data, setData] = useState<
+		{ idx: number; attrs: { [attr: string]: any } }[]
+	>([]);
 	const [maxPage, setMaxPage] = useState(0);
 
 	useEffect(() => {

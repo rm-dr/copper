@@ -1,4 +1,4 @@
-import { Code, Select, Text } from "@mantine/core";
+import { Select, Text, Textarea } from "@mantine/core";
 import { attrTypeInfo } from ".";
 import { XIconAttrHash } from "@/app/components/icons";
 
@@ -33,7 +33,34 @@ export const _hashAttrType: attrTypeInfo = {
 		}
 	},
 
-	editor: { type: "panel" },
+	editor: {
+		type: "inline",
+
+		old_value: (params) => {
+			if (params.attr.value == null) {
+				return (
+					<Text c="dimmed" fs="italic">
+						no value
+					</Text>
+				);
+			} else {
+				return params.attr.value;
+			}
+		},
+
+		new_value: (params) => {
+			return (
+				<Textarea
+					radius="0px"
+					placeholder="no value"
+					autosize
+					minRows={1}
+					defaultValue={params.attr.value}
+					onChange={params.onChange}
+				/>
+			);
+		},
+	},
 };
 
 function checkHash(params: {

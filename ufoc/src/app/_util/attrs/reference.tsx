@@ -31,7 +31,36 @@ export const _refAttrType: attrTypeInfo = {
 		}
 	},
 
-	editor: { type: "panel" },
+	editor: {
+		type: "panel",
+
+		panel_body: (params) => {
+			return (
+				<>
+					<div
+						style={{
+							display: "flex",
+							flexDirection: "column",
+							justifyContent: "center",
+							alignItems: "center",
+							color: "var(--mantine-color-dimmed)",
+							height: "100%",
+						}}
+					>
+						<div>
+							<XIconAttrReference style={{ height: "5rem" }} />
+						</div>
+						<div>
+							Reference to{" "}
+							<Text c="dimmed" fs="italic" span>
+								{params.attr_val.class}
+							</Text>
+						</div>
+					</div>
+				</>
+			);
+		},
+	},
 };
 
 function checkRef(params: {

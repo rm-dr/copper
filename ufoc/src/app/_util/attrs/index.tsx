@@ -43,6 +43,14 @@ export type attrTypeInfo = {
 		  }
 		| {
 				type: "panel";
+
+				panel_body: (params: {
+					dataset: string;
+					class: string;
+					item_idx: number;
+					attr_name: string;
+					attr_val: any;
+				}) => ReactElement;
 		  };
 
 	// TODO: fix these types (no any)
