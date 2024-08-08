@@ -562,7 +562,7 @@ mod tests {
 				) => {
 			paste! {
 				#[test]
-				pub fn [<picture_ $file_name>]() {
+				pub fn [<blockread_ $file_name>]() {
 					test_block_whole(
 						$file_path,
 						$in_hash,
