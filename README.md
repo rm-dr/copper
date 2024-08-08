@@ -40,6 +40,8 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Show "changed" indicator
   - [ ] "Commit" button
   - [ ] Edit panel items
+  - [ ] Reorder attributes (ui + logic)
+  - [ ] Fix attribute index on delete
 
 ## 📦 Database migrations
 - old dbs should not be destroyed
@@ -71,7 +73,8 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Sidebar & top bar shadow
 - [ ] Icons in attr & dataset dropdown (component)
 - [ ] "No items" element in item table doesn't span columns
-
+- [ ] Show menu on right-click in trees
+- [ ] Always sort classes alphabetically
 
 ## 📦 Better uploads
 - [ ] Upload in parallel

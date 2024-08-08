@@ -41,6 +41,9 @@ pub struct ItemData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AttrInfo {
+	// Index of this attribute inside its class
+	pub idx: u32,
+
 	#[schema(value_type = u32)]
 	pub handle: AttrHandle,
 

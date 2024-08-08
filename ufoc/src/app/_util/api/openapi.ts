@@ -562,6 +562,8 @@ export interface components {
 			data_type: components["schemas"]["MetastoreDataStub"];
 			/** Format: int32 */
 			handle: number;
+			/** Format: int32 */
+			idx: number;
 			name: string;
 		};
 		AttributeOptions: {

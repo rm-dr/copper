@@ -208,14 +208,31 @@ impl Metastore for LocalDataset {
 		let mut conn_lock = self.conn.lock().await;
 		let mut t = (conn_lock.begin().await).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
+		// Get next attribute idx in this class
+		let attr_idx: u32 = {
+			let res =
+				sqlx::query("SELECT MAX(idx) as max_idx FROM meta_attributes WHERE class_id=?;")
+					.bind(u32::from(class))
+					.fetch_one(&mut *t)
+					.await;
+
+			match res {
+				Err(sqlx::Error::RowNotFound) => {
+					return Err(MetastoreError::BadClassHandle);
+				}
+				Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
+				Ok(res) => res.get::<u32, _>("max_idx") + 1,
+			}
+		};
+
 		// Add attribute metadata
 		let new_attr = {
 			let res = sqlx::query(
 				"
 				INSERT INTO meta_attributes (
 					class_id, pretty_name, data_type,
-					is_unique, is_not_null
-				) VALUES (?, ?, ?, ?, ?);
+					is_unique, is_not_null, idx
+				) VALUES (?, ?, ?, ?, ?, ?);
 				",
 			)
 			.bind(u32::from(class))
@@ -224,6 +241,7 @@ impl Metastore for LocalDataset {
 			.bind(options.unique)
 			.bind(false)
 			//.bind(options.not_null)
+			.bind(attr_idx)
 			.execute(&mut *t)
 			.await;
 
@@ -563,16 +581,23 @@ impl Metastore for LocalDataset {
 	) -> Result<Option<AttrInfo>, MetastoreError> {
 		let mut conn = self.conn.lock().await;
 
-		let res = sqlx::query("SELECT id, class_id, pretty_name, data_type FROM meta_attributes WHERE class_id=? AND pretty_name=?;")
-			.bind(u32::from(class))
-			.bind(attr_name)
-			.fetch_one(&mut *conn)
-			.await;
+		let res = sqlx::query(
+			"
+				SELECT id, idx, class_id, pretty_name, data_type, idx
+				FROM meta_attributes
+				WHERE class_id=? AND pretty_name=?;
+			",
+		)
+		.bind(u32::from(class))
+		.bind(attr_name)
+		.fetch_one(&mut *conn)
+		.await;
 
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Ok(None),
 			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
 			Ok(res) => Ok(Some(AttrInfo {
+				idx: res.get::<u32, _>("idx"),
 				handle: res.get::<u32, _>("id").into(),
 				class: res.get::<u32, _>("class_id").into(),
 				name: res.get::<String, _>("pretty_name").into(),
@@ -584,7 +609,10 @@ impl Metastore for LocalDataset {
 	async fn get_attr(&self, attr: AttrHandle) -> Result<AttrInfo, MetastoreError> {
 		let mut conn = self.conn.lock().await;
 		let res = sqlx::query(
-			"SELECT id, class_id, pretty_name, data_type FROM meta_attributes WHERE id=?;",
+			"
+			SELECT id, idx, class_id, pretty_name, data_type
+			FROM meta_attributes
+			WHERE id=?;",
 		)
 		.bind(u32::from(attr))
 		.fetch_one(&mut *conn)
@@ -594,6 +622,7 @@ impl Metastore for LocalDataset {
 			Err(sqlx::Error::RowNotFound) => Err(MetastoreError::BadAttrHandle),
 			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
 			Ok(res) => Ok(AttrInfo {
+				idx: res.get::<u32, _>("idx"),
 				handle: res.get::<u32, _>("id").into(),
 				class: res.get::<u32, _>("class_id").into(),
 				name: res.get::<String, _>("pretty_name").into(),
@@ -645,7 +674,7 @@ impl Metastore for LocalDataset {
 		let mut conn = self.conn.lock().await;
 
 		let res = sqlx::query(
-			"SELECT id, class_id, pretty_name, data_type FROM meta_attributes ORDER BY id;",
+			"SELECT id, idx, class_id, pretty_name, data_type FROM meta_attributes ORDER BY idx;",
 		)
 		.fetch_all(&mut *conn)
 		.await
@@ -654,6 +683,7 @@ impl Metastore for LocalDataset {
 		return Ok(res
 			.into_iter()
 			.map(|res| AttrInfo {
+				idx: res.get::<u32, _>("idx"),
 				handle: res.get::<u32, _>("id").into(),
 				class: res.get::<u32, _>("class_id").into(),
 				name: res.get::<String, _>("pretty_name").into(),
@@ -773,9 +803,9 @@ impl Metastore for LocalDataset {
 	async fn class_get_attrs(&self, class: ClassHandle) -> Result<Vec<AttrInfo>, MetastoreError> {
 		let res = sqlx::query(
 			"
-			SELECT id, pretty_name, data_type, class_id
+			SELECT id, idx, pretty_name, data_type, class_id
 			FROM meta_attributes WHERE class_id=?
-			ORDER BY id;
+			ORDER BY idx;
 			",
 		)
 		.bind(u32::from(class))
@@ -791,6 +821,7 @@ impl Metastore for LocalDataset {
 		Ok(res
 			.into_iter()
 			.map(|x| AttrInfo {
+				idx: x.get::<u32, _>("idx"),
 				handle: x.get::<u32, _>("id").into(),
 				class: x.get::<u32, _>("class_id").into(),
 				name: x.get::<String, _>("pretty_name").into(),

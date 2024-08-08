@@ -62,6 +62,10 @@ CREATE TABLE IF NOT EXISTS meta_attributes (
 	-- The class this attribute belongs to
 	class_id INTEGER NOT NULL,
 
+	-- The index of this attr in its class.
+	-- Starts at 0, must be consecutive within each class.
+	idx INTEGER NOT NULL,
+
 	-- This attr's display name
 	pretty_name TEXT NOT NULL,
 
@@ -79,6 +83,7 @@ CREATE TABLE IF NOT EXISTS meta_attributes (
 
 	-- Attribute names must be unique within a class
 	UNIQUE (pretty_name, class_id)
+	UNIQUE (idx, class_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_meta_attr_name on meta_attributes(pretty_name);
