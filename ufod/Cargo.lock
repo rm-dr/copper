@@ -3133,6 +3133,8 @@ dependencies = [
 name = "ufo-util"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "serde_with",
  "tracing",
 ]
 

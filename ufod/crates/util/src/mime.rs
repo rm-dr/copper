@@ -2,11 +2,12 @@
 
 use std::{fmt::Display, str::FromStr};
 
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 use tracing::warn;
 
 /// A media type, conveniently parsed
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, SerializeDisplay, DeserializeFromStr)]
 pub enum MimeType {
 	/// A mimetype we didn't recognize
 	Unknown(String),
