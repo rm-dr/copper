@@ -107,6 +107,8 @@ impl ArcVecBuffer {
 
 	/// Receive all messages into this buffer.
 	/// Returns (buffer_changed, all_messages_received)
+	///
+	/// This does not change the position of this buffer's cursor.
 	pub fn recv_all(&mut self, recv: &mut Receiver<Arc<Vec<u8>>>) -> (bool, bool) {
 		let mut buffer_changed = false;
 		loop {
@@ -136,6 +138,12 @@ impl ArcVecBuffer {
 			l += u64::try_from(b.len()).unwrap()
 		}
 		l
+	}
+
+	/// Clear this buffer.
+	pub fn clear(&mut self) {
+		self.buffer.clear();
+		self.cursor = 0;
 	}
 }
 
