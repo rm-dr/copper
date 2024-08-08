@@ -1,7 +1,7 @@
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, PipelineData, Node, NodeState, RunNodeError},
+	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -9,7 +9,8 @@ use ufo_pipeline::{
 use crate::data::{UFOData, UFODataStub};
 
 pub struct Constant {
-	outputs: [(PipelinePortID, UFODataStub); 1],
+	inputs: BTreeMap<PipelinePortID, UFODataStub>,
+	outputs: BTreeMap<PipelinePortID, UFODataStub>,
 	value: UFOData,
 }
 
@@ -37,18 +38,19 @@ impl Constant {
 		};
 
 		Ok(Self {
-			outputs: [(PipelinePortID::new("out"), value.as_stub())],
+			inputs: BTreeMap::new(),
+			outputs: BTreeMap::from([(PipelinePortID::new("out"), value.as_stub())]),
 			value,
 		})
 	}
 }
 
 impl NodeInfo<UFOData> for Constant {
-	fn inputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
-		&[]
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
+		&self.inputs
 	}
 
-	fn outputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
 		&self.outputs
 	}
 }
@@ -64,7 +66,7 @@ impl Node<UFOData> for Constant {
 
 	fn take_input(
 		&mut self,
-		_target_port: usize,
+		_target_port: PipelinePortID,
 		_input_data: UFOData,
 	) -> Result<(), RunNodeError> {
 		unreachable!("Constant nodes do not take input.")
@@ -72,9 +74,9 @@ impl Node<UFOData> for Constant {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
-		send_data(0, self.value.clone())?;
+		send_data(PipelinePortID::new("out"), self.value.clone())?;
 		Ok(NodeState::Done)
 	}
 }

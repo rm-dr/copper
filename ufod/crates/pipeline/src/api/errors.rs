@@ -39,6 +39,12 @@ pub enum InitNodeError {
 	/// access the context's input.
 	BadInputType,
 
+	/// We expected an input with the given name, but didn't get it.
+	MissingInput {
+		/// The input that is missing
+		input_name: SmartString<LazyCompact>,
+	},
+
 	/// An arbitrary error
 	Other(Box<dyn Error + Sync + Send + 'static>),
 }
@@ -61,6 +67,7 @@ impl Display for InitNodeError {
 				write!(f, "Missing parameter `{param_name}`")
 			}
 			Self::BadInputType => write!(f, "Tried to run pipeline with invalid input"),
+			Self::MissingInput { input_name } => write!(f, "Missing input `{input_name}`"),
 		}
 	}
 }

@@ -7,7 +7,7 @@ use ufo_node_base::{
 	UFOContext,
 };
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, PipelineData, Node, NodeState, RunNodeError},
+	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -15,8 +15,8 @@ use ufo_util::mime::MimeType;
 
 /// Info for a [`ExtractCovers`] node
 pub struct ExtractCoversInfo {
-	inputs: [(PipelinePortID, UFODataStub); 1],
-	outputs: [(PipelinePortID, UFODataStub); 1],
+	inputs: BTreeMap<PipelinePortID, UFODataStub>,
+	outputs: BTreeMap<PipelinePortID, UFODataStub>,
 }
 
 impl ExtractCoversInfo {
@@ -29,18 +29,18 @@ impl ExtractCoversInfo {
 		}
 
 		Ok(Self {
-			inputs: [(PipelinePortID::new("data"), UFODataStub::Bytes)],
-			outputs: [(PipelinePortID::new("cover_data"), UFODataStub::Bytes)],
+			inputs: BTreeMap::from([(PipelinePortID::new("data"), UFODataStub::Bytes)]),
+			outputs: BTreeMap::from([(PipelinePortID::new("cover_data"), UFODataStub::Bytes)]),
 		})
 	}
 }
 
 impl NodeInfo<UFOData> for ExtractCoversInfo {
-	fn inputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
 		&self.outputs
 	}
 }
@@ -73,9 +73,13 @@ impl Node<UFOData> for ExtractCovers {
 		&self.info
 	}
 
-	fn take_input(&mut self, target_port: usize, input_data: UFOData) -> Result<(), RunNodeError> {
-		match target_port {
-			0 => match input_data {
+	fn take_input(
+		&mut self,
+		target_port: PipelinePortID,
+		input_data: UFOData,
+	) -> Result<(), RunNodeError> {
+		match target_port.id().as_str() {
+			"data" => match input_data {
 				UFOData::Bytes { source, mime } => {
 					if mime != MimeType::Flac {
 						return Err(RunNodeError::UnsupportedFormat(format!(
@@ -97,7 +101,7 @@ impl Node<UFOData> for ExtractCovers {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		// Push latest data into cover reader
 		match &mut self.data {
@@ -140,7 +144,7 @@ impl Node<UFOData> for ExtractCovers {
 		// TODO: send an array of covers
 		if let Some(picture) = self.reader.pop_picture() {
 			send_data(
-				0,
+				PipelinePortID::new("cover_data"),
 				UFOData::Bytes {
 					mime: picture.mime.clone(),
 					source: BytesSource::Array {
@@ -152,7 +156,7 @@ impl Node<UFOData> for ExtractCovers {
 			return Ok(NodeState::Done);
 		} else if self.reader.is_done() {
 			send_data(
-				0,
+				PipelinePortID::new("cover_data"),
 				UFOData::None {
 					data_type: UFODataStub::Bytes,
 				},

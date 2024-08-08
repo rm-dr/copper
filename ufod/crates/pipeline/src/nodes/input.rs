@@ -12,7 +12,8 @@ use crate::{
 pub const INPUT_NODE_TYPE_NAME: &str = "Input";
 
 pub struct InputInfo<DataType: PipelineData> {
-	outputs: [(PipelinePortID, DataType::DataStubType); 1],
+	inputs: BTreeMap<PipelinePortID, DataType::DataStubType>,
+	outputs: BTreeMap<PipelinePortID, DataType::DataStubType>,
 	data_type: DataType::DataStubType,
 }
 
@@ -41,18 +42,19 @@ impl<DataType: PipelineData> InputInfo<DataType> {
 		};
 
 		Ok(Self {
-			outputs: [(PipelinePortID::new("out"), data_type)],
+			inputs: BTreeMap::new(),
+			outputs: BTreeMap::from([(PipelinePortID::new("out"), data_type)]),
 			data_type,
 		})
 	}
 }
 
 impl<DataType: PipelineData> NodeInfo<DataType> for InputInfo<DataType> {
-	fn inputs(&self) -> &[(PipelinePortID, <DataType as PipelineData>::DataStubType)] {
-		&[]
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, <DataType as PipelineData>::DataStubType> {
+		&self.inputs
 	}
 
-	fn outputs(&self) -> &[(PipelinePortID, <DataType as PipelineData>::DataStubType)] {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, <DataType as PipelineData>::DataStubType> {
 		&self.outputs
 	}
 }
@@ -76,8 +78,9 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		let value = if let Some(value) = ctx.get_input().get(node_name) {
 			value.clone()
 		} else {
-			// TODO: this is a hack, required because we must build nodes to get their stats.
-			DataType::disconnected(info.data_type)
+			return Err(InitNodeError::MissingInput {
+				input_name: node_name.into(),
+			});
 		};
 
 		if info.data_type != value.as_stub() {
@@ -105,7 +108,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Node<Dat
 
 	fn take_input(
 		&mut self,
-		_target_port: usize,
+		_target_port: PipelinePortID,
 		_input_data: DataType,
 	) -> Result<(), RunNodeError> {
 		unreachable!("Input nodes do not have any input ports.")
@@ -113,9 +116,9 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Node<Dat
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, DataType) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, DataType) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
-		send_data(0, self.value.clone())?;
+		send_data(PipelinePortID::new("out"), self.value.clone())?;
 		Ok(NodeState::Done)
 	}
 }

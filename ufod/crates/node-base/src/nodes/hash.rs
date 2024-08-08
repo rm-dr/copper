@@ -7,7 +7,7 @@ use std::{
 };
 use ufo_ds_core::data::HashType;
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, PipelineData, Node, NodeState, RunNodeError},
+	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -78,8 +78,8 @@ impl HashComputer {
 }
 
 pub struct Hash {
-	inputs: [(PipelinePortID, UFODataStub); 1],
-	outputs: [(PipelinePortID, UFODataStub); 1],
+	inputs: BTreeMap<PipelinePortID, UFODataStub>,
+	outputs: BTreeMap<PipelinePortID, UFODataStub>,
 
 	data: DataSource,
 	hasher: Option<HashComputer>,
@@ -112,14 +112,14 @@ impl Hash {
 		};
 
 		Ok(Self {
-			inputs: [(PipelinePortID::new("data"), UFODataStub::Bytes)],
+			inputs: BTreeMap::from([(PipelinePortID::new("data"), UFODataStub::Bytes)]),
 
-			outputs: [(
+			outputs: BTreeMap::from([(
 				PipelinePortID::new("hash"),
 				UFODataStub::Hash {
 					hash_type: hash_type,
 				},
-			)],
+			)]),
 
 			data: DataSource::Uninitialized,
 			hasher: Some(HashComputer::new(hash_type)),
@@ -128,11 +128,11 @@ impl Hash {
 }
 
 impl NodeInfo<UFOData> for Hash {
-	fn inputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
 		&self.outputs
 	}
 }
@@ -142,9 +142,13 @@ impl Node<UFOData> for Hash {
 		self
 	}
 
-	fn take_input(&mut self, target_port: usize, input_data: UFOData) -> Result<(), RunNodeError> {
-		match target_port {
-			0 => match input_data {
+	fn take_input(
+		&mut self,
+		target_port: PipelinePortID,
+		input_data: UFOData,
+	) -> Result<(), RunNodeError> {
+		match target_port.id().as_str() {
+			"data" => match input_data {
 				UFOData::Bytes { source, mime } => {
 					self.data.consume(mime, source);
 				}
@@ -159,7 +163,7 @@ impl Node<UFOData> for Hash {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		match &mut self.data {
 			DataSource::Uninitialized => {
@@ -168,7 +172,10 @@ impl Node<UFOData> for Hash {
 
 			DataSource::File { file, .. } => {
 				self.hasher.as_mut().unwrap().update(file)?;
-				send_data(0, self.hasher.take().unwrap().finish())?;
+				send_data(
+					PipelinePortID::new("hash"),
+					self.hasher.take().unwrap().finish(),
+				)?;
 				return Ok(NodeState::Done);
 			}
 
@@ -181,7 +188,10 @@ impl Node<UFOData> for Hash {
 				}
 
 				if *is_done {
-					send_data(0, self.hasher.take().unwrap().finish())?;
+					send_data(
+						PipelinePortID::new("hash"),
+						self.hasher.take().unwrap().finish(),
+					)?;
 					return Ok(NodeState::Done);
 				} else {
 					return Ok(NodeState::Pending("waiting for data"));

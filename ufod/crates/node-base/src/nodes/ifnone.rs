@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use smartstring::{LazyCompact, SmartString};
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, PipelineData, Node, NodeState, RunNodeError},
+	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -10,8 +10,8 @@ use ufo_pipeline::{
 use crate::data::{UFOData, UFODataStub};
 
 pub struct IfNone {
-	inputs: [(PipelinePortID, UFODataStub); 2],
-	outputs: [(PipelinePortID, UFODataStub); 1],
+	inputs: BTreeMap<PipelinePortID, UFODataStub>,
+	outputs: BTreeMap<PipelinePortID, UFODataStub>,
 
 	ifnone: Option<UFOData>,
 	input: Option<UFOData>,
@@ -41,12 +41,12 @@ impl IfNone {
 		};
 
 		Ok(Self {
-			inputs: [
+			inputs: BTreeMap::from([
 				(PipelinePortID::new("data"), data_type),
 				(PipelinePortID::new("ifnone"), data_type),
-			],
+			]),
 
-			outputs: [(PipelinePortID::new("out"), data_type)],
+			outputs: BTreeMap::from([(PipelinePortID::new("out"), data_type)]),
 
 			ifnone: None,
 			input: None,
@@ -55,11 +55,11 @@ impl IfNone {
 }
 
 impl NodeInfo<UFOData> for IfNone {
-	fn inputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
 		&self.outputs
 	}
 }
@@ -73,12 +73,16 @@ impl Node<UFOData> for IfNone {
 		true
 	}
 
-	fn take_input(&mut self, target_port: usize, input_data: UFOData) -> Result<(), RunNodeError> {
-		match target_port {
-			0 => {
+	fn take_input(
+		&mut self,
+		target_port: PipelinePortID,
+		input_data: UFOData,
+	) -> Result<(), RunNodeError> {
+		match target_port.id().as_str() {
+			"data" => {
 				self.input = Some(input_data);
 			}
-			1 => {
+			"ifnone" => {
 				self.ifnone = Some(input_data);
 			}
 			_ => unreachable!(),
@@ -88,14 +92,14 @@ impl Node<UFOData> for IfNone {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		if self.input.is_none() || self.ifnone.is_none() {
 			return Ok(NodeState::Pending("args not ready"));
 		}
 
 		send_data(
-			0,
+			PipelinePortID::new("out"),
 			match self.input.take().unwrap() {
 				UFOData::None { .. } => self.ifnone.take().unwrap(),
 				x => x,

@@ -11,7 +11,7 @@ use ufo_node_base::{
 	UFOContext,
 };
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, PipelineData, Node, NodeState, RunNodeError},
+	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -19,9 +19,9 @@ use ufo_util::mime::MimeType;
 
 /// Info for a [`ExtractTags`] node
 pub struct ExtractTagsInfo {
-	inputs: [(PipelinePortID, UFODataStub); 1],
-	outputs: Vec<(PipelinePortID, UFODataStub)>,
-	tags: Vec<TagType>,
+	inputs: BTreeMap<PipelinePortID, UFODataStub>,
+	outputs: BTreeMap<PipelinePortID, UFODataStub>,
+	tags: BTreeMap<PipelinePortID, TagType>,
 }
 
 impl ExtractTagsInfo {
@@ -61,28 +61,32 @@ impl ExtractTagsInfo {
 		}
 
 		Ok(Self {
-			inputs: [(PipelinePortID::new("data"), UFODataStub::Bytes)],
+			inputs: BTreeMap::from([(PipelinePortID::new("data"), UFODataStub::Bytes)]),
 			outputs: {
-				let mut out = Vec::new();
+				let mut out = BTreeMap::new();
 				for t in &tags {
-					out.push((
+					out.insert(
 						PipelinePortID::new(Into::<&str>::into(t)),
 						UFODataStub::Text,
-					))
+					);
 				}
 				out
 			},
-			tags: tags.into_iter().unique().collect(),
+			tags: tags
+				.into_iter()
+				.unique()
+				.map(|x| (PipelinePortID::new(Into::<&str>::into(&x)), x))
+				.collect(),
 		})
 	}
 }
 
 impl NodeInfo<UFOData> for ExtractTagsInfo {
-	fn inputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
 		&self.outputs
 	}
 }
@@ -118,9 +122,13 @@ impl Node<UFOData> for ExtractTags {
 		&self.info
 	}
 
-	fn take_input(&mut self, target_port: usize, input_data: UFOData) -> Result<(), RunNodeError> {
-		match target_port {
-			0 => match input_data {
+	fn take_input(
+		&mut self,
+		target_port: PipelinePortID,
+		input_data: UFOData,
+	) -> Result<(), RunNodeError> {
+		match target_port.id().as_str() {
+			"data" => match input_data {
 				UFOData::Bytes { source, mime } => {
 					if mime != MimeType::Flac {
 						return Err(RunNodeError::UnsupportedFormat(format!(
@@ -142,7 +150,7 @@ impl Node<UFOData> for ExtractTags {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		// Push latest data into tag reader
 		match &mut self.data {
@@ -186,17 +194,17 @@ impl Node<UFOData> for ExtractTags {
 			let b = self.reader.pop_block().unwrap();
 			match b {
 				FlacBlock::VorbisComment(comment) => {
-					for (i, tag_type) in self.info.tags.iter().enumerate() {
+					for (port, tag_type) in self.info.tags.iter() {
 						if let Some(tag_value) = comment.comment.comments.get(tag_type) {
 							send_data(
-								i,
+								port.clone(),
 								UFOData::Text {
 									value: Arc::new(tag_value.clone()),
 								},
 							)?;
 						} else {
 							send_data(
-								i,
+								port.clone(),
 								UFOData::None {
 									data_type: UFODataStub::Text,
 								},

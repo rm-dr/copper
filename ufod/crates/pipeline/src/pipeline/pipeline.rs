@@ -8,7 +8,7 @@ use crate::{
 	api::{PipelineData, PipelineJobContext},
 	dispatcher::{NodeDispatcher, NodeParameterValue},
 	graph::finalized::FinalizedGraph,
-	labels::{PipelineName, PipelineNodeID},
+	labels::{PipelineName, PipelineNodeID, PipelinePortID},
 	nodes::input::INPUT_NODE_TYPE_NAME,
 };
 
@@ -32,7 +32,7 @@ pub enum PipelineEdgeData {
 	/// PTP edges carry data between nodes.
 	///
 	/// Contents are (from_port, to_port)
-	PortToPort((usize, usize)),
+	PortToPort((PipelinePortID, PipelinePortID)),
 
 	/// An edge from a node to a node, specifying
 	/// that the second *must* wait for the first.
@@ -51,17 +51,17 @@ impl PipelineEdgeData {
 	}
 
 	/// Get the port this edge starts at
-	pub fn source_port(&self) -> Option<usize> {
+	pub fn source_port(&self) -> Option<PipelinePortID> {
 		match self {
-			Self::PortToPort((s, _)) => Some(*s),
+			Self::PortToPort((s, _)) => Some(s.clone()),
 			Self::After => None,
 		}
 	}
 
 	/// Get the port this edge ends at
-	pub fn target_port(&self) -> Option<usize> {
+	pub fn target_port(&self) -> Option<PipelinePortID> {
 		match self {
-			Self::PortToPort((_, t)) => Some(*t),
+			Self::PortToPort((_, t)) => Some(t.clone()),
 			Self::After => None,
 		}
 	}

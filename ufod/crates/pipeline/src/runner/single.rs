@@ -15,10 +15,10 @@ use super::{
 	util::{EdgeState, NodeRunState},
 };
 use crate::{
-	api::{PipelineData, PipelineJobContext, Node, NodeState, RunNodeError},
+	api::{Node, NodeState, PipelineData, PipelineJobContext, RunNodeError},
 	dispatcher::NodeDispatcher,
 	graph::util::GraphNodeIdx,
-	labels::PipelineNodeID,
+	labels::{PipelineNodeID, PipelinePortID},
 	pipeline::pipeline::{Pipeline, PipelineEdgeData},
 };
 
@@ -60,7 +60,7 @@ struct NodeInstanceContainer<DataType: PipelineData> {
 	/// A queue of inputs to send to this node
 	// This will be `None` only if the node is done,
 	/// since done nodes don't take input.
-	input_queue: Option<VecDeque<(usize, DataType)>>,
+	input_queue: Option<VecDeque<(PipelinePortID, DataType)>>,
 
 	/// This node's status
 	state: NodeRunState,
@@ -95,7 +95,7 @@ pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobCon
 		// The node that sent this message
 		GraphNodeIdx,
 		// The port index of this output
-		usize,
+		PipelinePortID,
 		// The data that output produced
 		DataType,
 	)>,
@@ -105,7 +105,7 @@ pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobCon
 		// The node that sent this message
 		GraphNodeIdx,
 		// The port index of this output
-		usize,
+		PipelinePortID,
 		// The data that output produced
 		DataType,
 	)>,
@@ -201,19 +201,21 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 					.get_info()
 					.inputs()
 					.iter()
-					.map(|_| true)
-					.collect::<Vec<_>>();
+					.map(|(id, _)| (id.clone(), true))
+					.collect::<BTreeMap<_, _>>();
 				for i in pipeline.graph.edges_ending_at(idx) {
 					let edge = &pipeline.graph.get_edge(*i).2;
 					if edge.is_after() {
 						continue;
 					}
-					port_is_empty[edge.target_port().unwrap()] = false;
+					*port_is_empty.get_mut(&edge.target_port().unwrap()).unwrap() = false;
 				}
-				for (i, e) in port_is_empty.into_iter().enumerate() {
-					if e {
-						input_queue
-							.push_back((i, DataType::disconnected(node.get_info().inputs()[i].1)));
+				for (port, is_empty) in port_is_empty.into_iter() {
+					if is_empty {
+						input_queue.push_back((
+							port.clone(),
+							DataType::disconnected(*node.get_info().inputs().get(&port).unwrap()),
+						));
 					}
 				}
 
@@ -246,8 +248,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		// Contents are (node index, port index, data)
 		#[allow(clippy::type_complexity)]
 		let (send_data, receive_data): (
-			Sender<(GraphNodeIdx, usize, DataType)>,
-			Receiver<(GraphNodeIdx, usize, DataType)>,
+			Sender<(GraphNodeIdx, PipelinePortID, DataType)>,
+			Receiver<(GraphNodeIdx, PipelinePortID, DataType)>,
 		) = unbounded();
 
 		// Channel for node status. A node's return status is sent here when it finishes.
@@ -469,7 +471,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			// Send data to all inputs connected to this output
 			for edge_idx in self.pipeline.graph.edges_starting_at(node) {
 				let (_, to_node, edge) = &self.pipeline.graph.get_edge(*edge_idx);
-				if !(edge.is_ptp() && edge.source_port() == Some(port)) {
+				if !(edge.is_ptp() && edge.source_port().as_ref() == Some(&port)) {
 					continue;
 				}
 				let node = self.node_instances.get_mut(to_node.as_usize()).unwrap();

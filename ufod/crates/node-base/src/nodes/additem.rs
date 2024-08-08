@@ -38,13 +38,14 @@ enum DataHold {
 }
 
 pub struct AddItemInfo {
-	inputs: Vec<(PipelinePortID, <UFOData as PipelineData>::DataStubType)>,
+	outputs: BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType>,
+	inputs: BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType>,
 
 	class: ClassHandle,
-	attrs: Vec<AttrInfo>,
+	attrs: BTreeMap<PipelinePortID, AttrInfo>,
 	error_non_unique: bool,
 
-	data: Vec<Option<DataHold>>,
+	data: BTreeMap<PipelinePortID, Option<DataHold>>,
 }
 
 impl AddItemInfo {
@@ -98,13 +99,24 @@ impl AddItemInfo {
 			});
 		};
 
-		let attrs: Vec<AttrInfo> = block_on(ctx.dataset.class_get_attrs(class)).unwrap();
-		let data = attrs.iter().map(|_| None).collect();
+		let attrs: BTreeMap<PipelinePortID, AttrInfo> =
+			block_on(ctx.dataset.class_get_attrs(class))
+				.unwrap()
+				.into_iter()
+				.map(|x| (PipelinePortID::new(&x.name), x))
+				.collect();
+
+		let data = attrs.iter().map(|(k, _)| (k.clone(), None)).collect();
 
 		Ok(Self {
+			outputs: BTreeMap::from([(
+				PipelinePortID::new("new_item"),
+				UFODataStub::Reference { class },
+			)]),
+
 			inputs: attrs
 				.iter()
-				.map(|x| (PipelinePortID::new(&x.name), x.data_type.into()))
+				.map(|(k, v)| (k.clone(), v.data_type.into()))
 				.collect(),
 
 			class,
@@ -116,12 +128,12 @@ impl AddItemInfo {
 }
 
 impl NodeInfo<UFOData> for AddItemInfo {
-	fn inputs(&self) -> &[(PipelinePortID, UFODataStub)] {
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, UFODataStub> {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &[(PipelinePortID, UFODataStub)] {
-		&[]
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, UFODataStub> {
+		&self.outputs
 	}
 }
 
@@ -147,19 +159,27 @@ impl Node<UFOData> for AddItem {
 		&self.info
 	}
 
-	fn take_input(&mut self, target_port: usize, input_data: UFOData) -> Result<(), RunNodeError> {
-		assert!(target_port < self.info.attrs.len());
+	fn take_input(
+		&mut self,
+		target_port: PipelinePortID,
+		input_data: UFOData,
+	) -> Result<(), RunNodeError> {
+		assert!(
+			self.info.inputs.contains_key(&target_port),
+			"Received data on invalid port {target_port}"
+		);
+
 		match input_data {
 			UFOData::Bytes { mime, source } => {
-				let x = &self.info.attrs[target_port];
+				let x = &self.info.attrs.get(&target_port).unwrap();
 				match x.data_type {
 					MetastoreDataStub::Binary => {
-						if self.info.data[target_port].is_none() {
-							self.info.data[target_port] =
+						if self.info.data.get(&target_port).unwrap().is_none() {
+							*self.info.data.get_mut(&target_port).unwrap() =
 								Some(DataHold::Binary(DataSource::Uninitialized));
 						}
 
-						match &mut self.info.data[target_port] {
+						match self.info.data.get_mut(&target_port).unwrap() {
 							Some(DataHold::Binary(reader)) => {
 								reader.consume(mime, source);
 							}
@@ -168,17 +188,18 @@ impl Node<UFOData> for AddItem {
 					}
 
 					MetastoreDataStub::Blob => {
-						if self.info.data[target_port].is_none() {
-							self.info.data[target_port] = Some(DataHold::BlobWriting {
-								reader: DataSource::Uninitialized,
-								writer: Some(
-									block_on(self.dataset.new_blob(&mime))
-										.map_err(|e| RunNodeError::Other(Box::new(e)))?,
-								),
-							});
+						if self.info.data.get(&target_port).unwrap().is_none() {
+							*self.info.data.get_mut(&target_port).unwrap() =
+								Some(DataHold::BlobWriting {
+									reader: DataSource::Uninitialized,
+									writer: Some(
+										block_on(self.dataset.new_blob(&mime))
+											.map_err(|e| RunNodeError::Other(Box::new(e)))?,
+									),
+								});
 						}
 
-						match &mut self.info.data[target_port] {
+						match self.info.data.get_mut(&target_port).unwrap() {
 							Some(DataHold::BlobWriting { reader, .. }) => {
 								reader.consume(mime, source);
 							}
@@ -190,7 +211,7 @@ impl Node<UFOData> for AddItem {
 			}
 
 			x => {
-				self.info.data[target_port] = Some(DataHold::Static(x));
+				*self.info.data.get_mut(&target_port).unwrap() = Some(DataHold::Static(x));
 			}
 		};
 		return Ok(());
@@ -198,10 +219,10 @@ impl Node<UFOData> for AddItem {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
-		for i in &mut self.info.data {
-			match i {
+		for (_, hold) in &mut self.info.data {
+			match hold {
 				Some(DataHold::BlobWriting { reader, writer }) => match reader {
 					DataSource::Uninitialized => {
 						unreachable!()
@@ -215,7 +236,7 @@ impl Node<UFOData> for AddItem {
 						if *is_done {
 							let x = block_on(self.dataset.finish_blob(writer.take().unwrap()))
 								.map_err(|e| RunNodeError::Other(Box::new(e)))?;
-							std::mem::swap(i, &mut Some(DataHold::BlobDone(x)));
+							std::mem::swap(hold, &mut Some(DataHold::BlobDone(x)));
 						}
 					}
 
@@ -223,7 +244,7 @@ impl Node<UFOData> for AddItem {
 						std::io::copy(file, writer.as_mut().unwrap())?;
 						let x = block_on(self.dataset.finish_blob(writer.take().unwrap()))
 							.map_err(|e| RunNodeError::Other(Box::new(e)))?;
-						std::mem::swap(i, &mut Some(DataHold::BlobDone(x)));
+						std::mem::swap(hold, &mut Some(DataHold::BlobDone(x)));
 					}
 				},
 				Some(_) => {}
@@ -232,9 +253,9 @@ impl Node<UFOData> for AddItem {
 		}
 
 		let mut attrs = Vec::new();
-		for (attr, data) in self.info.attrs.iter().zip(self.info.data.iter_mut()) {
-			let data = match data.as_mut().unwrap() {
-				DataHold::Binary(x) => match x {
+		for (port, attr) in self.info.attrs.iter() {
+			let data = match self.info.data.get_mut(port).unwrap() {
+				Some(DataHold::Binary(x)) => match x {
 					DataSource::Binary {
 						mime,
 						data,
@@ -262,8 +283,8 @@ impl Node<UFOData> for AddItem {
 					_ => unreachable!(),
 				},
 
-				DataHold::Static(x) => x.as_db_data().unwrap(),
-				DataHold::BlobDone(handle) => MetastoreData::Blob { handle: *handle },
+				Some(DataHold::Static(x)) => x.as_db_data().unwrap(),
+				Some(DataHold::BlobDone(handle)) => MetastoreData::Blob { handle: *handle },
 				_ => unreachable!(),
 			};
 			attrs.push((attr.handle, data));
@@ -273,7 +294,7 @@ impl Node<UFOData> for AddItem {
 		match res {
 			Ok(item) => {
 				send_data(
-					0,
+					PipelinePortID::new("new_item"),
 					UFOData::Reference {
 						class: self.info.class,
 						item,
@@ -286,7 +307,7 @@ impl Node<UFOData> for AddItem {
 						return Err(RunNodeError::Other(Box::new(err)));
 					} else {
 						send_data(
-							0,
+							PipelinePortID::new("new_item"),
 							UFOData::None {
 								data_type: UFODataStub::Reference {
 									class: self.info.class,

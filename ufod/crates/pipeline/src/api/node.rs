@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use super::{PipelineData, RunNodeError};
 use crate::labels::PipelinePortID;
 
@@ -32,10 +34,10 @@ impl NodeState {
 /// Used to validate connections.
 pub trait NodeInfo<DataType: PipelineData> {
 	/// Get this pipeline's inputs
-	fn inputs(&self) -> &[(PipelinePortID, DataType::DataStubType)];
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, DataType::DataStubType>;
 
 	/// Get this pipeline's outputs
-	fn outputs(&self) -> &[(PipelinePortID, DataType::DataStubType)];
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, DataType::DataStubType>;
 }
 
 /// An instance of a pipeline node, with some state.
@@ -55,13 +57,17 @@ pub trait Node<DataType: PipelineData>: Sync + Send {
 	}
 
 	/// Accept input data to a port of this node.
-	fn take_input(&mut self, target_port: usize, input_data: DataType) -> Result<(), RunNodeError>;
+	fn take_input(
+		&mut self,
+		target_port: PipelinePortID,
+		input_data: DataType,
+	) -> Result<(), RunNodeError>;
 
 	/// Run this node.
 	/// This is always run in a worker thread.
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, DataType) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, DataType) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError>;
 
 	/// Get this node's info

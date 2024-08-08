@@ -13,7 +13,7 @@ use crate::{
 	api::{PipelineData, PipelineDataStub, PipelineJobContext},
 	dispatcher::NodeDispatcher,
 	graph::{graph::Graph, util::GraphNodeIdx},
-	labels::{PipelineName, PipelineNodeID},
+	labels::{PipelineName, PipelineNodeID, PipelinePortID},
 	pipeline::pipeline::{Pipeline, PipelineEdgeData, PipelineNodeData},
 };
 
@@ -172,14 +172,15 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 						})?;
 					let in_port = (&*node_info)
 						.inputs()
-						.iter()
-						.find_position(|(name, _)| name == input_name)
+						.get_key_value(&input_name)
 						.ok_or(PipelinePrepareError::NoNodeInput {
 							node: node_name.clone(),
 							input: input_name.clone(),
-						})?;
+						})?
+						.0
+						.clone();
 
-					builder.add_to_graph(in_port.0, node_idx, out_link)?;
+					builder.add_to_graph(in_port, node_idx, out_link)?;
 				}
 			}
 		}
@@ -202,7 +203,7 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	#[allow(clippy::too_many_arguments)]
 	fn add_to_graph(
 		&self,
-		in_port: usize,
+		in_port: PipelinePortID,
 		node_idx: GraphNodeIdx,
 		out_link: &NodeOutput,
 	) -> Result<(), PipelinePrepareError<DataType>> {
@@ -222,9 +223,10 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 
 		let out_port = node_info
 			.outputs()
-			.iter()
-			.find_position(|(name, _)| *name == out_link.port)
-			.unwrap();
+			.get_key_value(&out_link.port)
+			.unwrap()
+			.0
+			.clone();
 
 		self.graph.borrow_mut().add_edge(
 			*self
@@ -233,7 +235,7 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				.get(&out_link.node)
 				.unwrap(),
 			node_idx,
-			PipelineEdgeData::PortToPort((out_port.0, in_port)),
+			PipelineEdgeData::PortToPort((out_port, in_port)),
 		);
 
 		Ok(())
@@ -278,15 +280,13 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 					bad_type: get_node.node_type.clone(),
 				})?;
 
-			node_info
+			*node_info
 				.outputs()
-				.iter()
-				.find(|(name, _)| *name == output.port)
+				.get(&output.port)
 				.ok_or(PipelinePrepareError::NoNodeOutput {
 					node: output.node.clone(),
 					output: output.port.clone(),
 				})?
-				.1
 		};
 
 		let input_type: <DataType as PipelineData>::DataStubType = {
@@ -312,15 +312,13 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 					bad_type: get_node.node_type.clone(),
 				})?;
 
-			node_info
+			*node_info
 				.inputs()
-				.iter()
-				.find(|(name, _)| *name == input.port)
+				.get(&input.port)
 				.ok_or(PipelinePrepareError::NoNodeInput {
 					node: input.node.clone(),
 					input: input.port.clone(),
 				})?
-				.1
 		};
 
 		if !output_type.is_subset_of(&input_type) {

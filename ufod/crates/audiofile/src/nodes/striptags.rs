@@ -9,7 +9,7 @@ use ufo_node_base::{
 	UFOContext,
 };
 use ufo_pipeline::{
-	api::{InitNodeError, NodeInfo, Node, NodeState, RunNodeError},
+	api::{InitNodeError, Node, NodeInfo, NodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
@@ -17,8 +17,8 @@ use ufo_util::mime::MimeType;
 
 /// Info for a [`StripTags`] node
 pub struct StripTagsInfo {
-	inputs: [(PipelinePortID, UFODataStub); 1],
-	outputs: [(PipelinePortID, UFODataStub); 1],
+	inputs: BTreeMap<PipelinePortID, UFODataStub>,
+	outputs: BTreeMap<PipelinePortID, UFODataStub>,
 }
 
 impl StripTagsInfo {
@@ -31,28 +31,18 @@ impl StripTagsInfo {
 		}
 
 		Ok(Self {
-			inputs: [(PipelinePortID::new("data"), UFODataStub::Bytes)],
-			outputs: [(PipelinePortID::new("out"), UFODataStub::Bytes)],
+			inputs: BTreeMap::from([(PipelinePortID::new("data"), UFODataStub::Bytes)]),
+			outputs: BTreeMap::from([(PipelinePortID::new("out"), UFODataStub::Bytes)]),
 		})
 	}
 }
 
 impl NodeInfo<UFOData> for StripTagsInfo {
-	fn inputs(
-		&self,
-	) -> &[(
-		PipelinePortID,
-		<UFOData as ufo_pipeline::api::PipelineData>::DataStubType,
-	)] {
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, UFODataStub> {
 		&self.inputs
 	}
 
-	fn outputs(
-		&self,
-	) -> &[(
-		PipelinePortID,
-		<UFOData as ufo_pipeline::api::PipelineData>::DataStubType,
-	)] {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, UFODataStub> {
 		&self.outputs
 	}
 }
@@ -85,9 +75,13 @@ impl Node<UFOData> for StripTags {
 		&self.info
 	}
 
-	fn take_input(&mut self, target_port: usize, input_data: UFOData) -> Result<(), RunNodeError> {
-		match target_port {
-			0 => match input_data {
+	fn take_input(
+		&mut self,
+		target_port: PipelinePortID,
+		input_data: UFOData,
+	) -> Result<(), RunNodeError> {
+		match target_port.id().as_str() {
+			"data" => match input_data {
 				UFOData::Bytes { source, mime } => {
 					if mime != MimeType::Flac {
 						return Err(RunNodeError::UnsupportedFormat(format!(
@@ -109,7 +103,7 @@ impl Node<UFOData> for StripTags {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
 	) -> Result<ufo_pipeline::api::NodeState, RunNodeError> {
 		// Push latest data into metadata stripper
 		match &mut self.data {
@@ -159,7 +153,7 @@ impl Node<UFOData> for StripTags {
 
 			if !out.is_empty() {
 				send_data(
-					0,
+					PipelinePortID::new("out"),
 					UFOData::Bytes {
 						mime: MimeType::Flac,
 						source: BytesSource::Array {

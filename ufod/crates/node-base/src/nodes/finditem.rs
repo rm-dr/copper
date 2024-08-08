@@ -18,8 +18,8 @@ use crate::{
 };
 
 pub struct FindItemInfo {
-	inputs: [(PipelinePortID, UFODataStub); 1],
-	outputs: [(PipelinePortID, UFODataStub); 1],
+	inputs: BTreeMap<PipelinePortID, UFODataStub>,
+	outputs: BTreeMap<PipelinePortID, UFODataStub>,
 
 	class: ClassHandle,
 	by_attr: AttrInfo,
@@ -89,11 +89,11 @@ impl FindItemInfo {
 		};
 
 		Ok(Self {
-			inputs: [(PipelinePortID::new("attr_value"), by_attr.data_type.into())],
-			outputs: [(
+			inputs: BTreeMap::from([(PipelinePortID::new("attr_value"), by_attr.data_type.into())]),
+			outputs: BTreeMap::from([(
 				PipelinePortID::new("found_item"),
 				UFODataStub::Reference { class },
-			)],
+			)]),
 
 			class,
 			by_attr,
@@ -102,11 +102,11 @@ impl FindItemInfo {
 }
 
 impl NodeInfo<UFOData> for FindItemInfo {
-	fn inputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+	fn inputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
 		&self.inputs
 	}
 
-	fn outputs(&self) -> &[(PipelinePortID, <UFOData as PipelineData>::DataStubType)] {
+	fn outputs(&self) -> &BTreeMap<PipelinePortID, <UFOData as PipelineData>::DataStubType> {
 		&self.outputs
 	}
 }
@@ -141,8 +141,12 @@ impl Node<UFOData> for FindItem {
 		&self.info
 	}
 
-	fn take_input(&mut self, target_port: usize, input_data: UFOData) -> Result<(), RunNodeError> {
-		assert!(target_port == 0);
+	fn take_input(
+		&mut self,
+		target_port: PipelinePortID,
+		input_data: UFOData,
+	) -> Result<(), RunNodeError> {
+		assert!(target_port == PipelinePortID::new("attr_value"));
 		assert!(input_data.as_stub() == self.info.by_attr.data_type.into());
 		self.attr_value = Some(input_data);
 		return Ok(());
@@ -150,7 +154,7 @@ impl Node<UFOData> for FindItem {
 
 	fn run(
 		&mut self,
-		send_data: &dyn Fn(usize, UFOData) -> Result<(), RunNodeError>,
+		send_data: &dyn Fn(PipelinePortID, UFOData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		if self.attr_value.is_none() {
 			return Ok(NodeState::Pending("waiting for input"));
@@ -164,7 +168,7 @@ impl Node<UFOData> for FindItem {
 
 		if let Some(item) = found {
 			send_data(
-				0,
+				PipelinePortID::new("found_item"),
 				UFOData::Reference {
 					class: self.info.class,
 					item,
@@ -172,7 +176,7 @@ impl Node<UFOData> for FindItem {
 			)?;
 		} else {
 			send_data(
-				0,
+				PipelinePortID::new("found_item"),
 				UFOData::None {
 					data_type: UFODataStub::Reference {
 						class: self.info.class,
