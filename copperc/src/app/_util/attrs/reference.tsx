@@ -134,10 +134,10 @@ function RefPanelPreview(params: {
 					});
 				} else {
 					const shown_attr = Object.entries(i_data.attrs).sort(
-						([aa, av], [ba, bv]) =>
-							(av as unknown as components["schemas"]["ItemListData"]).attr
+						([a_a, a_v], [b_a, b_v]) =>
+							(a_v as unknown as components["schemas"]["ItemListData"]).attr
 								.idx -
-							(bv as unknown as components["schemas"]["ItemListData"]).attr.idx,
+							(b_v as unknown as components["schemas"]["ItemListData"]).attr.idx,
 					)[0][1];
 					setData({
 						loading: false,
@@ -318,7 +318,7 @@ function RefPanelBottom(params: {
 				</div>
 				<div style={{ flexGrow: 1 }}>
 					{params.ref_attr_value.item === null ||
-					params.ref_attr_value.item === undefined ? (
+						params.ref_attr_value.item === undefined ? (
 						<Text c="dimmed" span>
 							Empty reference
 						</Text>
@@ -350,26 +350,26 @@ function RefPanelBottom(params: {
 
 type RefPanelData =
 	| {
-			loading: true;
-			error: null;
-			data: null;
-			class: null;
-			shown_attr: null;
-	  }
+		loading: true;
+		error: null;
+		data: null;
+		class: null;
+		shown_attr: null;
+	}
 	| {
-			loading: false;
-			error: string;
-			data: null;
-			class: null;
-			shown_attr: null;
-	  }
+		loading: false;
+		error: string;
+		data: null;
+		class: null;
+		shown_attr: null;
+	}
 	| {
-			loading: false;
-			error: null;
-			data: components["schemas"]["ItemListItem"];
-			class: components["schemas"]["ClassInfo"];
-			shown_attr: components["schemas"]["ItemListData"] | undefined;
-	  };
+		loading: false;
+		error: null;
+		data: components["schemas"]["ItemListItem"];
+		class: components["schemas"]["ClassInfo"];
+		shown_attr: components["schemas"]["ItemListData"] | undefined;
+	};
 
 function RefPanel(params: {
 	dataset: string;
@@ -452,10 +452,10 @@ function RefPanel(params: {
 							([a, v]) => v?.type !== "Reference",
 						)
 						.sort(
-							([aa, av], [ba, bv]) =>
-								(av as unknown as components["schemas"]["ItemListData"]).attr
+							([a_a, a_v], [b_a, b_v]) =>
+								(a_v as unknown as components["schemas"]["ItemListData"]).attr
 									.idx -
-								(bv as unknown as components["schemas"]["ItemListData"]).attr
+								(b_v as unknown as components["schemas"]["ItemListData"]).attr
 									.idx,
 						)[0][1];
 					setData({
@@ -527,8 +527,8 @@ function RefForm(params: {
 				value === null
 					? "Attribute name is required"
 					: value.trim().length === 0
-					? "Attribute name cannot be empty"
-					: null,
+						? "Attribute name cannot be empty"
+						: null,
 
 			reference_target_class: (value) =>
 				value === null ? "Reference target is required" : null,
@@ -592,7 +592,7 @@ function RefForm(params: {
 
 				<ClassSelector
 					selectedDataset={params.dataset_name}
-					onSelect={(_) => {}}
+					onSelect={(_) => { }}
 					form={{
 						form,
 						key: "reference_target_class",

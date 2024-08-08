@@ -43,20 +43,20 @@ export function EditPanel(params: {
 						ex.type === "Reference"
 							? ex.item
 							: ex.type === "Blob"
-							? ex.handle
-							: ex.type === "Binary"
-							? 1 // If two items are selected, binaries are always different.
-							: // 1 and 2 are arbitrary different values.
-							  ex.value;
+								? ex.handle
+								: ex.type === "Binary"
+									? 1 // If two items are selected, binaries are always different.
+									: // 1 and 2 are arbitrary different values.
+									ex.value;
 
 					let check =
 						val.type === "Reference"
 							? val.item
 							: val.type === "Blob"
-							? val.handle
-							: val.type === "Binary"
-							? 2 // If two items are selected, binaries are always different.
-							: val.value;
+								? val.handle
+								: val.type === "Binary"
+									? 2 // If two items are selected, binaries are always different.
+									: val.value;
 
 					if (existing !== check) {
 						attr_values[attr] = null;
@@ -105,33 +105,33 @@ export function EditPanel(params: {
 					{selectedItems.length === 0
 						? null
 						: Object.entries(selectedItems[0].attrs)
-								.sort(
-									([aa, av], [ba, bv]) =>
-										(av as unknown as components["schemas"]["ItemListData"])
-											.attr.idx -
-										(bv as unknown as components["schemas"]["ItemListData"])
-											.attr.idx,
-								)
-								.map(([_, val]) => {
-									if (val === undefined) {
-										return null; // Unreachable
-									}
+							.sort(
+								([a_a, a_v], [b_a, b_v]) =>
+									(a_v as unknown as components["schemas"]["ItemListData"])
+										.attr.idx -
+									(b_v as unknown as components["schemas"]["ItemListData"])
+										.attr.idx,
+							)
+							.map(([_, val]) => {
+								if (val === undefined) {
+									return null; // Unreachable
+								}
 
-									let v = attr_values[val.attr.handle.toString()];
-									return (
-										<EditRow
-											key={`${val.attr.handle}-
+								let v = attr_values[val.attr.handle.toString()];
+								return (
+									<EditRow
+										key={`${val.attr.handle}-
 											${selectedItems.map((x) => x.idx).join(",")}`}
-											dataset={params.sel.dataset}
-											item={selectedItems[0]}
-											attr={val.attr}
-											value_new={v}
-											value_old={v}
-											setPanelAttr={setPanelAttr}
-											panelAttr={panelAttr}
-										/>
-									);
-								})}
+										dataset={params.sel.dataset}
+										item={selectedItems[0]}
+										attr={val.attr}
+										value_new={v}
+										value_old={v}
+										setPanelAttr={setPanelAttr}
+										panelAttr={panelAttr}
+									/>
+								);
+							})}
 				</div>
 				<EditSubPanel
 					dataset={params.sel.dataset}
