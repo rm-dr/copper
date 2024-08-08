@@ -31,7 +31,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] List number of selected items
   - [ ] Initial layout for table
   - [ ] Select first panel item on open
-  - [ ] Change button style when attr shown in panel
   - [ ] Class exemplar
   - [ ] Multi-select and edit
   - [ ] Better reference panel
@@ -78,6 +77,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Sidebar & top bar shadow
 - [ ] Item table dynamic height
 - [ ] Icons in attr & dataset dropdown (component)
+- [ ] "No items" element in item table doesn't span columns
 
 
 ## 📦 Better uploads

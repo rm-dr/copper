@@ -129,14 +129,18 @@ export function EditPanel(params: { data: ItemData; select: Selected }) {
 												) : (
 													<Button
 														radius="0px"
-														variant="outline"
+														variant={
+															panelAttr?.name === attr ? "filled" : "outline"
+														}
 														fullWidth
 														rightSection={<XIcon icon={IconArrowRight} />}
 														onClick={() => {
 															setPanelAttr({ name: attr, value: val });
 														}}
 													>
-														View in panel
+														{panelAttr?.name === attr
+															? "Shown in panel"
+															: "View in panel"}
 													</Button>
 												)}
 											</div>
