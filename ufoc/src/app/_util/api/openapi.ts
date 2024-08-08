@@ -344,6 +344,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/item/get": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get the value of a specific item in this class */
+		get: operations["get_item"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/item/list": {
 		parameters: {
 			query?: never;
@@ -668,11 +685,12 @@ export interface components {
 		};
 		/** @enum {string} */
 		HashType: "MD5" | "SHA256" | "SHA512";
-		/** @description The unique index of an item in it's class.
-		 *     This does NOT identify an item uniquely; it identifies an item uniquely *in its class*. */
-		ItemIdx: {
+		ItemGetRequest: {
 			/** Format: int32 */
-			id: number;
+			class: number;
+			dataset: string;
+			/** Format: int32 */
+			item: number;
 		};
 		ItemListData:
 			| {
@@ -710,8 +728,10 @@ export interface components {
 			  }
 			| {
 					attr: components["schemas"]["AttrInfo"];
-					class: string;
-					item?: components["schemas"]["ItemIdx"] | null;
+					/** Format: int32 */
+					class: number;
+					/** Format: int32 */
+					item?: number | null;
 					/** @enum {string} */
 					type: "Reference";
 			  }
@@ -1804,6 +1824,48 @@ export interface operations {
 				};
 			};
 			/** @description Invalid dataset, class, or item */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+		};
+	};
+	get_item: {
+		parameters: {
+			query: {
+				dataset: string;
+				class: number;
+				item: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Item information */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ItemListItem"];
+				};
+			};
+			/** @description Unknown dataset, class, or item */
 			404: {
 				headers: {
 					[name: string]: unknown;
