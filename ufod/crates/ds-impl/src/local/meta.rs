@@ -508,21 +508,37 @@ impl Metastore for LocalDataset {
 		trace!(message = "Deleting an attribute", ?attr);
 
 		// Get this attributes' class
-		let class_id: ClassHandle = {
-			let res = sqlx::query("SELECT class_id FROM meta_attributes WHERE id=?;")
+		let (class_id, is_unique): (ClassHandle, bool) = {
+			let res = sqlx::query("SELECT class_id, is_unique FROM meta_attributes WHERE id=?;")
 				.bind(u32::from(attr))
 				.fetch_one(&mut *t)
 				.await;
 
 			match res {
 				Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
-				Ok(res) => res.get::<u32, _>("class_id").into(),
+				Ok(res) => (
+					res.get::<u32, _>("class_id").into(),
+					res.get::<bool, _>("is_unique").into(),
+				),
 			}
 		};
 
 		// Get the table we want to modify
 		let table_name = Self::get_table_name(class_id);
-		let col_name = Self::get_column_name(attr);
+		let column_name = Self::get_column_name(attr);
+
+		// Delete constraints
+		// (This must be done BEFORE deleting the column)
+		if is_unique {
+			if let Err(e) =
+				sqlx::query(&format!("DROP INDEX \"unique_{table_name}_{column_name}\""))
+					.bind(u32::from(attr))
+					.execute(&mut *t)
+					.await
+			{
+				return Err(MetastoreError::DbError(Box::new(e)));
+			};
+		}
 
 		// Delete attribute metadata
 		if let Err(e) = sqlx::query("DELETE FROM meta_attributes WHERE id=?;")
@@ -534,7 +550,7 @@ impl Metastore for LocalDataset {
 		};
 
 		// Delete attribute column
-		let q_str = format!("ALTER TABLE \"{table_name}\" DROP COLUMN \"{col_name}\";");
+		let q_str = format!("ALTER TABLE \"{table_name}\" DROP COLUMN \"{column_name}\";");
 		if let Err(e) = sqlx::query(&q_str).execute(&mut *t).await {
 			return Err(MetastoreError::DbError(Box::new(e)));
 		};
