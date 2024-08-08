@@ -6,23 +6,6 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release.
 The goal is a *minimal* working version: robust, usable, but possibly slow and missing fancy features.
 
 
-## 📦 CRUD datasets
-- [ ] Rename set, class, attr endpoint
-
-## 📦 Better dataset names
-- Store name in db, use idx as fs path?
-
-## 📦 Database migrations
-- old dbs should not be destroyed
-
-## 📦 Dataset locks
-- [ ] delete dataset while pipeline is running?
-  - Jobs should automatically fail (dataset id?)
-- [ ] async dataset api?
-
-## 📦 How to fail pipelines?
-- e.g, duplicate album art
-
 ## 📦 CRUD items
 - [ ] Create items by pipeline
   - [ ] Fetch item node should work
@@ -39,6 +22,18 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Search panel (no logic yet)
   - [ ] Sort by attr
 
+## 📦 Dataset locks
+- [ ] delete dataset while pipeline is running?
+  - Jobs should automatically fail (dataset id?)
+- [ ] async dataset api?
+- [ ] async pipeline runner
+
+## 📦 How to fail pipelines?
+- e.g, duplicate album art
+
+## 📦 CRUD datasets
+- [ ] Rename set, class, attr endpoint
+
 ## 📦 Authentication
 - [ ] Pick auth method & storage
 - [ ] Login endpoint
@@ -47,6 +42,8 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - group permission to create users and set groups
 - [ ] Dataset permissions (per group)
 
+## 📦 Database migrations
+- old dbs should not be destroyed
 
 ## 📦 Audiofile library
 - [ ] Tests

@@ -1,4 +1,5 @@
 use futures::executor::block_on;
+use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{Connection, Row};
 use std::{path::PathBuf, sync::Arc};
@@ -16,30 +17,7 @@ pub struct DatasetEntry {
 }
 
 impl MainDB {
-	// TODO: escape instead, what about other languages?
-
-	/// Check a dataset name, returning an error description
-	/// or `None` if nothing is wrong.
-	fn check_dataset_name(name: &str) -> Option<String> {
-		let allowed_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890-_";
-
-		for c in name.chars() {
-			if !allowed_chars.contains(c) {
-				return Some(format!(
-					"Invalid character `{c}`. A dataset name may only contain A-z, 0-9, _, and -"
-				));
-			}
-		}
-
-		return None;
-	}
-
 	pub fn new_dataset(&self, name: &str, ds_type: DatasetType) -> Result<(), CreateDatasetError> {
-		// Make sure this name is valid
-		if let Some(msg) = Self::check_dataset_name(name) {
-			return Err(CreateDatasetError::BadName(msg));
-		}
-
 		// Make sure this name is new
 		let datasets = self
 			.get_datasets()
@@ -48,12 +26,17 @@ impl MainDB {
 			return Err(CreateDatasetError::AlreadyExists(name.into()));
 		}
 
-		// Make this dataset
-		let path = match ds_type {
-			DatasetType::Local => {
-				let path = PathBuf::from(name);
-				LocalDataset::create(&self.config.paths.dataset_dir.join(&path)).unwrap();
-				path
+		// generate new unique dir name
+		let new_file_name = loop {
+			let name: String = rand::thread_rng()
+				.sample_iter(&Alphanumeric)
+				.take(8)
+				.map(char::from)
+				.collect();
+
+			let path = self.config.paths.dataset_dir.join(&name);
+			if !path.exists() {
+				break PathBuf::from(name);
 			}
 		};
 
@@ -61,8 +44,15 @@ impl MainDB {
 		let entry = DatasetEntry {
 			name: name.into(),
 			ds_type,
-			path,
+			path: new_file_name,
 		};
+
+		// Make this dataset
+		match ds_type {
+			DatasetType::Local => {
+				LocalDataset::create(&self.config.paths.dataset_dir.join(&entry.path)).unwrap();
+			}
+		}
 
 		// Start transaction
 		let mut conn_lock = self.conn.lock().unwrap();
