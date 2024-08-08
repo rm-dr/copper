@@ -327,7 +327,7 @@ mod tests {
 		test_file_path: &Path,
 		in_hash: &str,
 		out_hash: &str,
-	) -> Result<(), Option<FlacError>> {
+	) -> Result<(), FlacError> {
 		let file_data = std::fs::read(test_file_path).unwrap();
 
 		// Make sure input file is correct
@@ -357,7 +357,7 @@ mod tests {
 		test_file_path: &Path,
 		in_hash: &str,
 		out_hash: &str,
-	) -> Result<(), Option<FlacError>> {
+	) -> Result<(), FlacError> {
 		let file_data = std::fs::read(test_file_path).unwrap();
 
 		// Make sure input file is correct
@@ -409,11 +409,7 @@ mod tests {
 		Reference implementation:
 		`metaflac --remove-all --dont-use-padding <file>`
 	*/
-	fn strip_all(
-		test_file_path: &Path,
-		in_hash: &str,
-		out_hash: &str,
-	) -> Result<(), Option<FlacError>> {
+	fn strip_all(test_file_path: &Path, in_hash: &str, out_hash: &str) -> Result<(), FlacError> {
 		strip_test_whole(
 			FlacMetaStripSelector::new().keep_streaminfo(true),
 			test_file_path,
@@ -422,40 +418,17 @@ mod tests {
 		)
 	}
 
-	/*
-		Strip most tests
-
-		Reference implementation:
-		```
-		metaflac
-			--remove
-			--block-type=PADDING,APPLICATION,VORBIS_COMMENT,PICTURE
-			--dont-use-padding
-			<file>
-		```
-	*/
-	fn strip_most(
-		test_file_path: &Path,
-		in_hash: &str,
-		out_hash: &str,
-	) -> Result<(), Option<FlacError>> {
-		strip_test_whole(
-			FlacMetaStripSelector::new()
-				.keep_streaminfo(true)
-				.keep_seektable(true)
-				.keep_cuesheet(true),
-			test_file_path,
-			in_hash,
-			out_hash,
-		)
-	}
-
-	/// Strip a file, reading and writing in small fragments.
-	fn strip_small(
-		test_file_path: &Path,
-		in_hash: &str,
-		out_hash: &str,
-	) -> Result<(), Option<FlacError>> {
+	/// Strip most blocks, reading and writing in small fragments.
+	///
+	/// Reference implementation:
+	/// ```notrust
+	/// metaflac \
+	/// 	--remove \
+	/// 	--block-type=PADDING,APPLICATION,VORBIS_COMMENT,PICTURE \
+	/// 	--dont-use-padding \
+	/// 	<file>
+	/// ```
+	fn strip_small(test_file_path: &Path, in_hash: &str, out_hash: &str) -> Result<(), FlacError> {
 		for _ in 0..5 {
 			strip_test_parts(
 				FlacMetaStripSelector::new()
@@ -472,12 +445,8 @@ mod tests {
 		return Ok(());
 	}
 
-	/// Strip a file, reading and writing in large fragments.
-	fn strip_large(
-		test_file_path: &Path,
-		in_hash: &str,
-		out_hash: &str,
-	) -> Result<(), Option<FlacError>> {
+	/// Strip most blocks, reading and writing in large fragments.
+	fn strip_large(test_file_path: &Path, in_hash: &str, out_hash: &str) -> Result<(), FlacError> {
 		for _ in 0..5 {
 			strip_test_parts(
 				FlacMetaStripSelector::new()
@@ -494,7 +463,7 @@ mod tests {
 		return Ok(());
 	}
 
-	// Helper macro, generates tests
+	// Helper macros to generate tests
 	macro_rules! test_success {
 		(
 			// The name of this test
@@ -524,16 +493,6 @@ mod tests {
 				}
 
 				#[test]
-				pub fn [<strip_most_ $file_name>]() {
-					strip_most(
-						$file_path,
-						$in_hash,
-						$most_strip_hash,
-					)
-					.unwrap()
-				}
-
-				#[test]
 				pub fn [<strip_small_ $file_name>]() {
 					strip_small(
 						$file_path,
@@ -551,6 +510,66 @@ mod tests {
 						$most_strip_hash,
 					)
 					.unwrap()
+				}
+			}
+		};
+	}
+
+	macro_rules! test_fail_simple {
+		(
+				// The name of this test
+				$file_name:ident,
+
+				// The path to the test file
+				$file_path:expr,
+
+				// SHA-256 hash of unmodified source file
+				$in_hash:literal,
+
+				// Expected error
+				$expected_error:pat
+			) => {
+			paste! {
+				#[test]
+				pub fn [<strip_all_ $file_name>]() {
+					let res = strip_all(
+						$file_path,
+						$in_hash,
+						"unreachable-will-error",
+					);
+
+					match res {
+						Err($expected_error) => {}
+						e => panic!("Unexpected result {e:?}"),
+					}
+				}
+
+				#[test]
+				pub fn [<strip_small_ $file_name>]() {
+					let res = strip_small(
+						$file_path,
+						$in_hash,
+						"unreachable-will-error",
+					);
+
+					match res {
+						Err($expected_error) => {}
+						e => panic!("Unexpected result {e:?}"),
+					}
+				}
+
+				#[test]
+				pub fn [<strip_large_ $file_name>]() {
+					let res = strip_large(
+						$file_path,
+						$in_hash,
+						"unreachable-will-error",
+					);
+
+					match res {
+						Err($expected_error) => {}
+						e => panic!("Unexpected result {e:?}"),
+					}
 				}
 			}
 		};
@@ -715,6 +734,46 @@ mod tests {
 		"d5215e16c6b978fc2c3e6809e1e78981497cb8514df297c5169f3b4a28fd875c"
 	);
 
+	test_fail_simple!(
+		faulty_06,
+		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+			.join("tests/files/flac_faulty/06 - missing streaminfo metadata block.flac"),
+		"53aed5e7fde7a652b82ba06a8382b2612b02ebbde7b0d2016276644d17cc76cd",
+		FlacError::BadFirstBlock
+	);
+
+	test_fail_simple!(
+		faulty_07,
+		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+			.join("tests/files/flac_faulty/07 - other metadata blocks preceding streaminfo metadata block.flac"),
+		"6d46725991ba5da477187fde7709ea201c399d00027257c365d7301226d851ea",
+		FlacError::BadFirstBlock
+	);
+
+	test_fail_simple!(
+		faulty_11,
+		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+			.join("tests/files/flac_faulty/11 - incorrect metadata block length.flac"),
+		"3732151ba8c4e66a785165aa75a444aad814c16807ddc97b793811376acacfd6",
+		FlacError::BadMetablockType(127)
+	);
+
+	test_fail_simple!(
+		uncommon_10,
+		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+			.join("tests/files/flac_uncommon/10 - file starting at frame header.flac"),
+		"d95f63e8101320f5ac7ffe249bc429a209eb0e10996a987301eaa63386a8faa1",
+		FlacError::BadMagicBytes
+	);
+
+	test_fail_simple!(
+		uncommon_11,
+		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+			.join("tests/files/flac_uncommon/11 - file starting with unparsable data.flac"),
+		"40c58b833fb07f0de41259d83cde78211e3faaf9e5f844aed43fa52c18435d2f",
+		FlacError::BadMagicBytes
+	);
+
 	/*
 	// TODO: count audio data samples.
 	// This test should pass.
@@ -737,114 +796,4 @@ mod tests {
 		}
 	}
 	*/
-
-	#[test]
-	fn strip_all_faulty_06() {
-		let res = strip_all(
-			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-				.join("tests/files/flac_faulty/06 - missing streaminfo metadata block.flac"),
-			"53aed5e7fde7a652b82ba06a8382b2612b02ebbde7b0d2016276644d17cc76cd",
-			"unreachable-will-error",
-		);
-
-		// This file is missing a STREAMINFO block
-		match res {
-			Err(Some(FlacError::BadFirstBlock)) => {}
-			e => panic!("Unexpected result {e:?}"),
-		}
-	}
-
-	#[test]
-	fn strip_all_faulty_07() {
-		let res = strip_all(
-			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-				.join("tests/files/flac_faulty/07 - other metadata blocks preceding streaminfo metadata block.flac"),
-			"6d46725991ba5da477187fde7709ea201c399d00027257c365d7301226d851ea",
-			"unreachable-will-error",
-		);
-
-		// This file has a STREAMINFO block, but it isn't first
-		match res {
-			Err(Some(FlacError::BadFirstBlock)) => {}
-			e => panic!("Unexpected result {e:?}"),
-		}
-	}
-
-	#[test]
-	fn strip_all_faulty_11() {
-		let res = strip_all(
-			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-				.join("tests/files/flac_faulty/11 - incorrect metadata block length.flac"),
-			"3732151ba8c4e66a785165aa75a444aad814c16807ddc97b793811376acacfd6",
-			"unreachable-will-error",
-		);
-
-		// This file has a bad block length, which results in us reading garbage data
-		match res {
-			Err(Some(FlacError::BadMetablockType(127))) => {}
-			e => panic!("Unexpected result {e:?}"),
-		}
-	}
-
-	/*
-		"Strip most" tests
-
-
-		Reference implementation:
-		```
-		metaflac
-			--remove
-			--block-type=PADDING,APPLICATION,VORBIS_COMMENT,PICTURE
-			--dont-use-padding
-			<file>
-		```
-	*/
-
-	#[test]
-	fn strip_most_faulty_06() {
-		let res = strip_most(
-			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-				.join("tests/files/flac_faulty/06 - missing streaminfo metadata block.flac"),
-			"53aed5e7fde7a652b82ba06a8382b2612b02ebbde7b0d2016276644d17cc76cd",
-			"unreachable-will-error",
-		);
-
-		// This file is missing a STREAMINFO block
-		match res {
-			Err(Some(FlacError::BadFirstBlock)) => {}
-			e => panic!("Unexpected result {e:?}"),
-		}
-	}
-
-	#[test]
-	fn strip_most_faulty_07() {
-		let res = strip_most(
-			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-				.join("tests/files/flac_faulty/07 - other metadata blocks preceding streaminfo metadata block.flac"),
-			"6d46725991ba5da477187fde7709ea201c399d00027257c365d7301226d851ea",
-			"unreachable-will-error",
-		);
-
-		// This file has a bad block length, which results in us reading garbage data
-		match res {
-			Err(Some(FlacError::BadFirstBlock)) => {}
-			e => panic!("Unexpected result {e:?}"),
-		}
-	}
-
-	#[test]
-	fn strip_most_faulty_11() {
-		let res = strip_most(
-			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-				.join("tests/files/flac_faulty/11 - incorrect metadata block length.flac"),
-			"3732151ba8c4e66a785165aa75a444aad814c16807ddc97b793811376acacfd6",
-			"unreachable-will-error",
-		);
-
-		// This file has a bad block length, which results in us reading garbage data
-		match res {
-			Err(Some(FlacError::BadMetablockType(127))) => {}
-			e => panic!("Unexpected result {e:?}"),
-		}
-	}
 }
