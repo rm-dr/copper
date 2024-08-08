@@ -21,6 +21,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Server deadlocks with two parallel clients
 - [ ] Show item idx in list
 - [ ] Fix unique constraint
+- [ ] Fix mime detection when name has dots
 
 ## 📦 API endpoints
 - [ ] Rename users & groups
@@ -43,33 +44,32 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] IDv3 complete implementation
 - [ ] Early exit if we don't need audio
 
-## 📦 Better pipelines
-- redo serialize/deserialize pipeline spec
-- show error when class ref is invalid (if class was deleted)
-- Better type checking
-- How to exit early (don't read file if done)
-
 ## 📦 Better uploads
 - [ ] Upload in parallel
 - [ ] Warn when closing window if uploading
 - [ ] View and edit queue (?)
 
+## 📦 Pipeline ui
+- Redo input ui for new input arch
+- Pipeline editor
+- Node docs
+
 ## 📦 UI Cleanup
+- [ ] show errors in ui when fetch fails (upload)
 - [ ] tab all interactables
 - [ ] Font
 - [ ] Panel width. Center, or change page background?
-- [ ] Prettier errors from server (markdown? might be overkill.)
+- [ ] Prettier errors from server
 - [ ] Fade bottom of all scrolls (component? overscroll?)
 - [ ] Loading state for modals
 - [ ] Modal builder
 - [ ] Add attr form
 - [ ] Sidebar & top bar shadow
 - [ ] Icons in attr & dataset dropdown (component)
-- [ ] "No items" element in item table doesn't span columns
 - [ ] Show menu on right-click in trees
 - [ ] Always sort classes alphabetically
 - [ ] Infinite scroll when item table doesn't fill view
-
+- [ ] Image preview
 
 ## 📦 Edit items
 - [ ] Edit items even if they differ
@@ -79,35 +79,18 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Reorder attributes (ui + logic)
 - [ ] Fix attribute index on delete
 
-## 📦 Pipeline argument nodes
-- already in upload ui, just need node implementation
-- Dynamic input panel
-
 ## 📦 Daemon cleanup
-- [ ] Generic strip class
-- [ ] Rename "fragment", "item class", "database", "blob fragment", "pipeline", "job", etc (glossary)
+- [ ] resize images on server(?)
 - [ ] clone fewer arcs
 - [ ] fix all panics/unwraps
 - [ ] Remove petgraph (write cycle detection algo)
-- [ ] Log to file (basic)
+- [ ] Log to file
 - [ ] Minor TODOs in code (search all files)
-- [ ] clean up dependencies
-- [ ] Enum for api errors (consistent response & log message)
-- [ ] Check serializations
-- [ ] Force nonempty set, attr, class names
+- [ ] enforce nonempty set, attr, class names
 - [ ] Error if full db path doesn't exist (no panic)
-- [ ] Deletion could take a while. Will our request time out?
-- [ ] Clippy
 - [ ] What if we panic when an unfinished blob is dropped? (log)
-- [ ] Which locks should be async?
-- [ ] No block_on
-- [ ] Use sqlx pool
-- [ ] Use fewer `Arc<Mutex>`
-- [ ] Why is hash length broken
-  - [ ] one tostr implementation
 - [ ] stream big files in `/items/attr`
-- [ ] `std::fs::read` when reading whole file
-- [ ] Cleanup all server arch (never block async)
+- [ ] Make pipeline runner send + sync (no mutex)
 
 ## 📦 Logging cleanup
 - [ ] logging everywhere
@@ -204,8 +187,9 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Cancel pending and running jobs
 
 ## Queue jobs (TrueNAS-style)
-- dataset deletion could take a while. Maybe keep an async task queue?
-- or, find a solution to this problem
+- dataset deletion could take a while
+- attr deletion could take a while
+- Keep a background task queue for long-running jobs so ui doesn't hang.
 
 
 ## Arrays in pipelines
@@ -236,10 +220,10 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] don't read file if no deps
 - [ ] we used to be able to use multiple file readers to save memory.
   - now what?
+- Stop producing binary if next node is done
 
 ## Better logging
 - Different events to different files?
-
 
 ## More nodes:
 - [ ] node tests
