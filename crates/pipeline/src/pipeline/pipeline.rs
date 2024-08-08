@@ -54,7 +54,7 @@ impl PipelineEdge {
 
 /// A fully loaded data processing pipeline.
 #[derive(Debug)]
-pub struct Pipeline<StubType: PipelineNodeStub> {
+pub struct Pipeline<NodeStubType: PipelineNodeStub> {
 	/// This pipeline's name.
 	/// Must be unique.
 	pub(crate) name: PipelineLabel,
@@ -62,17 +62,17 @@ pub struct Pipeline<StubType: PipelineNodeStub> {
 	pub(crate) input_node_idx: GraphNodeIdx,
 
 	/// This pipeline's node graph
-	pub(crate) graph: FinalizedGraph<(PipelineNodeLabel, StubType), PipelineEdge>,
+	pub(crate) graph: FinalizedGraph<(PipelineNodeLabel, NodeStubType), PipelineEdge>,
 }
 
-impl<StubType: PipelineNodeStub> Pipeline<StubType> {
+impl<NodeStubType: PipelineNodeStub> Pipeline<NodeStubType> {
 	/// Load a pipeline from a TOML string
 	pub fn from_toml_str(
 		pipeline_name: &str,
 		toml_str: &str,
-		context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+		context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
 	) -> Result<Self, ()> {
-		let spec: PipelineSpec<StubType> = toml::from_str(toml_str).unwrap();
+		let spec: PipelineSpec<NodeStubType> = toml::from_str(toml_str).unwrap();
 		let built = PipelineBuilder::build(context, pipeline_name, spec).unwrap();
 		Ok(built)
 	}
@@ -88,7 +88,7 @@ impl<StubType: PipelineNodeStub> Pipeline<StubType> {
 	}
 
 	/// Get a node by name
-	pub fn get_node(&self, node_label: &PipelineNodeLabel) -> Option<&StubType> {
+	pub fn get_node(&self, node_label: &PipelineNodeLabel) -> Option<&NodeStubType> {
 		self.graph
 			.iter_nodes()
 			.find(|(l, _)| l == node_label)

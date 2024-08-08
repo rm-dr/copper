@@ -12,8 +12,8 @@ use crate::{
 /// (i.e, a port that produces data.)
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
-#[serde(bound = "StubType: DeserializeOwned")]
-pub(crate) enum NodeOutput<StubType: PipelineNodeStub> {
+#[serde(bound = "NodeStubType: DeserializeOwned")]
+pub(crate) enum NodeOutput<NodeStubType: PipelineNodeStub> {
 	/// An output port of the pipeline
 	Pipeline {
 		/// The port's name
@@ -33,11 +33,11 @@ pub(crate) enum NodeOutput<StubType: PipelineNodeStub> {
 
 	/// An inline node.
 	/// This node must have EXACTLY one output.
-	Inline(StubType),
+	Inline(NodeStubType),
 }
 
 // TODO: better error
-impl<StubType: PipelineNodeStub> FromStr for NodeOutput<StubType> {
+impl<NodeStubType: PipelineNodeStub> FromStr for NodeOutput<NodeStubType> {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {

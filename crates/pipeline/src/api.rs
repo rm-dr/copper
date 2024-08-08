@@ -144,13 +144,13 @@ where
 	Self: Debug + Clone + Send + Sync,
 {
 	/// The stub type that represents this node.
-	type DataStub: PipelineDataStub;
+	type DataStubType: PipelineDataStub;
 
 	/// Transform this data container into its type.
-	fn as_stub(&self) -> Self::DataStub;
+	fn as_stub(&self) -> Self::DataStubType;
 
 	/// Create an "empty" node of the given type.
-	fn new_empty(stub: Self::DataStub) -> Self;
+	fn new_empty(stub: Self::DataStubType) -> Self;
 }
 
 /// A "type" of [`PipelineData`].

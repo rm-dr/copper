@@ -25,7 +25,7 @@ pub struct PipelineRunConfig {
 
 /// A completed pipeline job
 #[derive(Debug)]
-pub struct CompletedJob<StubType: PipelineNodeStub> {
+pub struct CompletedJob<NodeStubType: PipelineNodeStub> {
 	/// The id of the job that finisehd
 	pub job_id: u128,
 
@@ -33,11 +33,11 @@ pub struct CompletedJob<StubType: PipelineNodeStub> {
 	pub pipeline: PipelineLabel,
 
 	/// The arguments this pipeline was run with
-	pub input: Vec<SDataType<StubType>>,
+	pub input: Vec<SDataType<NodeStubType>>,
 
 	/// The error this pipeline encountered.
 	/// If this is `None`, it completed successfully.
-	pub error: Option<SErrorType<StubType>>,
+	pub error: Option<SErrorType<NodeStubType>>,
 
 	/// The state of each node when this pipeline finished running
 	pub node_states: Vec<(bool, PipelineNodeState)>,
@@ -46,30 +46,30 @@ pub struct CompletedJob<StubType: PipelineNodeStub> {
 /// A prepared data processing pipeline.
 /// This is guaranteed to be correct:
 /// no dependency cycles, no port type mismatch, etc
-pub struct PipelineRunner<StubType: PipelineNodeStub> {
-	_p: PhantomData<StubType>,
-	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+pub struct PipelineRunner<NodeStubType: PipelineNodeStub> {
+	_p: PhantomData<NodeStubType>,
+	context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
 	config: PipelineRunConfig,
 
 	/// Jobs that are actively running
-	active_jobs: Vec<Option<(u128, PipelineSingleJob<StubType>)>>,
+	active_jobs: Vec<Option<(u128, PipelineSingleJob<NodeStubType>)>>,
 
 	/// Jobs that are queued to run
-	job_queue: VecDeque<(u128, PipelineSingleJob<StubType>)>,
+	job_queue: VecDeque<(u128, PipelineSingleJob<NodeStubType>)>,
 
 	/// A log of completed jobs
-	completed_jobs: VecDeque<CompletedJob<StubType>>,
+	completed_jobs: VecDeque<CompletedJob<NodeStubType>>,
 
 	/// Job id counter. This will be unique for a long time,
 	/// but will eventually wrap back to zero.
 	job_id_counter: u128,
 }
 
-impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
+impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 	/// Initialize a new runner
 	pub fn new(
 		config: PipelineRunConfig,
-		context: <StubType::NodeType as PipelineNode>::NodeContext,
+		context: <NodeStubType::NodeType as PipelineNode>::NodeContext,
 	) -> Self {
 		Self {
 			_p: PhantomData,
@@ -85,7 +85,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	}
 
 	/// Get this runner's context
-	pub fn get_context(&self) -> &Arc<<StubType::NodeType as PipelineNode>::NodeContext> {
+	pub fn get_context(&self) -> &Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext> {
 		&self.context
 	}
 
@@ -93,8 +93,8 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	/// Returns the new job's id.
 	pub fn add_job(
 		&mut self,
-		pipeline: Arc<Pipeline<StubType>>,
-		pipeline_inputs: Vec<SDataType<StubType>>,
+		pipeline: Arc<Pipeline<NodeStubType>>,
+		pipeline_inputs: Vec<SDataType<NodeStubType>>,
 	) -> u128 {
 		debug!(
 			source = "runner",
@@ -114,17 +114,19 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	}
 
 	/// Iterate over all active jobs
-	pub fn iter_active_jobs(&self) -> impl Iterator<Item = &(u128, PipelineSingleJob<StubType>)> {
+	pub fn iter_active_jobs(
+		&self,
+	) -> impl Iterator<Item = &(u128, PipelineSingleJob<NodeStubType>)> {
 		self.active_jobs.iter().filter_map(|x| x.as_ref())
 	}
 
 	/// Get this runner's job queue
-	pub fn get_queued_jobs(&self) -> &VecDeque<(u128, PipelineSingleJob<StubType>)> {
+	pub fn get_queued_jobs(&self) -> &VecDeque<(u128, PipelineSingleJob<NodeStubType>)> {
 		&self.job_queue
 	}
 
 	/// Get a list of all jobs this runner has completed
-	pub fn get_completed_jobs(&self) -> &VecDeque<CompletedJob<StubType>> {
+	pub fn get_completed_jobs(&self) -> &VecDeque<CompletedJob<NodeStubType>> {
 		&self.completed_jobs
 	}
 
@@ -134,12 +136,12 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	}
 
 	/// Find a queued job by id
-	pub fn queued_job_by_id(&self, id: u128) -> Option<&(u128, PipelineSingleJob<StubType>)> {
+	pub fn queued_job_by_id(&self, id: u128) -> Option<&(u128, PipelineSingleJob<NodeStubType>)> {
 		self.job_queue.iter().find(|(x, _)| *x == id)
 	}
 
 	/// Find an active job by id
-	pub fn active_job_by_id(&self, id: u128) -> Option<&(u128, PipelineSingleJob<StubType>)> {
+	pub fn active_job_by_id(&self, id: u128) -> Option<&(u128, PipelineSingleJob<NodeStubType>)> {
 		self.active_jobs
 			.iter()
 			.find(|x| x.as_ref().is_some_and(|(x, _)| *x == id))
@@ -147,7 +149,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	}
 
 	/// Update this runner: process all changes that occured since we last called `run()`,
-	pub fn run(&mut self) -> Result<(), SErrorType<StubType>> {
+	pub fn run(&mut self) -> Result<(), SErrorType<NodeStubType>> {
 		for r in &mut self.active_jobs {
 			if let Some((id, x)) = r {
 				// Update running jobs

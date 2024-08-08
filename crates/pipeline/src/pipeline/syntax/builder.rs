@@ -17,18 +17,18 @@ use crate::{
 	SDataStub,
 };
 
-pub(in super::super) struct PipelineBuilder<StubType: PipelineNodeStub> {
+pub(in super::super) struct PipelineBuilder<NodeStubType: PipelineNodeStub> {
 	/// The name of the pipeline we're building
 	name: PipelineLabel,
 
 	/// The context with which to build this pipeline
-	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+	context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
 
 	/// The pipeline spec to build
-	spec: PipelineSpec<StubType>,
+	spec: PipelineSpec<NodeStubType>,
 
 	/// The pipeline graph we're building
-	graph: RefCell<Graph<(PipelineNodeLabel, StubType), PipelineEdge>>,
+	graph: RefCell<Graph<(PipelineNodeLabel, NodeStubType), PipelineEdge>>,
 
 	/// The index of this pipeline's input node
 	input_node_idx: GraphNodeIdx,
@@ -53,12 +53,12 @@ pub(in super::super) struct PipelineBuilder<StubType: PipelineNodeStub> {
 	node_input_name_map_after: RefCell<HashMap<PipelineNodeLabel, GraphNodeIdx>>,
 }
 
-impl<'a, StubType: PipelineNodeStub> PipelineBuilder<StubType> {
+impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 	pub fn build(
-		context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+		context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
 		name: &str,
-		spec: PipelineSpec<StubType>,
-	) -> Result<Pipeline<StubType>, PipelinePrepareError<SDataStub<StubType>>> {
+		spec: PipelineSpec<NodeStubType>,
+	) -> Result<Pipeline<NodeStubType>, PipelinePrepareError<SDataStub<NodeStubType>>> {
 		debug!(
 			source = "syntax",
 			summary = "Building pipeline",
@@ -208,12 +208,12 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<StubType> {
 	#[inline(always)]
 	fn is_input_compatible(
 		&self,
-		node_type: &StubType,
+		node_type: &NodeStubType,
 		input_port_label: &PipelinePortLabel,
-		input_type: SDataStub<StubType>,
+		input_type: SDataStub<NodeStubType>,
 		// Only used for errors
 		node_label: &PipelineNodeLabel,
-	) -> Result<bool, PipelinePrepareError<SDataStub<StubType>>> {
+	) -> Result<bool, PipelinePrepareError<SDataStub<NodeStubType>>> {
 		Ok({
 			let idx = node_type
 				.input_with_name(&self.context, input_port_label)
@@ -230,12 +230,12 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<StubType> {
 	#[inline(always)]
 	fn get_input(
 		&self,
-		node_type: &StubType,
+		node_type: &NodeStubType,
 		input_port_label: &PipelinePortLabel,
 
 		// Only used for errors
 		node_label: &PipelineNodeLabel,
-	) -> Result<usize, PipelinePrepareError<SDataStub<StubType>>> {
+	) -> Result<usize, PipelinePrepareError<SDataStub<NodeStubType>>> {
 		match node_type {
 			t => t.input_with_name(&self.context, input_port_label),
 		}
@@ -253,12 +253,12 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<StubType> {
 	#[inline(always)]
 	fn get_output(
 		&self,
-		node_type: &StubType,
+		node_type: &NodeStubType,
 		output_port_label: &PipelinePortLabel,
 
 		// Only used for errors
 		node_label: &PipelineNodeLabel,
-	) -> Result<(usize, SDataStub<StubType>), PipelinePrepareError<SDataStub<StubType>>> {
+	) -> Result<(usize, SDataStub<NodeStubType>), PipelinePrepareError<SDataStub<NodeStubType>>> {
 		match node_type {
 			t => {
 				let idx = t.output_with_name(&self.context, output_port_label).ok_or(
@@ -279,8 +279,8 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<StubType> {
 		&self,
 		in_port: usize,
 		node_idx: GraphNodeIdx,
-		out_link: &NodeOutput<StubType>,
-	) -> Result<(), PipelinePrepareError<SDataStub<StubType>>> {
+		out_link: &NodeOutput<NodeStubType>,
+	) -> Result<(), PipelinePrepareError<SDataStub<NodeStubType>>> {
 		match out_link {
 			NodeOutput::Pipeline { port } => {
 				let out_port = self
@@ -331,12 +331,12 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<StubType> {
 	/// - The input and output ports have matching types
 	fn check_link(
 		&self,
-		output: &NodeOutput<StubType>,
+		output: &NodeOutput<NodeStubType>,
 		input: &NodeInput,
-	) -> Result<(), PipelinePrepareError<SDataStub<StubType>>> {
+	) -> Result<(), PipelinePrepareError<SDataStub<NodeStubType>>> {
 		// Find the datatype of the output port we're connecting to.
 		// While doing this, make sure both the output node and port exist.
-		let output_type: SDataStub<StubType> = match output {
+		let output_type: SDataStub<NodeStubType> = match output {
 			NodeOutput::Inline(node) => {
 				// Inline nodes must have exactly one output
 				if node.n_outputs(&self.context) != 1 {

@@ -26,7 +26,7 @@ pub enum PipelineErrorNode {
 
 /// An error we encounter when a pipeline spec is invalid
 #[derive(Debug)]
-pub enum PipelinePrepareError<DataStub: PipelineDataStub> {
+pub enum PipelinePrepareError<DataStubType: PipelineDataStub> {
 	/// We could not open a pipeline spec file
 	CouldNotOpenFile {
 		/// The error we encountered
@@ -88,7 +88,7 @@ pub enum PipelinePrepareError<DataStub: PipelineDataStub> {
 		output: (PipelineErrorNode, PipelinePortLabel),
 
 		/// the type of this output
-		output_type: DataStub,
+		output_type: DataStubType,
 
 		/// The input we tried to connect
 		input: NodeInput,
@@ -112,7 +112,7 @@ pub enum PipelinePrepareError<DataStub: PipelineDataStub> {
 	},
 }
 
-impl<DataStub: PipelineDataStub> Display for PipelinePrepareError<DataStub> {
+impl<DataStubType: PipelineDataStub> Display for PipelinePrepareError<DataStubType> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::CouldNotOpenFile { .. } => {
@@ -181,7 +181,7 @@ impl<DataStub: PipelineDataStub> Display for PipelinePrepareError<DataStub> {
 	}
 }
 
-impl<DataStub: PipelineDataStub> Error for PipelinePrepareError<DataStub> {
+impl<DataStubType: PipelineDataStub> Error for PipelinePrepareError<DataStubType> {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::CouldNotOpenFile { error } => Some(error),

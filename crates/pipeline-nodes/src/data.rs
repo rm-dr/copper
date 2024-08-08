@@ -99,9 +99,9 @@ pub enum UFOData {
 // TODO: better debug
 
 impl PipelineData for UFOData {
-	type DataStub = UFODataStub;
+	type DataStubType = UFODataStub;
 
-	fn as_stub(&self) -> Self::DataStub {
+	fn as_stub(&self) -> Self::DataStubType {
 		match self {
 			Self::None(t) => *t,
 			Self::Text(_) => UFODataStub::Text,
@@ -117,7 +117,7 @@ impl PipelineData for UFOData {
 		}
 	}
 
-	fn new_empty(stub: Self::DataStub) -> Self {
+	fn new_empty(stub: Self::DataStubType) -> Self {
 		Self::None(stub)
 	}
 }
