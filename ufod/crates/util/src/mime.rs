@@ -21,6 +21,8 @@ pub enum MimeType {
 	// Images
 	Png,
 	Jpg,
+	Gif,
+	Avif,
 
 	// Audo
 	Flac,
@@ -37,6 +39,8 @@ impl FromStr for MimeType {
 			"image/png" => Self::Png,
 			"image/jpg" => Self::Jpg,
 			"image/jpeg" => Self::Jpg,
+			"image/gif" => Self::Gif,
+			"image/avif" => Self::Avif,
 			"audio/flac" => Self::Flac,
 			_ => {
 				warn!(message = "Encountered unknown mimetype", mime_string = s);
@@ -63,8 +67,12 @@ impl Display for MimeType {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::Blob => write!(f, "application/octet-stream"),
+
 			Self::Png => write!(f, "image/png"),
 			Self::Jpg => write!(f, "image/jpeg"),
+			Self::Gif => write!(f, "image/gif"),
+			Self::Avif => write!(f, "image/avif"),
+
 			Self::Flac => write!(f, "audio/flac"),
 			Self::Mp3 => write!(f, "audio/mp3"),
 			Self::Unknown(x) => write!(f, "{}", x),
@@ -93,6 +101,8 @@ impl MimeType {
 		Some(match ext {
 			"flac" => Self::Flac,
 			"mp3" => Self::Mp3,
+			"gif" => Self::Gif,
+			"avif" => Self::Avif,
 			_ => {
 				warn!(
 					message = "Could not determine mime type from extension",
@@ -114,6 +124,8 @@ impl MimeType {
 			Self::Mp3 => ".mp3",
 			Self::Jpg => ".jpg",
 			Self::Png => ".png",
+			Self::Gif => ".gif",
+			Self::Avif => ".avif",
 		}
 	}
 }
