@@ -1,7 +1,13 @@
 use std::{fmt::Debug, hash::Hash};
-use ufo_pipeline::data::{PipelineData, PipelineDataType};
 
-pub trait DatasetHandle: Clone + Copy + Eq + Hash + Debug + Send + Sync {}
+use ufo_util::data::{PipelineData, PipelineDataType};
+
+pub trait DatasetHandle:
+	Clone + Copy + Eq + Hash + Debug + Send + Sync + PartialEq + PartialOrd + Ord
+{
+}
+
+// TODO: count attrs
 
 pub trait Dataset {
 	type ClassHandle: DatasetHandle;
@@ -10,6 +16,11 @@ pub trait Dataset {
 
 	fn add_class(&mut self, name: &str) -> Result<Self::ClassHandle, ()>;
 	fn add_item(&mut self, class: Self::ClassHandle) -> Result<Self::ItemHandle, ()>;
+	fn add_item_with_attrs(
+		&mut self,
+		class: Self::ClassHandle,
+		attrs: &[Option<&PipelineData>],
+	) -> Result<Self::ItemHandle, ()>;
 	fn add_attr(
 		&mut self,
 		class: Self::ClassHandle,
@@ -24,6 +35,9 @@ pub trait Dataset {
 	fn iter_items(&self) -> impl Iterator<Item = Self::ItemHandle>;
 	fn iter_classes(&self) -> impl Iterator<Item = Self::ClassHandle>;
 	fn iter_attrs(&self) -> impl Iterator<Item = Self::AttrHandle>;
+
+	fn get_class(&mut self, class_name: &str) -> Option<Self::ClassHandle>;
+	fn get_attr(&mut self, attr_name: &str) -> Option<Self::AttrHandle>;
 
 	fn item_set_attr(
 		&mut self,
@@ -41,6 +55,7 @@ pub trait Dataset {
 	fn class_set_name(&mut self, class: Self::ClassHandle, name: &str) -> Result<(), ()>;
 	fn class_get_name(&self, class: Self::ClassHandle) -> &str;
 	fn class_get_attrs(&self, class: Self::ClassHandle) -> impl Iterator<Item = Self::AttrHandle>;
+	fn class_num_attrs(&self, class: Self::ClassHandle) -> usize;
 
 	fn attr_set_name(&mut self, attr: Self::AttrHandle, name: &str) -> Result<(), ()>;
 	fn attr_get_name(&self, attr: Self::AttrHandle) -> &str;

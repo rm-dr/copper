@@ -1,33 +1,38 @@
-use std::collections::HashMap;
-use ufo_pipeline::data::{PipelineData, PipelineDataType};
+use std::{collections::HashMap, hash::Hash};
+
+use ufo_util::data::{PipelineData, PipelineDataType};
 
 use super::api::{Dataset, DatasetHandle};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct MemItemIdx(u32);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct MemClassIdx(u32);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct MemAttrIdx(u32);
 impl DatasetHandle for MemItemIdx {}
 impl DatasetHandle for MemClassIdx {}
 impl DatasetHandle for MemAttrIdx {}
 
+#[derive(Debug)]
 struct MemAttr {
 	name: String,
 	class: MemClassIdx,
 	data_type: PipelineDataType,
 }
 
+#[derive(Debug)]
 struct MemClass {
 	name: String,
 }
 
+#[derive(Debug)]
 struct MemItem {
 	class: MemClassIdx,
 	data: HashMap<MemAttrIdx, Option<PipelineData>>,
 }
 
+#[derive(Debug)]
 pub struct MemDataset {
 	id_counter: u32,
 
@@ -53,6 +58,15 @@ impl MemDataset {
 		let id = MemAttrIdx(self.id_counter);
 		self.id_counter += 1;
 		return id;
+	}
+
+	pub fn new() -> Self {
+		Self {
+			id_counter: 0,
+			classes: HashMap::new(),
+			attrs: HashMap::new(),
+			items: HashMap::new(),
+		}
 	}
 }
 
@@ -102,6 +116,22 @@ impl Dataset for MemDataset {
 		return Ok(id);
 	}
 
+	fn add_item_with_attrs(
+		&mut self,
+		class: Self::ClassHandle,
+		attrs: &[Option<&PipelineData>],
+	) -> Result<Self::ItemHandle, ()> {
+		let mut data = HashMap::new();
+
+		for (i, a) in self.class_get_attrs(class).enumerate() {
+			data.insert(a, attrs.get(i).unwrap().map(|x| x.clone()));
+		}
+
+		let id = self.new_id_item();
+		self.items.insert(id, MemItem { class, data });
+		return Ok(id);
+	}
+
 	fn del_attr(&mut self, attr: Self::AttrHandle) -> Result<(), ()> {
 		// TODO: delete all instances of this attr
 		self.attrs.remove(&attr).unwrap();
@@ -117,6 +147,18 @@ impl Dataset for MemDataset {
 	fn del_item(&mut self, item: Self::ItemHandle) -> Result<(), ()> {
 		self.items.remove(&item);
 		Ok(())
+	}
+
+	fn get_attr(&mut self, attr_name: &str) -> Option<Self::AttrHandle> {
+		self.attrs
+			.iter()
+			.find_map(|(x, y)| (y.name == attr_name).then_some(*x))
+	}
+
+	fn get_class(&mut self, class_name: &str) -> Option<Self::ClassHandle> {
+		self.classes
+			.iter()
+			.find_map(|(x, y)| (y.name == class_name).then_some(*x))
 	}
 
 	fn iter_items(&self) -> impl Iterator<Item = Self::ItemHandle> {
@@ -179,6 +221,13 @@ impl Dataset for MemDataset {
 		self.attrs
 			.iter()
 			.filter_map(move |(id, attr)| if attr.class == class { Some(*id) } else { None })
+	}
+
+	fn class_num_attrs(&self, class: Self::ClassHandle) -> usize {
+		self.attrs
+			.iter()
+			.filter(move |(_, attr)| attr.class == class)
+			.count()
 	}
 
 	fn attr_set_name(&mut self, attr: Self::AttrHandle, name: &str) -> Result<(), ()> {
