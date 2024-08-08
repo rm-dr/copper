@@ -89,7 +89,6 @@ impl SQLiteMetaDB {
 	fn bind_storage<'a>(
 		q: Query<'a, Sqlite, SqliteArguments<'a>>,
 		storage: &'a mut MetaDbData,
-		blobstore: &mut FsBlobStore,
 	) -> Query<'a, Sqlite, SqliteArguments<'a>> {
 		match storage {
 			// We MUST bind something, even for null values.
@@ -324,7 +323,7 @@ impl MetaDb<FsBlobStore> for SQLiteMetaDB {
 			let mut q = sqlx::query(&q_str);
 
 			for (_, value) in &mut attrs {
-				q = Self::bind_storage(q, value, &mut self.blobstore);
+				q = Self::bind_storage(q, value);
 			}
 
 			block_on(q.execute(&mut *t))
@@ -474,7 +473,7 @@ impl MetaDb<FsBlobStore> for SQLiteMetaDB {
 				_ => format!("UPDATE \"{table_name}\" SET \"{column_name}\" = ?;"),
 			};
 			let q = sqlx::query(&q_str);
-			let q = Self::bind_storage(q, &mut data, &mut self.blobstore);
+			let q = Self::bind_storage(q, &mut data);
 
 			// Handle errors
 			match block_on(q.execute(&mut *t)) {
