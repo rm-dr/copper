@@ -2,6 +2,7 @@ use std::{
 	fs::File,
 	io::Write,
 	path::{Path, PathBuf},
+	sync::Mutex,
 };
 
 use smartstring::{LazyCompact, SmartString};
@@ -55,7 +56,7 @@ impl Write for FsBlobWriter {
 // TODO: test this
 impl Drop for FsBlobWriter {
 	fn drop(&mut self) {
-		self.file.take();
+		self.file.take().unwrap().flush().unwrap();
 
 		// If we never finished this writer, delete the file.
 		if !self.is_finished {
@@ -66,7 +67,7 @@ impl Drop for FsBlobWriter {
 
 pub struct FsBlobStore {
 	root: PathBuf,
-	idx: usize,
+	idx: Mutex<usize>,
 }
 
 unsafe impl Send for FsBlobStore {}
@@ -84,13 +85,14 @@ impl BlobStore for FsBlobStore {
 	fn open(root: &Path) -> Result<Self, ()> {
 		Ok(Self {
 			root: root.into(),
-			idx: 0,
+			idx: Mutex::new(0),
 		})
 	}
 
 	fn new_blob(&mut self, mime: &MimeType) -> Self::Writer {
-		let i = self.idx;
-		self.idx += 1;
+		let mut li = self.idx.lock().unwrap();
+		let i = *li;
+		*li += 1;
 
 		let p = self.root.join(format!("{i}{}", mime.extension()));
 		let f = File::create(&p).unwrap();
