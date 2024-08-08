@@ -1,14 +1,7 @@
-import { XIconPlus, XIconX } from "@/app/components/icons";
-import {
-	ActionIcon,
-	Button,
-	Popover,
-	Select,
-	Text,
-	TextInput,
-} from "@mantine/core";
+import { XIconPlus } from "@/app/components/icons";
+import { Button, Select, Text, TextInput } from "@mantine/core";
 import { useState } from "react";
-import { ButtonPopover } from "./popover";
+import { ButtonPopover } from "../../_util/popover";
 
 export function NewAttrButton(params: {
 	dataset_name: string;
@@ -89,7 +82,11 @@ export function NewAttrButton(params: {
 			<div style={{ marginTop: "1rem" }}>
 				<Button
 					variant="filled"
-					color={errorMessage === null ? "green" : "red"}
+					color={
+						Object.values(errorMessage).every((x) => x === null)
+							? "green"
+							: "red"
+					}
 					fullWidth
 					size="xs"
 					leftSection={<XIconPlus />}

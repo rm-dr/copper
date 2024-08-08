@@ -61,12 +61,12 @@
 	.slider_text {
 		padding: 0.25rem;
 		padding-left: 0.5rem;
+		flex-grow: 1;
 		user-select: none;
 	}
 
 	.slider_right {
 		display: flex;
-		flex-grow: 1;
 		align-items: center;
 		justify-content: right;
 		overflow: hidden;

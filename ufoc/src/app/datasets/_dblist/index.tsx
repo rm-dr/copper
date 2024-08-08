@@ -19,7 +19,8 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useEffect, useState } from "react";
-import { Slider } from "../_slider/slider";
+import { Slider } from "../_util/slider";
+import { DeleteDatasetButton } from "./parts/del_dataset";
 
 type DatasetList = {
 	pipelines: {

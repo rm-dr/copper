@@ -22,7 +22,7 @@ import {
 	TextInput,
 } from "@mantine/core";
 import { ReactNode, useEffect, useState } from "react";
-import { Slider } from "../_slider/slider";
+import { Slider } from "../_util/slider";
 import { NewClassButton } from "./parts/new_class";
 import { NewAttrButton } from "./parts/new_attr";
 import { DeleteAttrButton } from "./parts/del_attr";

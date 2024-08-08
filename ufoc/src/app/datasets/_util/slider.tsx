@@ -15,24 +15,37 @@ export function Slider(params: {
 }) {
 	return (
 		<div
-			onMouseDown={(e) => {
-				if (e.button == 0 && params.is_clickable) {
-					if (params.onClick !== undefined) {
-						params.onClick();
-					}
-				}
-			}}
 			className={clsx(
 				styles.slider,
 				params.is_clickable && styles.clickable,
 				params.is_selected && styles.selected,
 			)}
 		>
-			<div className={styles.slider_left}>
+			<div
+				className={styles.slider_left}
+				onMouseDown={(e) => {
+					if (e.button == 0 && params.is_clickable) {
+						if (params.onClick !== undefined) {
+							params.onClick();
+						}
+					}
+				}}
+			>
 				<div className={styles.slider_left_icon}>{params.icon}</div>
 				<div className={styles.slider_left_text}>{params.icon_text}</div>
 			</div>
-			<div className={styles.slider_text}>{params.text}</div>
+			<div
+				className={styles.slider_text}
+				onMouseDown={(e) => {
+					if (e.button == 0 && params.is_clickable) {
+						if (params.onClick !== undefined) {
+							params.onClick();
+						}
+					}
+				}}
+			>
+				{params.text}
+			</div>
 			<div className={styles.slider_right}>{params.right}</div>
 		</div>
 	);

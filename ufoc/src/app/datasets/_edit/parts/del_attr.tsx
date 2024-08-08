@@ -1,14 +1,7 @@
-import { XIconPlus, XIconTrash, XIconX } from "@/app/components/icons";
-import {
-	ActionIcon,
-	Button,
-	Popover,
-	Select,
-	Text,
-	TextInput,
-} from "@mantine/core";
+import { XIconTrash } from "@/app/components/icons";
+import { Button, Text, TextInput } from "@mantine/core";
 import { useState } from "react";
-import { ButtonPopover } from "./popover";
+import { ButtonPopover } from "../../_util/popover";
 
 export function DeleteAttrButton(params: {
 	dataset_name: string;

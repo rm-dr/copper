@@ -1,4 +1,4 @@
-import { XIconFilePlus, XIconFolderPlus, XIconX } from "@/app/components/icons";
+import { XIconFolderPlus, XIconX } from "@/app/components/icons";
 import { Button, Popover, Text, TextInput } from "@mantine/core";
 import { useState } from "react";
 
