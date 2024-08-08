@@ -1,5 +1,4 @@
 use std::{
-	collections::HashMap,
 	fs::File,
 	io::{self, Read},
 	path::PathBuf,
@@ -7,10 +6,7 @@ use std::{
 };
 
 use super::Ingest;
-use ufo_pipeline::{
-	data::{AudioFormat, BinaryFormat, PipelineData},
-	syntax::labels::PipelinePortLabel,
-};
+use ufo_pipeline::data::{AudioFormat, BinaryFormat, PipelineData};
 
 pub struct FileInjest {
 	path: PathBuf,
@@ -25,9 +21,7 @@ impl FileInjest {
 impl Ingest for FileInjest {
 	type ErrorKind = io::Error;
 
-	fn injest(
-		self,
-	) -> Result<HashMap<PipelinePortLabel, Option<Arc<PipelineData>>>, Self::ErrorKind> {
+	fn injest(self) -> Result<Vec<Option<Arc<PipelineData>>>, Self::ErrorKind> {
 		let mut f = File::open(&self.path)?;
 		let mut data = Vec::new();
 		f.read_to_end(&mut data)?;
@@ -38,20 +32,16 @@ impl Ingest for FileInjest {
 			_ => BinaryFormat::Blob,
 		};
 
-		return Ok(HashMap::from([
-			(
-				"path".into(),
-				Some(Arc::new(PipelineData::Text(
-					self.path.to_str().unwrap().to_string(),
-				))),
-			),
-			(
-				"data".into(),
-				Some(Arc::new(PipelineData::Binary {
-					format: file_format,
-					data,
-				})),
-			),
-		]));
+		return Ok(vec![
+			// Path
+			Some(Arc::new(PipelineData::Text(
+				self.path.to_str().unwrap().to_string(),
+			))),
+			// Data
+			Some(Arc::new(PipelineData::Binary {
+				format: file_format,
+				data,
+			})),
+		]);
 	}
 }

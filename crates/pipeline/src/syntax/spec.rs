@@ -11,39 +11,73 @@ use crate::{
 };
 
 use super::{
+	errors::PipelinePrepareError,
 	labels::{PipelineNode, PipelineNodeLabel, PipelinePortLabel},
 	ports::{NodeInput, NodeOutput},
-	prepareresult::PipelinePrepareResult,
 };
 
-/// Pipeline configuration
-#[derive(Debug, Deserialize)]
+// TODO: move to ingest crate
+#[derive(Debug, Deserialize, Clone)]
+#[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
-struct PipelineConfig {
-	/// Names and types of pipeline inputs
-	#[serde(default)]
-	pub input: HashMap<PipelinePortLabel, PipelineDataType>,
+pub enum PipelineInput {
+	File,
+}
 
-	/// Names and types of pipeline outputs
-	#[serde(default)]
-	pub output: HashMap<PipelinePortLabel, PipelineDataType>,
+impl PipelineInput {
+	pub fn get_outputs(&self) -> Vec<(PipelinePortLabel, PipelineDataType)> {
+		match self {
+			// Order must match
+			Self::File => vec![
+				("path".into(), PipelineDataType::Text),
+				("data".into(), PipelineDataType::Binary),
+			],
+		}
+	}
+}
 
-	/// Map pipeline outputs to the node outputs that produce them
+// TODO: move to export crate
+#[derive(Debug, Deserialize, Clone)]
+#[serde(tag = "type")]
+#[serde(deny_unknown_fields)]
+pub enum PipelineOutput {
+	DataSet { class: String },
+}
+
+impl PipelineOutput {
+	pub fn get_inputs(&self) -> Vec<(PipelinePortLabel, PipelineDataType)> {
+		match self {
+			// Order must match
+			Self::DataSet { .. } => vec![
+				("artist".into(), PipelineDataType::Text),
+				("album".into(), PipelineDataType::Text),
+			],
+		}
+	}
+}
+
+/// Pipeline configuration
+#[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct PipelineConfig {
+	pub input: PipelineInput,
+	pub output: PipelineOutput,
+
 	#[serde(default)]
-	pub outmap: HashMap<PipelinePortLabel, NodeOutput>,
+	pub output_map: HashMap<PipelinePortLabel, NodeOutput>,
 }
 
 /// A description of a node in a pipeline
 #[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct PipelineNodeSpec {
+struct PipelineNodeSpec {
 	/// What kind of node is this?
 	#[serde(rename = "type")]
-	pub node_type: PipelineNodeType,
+	node_type: PipelineNodeType,
 
 	/// Where this node should read its input from.
 	#[serde(default)]
-	pub input: HashMap<PipelinePortLabel, NodeOutput>,
+	input: HashMap<PipelinePortLabel, NodeOutput>,
 }
 
 /// A description of a data processing pipeline
@@ -51,7 +85,7 @@ pub struct PipelineNodeSpec {
 #[serde(deny_unknown_fields)]
 pub struct PipelineSpec {
 	/// Pipeline parameters
-	pipeline: PipelineConfig,
+	config: PipelineConfig,
 
 	/// Nodes in this pipeline
 	#[serde(default)]
@@ -71,7 +105,11 @@ impl PipelineSpec {
 	/// - The input node exists
 	/// - The input node has the specified port
 	/// - The input and output ports have matching types
-	fn check_link(&self, output: &NodeOutput, input: &NodeInput) -> Option<PipelinePrepareResult> {
+	fn check_link(
+		&self,
+		output: &NodeOutput,
+		input: &NodeInput,
+	) -> Result<(), PipelinePrepareError> {
 		// Find the datatype of the output port we're connecting to.
 		// While doing this, make sure both the output node and port exist.
 		let output_type = match output {
@@ -81,10 +119,16 @@ impl PipelineSpec {
 				node: PipelineNode::External,
 				port,
 			} => {
-				if let Some(from_type) = self.pipeline.input.get(port) {
+				if let Some((_, from_type)) = self
+					.config
+					.input
+					.get_outputs()
+					.iter()
+					.find(|(a, _)| a == port)
+				{
 					*from_type
 				} else {
-					return Some(PipelinePrepareResult::NoNodeOutput {
+					return Err(PipelinePrepareError::NoNodeOutput {
 						node: PipelineNode::External,
 						output: port.clone(),
 						caused_by: input.clone(),
@@ -96,7 +140,7 @@ impl PipelineSpec {
 				let get_node = self.nodes.get(node.to_label_ref().unwrap());
 
 				if get_node.is_none() {
-					return Some(PipelinePrepareResult::NoNode {
+					return Err(PipelinePrepareError::NoNode {
 						node: node.clone(),
 						caused_by: input.clone(),
 					});
@@ -105,7 +149,7 @@ impl PipelineSpec {
 				let out_idx = get_node.node_type.output_with_name(port.into());
 
 				if out_idx.is_none() {
-					return Some(PipelinePrepareResult::NoNodeOutput {
+					return Err(PipelinePrepareError::NoNodeOutput {
 						node: node.clone(),
 						output: port.clone(),
 						caused_by: input.clone(),
@@ -122,10 +166,16 @@ impl PipelineSpec {
 				node: PipelineNode::External,
 				port,
 			} => {
-				if let Some(from_type) = self.pipeline.output.get(port) {
+				if let Some((_, from_type)) = self
+					.config
+					.output
+					.get_inputs()
+					.iter()
+					.find(|(a, _)| a == port)
+				{
 					*from_type
 				} else {
-					return Some(PipelinePrepareResult::NoNodeInput {
+					return Err(PipelinePrepareError::NoNodeInput {
 						node: PipelineNode::External,
 						input: port.clone(),
 					});
@@ -136,7 +186,7 @@ impl PipelineSpec {
 				let get_node = self.nodes.get(node.to_label_ref().unwrap());
 
 				if get_node.is_none() {
-					return Some(PipelinePrepareResult::NoNode {
+					return Err(PipelinePrepareError::NoNode {
 						node: node.clone(),
 						caused_by: input.clone(),
 					});
@@ -145,7 +195,7 @@ impl PipelineSpec {
 				let in_idx = get_node.node_type.input_with_name(port.into());
 
 				if in_idx.is_none() {
-					return Some(PipelinePrepareResult::NoNodeInput {
+					return Err(PipelinePrepareError::NoNodeInput {
 						node: node.clone(),
 						input: port.clone(),
 					});
@@ -158,7 +208,7 @@ impl PipelineSpec {
 		match output {
 			NodeOutput::InlineText { .. } => {
 				if input_type != PipelineDataType::Text {
-					return Some(PipelinePrepareResult::InlineTypeMismatch {
+					return Err(PipelinePrepareError::InlineTypeMismatch {
 						inline_type: PipelineDataType::Text,
 						input: input.clone(),
 					});
@@ -166,7 +216,7 @@ impl PipelineSpec {
 			}
 			NodeOutput::Node { .. } => {
 				if output_type != input_type {
-					return Some(PipelinePrepareResult::TypeMismatch {
+					return Err(PipelinePrepareError::TypeMismatch {
 						output: output.clone(),
 						input: input.clone(),
 					});
@@ -174,7 +224,7 @@ impl PipelineSpec {
 			}
 		};
 
-		return None;
+		return Ok(());
 	}
 
 	/// Connect `out_link` to port index `in_port` of node `node_idx`.
@@ -209,7 +259,16 @@ impl PipelineSpec {
 			}
 			NodeOutput::Node { node, port } => {
 				let out_port = match node {
-					PipelineNode::External => 0,
+					PipelineNode::External => {
+						self.config
+							.input
+							.get_outputs()
+							.iter()
+							.enumerate()
+							.find(|(_, (a, _))| a == port)
+							.unwrap()
+							.0
+					}
 					PipelineNode::Node(x) => self
 						.nodes
 						.get(x)
@@ -232,11 +291,7 @@ impl PipelineSpec {
 		}
 	}
 
-	pub fn prepare(&mut self) -> PipelinePrepareResult {
-		// Ordered lists of pipeline inputs & outputs
-		let pipeline_inputs = self.pipeline.input.keys().cloned().collect::<Vec<_>>();
-		let pipeline_outputs = self.pipeline.output.keys().cloned().collect::<Vec<_>>();
-
+	pub fn prepare(&self) -> Result<Pipeline, PipelinePrepareError> {
 		// Check each node's name and inputs;
 		// Build node array and initialize external node;
 		// Initialize nodes in graph
@@ -249,21 +304,19 @@ impl PipelineSpec {
 			// Make sure we're not using a reserved name
 			let s: &str = node_name.into();
 			if s == PIPELINE_EXTERNAL_NODE_NAME {
-				return PipelinePrepareResult::NodeHasReservedName {
+				return Err(PipelinePrepareError::NodeHasReservedName {
 					node: node_name.into(),
-				};
+				});
 			}
 
 			for (input_name, out_link) in &node_spec.input {
-				if let Some(x) = self.check_link(
+				self.check_link(
 					out_link,
 					&NodeInput::Node {
 						node: node_name.into(),
 						port: input_name.clone(),
 					},
-				) {
-					return x;
-				};
+				)?;
 			}
 
 			node_name_map.insert(node_name.into(), nodes.len());
@@ -271,16 +324,14 @@ impl PipelineSpec {
 		}
 
 		// Check final pipeline outputs
-		for (out_name, out_link) in &self.pipeline.outmap {
-			if let Some(x) = self.check_link(
+		for (out_name, out_link) in &self.config.output_map {
+			self.check_link(
 				out_link,
 				&NodeInput::Node {
 					node: PipelineNode::External,
 					port: out_name.clone(),
 				},
-			) {
-				return x;
-			};
+			)?;
 		}
 
 		// Build graph
@@ -303,22 +354,27 @@ impl PipelineSpec {
 			}
 		}
 
-		// Check for cycles
+		// Build graph and check for cycles
 		let mut graph = GraphMap::<usize, (), Directed>::new();
 		for (out_np, in_np) in edges.iter() {
 			graph.add_edge(out_np.node_idx, in_np.node_idx, ());
 		}
+		if toposort(&graph, None).is_err() {
+			return Err(PipelinePrepareError::HasCycle);
+		}
 
 		// Finish graph, adding output edges
-		for (port_label, node_output) in &self.pipeline.outmap {
+		for (port_label, node_output) in &self.config.output_map {
 			self.add_to_graph(
 				&mut nodes,
 				&mut edges,
 				&node_name_map,
-				pipeline_outputs
+				self.config
+					.output
+					.get_inputs()
 					.iter()
 					.enumerate()
-					.find(|(_, x)| *x == port_label)
+					.find(|(_, (x, _))| x == port_label)
 					.unwrap()
 					.0,
 				*node_name_map.get(&PipelineNode::External).unwrap(),
@@ -326,16 +382,23 @@ impl PipelineSpec {
 			)
 		}
 
-		if toposort(&graph, None).is_err() {
-			return PipelinePrepareResult::HasCycle;
+		// Build edge maps
+		let mut edge_map = (0..nodes.len()).map(|_| Vec::new()).collect::<Vec<_>>();
+		let mut rev_edge_map = (0..nodes.len()).map(|_| Vec::new()).collect::<Vec<_>>();
+		for (i, x) in edges.iter().enumerate() {
+			edge_map[x.0.node_idx].push(i);
+			rev_edge_map[x.1.node_idx].push(i);
 		}
 
-		return PipelinePrepareResult::Ok(Pipeline::new(
+		return Ok(Pipeline {
 			nodes,
 			edges,
-			*node_name_map.get(&PipelineNode::External).unwrap(),
-			pipeline_inputs,
-			pipeline_outputs,
-		));
+
+			edge_map_out: edge_map,
+			edge_map_in: rev_edge_map,
+			external_node_idx: *node_name_map.get(&PipelineNode::External).unwrap(),
+
+			config: self.config.clone(),
+		});
 	}
 }

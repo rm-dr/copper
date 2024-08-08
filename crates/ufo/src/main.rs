@@ -7,28 +7,36 @@ mod storage;
 
 use crate::ingest::{file::FileInjest, Ingest};
 
-use ufo_pipeline::syntax::{prepareresult::PipelinePrepareResult, spec::PipelineSpec};
+use ufo_pipeline::syntax::spec::{PipelineInput, PipelineOutput, PipelineSpec};
 
 fn main() -> Result<()> {
 	// Load pipeline
 	let mut f = File::open("pipeline.toml").unwrap();
 	let mut s: String = Default::default();
 	f.read_to_string(&mut s)?;
-	let mut p: PipelineSpec = toml::from_str(&s)?;
-	let p = p.prepare();
-	let p = match p {
-		PipelinePrepareResult::Ok(x) => x,
-		_ => panic!(),
+	let spec: PipelineSpec = toml::from_str(&s)?;
+	let pipe = match spec.prepare() {
+		Ok(x) => x,
+		Err(x) => {
+			println!("{:?}", x);
+			panic!()
+		}
 	};
 
-	// Run pipeline
-	let f = FileInjest::new("data/freeze.flac".into());
-	let o = p.run(f.injest().unwrap())?;
-	println!("{:#?}\n\n", o);
+	let input = match &pipe.get_config().input {
+		PipelineInput::File => {
+			let f = FileInjest::new("data/freeze.flac".into());
+			f.injest().unwrap()
+		}
+	};
 
-	let f = FileInjest::new("data/top.mp3".into());
-	let o = p.run(f.injest().unwrap())?;
-	println!("{:#?}", o);
+	let o = pipe.run(input)?;
+
+	match &pipe.get_config().output {
+		PipelineOutput::DataSet { class } => {
+			println!("{class}: {:?}", o);
+		}
+	}
 
 	Ok(())
 }

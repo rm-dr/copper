@@ -4,13 +4,10 @@ use super::{
 	labels::{PipelineNode, PipelinePortLabel},
 	ports::{NodeInput, NodeOutput},
 };
-use crate::{data::PipelineDataType, pipeline::Pipeline};
+use crate::data::PipelineDataType;
 
 #[derive(Debug)]
-pub enum PipelinePrepareResult {
-	/// All good, here's your pipeline
-	Ok(Pipeline),
-
+pub enum PipelinePrepareError {
 	/// We tried to create a node with a reserved name
 	NodeHasReservedName { node: SmartString<LazyCompact> },
 

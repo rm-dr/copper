@@ -1,16 +1,12 @@
-[pipeline]
-# outputs for the "pipeline" node
-# (These are pipeline *inputs*, but node *outputs*)
-input."data" = "binary"
+[config]
+input.type = "File"
 
-# inputs for the pipeline node
-output."album" = "text"
-output."artist" = "text"
-output."empty" = "text"
+output.type = "DataSet"
+output.class = "AudioFile"
 
-# Connect pipeline node inputs
-outmap."album" = "if_none.out"
-outmap."artist" = "tags.artist"
+output_map."album" = "if_none.out"
+output_map."artist" = "tags.artist"
+
 
 [node."tags"]
 type = "ExtractTag"
