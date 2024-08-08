@@ -12,7 +12,7 @@ pub struct RunnerStatus {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RunningJobStatus {
 	pub job_id: u128,
-	pub pipeline: String,
+	pub pipeline: PipelineLabel,
 	pub node_status: Vec<RunningNodeStatus>,
 
 	// This pipeline's input, converted to a pretty string.
@@ -23,20 +23,21 @@ pub struct RunningJobStatus {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct CompletedJobStatus {
 	pub job_id: u128,
-	pub pipeline: String,
+	pub pipeline: PipelineLabel,
 	pub error: Option<String>,
 	pub input_exemplar: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RunningNodeStatus {
-	pub name: String,
+	pub name: PipelineNodeLabel,
 	pub state: RunningNodeState,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(tag = "type")]
 pub enum RunningNodeState {
-	Pending(String),
+	Pending { message: String },
 	Running,
 	Done,
 }

@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use ufo_db_blobstore::api::BlobHandle;
@@ -69,7 +69,7 @@ impl MetastoreData {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub enum HashType {
 	MD5,
 	SHA256,
@@ -120,6 +120,16 @@ impl<'de> Deserialize<'de> for MetastoreDataStub {
 			"bad type string {}",
 			addr_str
 		)))
+	}
+}
+
+impl Serialize for MetastoreDataStub {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: serde::Serializer,
+	{
+		let s = self.to_db_str();
+		s.serialize(serializer)
 	}
 }
 
