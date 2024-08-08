@@ -8,8 +8,6 @@ use ufo_storage::data::{HashType, StorageData};
 
 use crate::UFOContext;
 
-// TODO: hash datatype
-// TODO: select hash method
 #[derive(Clone)]
 pub struct Hash {
 	data: Option<StorageData>,

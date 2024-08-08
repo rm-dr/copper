@@ -54,10 +54,7 @@ pub trait PipelineNode {
 	/// - If `init()` returns [`PipelineNodeState::Done`], `run()` is never called.
 	fn init<F>(
 		&mut self,
-
 		ctx: &Self::NodeContext,
-
-		// TODO: provide args one at a time
 		input: Vec<Self::DataType>,
 
 		// Call this when data is ready.

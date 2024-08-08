@@ -49,6 +49,3 @@ pub(crate) struct PipelineSpec<StubType: PipelineNodeStub> {
 	#[serde(rename = "node")]
 	pub nodes: HashMap<PipelineNodeLabel, PipelineNodeSpec<StubType>>,
 }
-
-// TODO: warnings (disconnected input)
-// TODO: check for unused nodes

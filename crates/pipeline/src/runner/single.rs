@@ -192,7 +192,6 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 	///
 	/// This method should be fairly fast, since it holds up the main thread.
 	pub fn run(&mut self) -> Result<SingleRunnerState, PipelineError> {
-		// TODO: write a smarter scheduler.
 		// Run nodes in a better order, and maybe skip a few.
 
 		// Handle all changes that occured since we last called `run()`

@@ -18,9 +18,9 @@ use crate::{
 };
 
 pub(crate) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
-	// TODO: pipeline name type
 	/// The name of the pipeline we're building
 	name: SmartString<LazyCompact>,
+
 	/// The context with which to build this pipeline
 	context: <StubType::NodeType as PipelineNode>::NodeContext,
 
@@ -55,8 +55,6 @@ pub(crate) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
 	/// (used when connecting "after" inputs)
 	node_input_name_map_after: RefCell<HashMap<PipelineNodeLabel, GraphNodeIdx>>,
 }
-
-// TODO: shorten signatures with aliases everywhere
 
 // Shortcut types
 type DataStub<StubType> = <<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub;

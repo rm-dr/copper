@@ -140,7 +140,6 @@ impl PipelineNodeStub for UFONodeType {
 			Self::Print => PipelinePortSpec::VecOwned(vec![(
 				"data".into(),
 				StorageDataStub::Reference {
-					// TODO: specify type as arg
 					class: ClassHandle::from(2),
 				},
 			)]),
@@ -208,7 +207,6 @@ impl PipelineNodeStub for UFONodeType {
 				("data", StorageDataStub::Binary),
 			]),
 
-			// TODO: add output
 			Self::Dataset { class, .. } => {
 				let mut d = ctx.dataset.lock().unwrap();
 				let class = d.get_class(class).unwrap().unwrap();

@@ -27,10 +27,15 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
+- Pipline name type
+- Shorten types with aliases
+- Hash node: select hash
+- Better db index names
+
+- Load and check db metadata
 - Options for hash, reference
   - Better type checking: take (m)any types as input?
 - sanely handle duplicate album art
-- Better index names
 
 - async binary readers
   - args to node one by one
@@ -53,10 +58,14 @@ UFO's goal is to be "[Paperless] for everything," with...
   - enum
   - multi-enum
   - date
+- Smarter pipeline scheduler
+  - efficient end condition: we don't need to run ALL nodes
+  - What is blocking what? (data streams)
+- Warn on disconnected pipeline inputs?
+- Detect unused nodes when building?
 - Dataset caching
 - Better name; branding & site
 - tui, web ui
-- async pipeline runners
 - Docker container
 - Docs
   - classes & attrs are immutable (cannot change once made)
@@ -74,5 +83,6 @@ UFO's goal is to be "[Paperless] for everything," with...
   - automatic (computed by a pipeline, like hash of album art)
 - Save pipelines in database
 - Remove petgraph
+  - Write toposort algo, provide whole cycle in errors
 - Web streams as pipeline input
 - Continuously-running pipelines

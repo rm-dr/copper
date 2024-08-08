@@ -3,8 +3,6 @@ use crate::{api::PipelineDataStub, labels::PipelinePortLabel};
 /// Name and datatype for a set of ports.
 #[derive(Debug, Clone)]
 pub enum PipelinePortSpec<'a, DataStub: PipelineDataStub + 'static> {
-	// TODO: make `&'static str` a `PipelinePortLabel` once we can
-	// statically make SmartStrings.
 	Static(&'static [(&'static str, DataStub)]),
 	Vec(&'a Vec<(PipelinePortLabel, DataStub)>),
 	VecOwned(Vec<(PipelinePortLabel, DataStub)>),
