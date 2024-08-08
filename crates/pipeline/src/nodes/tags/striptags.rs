@@ -3,7 +3,7 @@ use std::{
 	sync::Arc,
 };
 use ufo_audiofile::flac::metastrip::FlacMetaStrip;
-use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData};
+use ufo_util::{data::PipelineData, mime::MimeType};
 
 use crate::{errors::PipelineError, PipelineNode};
 
@@ -40,22 +40,19 @@ impl PipelineNode for StripTags {
 		// TODO: stream data
 		let data_read = Cursor::new(&**data);
 		let stripped = match data_type {
-			BinaryFormat::Audio(x) => match x {
-				AudioFormat::Flac => {
-					let mut x = FlacMetaStrip::new(data_read).unwrap();
-					let mut v = Vec::new();
-					x.read_to_end(&mut v).unwrap();
-					v
-				}
-				AudioFormat::Mp3 => unimplemented!(),
-			},
+			MimeType::Flac => {
+				let mut x = FlacMetaStrip::new(data_read).unwrap();
+				let mut v = Vec::new();
+				x.read_to_end(&mut v).unwrap();
+				v
+			}
 			_ => return Err(PipelineError::UnsupportedDataType),
 		};
 
 		send_data(
 			0,
 			PipelineData::Binary {
-				format: BinaryFormat::Audio(AudioFormat::Flac),
+				format: data_type.clone(),
 				data: Arc::new(stripped),
 			},
 		)?;

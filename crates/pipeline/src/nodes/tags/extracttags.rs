@@ -7,7 +7,10 @@ use ufo_audiofile::{
 	common::{tagtype::TagType, vorbiscomment::VorbisComment},
 	flac::flac_read_tags,
 };
-use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData, PipelineDataType};
+use ufo_util::{
+	data::{PipelineData, PipelineDataType},
+	mime::MimeType,
+};
 
 use crate::{errors::PipelineError, PipelineNode};
 
@@ -51,10 +54,8 @@ impl PipelineNode for ExtractTags {
 
 		let mut data_read = Cursor::new(&**data);
 		let tagger = match data_type {
-			BinaryFormat::Audio(x) => match x {
-				AudioFormat::Flac => Self::parse_flac(&mut data_read),
-				AudioFormat::Mp3 => unimplemented!(),
-			},
+			MimeType::Flac => Self::parse_flac(&mut data_read),
+			MimeType::Mp3 => unimplemented!(),
 			_ => return Err(PipelineError::UnsupportedDataType),
 		}?;
 

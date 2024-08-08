@@ -4,7 +4,7 @@ use std::{
 	path::PathBuf,
 	sync::Arc,
 };
-use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData};
+use ufo_util::{data::PipelineData, mime::MimeType};
 
 use super::PipelineInput;
 
@@ -26,11 +26,9 @@ impl PipelineInput for FileInput {
 		let mut data = Vec::new();
 		f.read_to_end(&mut data)?;
 
-		let file_format = match self.path.extension().unwrap().to_str().unwrap() {
-			"flac" => BinaryFormat::Audio(AudioFormat::Flac),
-			"mp3" => BinaryFormat::Audio(AudioFormat::Mp3),
-			_ => BinaryFormat::Blob,
-		};
+		let file_format =
+			MimeType::from_extension(self.path.extension().unwrap().to_str().unwrap())
+				.unwrap_or(MimeType::Blob);
 
 		return Ok(vec![
 			// Path

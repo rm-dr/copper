@@ -3,7 +3,7 @@ use sea_orm::{
 	DbBackend, DbErr, EntityTrait, QueryFilter, QuerySelect, Statement,
 };
 use sea_orm_migration::prelude::*;
-use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData, PipelineDataType};
+use ufo_util::data::{PipelineData, PipelineDataType};
 
 use super::{
 	entities::{prelude::*, *},
@@ -299,16 +299,7 @@ impl Dataset for SeaDataset {
 					attr: ActiveValue::Set(attr.into()),
 					item: ActiveValue::Set(item.into()),
 					value: ActiveValue::Set((**data).clone()),
-					format: ActiveValue::Set(
-						match format {
-							BinaryFormat::Blob => "blob",
-							BinaryFormat::Audio(x) => match x {
-								AudioFormat::Flac => "audio::flac",
-								AudioFormat::Mp3 => "audio::mp3",
-							},
-						}
-						.into(),
-					),
+					format: ActiveValue::Set(format.to_string()),
 				};
 				let _res = ValueBinary::insert(new_value)
 					.on_conflict(

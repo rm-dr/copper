@@ -17,6 +17,8 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
+ufo-util = { workspace = true }
+
 serde = { workspace = true }
 smartstring = { workspace = true }
 itertools = { workspace = true }

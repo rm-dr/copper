@@ -8,35 +8,9 @@ use std::{
 	sync::Arc,
 };
 
-// TODO: binary format contains data?
-// TODO: Stream data?
+use crate::mime::MimeType;
+
 // TODO: no clone vec
-
-/// What kind of audio data is this?
-#[derive(Debug, Copy, Clone)]
-pub enum AudioFormat {
-	/// An MP3 file, with all metadata removed.
-	/// (see ufo-audiofile)
-	Mp3,
-
-	/// A FLAC file, with all metadata removed.
-	/// (see ufo-audiofile)
-	Flac,
-	//Ogg,
-}
-
-/// How should this binary data be interpreted?
-#[derive(Debug, Clone, Copy)]
-pub enum BinaryFormat {
-	/// A plain binary blob
-	Blob,
-
-	/// Plain text
-	// Text,
-
-	/// An audio file
-	Audio(AudioFormat),
-}
 
 // TODO: rename
 /// An immutable bit of data inside a pipeline.
@@ -51,8 +25,9 @@ pub enum PipelineData {
 
 	/// Binary data
 	Binary {
-		/// How to interpret this data
-		format: BinaryFormat,
+		/// This data's media type
+		format: MimeType,
+
 		/// The data
 		data: Arc<Vec<u8>>,
 	},
