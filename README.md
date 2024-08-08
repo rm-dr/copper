@@ -24,19 +24,20 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- Stop reading file when all dependents are done
-- Nodes ask for other nodes (ifnone)
 - Remove/rework print node
+- Remove other pipeline node?
+- How and when should we load databases?
+  - (nice interop with ufod)
+  - Better way to define nodes (compatible with standalone ufo)
+- Clean up logging
+- ufoc error handling
 
 - Clean up pipeline error handling (search for unwrap, assert, and panic)
   - db errors in pipeline run & build
   - detect bad classes when building AddToDataset node
   - elegantly handle duplicate album art (fail pipelines)
     - how about sub-pipelines?
-    - none data vs error
-      - user-recoverable vs not?
-      - final node should error if output is none\
-
+    - always fail unless explicitly told to `None`
 - Deadlock detection
 
 
@@ -73,6 +74,8 @@ UFO's goal is to be "[Paperless] for everything," with...
   - efficient end condition: we don't need to run ALL nodes
   - What is blocking what? (data streams)
   - Hints? (iobound, networkbound, etc)
+  - Nodes ask for other nodes (ifnone)
+  - Stop reading file when all dependents are done
   - Nodes ask for other nodes (ifnone)
 - Warn on disconnected pipeline inputs
 - Detect unused nodes when building
