@@ -1,17 +1,11 @@
 use crossbeam::channel::Receiver;
-use std::{
-	io::{Read, Seek},
-	sync::Arc,
-};
+use std::{io::Seek, sync::Arc};
 use ufo_audiofile::flac::flac_read_pictures;
 use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
-use ufo_pipeline::{
-	api::{PipelineNode, PipelineNodeState},
-	errors::PipelineError,
-};
+use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 
-use crate::{helpers::ArcVecBuffer, traits::UFOStaticNode, UFOContext};
+use crate::{errors::PipelineError, helpers::ArcVecBuffer, traits::UFOStaticNode, UFOContext};
 
 pub struct ExtractCovers {
 	data: Option<MetaDbData>,
@@ -35,6 +29,7 @@ impl ExtractCovers {
 impl PipelineNode for ExtractCovers {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
+	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where
@@ -78,35 +73,43 @@ impl PipelineNode for ExtractCovers {
 
 		let (changed, done) = self.buffer.recv_all(data);
 		match (changed, done) {
-			(false, true) => unreachable!(),
+			(false, true) => {
+				// We couldn't read a flac metadata header,
+				// probably consumed a bad stream.
+				// TODO: this should be an error
+				send_data(0, MetaDbData::None(MetaDbDataStub::Binary))?;
+				return Ok(PipelineNodeState::Done);
+			}
 			(false, false) => return Ok(PipelineNodeState::Pending),
 			(true, true) | (true, false) => {}
 		}
 
 		self.buffer.seek(std::io::SeekFrom::Start(0)).unwrap();
-		let (cover_data, cover_format): (Vec<u8>, MimeType) = match data_type {
+		let picture = match data_type {
 			MimeType::Flac => {
-				let r = flac_read_pictures(&mut self.buffer).unwrap();
-				if r.is_none() {
+				let pictures = flac_read_pictures(&mut self.buffer);
+				if pictures.is_err() {
+					println!("{pictures:?}");
 					return Ok(PipelineNodeState::Pending);
-				};
-				let mut r = r.unwrap();
-
-				let mut x = Vec::new();
-				r.read_to_end(&mut x).unwrap();
-				(x, r.get_mime().clone())
+				}
+				let mut pictures = pictures.unwrap();
+				pictures.pop()
 			}
 			MimeType::Mp3 => unimplemented!(),
 			_ => return Err(PipelineError::UnsupportedDataType),
 		};
 
-		send_data(
-			0,
-			MetaDbData::Binary {
-				format: cover_format,
-				data: Arc::new(cover_data),
-			},
-		)?;
+		if let Some(picture) = picture {
+			send_data(
+				0,
+				MetaDbData::Binary {
+					format: picture.get_mime().clone(),
+					data: Arc::new(picture.take_img_data()),
+				},
+			)?;
+		} else {
+			send_data(0, MetaDbData::None(MetaDbDataStub::Binary))?;
+		}
 
 		return Ok(PipelineNodeState::Done);
 	}

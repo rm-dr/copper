@@ -21,13 +21,17 @@ pub enum FlacPictureError {
 
 	/// We tried to decode a picture block with an out-of-spec picture type
 	BadPictureType(PictureTypeError),
+
+	/// The picture block we're reading isn't valid
+	MalformedBlock,
 }
 
 impl Display for FlacPictureError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::IoError(_) => write!(f, "io error while reading flac picture"),
-			Self::BadPictureType(_) => write!(f, "flac has invalid picture type"),
+			Self::BadPictureType(_) => write!(f, "flac picture block has invalid type"),
+			Self::MalformedBlock => write!(f, "flac picture block is malformed"),
 			Self::FailedStringDecode(_) => {
 				write!(f, "string decode error while reading flac picture")
 			}
@@ -66,8 +70,7 @@ impl From<FromUtf8Error> for FlacPictureError {
 // TODO: enforce flac constraints and write
 
 /// A picture metadata block in a FLAC file.
-/// This implements [`Read`], which produces this picture's image data.
-pub struct FlacPicture<'a> {
+pub struct FlacPicture {
 	picture_type: PictureType,
 	mime: MimeType,
 	description: String,
@@ -75,10 +78,10 @@ pub struct FlacPicture<'a> {
 	height: u32,
 	bit_depth: u32,
 	color_count: u32,
-	img: Box<dyn Read + 'a>,
+	img_data: Vec<u8>,
 }
 
-impl<'a> Debug for FlacPicture<'a> {
+impl Debug for FlacPicture {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("FlacPicture")
 			.field("mime", &self.mime)
@@ -86,14 +89,7 @@ impl<'a> Debug for FlacPicture<'a> {
 	}
 }
 
-impl<'a> Read for FlacPicture<'a> {
-	/// Read this picture's image data
-	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-		self.img.read(buf)
-	}
-}
-
-impl<'a> FlacPicture<'a> {
+impl FlacPicture {
 	/// Try to decode a picture block from the given reader.
 	///
 	/// This does NOT read the picture's data. Instead, [`FlacPicture`]
@@ -101,47 +97,75 @@ impl<'a> FlacPicture<'a> {
 	/// [`FlacPicture`] to get this data.
 	pub fn decode<R>(mut read: R) -> Result<Self, FlacPictureError>
 	where
-		R: Read + 'a,
+		R: Read,
 	{
 		// This is re-used whenever we need to read four bytes
 		let mut block = [0u8; 4];
+		if read.read(&mut block)? != 4 {
+			return Err(FlacPictureError::MalformedBlock);
+		}
 
-		read.read_exact(&mut block)?;
 		let picture_type = PictureType::from_idx(u32::from_be_bytes(block))?;
 
+		// Image format
 		let mime = {
-			read.read_exact(&mut block)?;
-			let mime_length = u32::from_be_bytes(block);
-			let mut mime = vec![0u8; mime_length.try_into().unwrap()];
-			read.read_exact(&mut mime)?;
-			String::from_utf8(mime)?
-		}
-		.into();
+			if read.read(&mut block)? != 4 {
+				return Err(FlacPictureError::MalformedBlock);
+			}
+			let mime_length = u32::from_be_bytes(block).try_into().unwrap();
+			let mut mime = vec![0u8; mime_length];
+			if read.read(&mut mime)? != mime_length {
+				return Err(FlacPictureError::MalformedBlock);
+			}
+			String::from_utf8(mime)?.into()
+		};
 
+		// Image description
 		let description = {
-			read.read_exact(&mut block)?;
-			let desc_length = u32::from_be_bytes(block);
-			let mut desc = vec![0u8; desc_length.try_into().unwrap()];
-			read.read_exact(&mut desc)?;
+			if read.read(&mut block)? != 4 {
+				return Err(FlacPictureError::MalformedBlock);
+			}
+			let desc_length = u32::from_be_bytes(block).try_into().unwrap();
+			let mut desc = vec![0u8; desc_length];
+			if read.read(&mut desc)? != desc_length {
+				return Err(FlacPictureError::MalformedBlock);
+			}
 			String::from_utf8(desc)?
 		};
-		read.read_exact(&mut block)?;
+
+		// Image width
+		if read.read(&mut block)? != 4 {
+			return Err(FlacPictureError::MalformedBlock);
+		}
 		let width = u32::from_be_bytes(block);
 
-		read.read_exact(&mut block)?;
+		// Image height
+		if read.read(&mut block)? != 4 {
+			return Err(FlacPictureError::MalformedBlock);
+		}
 		let height = u32::from_be_bytes(block);
 
-		read.read_exact(&mut block)?;
+		// Image bit depth
+		if read.read(&mut block)? != 4 {
+			return Err(FlacPictureError::MalformedBlock);
+		}
 		let depth = u32::from_be_bytes(block);
 
-		read.read_exact(&mut block)?;
+		// Color count for indexed images
+		if read.read(&mut block)? != 4 {
+			return Err(FlacPictureError::MalformedBlock);
+		}
 		let color_count = u32::from_be_bytes(block);
 
-		read.read_exact(&mut block)?;
-		let data_length = u32::from_be_bytes(block);
-		//let mut img_data = vec![0u8; data_length.try_into().unwrap()];
-		//read.read_exact(&mut img_data)?;
-		let img = read.take(data_length.into());
+		// Image data length
+		if read.read(&mut block)? != 4 {
+			return Err(FlacPictureError::MalformedBlock);
+		}
+		let data_length = u32::from_be_bytes(block).try_into().unwrap();
+		let mut img_data = vec![0u8; data_length];
+		if read.read(&mut img_data)? != data_length {
+			return Err(FlacPictureError::MalformedBlock);
+		}
 
 		Ok(Self {
 			picture_type,
@@ -151,12 +175,12 @@ impl<'a> FlacPicture<'a> {
 			height,
 			bit_depth: depth,
 			color_count,
-			img: Box::new(img),
+			img_data,
 		})
 	}
 }
 
-impl<'a> FlacPicture<'a> {
+impl FlacPicture {
 	/// Get this picture's IDv3 type
 	pub fn get_type(&self) -> &PictureType {
 		&self.picture_type
@@ -187,5 +211,15 @@ impl<'a> FlacPicture<'a> {
 	/// 0 if this image is in a non-indexed format.
 	pub fn get_color_count(&self) -> u32 {
 		self.color_count
+	}
+
+	/// Get a reference to this picture's image data
+	pub fn get_img_data(&self) -> &Vec<u8> {
+		&self.img_data
+	}
+
+	/// Take this picture's image data
+	pub fn take_img_data(self) -> Vec<u8> {
+		self.img_data
 	}
 }

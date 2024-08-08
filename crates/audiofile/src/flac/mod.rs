@@ -49,24 +49,24 @@ where
 
 /// Try to extract flac pictures from the given reader.
 /// `read` should provide a complete FLAC file.
-pub fn flac_read_pictures<'a, R>(mut read: R) -> Result<Option<FlacPicture<'a>>, FlacError>
+pub fn flac_read_pictures<R>(mut read: R) -> Result<Vec<FlacPicture>, FlacError>
 where
-	R: Read + Seek + 'a,
+	R: Read + Seek,
 {
+	let mut pictures = Vec::new();
 	let mut block = [0u8; 4];
 	read.read_exact(&mut block)?;
 	if block != [0x66, 0x4C, 0x61, 0x43] {
 		return Err(FlacError::BadMagicBytes);
 	};
 
-	// TODO: what if we have multiple pictures?
 	// How about pictures in vorbis blocks?
 	loop {
 		let (block_type, length, is_last) = FlacMetablockType::parse_header(&mut read)?;
 
 		match block_type {
 			FlacMetablockType::Picture => {
-				return Ok(Some(FlacPicture::decode(read.take(length.into())).unwrap()));
+				pictures.push(FlacPicture::decode(read.by_ref().take(length.into()))?);
 			}
 			_ => {
 				if is_last {
@@ -79,5 +79,5 @@ where
 		};
 	}
 
-	return Ok(None);
+	return Ok(pictures);
 }

@@ -8,7 +8,7 @@ use std::{
 use super::{errors::FlacError, metablocktype::FlacMetablockType};
 
 // TODO: tests
-// TODO: select blocks to keep
+// TODO: detect end of file using STREAMINFO
 
 /// Select which blocks we want to keep.
 /// All values are `false` by default.
