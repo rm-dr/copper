@@ -30,7 +30,7 @@ struct Args {
 	#[command(subcommand)]
 	command: Commands,
 
-	#[arg(long, default_value = "http://localhost:3000")]
+	#[arg(long, default_value = "http://localhost:3030")]
 	host: Url,
 }
 

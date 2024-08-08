@@ -106,7 +106,7 @@ impl<'a> UfoApiUploadJob<'a> {
 			)
 			.json(&UploadFinish {
 				hash: hash.into(),
-				part_count,
+				frag_count: part_count,
 			})
 			.send()
 			.unwrap();

@@ -24,6 +24,7 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
+- Use memmap2
 - How and when should we load databases?
   - (nice interop with ufod)
   - Better way to define nodes (compatible with standalone ufo)

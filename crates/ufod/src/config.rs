@@ -22,7 +22,7 @@ pub struct UfodConfig {
 impl Default for UfodConfig {
 	fn default() -> Self {
 		Self {
-			server_addr: "127.0.0.1:3000".into(),
+			server_addr: "127.0.0.1:3030".into(),
 			request_body_limit: 2 * 1024 * 1024, // 2Mb
 			delete_job_after_bound: Duration::from_secs(5),
 			delete_job_after_unbound: Duration::from_secs(10),

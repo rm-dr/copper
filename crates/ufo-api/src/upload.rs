@@ -24,6 +24,6 @@ pub struct UploadFragmentMetadata {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct UploadFinish {
-	pub part_count: u32,
+	pub frag_count: u32,
 	pub hash: SmartString<LazyCompact>,
 }
