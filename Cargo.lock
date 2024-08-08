@@ -1086,6 +1086,7 @@ dependencies = [
  "instant",
  "number_prefix",
  "portable-atomic",
+ "unicode-segmentation",
  "unicode-width",
 ]
 

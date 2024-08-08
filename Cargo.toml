@@ -67,7 +67,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 nu-ansi-term = "0.50.0"
 walkdir = "2"
 clap = { version = "4.5.4", features = ["derive"] }
-indicatif = "0.17.8"
+indicatif = { version = "0.17.8", features = ["improved_unicode"] }
 crossterm = "0.27.0"
 
 [workspace.lints]

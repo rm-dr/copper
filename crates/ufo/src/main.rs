@@ -180,15 +180,14 @@ fn main() -> Result<()> {
 
 			let ctx = UFOContext {
 				database: Arc::new(Mutex::new(database)),
-				blob_channel_capacity: 10,
-				blob_fragment_size: 100_000,
+				blob_fragment_size: 1_000_000,
 			};
 
 			// Prep runner
 			let mut runner: PipelineRunner<UFONodeType> = PipelineRunner::new(
 				PipelineRunConfig {
-					node_threads: 1,
-					max_active_jobs: 5,
+					node_threads: 2,
+					max_active_jobs: 8,
 				},
 				ctx.clone(),
 			);
