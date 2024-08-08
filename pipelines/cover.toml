@@ -1,9 +1,9 @@
 [config.input]
-type = "Plain"
+type = "Noop"
 input."cover_data" = "binary"
 
 [config.output]
-type = "DataSet"
+type = "Dataset"
 class = "CoverArt"
 attr."image_data" = "binary"
 attr."content_hash" = "text"

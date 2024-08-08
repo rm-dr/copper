@@ -1,9 +1,10 @@
 use anyhow::Result;
-use std::path::Path;
-use ufo_pipeline::{
-	input::{file::FileInput, PipelineInput, PipelineInputKind},
-	runner::PipelineRunner,
+use std::{
+	path::Path,
+	sync::{Arc, Mutex},
 };
+use ufo_pipeline::{data::PipelineData, runner::runner::PipelineRunner};
+use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
 use ufo_storage::{
 	api::{AttributeOptions, Dataset},
 	sea::dataset::SeaDataset,
@@ -12,7 +13,7 @@ use ufo_storage::{
 
 fn main() -> Result<()> {
 	// Make dataset
-	let mut dataset = {
+	let dataset = {
 		let mut d = SeaDataset::new("sqlite:./test.sqlite?mode=rwc", "ufo_db");
 		d.connect()?;
 		let x = d.add_class("AudioFile").unwrap();
@@ -69,26 +70,29 @@ fn main() -> Result<()> {
 		d
 	};
 
+	let ctx = Arc::new(UFOContext {
+		dataset: Mutex::new(dataset),
+	});
+
 	// Prep runner
-	let mut runner = PipelineRunner::new(&mut dataset, 4);
-	runner.add_pipeline(Path::new("pipelines/cover.toml"), "cover".into())?;
-	runner.add_pipeline(Path::new("pipelines/audiofile.toml"), "audio".into())?;
+	let mut runner: PipelineRunner<UFONodeType> = PipelineRunner::new(4);
+	runner.add_pipeline(
+		ctx.clone(),
+		Path::new("pipelines/cover.toml"),
+		"cover".into(),
+	)?;
+	runner.add_pipeline(
+		ctx.clone(),
+		Path::new("pipelines/audiofile.toml"),
+		"audio".into(),
+	)?;
 
 	for p in ["data/freeze.flac"] {
-		let input = match &runner
-			.get_pipeline("audio".into())
-			.unwrap()
-			.get_config()
-			.input
-		{
-			PipelineInputKind::File => {
-				let f = FileInput::new(p.into());
-				f.run().unwrap()
-			}
-			PipelineInputKind::Plain { .. } => unreachable!(),
-		};
-
-		runner.run("audio".into(), input)?;
+		runner.run(
+			ctx.clone(),
+			"audio".into(),
+			vec![PipelineData::Text(Arc::new(p.into()))],
+		)?;
 	}
 
 	Ok(())
