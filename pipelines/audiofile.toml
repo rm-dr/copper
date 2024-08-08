@@ -14,6 +14,7 @@ input."genre" = { node = "tags", output = "Genre" }
 input."ISRC" = { node = "tags", output = "ISRC" }
 input."lyrics" = { node = "tags", output = "Lyrics" }
 input."audio_data" = { node = "strip", output = "out" }
+input."audio_hash" = { node = "hash_audio", output = "hash" }
 input."cover_art" = { node = "find", output = "found_item" }
 
 
@@ -35,6 +36,12 @@ input.data = { "pipeline" = "data" }
 [node.strip]
 node.type = "StripTags"
 input."data" = { pipeline = "data" }
+
+[node."hash_audio"]
+node.type = "Hash"
+node.hash_type = "SHA256"
+input."data" = { node = "strip", output = "out" }
+
 
 [node."extract_cover"]
 node.type = "ExtractCovers"
@@ -58,14 +65,3 @@ node.class = "CoverArt"
 node.by_attr = "content_hash"
 input."attr_value" = { node = "hash_cover", output = "hash" }
 after = ["add_cover"]
-
-[node.print]
-node.type = "Print"
-input."data" = { node = "find", output = "found_item" }
-#input."data" = { node = "tags", output = "TrackTitle" }
-
-#[node."if_none"]
-#node.type = "IfNone"
-#node.data_type = "reference::2"
-#input."data" = { node = "add_cover", output = "added_item" }
-#input."ifnone" = { node = "find", output = "found_item" }

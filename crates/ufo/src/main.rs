@@ -1,12 +1,12 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use indicatif::ProgressBar;
+use crossterm::style::Stylize;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::{
 	ffi::OsStr,
+	fmt::Write,
 	path::PathBuf,
 	sync::{Arc, Mutex},
-	thread,
-	time::Duration,
 };
 use ufo_blobstore::fs::store::FsBlobStore;
 use walkdir::WalkDir;
@@ -17,6 +17,7 @@ use ufo_metadb::{
 	sqlite::db::SQLiteMetaDB,
 };
 use ufo_pipeline::{
+	api::PipelineNodeState,
 	labels::PipelineLabel,
 	runner::runner::{PipelineRunConfig, PipelineRunner},
 };
@@ -44,6 +45,14 @@ enum Commands {
 		#[arg(long, default_value = ".")]
 		db_root: PathBuf,
 	},
+}
+
+fn truncate_front(s: &str, len: usize) -> String {
+	if s.len() > len + 3 {
+		format!("...{}", &s[s.len() - len..])
+	} else {
+		String::from(s)
+	}
 }
 
 fn main() -> Result<()> {
@@ -130,7 +139,16 @@ fn main() -> Result<()> {
 					x,
 					"audio_data",
 					MetaDbDataStub::Blob,
-					AttributeOptions::new(),
+					AttributeOptions::new().not_null(true),
+				)
+				.unwrap();
+				db.add_attr(
+					x,
+					"audio_hash",
+					MetaDbDataStub::Hash {
+						hash_type: HashType::SHA256,
+					},
+					AttributeOptions::new().not_null(true),
 				)
 				.unwrap();
 
@@ -169,8 +187,8 @@ fn main() -> Result<()> {
 			// Prep runner
 			let mut runner: PipelineRunner<UFONodeType> = PipelineRunner::new(
 				PipelineRunConfig {
-					node_threads: 2,
-					max_active_jobs: 1,
+					node_threads: 1,
+					max_active_jobs: 5,
 				},
 				ctx.clone(),
 			);
@@ -203,8 +221,22 @@ fn main() -> Result<()> {
 				return Ok(());
 			}
 
-			let spin = ProgressBar::new_spinner();
-			spin.enable_steady_tick(Duration::from_millis(50));
+			let multi_bar = MultiProgress::new();
+			let spin_style = ProgressStyle::with_template("{spinner:.darkgrey} {msg}")
+				.unwrap()
+				.tick_chars("⠴⠦⠖⠲⠶");
+			let bar_style = ProgressStyle::with_template(&format!(
+				"{} {} {} {}",
+				"[{pos}/{len} done]",
+				"{bar:30}".dark_grey(),
+				"{percent}%",
+				"({elapsed}/{eta})"
+			))
+			.unwrap()
+			.progress_chars("⣿⣷⣶⣦⣤⣄⣀");
+
+			let scan_spin = ProgressBar::new_spinner().with_style(spin_style.clone());
+			multi_bar.add(scan_spin.clone());
 			let mut n_jobs = 0;
 
 			let p = PathBuf::from(args.first().unwrap());
@@ -214,52 +246,96 @@ fn main() -> Result<()> {
 				for entry in WalkDir::new(&p) {
 					let entry = entry.unwrap();
 					if entry.path().is_file() {
-						thread::sleep(Duration::from_millis(200));
+						scan_spin.tick();
 						runner.add_job(
 							&pipeline,
 							vec![UFOData::Path(Arc::new(entry.path().into()))],
 						);
 						n_jobs += 1;
-						spin.set_message(format!("Scanning {p:?} ({n_jobs} jobs to run)"))
+						scan_spin.set_message(format!(
+							"{} {} {}",
+							"Scanning".cyan(),
+							p.canonicalize().unwrap().to_str().unwrap().dark_grey(),
+							format!("({n_jobs} jobs to run)")
+						))
 					}
 				}
 			}
-			spin.finish();
+			scan_spin.finish();
+			//multi_bar.remove(&scan_spin);
 
-			let bar = ProgressBar::new(n_jobs).with_message("Running jobs...");
+			let mut active_job_spinners = Vec::new();
+			let bar = ProgressBar::new(n_jobs).with_style(bar_style.clone());
+			multi_bar.insert_after(&scan_spin, bar.clone());
 
 			loop {
-				//thread::sleep(Duration::from_millis(200));
+				//thread::sleep(Duration::from_millis(10));
 				runner.run()?;
 
 				let mut has_active_job = false;
-				for p in runner.iter_active_jobs() {
+				for (id, job) in runner.iter_active_jobs() {
 					has_active_job = true;
 
-					/*
-					for l in p.get_pipeline().iter_node_labels() {
-						println!(
-							"{} {l}",
-							match p.get_node_status(l).unwrap() {
-								(true, _) => "r",
-								(false, PipelineNodeState::Done) => "D",
-								(false, PipelineNodeState::Pending(_)) => "p",
-							}
+					if active_job_spinners.iter().all(|(i, _)| i != id) {
+						let spin = multi_bar.insert_before(
+							&bar,
+							ProgressBar::new_spinner().with_style(spin_style.clone()),
 						);
+						active_job_spinners.push((*id, spin));
 					}
-					*/
-				}
 
-				//println!("\n");
+					let mut s = String::new();
+					for l in job.get_pipeline().iter_node_labels() {
+						s.write_str(&format!(
+							"{}",
+							match job.get_node_status(l).unwrap() {
+								(true, _) => "R".yellow(),
+								(false, PipelineNodeState::Done) => "D".dark_green(),
+								(false, PipelineNodeState::Pending(_)) => "#".dark_grey(),
+							}
+						))
+						.unwrap();
+					}
+
+					let i = &active_job_spinners.iter().find(|(i, _)| i == id).unwrap().1;
+					i.set_message(format!(
+						"{} {} {} {s}   {}",
+						"Running".green(),
+						job.get_pipeline().get_name(),
+						format!("[{id:>3}]:").dark_grey(),
+						format!(
+							"Input: {}",
+							// TODO: pick one input, depending on type of pipeline
+							truncate_front(&format!("{:?}", job.get_input().first().unwrap()), 30)
+						)
+						.dark_grey()
+						.italic()
+					));
+					i.tick();
+					bar.tick();
+				}
 
 				while let Some(x) = runner.pop_completed_job() {
 					bar.inc(1);
 					if x.error.is_some() {
-						bar.println(format!("Pipeline failed: {}; {:?}", x.pipeline, x.input));
+						multi_bar
+							.println(format!("Pipeline failed: {}; {:?}", x.pipeline, x.input))
+							.unwrap();
+					}
+
+					let i = active_job_spinners
+						.iter()
+						.enumerate()
+						.find(|(_, (i, _))| *i == x.job_id)
+						.map(|(i, _)| i);
+					if let Some(i) = i {
+						let x = active_job_spinners.swap_remove(i);
+						multi_bar.remove(&x.1);
 					}
 				}
 
 				if !has_active_job {
+					bar.finish();
 					return Ok(());
 				}
 			}

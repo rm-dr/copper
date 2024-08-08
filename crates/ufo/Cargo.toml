@@ -37,3 +37,4 @@ nu-ansi-term = { workspace = true }
 walkdir = { workspace = true }
 clap = { workspace = true }
 indicatif = { workspace = true }
+crossterm = { workspace = true }

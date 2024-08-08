@@ -67,4 +67,8 @@ impl<StubType: PipelineNodeStub> Pipeline<StubType> {
 	pub fn iter_node_labels(&self) -> impl Iterator<Item = &PipelineNodeLabel> {
 		self.graph.iter_nodes().map(|(l, _)| l)
 	}
+
+	pub fn get_name(&self) -> &PipelineLabel {
+		&self.name
+	}
 }

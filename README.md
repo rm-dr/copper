@@ -24,6 +24,8 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
+- Parallelism breaks files
+- Use console instead of crossterm?
 - Nodes ask for other nodes (ifnone)
 - Remove/rework print node
 - Buffer ALL input (even if not running)

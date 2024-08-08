@@ -27,6 +27,9 @@ pub struct PipelineRunConfig {
 /// A completed pipeline job
 #[derive(Debug)]
 pub struct CompletedJob<StubType: PipelineNodeStub> {
+	/// The id of the job that finisehd
+	pub job_id: u128,
+
 	/// The name of the pipeline that was run
 	pub pipeline: PipelineLabel,
 
@@ -51,13 +54,17 @@ pub struct PipelineRunner<StubType: PipelineNodeStub> {
 	config: PipelineRunConfig,
 
 	/// Jobs that are actively running
-	active_jobs: Vec<Option<PipelineSingleJob<StubType>>>,
+	active_jobs: Vec<Option<(u128, PipelineSingleJob<StubType>)>>,
 
 	/// Jobs that are queued to run
-	job_queue: VecDeque<PipelineSingleJob<StubType>>,
+	job_queue: VecDeque<(u128, PipelineSingleJob<StubType>)>,
 
 	/// A log of completed jobs
 	completed_jobs: VecDeque<CompletedJob<StubType>>,
+
+	/// Job id counter. This will be unique for a long time,
+	/// but will eventually wrap back to zero.
+	job_id_counter: u128,
 }
 
 impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
@@ -75,6 +82,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 			job_queue: VecDeque::new(),
 			completed_jobs: VecDeque::new(),
 
+			job_id_counter: 0,
 			config,
 		}
 	}
@@ -138,12 +146,26 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 			pipeline,
 			pipeline_inputs,
 		);
-		self.job_queue.push_back(runner)
+		self.job_id_counter = self.job_id_counter.wrapping_add(1);
+		self.job_queue.push_back((self.job_id_counter, runner));
 	}
 
 	/// Iterate over all active jobs
-	pub fn iter_active_jobs(&self) -> impl Iterator<Item = &PipelineSingleJob<StubType>> {
+	pub fn iter_active_jobs(&self) -> impl Iterator<Item = &(u128, PipelineSingleJob<StubType>)> {
 		self.active_jobs.iter().filter_map(|x| x.as_ref())
+	}
+
+	/// Find an active job by id.
+	pub fn active_job_by_id(&self, id: u128) -> Option<&(u128, PipelineSingleJob<StubType>)> {
+		self.active_jobs
+			.iter()
+			.find(|x| x.as_ref().is_some_and(|(x, _)| *x == id))
+			.map(|x| x.as_ref().unwrap())
+	}
+
+	/// Find a queued job by id.
+	pub fn queued_job_by_id(&self, id: u128) -> Option<&(u128, PipelineSingleJob<StubType>)> {
+		self.job_queue.iter().find(|(x, _)| *x == id)
 	}
 
 	/// Get the oldest completed job
@@ -154,13 +176,14 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	/// Update this runner: process all changes that occured since we last called `run()`,
 	pub fn run(&mut self) -> Result<(), SErrorType<StubType>> {
 		for r in &mut self.active_jobs {
-			if let Some(x) = r {
+			if let Some((id, x)) = r {
 				// Update running jobs
 				match x.run() {
 					Ok(SingleJobState::Running) => {}
 					Ok(SingleJobState::Done) => {
 						// Drop finished jobs
 						self.completed_jobs.push_back(CompletedJob {
+							job_id: *id,
 							pipeline: x.get_pipeline().name.clone(),
 							input: x.get_input().clone(),
 							error: None,
@@ -176,6 +199,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 					Err(err) => {
 						// Drop finished jobs
 						self.completed_jobs.push_back(CompletedJob {
+							job_id: *id,
 							pipeline: x.get_pipeline().name.clone(),
 							input: x.get_input().clone(),
 							error: Some(err),
