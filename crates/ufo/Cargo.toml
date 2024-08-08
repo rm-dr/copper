@@ -23,7 +23,10 @@ workspace = true
 
 [dependencies]
 ufo-pipeline = { workspace = true }
+ufo-storage = { workspace = true }
+ufo-util = { workspace = true }
 
 anyhow = { workspace = true }
 toml = { workspace = true }
 smartstring = { workspace = true }
+serde = { workspace = true }

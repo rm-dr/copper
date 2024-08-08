@@ -45,6 +45,8 @@ readme = ""
 
 [workspace.dependencies]
 ufo-pipeline = { path = "crates/pipeline" }
+ufo-storage = { path = "crates/storage" }
+ufo-util = { path = "crates/util" }
 ufo = { path = "crates/ufo" }
 
 anyhow = "1.0.83"

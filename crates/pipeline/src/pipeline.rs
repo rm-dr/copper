@@ -1,8 +1,10 @@
 use std::{fmt::Debug, sync::Arc};
 
+use ufo_util::data::PipelineData;
+
 use crate::{
-	data::PipelineData, errors::PipelineError, nodes::PipelineNodeInstance,
-	syntax::spec::PipelineConfig, PipelineStatelessRunner,
+	errors::PipelineError, nodes::PipelineNodeInstance, syntax::spec::PipelineConfig,
+	PipelineStatelessRunner,
 };
 
 #[derive(Clone, Copy)]
@@ -61,8 +63,10 @@ impl Pipeline {
 
 	pub fn run(
 		&self,
-		inputs: Vec<Option<Arc<PipelineData>>>,
+		mut inputs: Vec<Option<Arc<PipelineData>>>,
 	) -> Result<Vec<Option<Arc<PipelineData>>>, PipelineError> {
+		assert!(inputs.len() == self.config.input.get_outputs().len());
+
 		// The data inside each edge.
 		// We consume node data once it is read so that unneeded memory may be freed.
 		let mut edge_values = (0..self.edges.len())
@@ -78,7 +82,6 @@ impl Pipeline {
 			edge_values[*edge_idx] = EdgeValue::Data(inputs.get(edge.0.port).unwrap().clone());
 		}
 
-		let mut inputs = Vec::new();
 		loop {
 			for n in 0..self.nodes.len() {
 				// Skip nodes we've already run
@@ -128,6 +131,7 @@ impl Pipeline {
 
 				if n == self.external_node_idx {
 					// If we can run the external node, we're done.
+					assert!(inputs.len() == self.config.output.get_inputs().len());
 					return Ok(inputs);
 				} else {
 					// We ran an intermediate node, fill in output edges and consume input edges

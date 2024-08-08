@@ -1,13 +1,14 @@
-pub mod data;
 pub mod errors;
+pub mod input;
 pub mod nodes;
+pub mod output;
 #[allow(clippy::module_inception)]
 pub mod pipeline;
 pub mod syntax;
 
+use errors::PipelineError;
 use std::sync::Arc;
-
-use self::{data::PipelineData, errors::PipelineError};
+use ufo_util::data::PipelineData;
 
 pub trait PipelineStatelessRunner {
 	fn run(

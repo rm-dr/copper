@@ -2,10 +2,12 @@ use std::{collections::HashMap, sync::Arc};
 
 use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
 use serde::Deserialize;
+use ufo_util::data::{PipelineData, PipelineDataType};
 
 use crate::{
-	data::{PipelineData, PipelineDataType},
+	input::PipelineInputKind,
 	nodes::{PipelineNodeInstance, PipelineNodeType},
+	output::PipelineOutputKind,
 	pipeline::{NodePort, Pipeline},
 	syntax::labels::PIPELINE_EXTERNAL_NODE_NAME,
 };
@@ -16,52 +18,12 @@ use super::{
 	ports::{NodeInput, NodeOutput},
 };
 
-// TODO: move to ingest crate
-#[derive(Debug, Deserialize, Clone)]
-#[serde(tag = "type")]
-#[serde(deny_unknown_fields)]
-pub enum PipelineInput {
-	File,
-}
-
-impl PipelineInput {
-	pub fn get_outputs(&self) -> Vec<(PipelinePortLabel, PipelineDataType)> {
-		match self {
-			// Order must match
-			Self::File => vec![
-				("path".into(), PipelineDataType::Text),
-				("data".into(), PipelineDataType::Binary),
-			],
-		}
-	}
-}
-
-// TODO: move to export crate
-#[derive(Debug, Deserialize, Clone)]
-#[serde(tag = "type")]
-#[serde(deny_unknown_fields)]
-pub enum PipelineOutput {
-	DataSet { class: String },
-}
-
-impl PipelineOutput {
-	pub fn get_inputs(&self) -> Vec<(PipelinePortLabel, PipelineDataType)> {
-		match self {
-			// Order must match
-			Self::DataSet { .. } => vec![
-				("artist".into(), PipelineDataType::Text),
-				("album".into(), PipelineDataType::Text),
-			],
-		}
-	}
-}
-
 /// Pipeline configuration
 #[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PipelineConfig {
-	pub input: PipelineInput,
-	pub output: PipelineOutput,
+	pub input: PipelineInputKind,
+	pub output: PipelineOutputKind,
 
 	#[serde(default)]
 	pub output_map: HashMap<PipelinePortLabel, NodeOutput>,
@@ -291,6 +253,8 @@ impl PipelineSpec {
 		}
 	}
 
+	/// Check this pipeline spec's structure and use it to build a
+	/// [`Pipeline`].
 	pub fn prepare(&self) -> Result<Pipeline, PipelinePrepareError> {
 		// Check each node's name and inputs;
 		// Build node array and initialize external node;

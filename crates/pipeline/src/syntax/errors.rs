@@ -1,10 +1,10 @@
 use smartstring::{LazyCompact, SmartString};
+use ufo_util::data::PipelineDataType;
 
 use super::{
 	labels::{PipelineNode, PipelinePortLabel},
 	ports::{NodeInput, NodeOutput},
 };
-use crate::data::PipelineDataType;
 
 #[derive(Debug)]
 pub enum PipelinePrepareError {

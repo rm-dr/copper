@@ -272,9 +272,12 @@ name = "ufo"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "serde",
  "smartstring",
  "toml",
  "ufo-pipeline",
+ "ufo-storage",
+ "ufo-util",
 ]
 
 [[package]]
@@ -283,6 +286,25 @@ version = "0.1.0"
 dependencies = [
  "lofty",
  "petgraph",
+ "serde",
+ "smartstring",
+ "ufo-storage",
+ "ufo-util",
+]
+
+[[package]]
+name = "ufo-storage"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "smartstring",
+ "ufo-util",
+]
+
+[[package]]
+name = "ufo-util"
+version = "0.1.0"
+dependencies = [
  "serde",
  "smartstring",
 ]

@@ -4,21 +4,21 @@ use std::{
 	path::PathBuf,
 	sync::Arc,
 };
+use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData};
 
-use super::Ingest;
-use ufo_pipeline::data::{AudioFormat, BinaryFormat, PipelineData};
+use super::PipelineInput;
 
-pub struct FileInjest {
+pub struct FileInput {
 	path: PathBuf,
 }
 
-impl FileInjest {
+impl FileInput {
 	pub fn new(path: PathBuf) -> Self {
-		FileInjest { path }
+		FileInput { path }
 	}
 }
 
-impl Ingest for FileInjest {
+impl PipelineInput for FileInput {
 	type ErrorKind = io::Error;
 
 	fn injest(self) -> Result<Vec<Option<Arc<PipelineData>>>, Self::ErrorKind> {

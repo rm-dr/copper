@@ -7,12 +7,9 @@ use std::{
 	io::{Cursor, Read, Seek},
 	sync::Arc,
 };
+use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData};
 
-use crate::{
-	data::{AudioFormat, BinaryFormat, PipelineData},
-	errors::PipelineError,
-	PipelineStatelessRunner,
-};
+use crate::{errors::PipelineError, PipelineStatelessRunner};
 
 pub struct ExtractTags {}
 

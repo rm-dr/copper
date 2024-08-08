@@ -1,8 +1,10 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
+use ufo_util::data::PipelineData;
+
+use crate::{errors::PipelineError, PipelineStatelessRunner};
 
 use super::{ifnone::IfNone, nodetype::PipelineNodeType, tags::ExtractTags};
-use crate::{data::PipelineData, errors::PipelineError, PipelineStatelessRunner};
 
 pub enum PipelineNodeInstance {
 	ExternalNode,

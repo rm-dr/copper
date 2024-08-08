@@ -1,9 +1,9 @@
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::str::FromStr;
+use ufo_util::data::PipelineDataType;
 
 use super::{ifnone::IfNone, nodeinstance::PipelineNodeInstance, tags::ExtractTags};
-use crate::data::PipelineDataType;
 
 #[derive(Debug, Clone, Copy)]
 pub enum PipelineNodeType {
