@@ -162,6 +162,9 @@ pub struct UfodLogLevelConfig {
 	pub pipeline: LogLevel,
 
 	#[serde(default)]
+	pub dataset: LogLevel,
+
+	#[serde(default)]
 	pub server: LogLevel,
 
 	#[serde(default = "UfodLogLevelConfig::default_all")]
@@ -175,6 +178,7 @@ impl Default for UfodLogLevelConfig {
 			http: LogLevel::default(),
 			pipeline: LogLevel::default(),
 			server: LogLevel::default(),
+			dataset: LogLevel::default(),
 
 			// This can get noisy, so default to a higher level
 			all: Self::default_all(),
@@ -190,8 +194,8 @@ impl UfodLogLevelConfig {
 	/// Convert this logging config to a tracing env filter
 	pub fn to_env_filter(&self) -> String {
 		format!(
-			"ufo_pipeline={},sqlx={},tower_http={},ufod={},{}",
-			self.pipeline, self.sqlx, self.http, self.server, self.all
+			"ufo_pipeline={},sqlx={},tower_http={},ufod={},ufo_ds_impl={},{}",
+			self.pipeline, self.sqlx, self.http, self.server, self.dataset, self.all
 		)
 	}
 }

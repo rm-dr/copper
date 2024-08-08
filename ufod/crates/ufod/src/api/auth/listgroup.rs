@@ -11,7 +11,7 @@ use utoipa::ToSchema;
 
 use crate::{
 	api::RouterState,
-	helpers::maindb::auth::{GroupInfo, UserInfo},
+	maindb::auth::{GroupInfo, UserInfo},
 };
 
 #[derive(Debug, Serialize, ToSchema)]

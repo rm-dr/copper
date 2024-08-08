@@ -6,7 +6,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
+use tracing::error;
 use utoipa::ToSchema;
 
 use crate::api::RouterState;
@@ -99,17 +99,8 @@ pub(super) async fn del_user(
 		return (StatusCode::BAD_REQUEST, "Cannot delete self").into_response();
 	}
 
-	info!(
-		message = "Received deluser request",
-		payload = ?payload
-	);
-
 	match state.main_db.auth.del_user(payload.user.into()).await {
 		Ok(()) => {
-			info!(
-				message = "Deleted user",
-				payload = ?payload
-			);
 			return StatusCode::OK.into_response();
 		}
 

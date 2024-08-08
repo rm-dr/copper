@@ -25,6 +25,12 @@ impl Blobstore for LocalDataset {
 			}
 		};
 
+		trace!(
+			message = "Initialized a new blob",
+			path = ?tmp_path,
+			mime = ?mime,
+		);
+
 		Ok(BlobstoreTmpWriter::new(tmp_path, mime.clone())?)
 	}
 

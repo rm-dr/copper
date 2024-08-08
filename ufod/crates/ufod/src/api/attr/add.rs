@@ -6,7 +6,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use serde::Deserialize;
-use tracing::{error, info};
+use tracing::error;
 use ufo_ds_core::{
 	api::meta::{AttributeOptions, Metastore},
 	data::MetastoreDataStub,
@@ -53,11 +53,6 @@ pub(super) async fn add_attr(
 	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
 		return x;
 	}
-
-	info!(
-		message = "Making a new attribute",
-		payload = ?payload
-	);
 
 	if payload.new_attr_name.is_empty() {
 		return (StatusCode::BAD_REQUEST, "Attribute name cannot be empty").into_response();

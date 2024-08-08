@@ -30,13 +30,11 @@ mod upload;
 
 use crate::{
 	config::UfodConfig,
-	helpers::{
-		maindb::{
-			auth::{GroupId, GroupInfo, UserId, UserInfo},
-			MainDB,
-		},
-		uploader::Uploader,
+	maindb::{
+		auth::{GroupId, GroupInfo, UserId, UserInfo},
+		MainDB,
 	},
+	uploader::Uploader,
 };
 
 #[derive(Clone)]

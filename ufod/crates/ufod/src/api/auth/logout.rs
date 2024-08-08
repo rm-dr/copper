@@ -1,4 +1,4 @@
-use crate::{api::RouterState, helpers::maindb::auth::AUTH_COOKIE_NAME};
+use crate::{api::RouterState, maindb::auth::AUTH_COOKIE_NAME};
 use axum::{
 	extract::State,
 	http::{header::SET_COOKIE, StatusCode},
@@ -9,7 +9,6 @@ use axum_extra::extract::{
 	CookieJar,
 };
 use time::OffsetDateTime;
-use tracing::info;
 
 /// Terminate this session
 #[utoipa::path(
@@ -23,12 +22,7 @@ use tracing::info;
 )]
 pub(super) async fn logout(jar: CookieJar, State(state): State<RouterState>) -> Response {
 	match state.main_db.auth.terminate_session(&jar).await {
-		Some(x) => {
-			info!(
-				message = "Successfully logged out",
-				auth_info = ?x.user,
-			);
-
+		Some(_) => {
 			let cookie = Cookie::build((AUTH_COOKIE_NAME, ""))
 				.path("/")
 				.secure(true)

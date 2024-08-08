@@ -6,11 +6,11 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
+use tracing::error;
 use ufo_ds_impl::DatasetType;
 use utoipa::ToSchema;
 
-use crate::{api::RouterState, helpers::maindb::dataset::errors::CreateDatasetError};
+use crate::{api::RouterState, maindb::dataset::errors::CreateDatasetError};
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 pub(super) struct NewDatasetRequest {
@@ -50,8 +50,6 @@ pub(super) async fn add_dataset(
 			}
 		}
 	}
-
-	info!(message = "Making new dataset", payload = ?payload);
 
 	if payload.name.is_empty() {
 		return (StatusCode::BAD_REQUEST, "Dataset name cannot be empty").into_response();

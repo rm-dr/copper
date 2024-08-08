@@ -6,10 +6,10 @@ use axum::{
 };
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
+use tracing::error;
 use utoipa::ToSchema;
 
-use crate::{api::RouterState, helpers::maindb::auth::AUTH_COOKIE_NAME};
+use crate::{api::RouterState, maindb::auth::AUTH_COOKIE_NAME};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub(super) struct LoginRequest {
@@ -31,11 +31,6 @@ pub(super) async fn try_login(
 	State(state): State<RouterState>,
 	Json(payload): Json<LoginRequest>,
 ) -> Response {
-	info!(
-		message = "Received login request",
-		payload = ?payload
-	);
-
 	match state
 		.main_db
 		.auth

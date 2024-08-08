@@ -6,12 +6,12 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
+use tracing::error;
 use utoipa::ToSchema;
 
 use crate::{
 	api::RouterState,
-	helpers::maindb::auth::{errors::CreateUserError, GroupId},
+	maindb::auth::{errors::CreateUserError, GroupId},
 };
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -79,11 +79,6 @@ pub(super) async fn add_user(
 		}
 	}
 
-	info!(
-		message = "Received adduser request",
-		payload = ?payload
-	);
-
 	match state
 		.main_db
 		.auth
@@ -91,10 +86,6 @@ pub(super) async fn add_user(
 		.await
 	{
 		Ok(()) => {
-			info!(
-				message = "Created user",
-				payload = ?payload
-			);
 			return StatusCode::OK.into_response();
 		}
 

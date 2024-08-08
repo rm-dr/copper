@@ -54,9 +54,11 @@ threads_per_job = 4
 # - http: Log level for axum (web server)
 # - pipeline: Log level for pipeline runner
 # - server: Log level for copperd core (auth, api, etc)
+# - dataset: Log level for dataset operations
 # - all: Log level for all other sources. This can get noisy.
 level.sqlx = "Info"
 level.http = "Info"
 level.pipeline = "Info"
 level.server = "Info"
+level.dataset = "Info"
 level.all = "Warn"

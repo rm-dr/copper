@@ -3,6 +3,7 @@ use smartstring::{LazyCompact, SmartString};
 use sqlx::{Connection, Row, SqlitePool};
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
+use tracing::{debug, info};
 use ufo_ds_impl::{local::LocalDataset, DatasetType};
 
 use crate::config::UfodConfig;
@@ -56,6 +57,12 @@ impl DatasetProvider {
 			return Err(CreateDatasetError::AlreadyExists);
 		}
 
+		debug!(
+			message = "Creating dataset",
+			name = name,
+			dataset_type = ?ds_type
+		);
+
 		// generate new unique dir name
 		let new_file_name = loop {
 			let name: String = rand::thread_rng()
@@ -87,7 +94,6 @@ impl DatasetProvider {
 		}
 
 		// Start transaction
-
 		let mut conn = self
 			.pool
 			.acquire()
@@ -113,6 +119,11 @@ impl DatasetProvider {
 		.map_err(|e| CreateDatasetError::DbError(Box::new(e)))?;
 
 		t.commit().await.unwrap();
+
+		info!(
+			message = "Created dataset",
+			entry = ?entry
+		);
 
 		Ok(())
 	}
@@ -187,6 +198,8 @@ impl DatasetProvider {
 		ods_lock.remove(dataset_name);
 		drop(ods_lock);
 
+		debug!(message = "Deleting dataset", name = dataset_name);
+
 		// Start transaction
 		let mut conn = self.pool.acquire().await?;
 		let mut t = conn.begin().await?;
@@ -218,6 +231,8 @@ impl DatasetProvider {
 			.await?;
 
 		t.commit().await?;
+
+		info!(message = "Deleted dataset", name = dataset_name,);
 
 		Ok(())
 	}

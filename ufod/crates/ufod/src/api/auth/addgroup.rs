@@ -6,12 +6,12 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
+use tracing::error;
 use utoipa::ToSchema;
 
 use crate::{
 	api::RouterState,
-	helpers::maindb::auth::{errors::CreateGroupError, GroupId},
+	maindb::auth::{errors::CreateGroupError, GroupId},
 };
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -73,11 +73,6 @@ pub(super) async fn add_group(
 		}
 	}
 
-	info!(
-		message = "Received addgroup request",
-		payload = ?payload
-	);
-
 	match state
 		.main_db
 		.auth
@@ -85,10 +80,6 @@ pub(super) async fn add_group(
 		.await
 	{
 		Ok(()) => {
-			info!(
-				message = "Created group",
-				payload = ?payload
-			);
 			return StatusCode::OK.into_response();
 		}
 

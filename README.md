@@ -15,6 +15,11 @@ later (part of writing a better scheduler).
   - `Debug`, somewhere in between
   - `Trace`, if this is a minor event we don't care about unless we're debugging a specific problem.
 
+- Where should I log X?
+  - Actions should be logged where they happen (e.g, not in api, in the fn that actually does it)
+  - Errors should be logged where they are HANDLED, not where they occur
+    - (maybe change later?)
+
 
 # TODO
 
@@ -22,12 +27,6 @@ The list below is a minimal issue tracker.
 
 Projects marked with a 📦 are prerequisites for `v0.1.0` release.
 The goal is a *minimal* working version: robust, usable, but possibly slow and missing fancy features.
-
-## 📦 Logging cleanup
-- [ ] logging everywhere
-  - [ ] api
-  - [ ] dataset impl
-  - [ ] dataset maindb loader
 
 ## 📦 Fixes
 - [ ] Server deadlocks with two parallel clients
@@ -107,6 +106,9 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - Fix all type definitions
   - Replace `any`
   - Generate api?
+- Fix sidebar shadow
+- Do not open sidebar
+- Navbar shadow
 
 ## 📦 Distribution
 - [ ] Docker file & compose

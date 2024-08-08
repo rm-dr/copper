@@ -5,7 +5,7 @@ use sqlx::{
 	Connection, Row, Sqlite,
 };
 use std::{io::Read, iter, str::FromStr, sync::Arc};
-use tracing::info;
+use tracing::{info, trace};
 use ufo_ds_core::{
 	api::{
 		blob::{BlobHandle, Blobstore},
@@ -154,6 +154,8 @@ impl LocalDataset {
 
 	/// Delete all blobs that are not referenced by an attribute
 	async fn delete_dead_blobs(&self) -> Result<(), MetastoreError> {
+		trace!(message = "Deleting orphaned blobs");
+
 		let attrs = self.get_all_attrs().await?;
 		let mut all_blobs = self
 			.all_blobs()
@@ -161,7 +163,6 @@ impl LocalDataset {
 			.map_err(MetastoreError::BlobstoreError)?;
 
 		// Do this after getting attrs to prevent deadlock
-
 		let mut conn = self
 			.pool
 			.acquire()
@@ -226,6 +227,13 @@ impl Metastore for LocalDataset {
 				"Attr name cannot be empty".into(),
 			));
 		}
+
+		trace!(
+			message = "Adding an attribute",
+			attr_name = attr_name,
+			data_type = ?data_type,
+			options = ?options
+		);
 
 		// Start transaction
 		let mut conn = self
@@ -357,6 +365,8 @@ impl Metastore for LocalDataset {
 			));
 		}
 
+		trace!(message = "Adding a class", class_name);
+
 		// Start transaction
 		let mut conn = self
 			.pool
@@ -430,6 +440,12 @@ impl Metastore for LocalDataset {
 
 		let table_name = Self::get_table_name(class);
 
+		trace!(
+			message = "Adding an item",
+			to_class = ?class,
+			?attrs
+		);
+
 		// Add new row with data
 		let res = if attrs.is_empty() {
 			// If we were given no attributes
@@ -488,6 +504,8 @@ impl Metastore for LocalDataset {
 			.begin()
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
+		trace!(message = "Deleting an attribute", ?attr);
 
 		// Get this attributes' class
 		let class_id: ClassHandle = {
@@ -569,6 +587,8 @@ impl Metastore for LocalDataset {
 					.collect(),
 			));
 		}
+
+		trace!(message = "Deleting a class", ?class);
 
 		// Start transaction
 		let mut conn = self

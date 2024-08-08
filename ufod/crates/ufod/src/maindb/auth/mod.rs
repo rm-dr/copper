@@ -12,7 +12,7 @@ use rand::{distributions::Alphanumeric, rngs::OsRng, Rng};
 use sqlx::{Row, SqlitePool};
 use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace};
 
 pub mod errors;
 mod info;
@@ -170,6 +170,11 @@ impl AuthProvider {
 			}
 		}
 
+		trace!(
+			message = "Deleted session",
+			token = ?x
+		);
+
 		return x;
 	}
 
@@ -273,6 +278,8 @@ impl AuthProvider {
 		.execute(&mut *conn)
 		.await;
 
+		info!(message = "Created new group", name, ?parent);
+
 		match res {
 			Ok(_) => return Ok(()),
 			Err(e) => {
@@ -324,6 +331,11 @@ impl AuthProvider {
 					.execute(&mut *conn)
 					.await
 					.map_err(|e| DeleteGroupError::DbError(Box::new(e)))?;
+
+				info!(
+					message = "Deleted group",
+					group_id = ?group,
+				)
 			}
 		}
 
@@ -362,6 +374,13 @@ impl AuthProvider {
 		.execute(&mut *conn)
 		.await;
 
+		info!(
+			message = "Created a user",
+			user = user_name,
+			password,
+			?group,
+		);
+
 		match res {
 			Ok(_) => return Ok(()),
 			Err(e) => {
@@ -394,6 +413,11 @@ impl AuthProvider {
 				i += 1;
 			}
 		}
+
+		info!(
+			message = "Deleted a user",
+			user_id = ?user,
+		);
 
 		Ok(())
 	}

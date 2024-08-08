@@ -10,9 +10,8 @@ use ufo_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
 
 mod api;
 mod config;
-
-mod helpers;
-use helpers::{maindb::MainDB, uploader::Uploader};
+mod maindb;
+mod uploader;
 
 // TODO: guaranteed unique pipeline job id (?)
 // delete after timeout (what if uploading takes a while? Multiple big files?)
@@ -51,11 +50,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			message = "Creating main database because it doesn't exist",
 			main_db_path = ?config.paths.main_db
 		);
-		MainDB::create(&config.paths.main_db).await.unwrap();
+		maindb::MainDB::create(&config.paths.main_db).await.unwrap();
 	}
 
-	let main_db = MainDB::open(config.clone()).await.unwrap();
-	let uploader = Uploader::open(config.clone());
+	let main_db = maindb::MainDB::open(config.clone()).await.unwrap();
+	let uploader = uploader::Uploader::open(config.clone());
 
 	// Prep runner
 	let mut runner: PipelineRunner<UFOData, UFOContext> = PipelineRunner::new(PipelineRunConfig {
