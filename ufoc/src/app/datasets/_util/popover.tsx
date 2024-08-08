@@ -8,6 +8,7 @@ export function ButtonPopover(params: {
 	children: ReactNode;
 	isLoading: boolean;
 	isOpened: boolean;
+	disabled?: boolean;
 	setOpened: (opened: boolean) => void;
 }) {
 	// TODO: fix this type
@@ -25,6 +26,13 @@ export function ButtonPopover(params: {
 		};
 	}, [ref, params]);
 
+	// Auto- close when disabled
+	useEffect(() => {
+		if (params.disabled === true) {
+			params.setOpened(false);
+		}
+	}, [params]);
+
 	return (
 		<Popover
 			position="bottom"
@@ -32,6 +40,7 @@ export function ButtonPopover(params: {
 			shadow="md"
 			trapFocus
 			width="20rem"
+			disabled={params.disabled === true}
 			opened={params.isOpened}
 			onChange={(b) => {
 				params.setOpened(b);
@@ -39,6 +48,7 @@ export function ButtonPopover(params: {
 		>
 			<Popover.Target>
 				<ActionIcon
+					disabled={params.disabled === true}
 					loading={params.isLoading}
 					variant="light"
 					color={params.isOpened ? "red" : params.color}

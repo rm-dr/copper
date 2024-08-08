@@ -23,7 +23,7 @@ export function DeleteDatasetButton(params: {
 			setErrorMessage((e) => {
 				return {
 					...e,
-					name: "Attribute name does not match",
+					name: "Dataset name does not match",
 				};
 			});
 			return;
@@ -72,6 +72,7 @@ export function DeleteDatasetButton(params: {
 			icon={<XIconTrash style={{ width: "70%", height: "70%" }} />}
 			isLoading={isLoading}
 			isOpened={opened}
+			disabled={params.disabled}
 			setOpened={(opened) => {
 				setOpened(opened);
 				setLoading(false);
@@ -94,7 +95,7 @@ export function DeleteDatasetButton(params: {
 			</div>
 
 			<TextInput
-				placeholder="Enter attribute name"
+				placeholder="Enter dataset name"
 				size="sm"
 				disabled={isLoading}
 				error={errorMessage.name !== null}
