@@ -782,8 +782,8 @@ impl Metastore for LocalDataset {
 	async fn get_items(
 		&self,
 		class: ClassHandle,
-		page_size: usize,
-		start_at: usize,
+		page_size: u32,
+		start_at: u32,
 	) -> Result<Vec<ItemData>, MetastoreError> {
 		// Do this first, prevent deadlock
 		let attrs = self.class_get_attrs(class).await?;
