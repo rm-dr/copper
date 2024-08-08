@@ -57,7 +57,7 @@ impl MimeType {
 	/// // y: &str
 	/// MimeType::from(y).to_str() == y
 	/// ```
-	pub fn to_str(&self) -> &str {
+	pub fn to_db_str(&self) -> &str {
 		match self {
 			Self::Blob => "application/octet-stream",
 			Self::Png => "image/png",
@@ -94,6 +94,6 @@ impl MimeType {
 
 impl Display for MimeType {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "{}", self.to_str())
+		write!(f, "{}", self.to_db_str())
 	}
 }

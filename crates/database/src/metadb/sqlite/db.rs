@@ -1,5 +1,8 @@
 use crate::{
-	blobstore::api::{BlobHandle, BlobStore},
+	blobstore::{
+		api::{BlobHandle, BlobStore},
+		fs::store::{FsBlobStore, FsBlobStoreCreateParams},
+	},
 	metadb::{
 		api::{AttrHandle, AttributeOptions, ClassHandle, ItemHandle, UFODb, UFODbNew},
 		data::{MetaDbData, MetaDbDataStub},
@@ -86,10 +89,16 @@ impl<BlobStoreType: BlobStore> UFODbNew<BlobStoreType> for SQLiteDB<BlobStoreTyp
 			panic!()
 		}
 
-		let database = db_root.join("metadata.sqlite");
-		let blob_dir = db_root.join("blobs");
-		BlobStoreType::create(&blob_dir).unwrap();
+		FsBlobStore::create(
+			db_root,
+			"blobstore.sqlite",
+			FsBlobStoreCreateParams {
+				root_dir: "./blobstore".into(),
+			},
+		)
+		.unwrap();
 
+		let database = db_root.join("metadata.sqlite");
 		let db_addr = format!("sqlite:{}?mode=rwc", database.to_str().unwrap());
 
 		let mut conn = block_on(SqliteConnection::connect(&db_addr))?;
@@ -97,11 +106,9 @@ impl<BlobStoreType: BlobStore> UFODbNew<BlobStoreType> for SQLiteDB<BlobStoreTyp
 		block_on(sqlx::query(include_str!("./init.sql")).execute(&mut conn)).unwrap();
 
 		block_on(
-			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?, ?), (?, ?);")
+			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?, ?);")
 				.bind("ufo_version")
 				.bind(env!("CARGO_PKG_VERSION"))
-				.bind("blob_dir")
-				.bind("./blobs")
 				.execute(&mut conn),
 		)
 		.unwrap();
@@ -111,15 +118,13 @@ impl<BlobStoreType: BlobStore> UFODbNew<BlobStoreType> for SQLiteDB<BlobStoreTyp
 
 	fn open(db_dir: &Path) -> Result<Self, MetaDbError> {
 		let database = db_dir.join("metadata.sqlite");
-		let blobstore = db_dir.join("blobs"); // TODO: path from db
 		let db_addr = format!("sqlite:{}?mode=rw", database.to_str().unwrap());
 		let conn = block_on(SqliteConnection::connect(&db_addr))?;
 
-		// TODO: load & check metadata, don't destroy db
 		Ok(Self {
 			database: db_addr.into(),
 			conn: Some(conn),
-			blobstore: BlobStoreType::open(&blobstore).unwrap(),
+			blobstore: BlobStoreType::open(db_dir, "blobstore.sqlite").unwrap(),
 		})
 	}
 }

@@ -61,7 +61,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 ### Database
 - Many-attr unique constraint
 - Load and check db metadata
-- Clean up blobstore
 - Store mime with binary data
 - Database caching
 - Async database

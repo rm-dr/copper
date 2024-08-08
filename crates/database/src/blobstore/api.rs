@@ -13,9 +13,11 @@ where
 {
 	type Handle: BlobHandle;
 	type Writer: Write;
+	type CreateParams;
 
-	fn open(path: &Path) -> Result<Self, ()>;
-	fn create(path: &Path) -> Result<(), ()>;
+	fn open(db_root_dir: &Path, blob_db_name: &str) -> Result<Self, ()>;
+	fn create(db_root_dir: &Path, blob_db_name: &str, params: Self::CreateParams)
+		-> Result<(), ()>;
 
 	fn new_blob(&mut self, mime: &MimeType) -> Self::Writer;
 	fn finish_blob(&mut self, blob: Self::Writer) -> Self::Handle;
