@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.scss";
+import { GeistSans } from "geist/font/sans";
+//import { GeistMono } from "geist/font/mono";
 
 // Mantine setup
 import Provider from "./provider";
 import { ColorSchemeScript } from "@mantine/core";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
 	title: "Copper",
@@ -23,7 +22,7 @@ export default function RootLayout({
 			<head>
 				<ColorSchemeScript />
 			</head>
-			<body className={inter.className}>
+			<body className={GeistSans.className}>
 				<Provider>{children}</Provider>
 			</body>
 		</html>

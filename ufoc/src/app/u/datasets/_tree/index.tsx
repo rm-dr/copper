@@ -5,11 +5,10 @@ import {
 	XIconDatabase,
 	XIconDatabasePlus,
 	XIconDatabaseX,
-	XIconServer,
 	XIconSettings,
 	XIconX,
 } from "@/app/components/icons";
-import { Button, Loader, Select, Text } from "@mantine/core";
+import { Button, Loader, Text } from "@mantine/core";
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { DatasetList } from "./parts/dataset";
 import { useNewDsModal } from "./parts/modals/addds";
