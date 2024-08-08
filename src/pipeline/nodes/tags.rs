@@ -9,12 +9,12 @@ use std::{
 };
 
 use crate::pipeline::{
-	components::PipelinePort,
+	components::labels::PipelinePort,
 	data::{AudioFormat, BinaryFormat, PipelineData, PipelineDataType},
 	errors::PipelineError,
 };
 
-use super::PipelineNode;
+use super::PipelineNodeType;
 
 pub struct ExtractTag {}
 
@@ -59,7 +59,7 @@ impl ExtractTag {
 	}
 }
 
-impl PipelineNode for ExtractTag {
+impl PipelineNodeType for ExtractTag {
 	fn get_input(input: &PipelinePort) -> Option<PipelineDataType> {
 		match AsRef::as_ref(input) {
 			"data" => Some(PipelineDataType::Binary),
@@ -102,9 +102,7 @@ impl PipelineNode for ExtractTag {
 		.map(|x| (*x).into())
 	}
 
-	fn run<F>(
-		get_input: F,
-	) -> Result<HashMap<PipelinePort, Option<PipelineData>>, PipelineError>
+	fn run<F>(get_input: F) -> Result<HashMap<PipelinePort, Option<PipelineData>>, PipelineError>
 	where
 		F: Fn(&PipelinePort) -> Option<PipelineData>,
 	{

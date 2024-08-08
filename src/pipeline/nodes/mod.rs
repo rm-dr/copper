@@ -3,7 +3,7 @@ use smartstring::{LazyCompact, SmartString};
 use std::{collections::HashMap, str::FromStr};
 
 use super::{
-	components::PipelinePort,
+	components::labels::PipelinePort,
 	data::{PipelineData, PipelineDataType},
 	errors::PipelineError,
 };
@@ -12,7 +12,7 @@ pub mod ifnone;
 pub mod tags;
 
 // TODO: node test mode (check inputs, outputs, etc)
-pub trait PipelineNode {
+pub trait PipelineNodeType {
 	/// Run this pipeline node.
 	///
 	/// `get_input` is a function that returns the pipeline data this node should get
@@ -42,12 +42,12 @@ pub trait PipelineNode {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum PipelineNodes {
+pub enum PipelineNodeTypes {
 	ExtractTag,
 	IfNone,
 }
 
-impl PipelineNodes {
+impl PipelineNodeTypes {
 	pub fn run<F>(
 		&self,
 		get_input: F,
@@ -91,7 +91,7 @@ impl PipelineNodes {
 }
 
 // TODO: better error
-impl FromStr for PipelineNodes {
+impl FromStr for PipelineNodeTypes {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -103,7 +103,7 @@ impl FromStr for PipelineNodes {
 	}
 }
 
-impl<'de> Deserialize<'de> for PipelineNodes {
+impl<'de> Deserialize<'de> for PipelineNodeTypes {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
 		D: serde::Deserializer<'de>,

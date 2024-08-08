@@ -16,9 +16,9 @@ use storage::StorageBackend;
 use crate::{
 	model::{AudioItemType, ItemType},
 	pipeline::{
-		components::Pipeline,
+		components::pipeline::Pipeline,
 		data::{AudioFormat, BinaryFormat, PipelineData},
-		nodes::PipelineNode,
+		nodes::PipelineNodeType,
 	},
 };
 

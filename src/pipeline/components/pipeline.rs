@@ -4,13 +4,14 @@ use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
 use serde::Deserialize;
 
 use super::{
-	labels::PIPELINE_NODE_NAME, NodeInput, NodeOutput, PipelineCheckResult, PipelineNode,
-	PipelinePort,
+	checkresult::PipelineCheckResult,
+	labels::{PipelineNode, PipelinePort, PIPELINE_NODE_NAME},
+	ports::{NodeInput, NodeOutput},
 };
 use crate::pipeline::{
 	data::{PipelineData, PipelineDataType},
 	errors::PipelineError,
-	nodes::PipelineNodes,
+	nodes::PipelineNodeTypes,
 };
 
 /// Pipeline configuration
@@ -36,7 +37,7 @@ pub struct PipelineConfig {
 pub struct PipelineNodeSpec {
 	/// What kind of node is this?
 	#[serde(rename = "type")]
-	pub node_type: PipelineNodes,
+	pub node_type: PipelineNodeTypes,
 
 	/// Where this node should read its input from.
 	#[serde(default)]

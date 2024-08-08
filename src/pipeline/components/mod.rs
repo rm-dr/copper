@@ -1,11 +1,4 @@
-mod checkresult;
-mod labels;
-mod pipeline;
-mod ports;
-
-pub use checkresult::PipelineCheckResult;
-pub use labels::{PipelineNode, PipelinePort};
-pub use pipeline::{Pipeline, PipelineConfig, PipelineNodeSpec};
-pub use ports::{NodeInput, NodeOutput};
-
-// TODO: enforce docs
+pub mod checkresult;
+pub mod labels;
+pub mod pipeline;
+pub mod ports;

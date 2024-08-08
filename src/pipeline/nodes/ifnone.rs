@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
-use super::PipelineNode;
+use super::PipelineNodeType;
 use crate::pipeline::{
-	components::PipelinePort,
+	components::labels::PipelinePort,
 	data::{PipelineData, PipelineDataType},
 	errors::PipelineError,
 };
 
 pub struct IfNone {}
 
-impl PipelineNode for IfNone {
+impl PipelineNodeType for IfNone {
 	fn get_input(input: &PipelinePort) -> Option<PipelineDataType> {
 		match AsRef::as_ref(input) {
 			"data" | "ifnone" => Some(PipelineDataType::Text),
@@ -32,9 +32,7 @@ impl PipelineNode for IfNone {
 		["out"].iter().map(|x| (*x).into())
 	}
 
-	fn run<F>(
-		get_input: F,
-	) -> Result<HashMap<PipelinePort, Option<PipelineData>>, PipelineError>
+	fn run<F>(get_input: F) -> Result<HashMap<PipelinePort, Option<PipelineData>>, PipelineError>
 	where
 		F: Fn(&PipelinePort) -> Option<PipelineData>,
 	{

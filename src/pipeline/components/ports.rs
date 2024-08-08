@@ -2,7 +2,7 @@ use serde::{de::Visitor, Deserialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Display, str::FromStr};
 
-use super::{PipelineNode, PipelinePort};
+use super::labels::{PipelineNode, PipelinePort};
 
 /// An output port in the pipeline.
 /// (i.e, a port that produces data.)

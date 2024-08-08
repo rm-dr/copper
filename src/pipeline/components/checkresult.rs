@@ -1,6 +1,9 @@
 use smartstring::{LazyCompact, SmartString};
 
-use super::{NodeInput, NodeOutput, PipelineNode, PipelinePort};
+use super::{
+	labels::{PipelineNode, PipelinePort},
+	ports::{NodeInput, NodeOutput},
+};
 use crate::pipeline::data::PipelineDataType;
 
 /// The result of a [`Pipeline::check()`].
