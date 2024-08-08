@@ -6,7 +6,7 @@ use ufo_db_metastore::{
 };
 use ufo_pipeline::{
 	api::{PipelineData, PipelineNode, PipelineNodeState},
-	labels::PipelinePortLabel,
+	labels::PipelinePortID,
 };
 
 use crate::{
@@ -112,10 +112,10 @@ impl UFONode for FindItem {
 	fn input_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
-		input_name: &PipelinePortLabel,
+		input_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
-			UFONodeType::FindItem { .. } => match Into::<&str>::into(input_name) {
+			UFONodeType::FindItem { .. } => match input_name.id().as_str() {
 				"attr_value" => Some(0),
 				_ => None,
 			},
@@ -156,10 +156,10 @@ impl UFONode for FindItem {
 	fn output_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
-		output_name: &PipelinePortLabel,
+		output_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
-			UFONodeType::FindItem { .. } => match Into::<&str>::into(output_name) {
+			UFONodeType::FindItem { .. } => match output_name.id().as_str() {
 				"found_item" => Some(0),
 				_ => None,
 			},

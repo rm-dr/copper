@@ -5,7 +5,7 @@ use std::{fmt::Debug, str::FromStr};
 
 use crate::{
 	api::PipelineNodeStub,
-	labels::{PipelineNodeLabel, PipelinePortLabel},
+	labels::{PipelineNodeID, PipelinePortID},
 };
 
 /// An output port in the pipeline.
@@ -18,17 +18,17 @@ pub(crate) enum NodeOutput<NodeStubType: PipelineNodeStub> {
 	Pipeline {
 		/// The port's name
 		#[serde(rename = "pipeline")]
-		port: PipelinePortLabel,
+		port: PipelinePortID,
 	},
 
 	/// An output port of a node
 	Node {
 		/// The node that provides this output
-		node: PipelineNodeLabel,
+		node: PipelineNodeID,
 
 		/// The output's name
 		#[serde(rename = "output")]
-		port: PipelinePortLabel,
+		port: PipelinePortID,
 	},
 
 	/// An inline node.
@@ -52,8 +52,8 @@ impl<NodeStubType: PipelineNodeStub> FromStr for NodeOutput<NodeStubType> {
 		let b = b.unwrap();
 
 		Ok(Self::Node {
-			node: a.into(),
-			port: b.into(),
+			node: PipelineNodeID::new(a),
+			port: PipelinePortID::new(b),
 		})
 	}
 }
@@ -67,17 +67,17 @@ pub enum NodeInput {
 	Pipeline {
 		#[serde(rename = "pipeline")]
 		/// The port's name
-		port: PipelinePortLabel,
+		port: PipelinePortID,
 	},
 
 	/// An input port of a node
 	Node {
 		/// The node that provides this input
-		node: PipelineNodeLabel,
+		node: PipelineNodeID,
 
 		/// The port's name
 		#[serde(rename = "input")]
-		port: PipelinePortLabel,
+		port: PipelinePortID,
 	},
 }
 
@@ -97,8 +97,8 @@ impl FromStr for NodeInput {
 		let b = b.unwrap();
 
 		Ok(Self::Node {
-			node: a.into(),
-			port: b.into(),
+			node: PipelineNodeID::new(a),
+			port: PipelinePortID::new(b),
 		})
 	}
 }

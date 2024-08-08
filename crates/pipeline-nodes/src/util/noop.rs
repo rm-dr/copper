@@ -1,6 +1,6 @@
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
-	labels::PipelinePortLabel,
+	labels::PipelinePortID,
 };
 
 use crate::{
@@ -24,7 +24,7 @@ pub struct Noop {
 impl Noop {
 	pub fn new(
 		_ctx: &<Self as PipelineNode>::NodeContext,
-		inputs: Vec<(PipelinePortLabel, UFODataStub)>,
+		inputs: Vec<(PipelinePortID, UFODataStub)>,
 	) -> Self {
 		Self {
 			received_input: inputs
@@ -109,7 +109,7 @@ impl UFONode for Noop {
 	fn input_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
-		input_name: &PipelinePortLabel,
+		input_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
 			UFONodeType::Noop { inputs } => inputs
@@ -145,7 +145,7 @@ impl UFONode for Noop {
 	fn output_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
-		output_name: &PipelinePortLabel,
+		output_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
 			UFONodeType::Noop { inputs } => inputs

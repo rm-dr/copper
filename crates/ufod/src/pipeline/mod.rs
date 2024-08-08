@@ -25,5 +25,5 @@ pub(super) fn router() -> Router<RouterState> {
 		.route("/", get(get_all_pipelines))
 		.route("/:pipeline_name", get(get_pipeline))
 		.route("/:pipeline_name/run", get(run_pipeline))
-		.route("/:pipeline_name/:node_name", get(get_pipeline_node))
+		.route("/:pipeline_name/:node_id", get(get_pipeline_node))
 }

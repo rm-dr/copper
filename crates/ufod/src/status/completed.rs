@@ -5,7 +5,7 @@ use axum::{
 	Json,
 };
 use serde::{Deserialize, Serialize};
-use ufo_pipeline::labels::PipelineLabel;
+use ufo_pipeline::labels::PipelineName;
 use utoipa::ToSchema;
 
 use crate::RouterState;
@@ -18,7 +18,7 @@ pub(super) struct CompletedJobStatus {
 
 	/// The pipeline this job ran
 	#[schema(value_type = String)]
-	pub pipeline: PipelineLabel,
+	pub pipeline: PipelineName,
 
 	/// The error we finished with, if any
 	pub error: Option<String>,

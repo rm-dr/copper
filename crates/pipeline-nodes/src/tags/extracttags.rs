@@ -6,7 +6,7 @@ use std::{
 use ufo_audiofile::{common::tagtype::TagType, flac::flac_read_tags};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
-	labels::PipelinePortLabel,
+	labels::PipelinePortID,
 };
 use ufo_util::mime::MimeType;
 
@@ -135,13 +135,13 @@ impl UFONode for ExtractTags {
 	fn input_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
-		input_name: &PipelinePortLabel,
+		input_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
 			UFONodeType::ExtractTags { .. } => Self::inputs()
 				.iter()
 				.enumerate()
-				.find(|(_, (n, _))| PipelinePortLabel::from(*n) == *input_name)
+				.find(|(_, (n, _))| PipelinePortID::new(n) == *input_name)
 				.map(|(x, _)| x),
 			_ => unreachable!(),
 		}
@@ -174,13 +174,13 @@ impl UFONode for ExtractTags {
 	fn output_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
-		output_name: &PipelinePortLabel,
+		output_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
 			UFONodeType::ExtractTags { tags } => tags
 				.iter()
 				.enumerate()
-				.find(|(_, t)| PipelinePortLabel::from(Into::<&str>::into(*t)) == *output_name)
+				.find(|(_, t)| PipelinePortID::new(Into::<&str>::into(*t)) == *output_name)
 				.map(|(x, _)| x),
 			_ => unreachable!(),
 		}

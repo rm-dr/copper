@@ -8,7 +8,7 @@ use tracing::debug;
 use super::single::{PipelineSingleJob, SingleJobState};
 use crate::{
 	api::{PipelineNode, PipelineNodeState, PipelineNodeStub},
-	labels::PipelineLabel,
+	labels::PipelineName,
 	pipeline::pipeline::Pipeline,
 	SDataType, SErrorType,
 };
@@ -30,7 +30,7 @@ pub struct CompletedJob<NodeStubType: PipelineNodeStub> {
 	pub job_id: u128,
 
 	/// The name of the pipeline that was run
-	pub pipeline: PipelineLabel,
+	pub pipeline: PipelineName,
 
 	/// The arguments this pipeline was run with
 	pub input: Vec<SDataType<NodeStubType>>,
@@ -165,7 +165,7 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 
 							node_states: x
 								.get_pipeline()
-								.iter_node_labels()
+								.iter_node_ids()
 								.map(|l| x.get_node_status(l).unwrap())
 								.collect(),
 						});
@@ -181,7 +181,7 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 
 							node_states: x
 								.get_pipeline()
-								.iter_node_labels()
+								.iter_node_ids()
 								.map(|l| x.get_node_status(l).unwrap())
 								.collect(),
 						});

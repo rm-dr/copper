@@ -1,6 +1,6 @@
 use ufo_pipeline::{
 	api::{PipelineData, PipelineNode, PipelineNodeState},
-	labels::PipelinePortLabel,
+	labels::PipelinePortID,
 };
 
 use crate::{
@@ -67,7 +67,7 @@ impl UFONode for Constant {
 	fn input_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
-		_input_name: &PipelinePortLabel,
+		_input_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
 			UFONodeType::Constant { .. } => None,
@@ -103,11 +103,11 @@ impl UFONode for Constant {
 	fn output_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
-		output_name: &PipelinePortLabel,
+		output_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
 			UFONodeType::ExtractTags { .. } => {
-				if Into::<&str>::into(output_name) == "value" {
+				if output_name.id().as_str() == "value" {
 					Some(0)
 				} else {
 					None

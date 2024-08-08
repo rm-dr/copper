@@ -1,6 +1,6 @@
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
-	labels::PipelinePortLabel,
+	labels::PipelinePortID,
 };
 
 use crate::{
@@ -94,10 +94,10 @@ impl UFONode for IfNone {
 	fn input_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
-		input_name: &PipelinePortLabel,
+		input_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
-			UFONodeType::IfNone { .. } => match Into::<&str>::into(input_name) {
+			UFONodeType::IfNone { .. } => match input_name.id().as_str() {
 				"data" => Some(0),
 				"ifnone" => Some(1),
 				_ => None,
@@ -136,10 +136,10 @@ impl UFONode for IfNone {
 	fn output_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
-		output_name: &PipelinePortLabel,
+		output_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
-			UFONodeType::IfNone { .. } => match Into::<&str>::into(output_name) {
+			UFONodeType::IfNone { .. } => match output_name.id().as_str() {
 				"out" => Some(0),
 				_ => None,
 			},

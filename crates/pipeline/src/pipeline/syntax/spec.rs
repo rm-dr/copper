@@ -7,7 +7,7 @@ use std::{collections::HashMap, fmt::Debug};
 use super::ports::NodeOutput;
 use crate::{
 	api::PipelineNodeStub,
-	labels::{PipelineNodeLabel, PipelinePortLabel},
+	labels::{PipelineNodeID, PipelinePortID},
 };
 
 /// A description of a node in a pipeline
@@ -24,11 +24,11 @@ pub(crate) struct PipelineNodeSpec<NodeStubType: PipelineNodeStub> {
 	#[serde(default)]
 	#[serde(rename = "input")]
 	#[serde_as(as = "serde_with::Map<_, _>")]
-	pub inputs: Vec<(PipelinePortLabel, NodeOutput<NodeStubType>)>,
+	pub inputs: Vec<(PipelinePortID, NodeOutput<NodeStubType>)>,
 
 	#[serde(default)]
 	/// Nodes that must complete before this node starts
-	pub after: Vec<PipelineNodeLabel>,
+	pub after: Vec<PipelineNodeID>,
 }
 
 /// A description of a data processing pipeline
@@ -47,5 +47,5 @@ pub(in super::super) struct PipelineSpec<NodeStubType: PipelineNodeStub> {
 	/// Nodes in this pipeline
 	#[serde(default)]
 	#[serde(rename = "node")]
-	pub nodes: HashMap<PipelineNodeLabel, PipelineNodeSpec<NodeStubType>>,
+	pub nodes: HashMap<PipelineNodeID, PipelineNodeSpec<NodeStubType>>,
 }

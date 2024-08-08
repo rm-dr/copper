@@ -12,7 +12,7 @@ use ufo_db_metastore::{
 };
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
-	labels::PipelinePortLabel,
+	labels::PipelinePortID,
 };
 
 use crate::{
@@ -216,7 +216,7 @@ impl UFONode for AddItem {
 	fn input_with_name(
 		stub: &UFONodeType,
 		ctx: &UFOContext,
-		input_name: &PipelinePortLabel,
+		input_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
 			UFONodeType::AddItem { class, .. } => {
@@ -226,7 +226,7 @@ impl UFONode for AddItem {
 				attrs
 					.into_iter()
 					.enumerate()
-					.find(|(_, (_, name, _))| PipelinePortLabel::from(name) == *input_name)
+					.find(|(_, (_, name, _))| PipelinePortID::new(name) == *input_name)
 					.map(|(i, _)| i)
 			}
 			_ => unreachable!(),
@@ -270,10 +270,10 @@ impl UFONode for AddItem {
 	fn output_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
-		output_name: &PipelinePortLabel,
+		output_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
-			UFONodeType::AddItem { .. } => match Into::<&str>::into(output_name) {
+			UFONodeType::AddItem { .. } => match output_name.id().as_str() {
 				"added_item" => Some(0),
 				_ => None,
 			},

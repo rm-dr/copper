@@ -4,7 +4,7 @@ use ufo_audiofile::common::tagtype::TagType;
 use ufo_db_metastore::data::HashType;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeStub},
-	labels::PipelinePortLabel,
+	labels::{PipelineNodeID, PipelinePortID},
 	NDataStub,
 };
 
@@ -43,7 +43,7 @@ pub enum UFONodeType {
 	Noop {
 		#[serde(rename = "input")]
 		#[serde_as(as = "serde_with::Map<_, _>")]
-		inputs: Vec<(PipelinePortLabel, UFODataStub)>,
+		inputs: Vec<(PipelinePortID, UFODataStub)>,
 	},
 
 	// Audio nodes
@@ -85,39 +85,39 @@ impl PipelineNodeStub for UFONodeType {
 			// Util
 			UFONodeType::IfNone { .. } => UFONodeInstance::IfNone {
 				node_type: self.clone(),
-				name: name.into(),
+				name: PipelineNodeID::new(name),
 				node: IfNone::new(ctx),
 			},
 			UFONodeType::Noop { inputs } => UFONodeInstance::Noop {
 				node_type: self.clone(),
-				name: name.into(),
+				name: PipelineNodeID::new(name),
 				node: Noop::new(ctx, inputs.clone()),
 			},
 			UFONodeType::Hash { hash_type } => UFONodeInstance::Hash {
 				node_type: self.clone(),
-				name: name.into(),
+				name: PipelineNodeID::new(name),
 				node: Hash::new(ctx, *hash_type),
 			},
 
 			// Audio
 			UFONodeType::StripTags => UFONodeInstance::StripTags {
 				node_type: self.clone(),
-				name: name.into(),
+				name: PipelineNodeID::new(name),
 				node: StripTags::new(ctx),
 			},
 			UFONodeType::ExtractTags { tags } => UFONodeInstance::ExtractTags {
 				node_type: self.clone(),
-				name: name.into(),
+				name: PipelineNodeID::new(name),
 				node: ExtractTags::new(ctx, tags.clone()),
 			},
 			UFONodeType::ExtractCovers => UFONodeInstance::ExtractCovers {
 				node_type: self.clone(),
-				name: name.into(),
+				name: PipelineNodeID::new(name),
 				node: ExtractCovers::new(ctx),
 			},
 			UFONodeType::File => UFONodeInstance::File {
 				node_type: self.clone(),
-				name: name.into(),
+				name: PipelineNodeID::new(name),
 				node: FileReader::new(ctx),
 			},
 			UFONodeType::AddItem { class, config } => {
@@ -132,7 +132,7 @@ impl PipelineNodeStub for UFONodeType {
 
 				UFONodeInstance::AddItem {
 					node_type: self.clone(),
-					name: name.into(),
+					name: PipelineNodeID::new(name),
 					node: AddItem::new(ctx, class, attrs, *config),
 				}
 			}
@@ -144,7 +144,7 @@ impl PipelineNodeStub for UFONodeType {
 
 				UFONodeInstance::FindItem {
 					node_type: self.clone(),
-					name: name.into(),
+					name: PipelineNodeID::new(name),
 					node: FindItem::new(ctx, class, attrs).unwrap(),
 				}
 			}
@@ -218,7 +218,7 @@ impl PipelineNodeStub for UFONodeType {
 	fn input_with_name(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-		input_name: &PipelinePortLabel,
+		input_name: &PipelinePortID,
 	) -> Option<usize> {
 		match self {
 			Self::Constant { .. } => Constant::input_with_name(self, ctx, input_name),
@@ -271,7 +271,7 @@ impl PipelineNodeStub for UFONodeType {
 	fn output_with_name(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-		output_name: &PipelinePortLabel,
+		output_name: &PipelinePortID,
 	) -> Option<usize> {
 		match self {
 			Self::Constant { .. } => Constant::output_with_name(self, ctx, output_name),

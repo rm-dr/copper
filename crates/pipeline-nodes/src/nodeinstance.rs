@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
-	labels::PipelineNodeLabel,
+	labels::PipelineNodeID,
 };
 
 use crate::{
@@ -28,51 +28,51 @@ pub enum UFONodeInstance {
 	},
 	IfNone {
 		node_type: UFONodeType,
-		name: PipelineNodeLabel,
+		name: PipelineNodeID,
 		node: IfNone,
 	},
 	Noop {
 		node_type: UFONodeType,
-		name: PipelineNodeLabel,
+		name: PipelineNodeID,
 		node: Noop,
 	},
 	Hash {
 		node_type: UFONodeType,
-		name: PipelineNodeLabel,
+		name: PipelineNodeID,
 		node: Hash,
 	},
 
 	// Audio nodes
 	ExtractTags {
 		node_type: UFONodeType,
-		name: PipelineNodeLabel,
+		name: PipelineNodeID,
 		node: ExtractTags,
 	},
 	StripTags {
 		node_type: UFONodeType,
-		name: PipelineNodeLabel,
+		name: PipelineNodeID,
 		node: StripTags,
 	},
 	ExtractCovers {
 		node_type: UFONodeType,
-		name: PipelineNodeLabel,
+		name: PipelineNodeID,
 		node: ExtractCovers,
 	},
 
 	File {
 		node_type: UFONodeType,
-		name: PipelineNodeLabel,
+		name: PipelineNodeID,
 		node: FileReader,
 	},
 
 	AddItem {
 		node_type: UFONodeType,
-		name: PipelineNodeLabel,
+		name: PipelineNodeID,
 		node: AddItem,
 	},
 	FindItem {
 		node_type: UFONodeType,
-		name: PipelineNodeLabel,
+		name: PipelineNodeID,
 		node: FindItem,
 	},
 }

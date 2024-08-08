@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use ufo_database::api::UFODatabase;
 use ufo_pipeline::{
 	api::PipelineNodeStub,
-	labels::{PipelineLabel, PipelineNodeLabel},
+	labels::{PipelineName, PipelineNodeID},
 };
 use ufo_pipeline_nodes::data::UFODataStub;
 use utoipa::ToSchema;
@@ -22,7 +22,7 @@ use super::apidata::ApiDataStub;
 pub(super) struct NodeInfo {
 	/// This node's name
 	#[schema(value_type = String)]
-	pub name: PipelineNodeLabel,
+	pub name: PipelineNodeID,
 
 	/// A list of types each of this node's inputs accepts
 	pub inputs: Vec<Vec<ApiDataStub>>,
@@ -31,10 +31,10 @@ pub(super) struct NodeInfo {
 /// Get details about a node in a pipeline
 #[utoipa::path(
 	get,
-	path = "/{pipeline_name}/{node_name}",
+	path = "/{pipeline_name}/{node_id}",
 	params(
 		("pipeline_name", description = "Pipeline name"),
-		("node_name", description = "Node name"),
+		("node_id", description = "Node id"),
 	),
 	responses(
 		(status = 200, description = "Node info", body = NodeInfo),
@@ -42,12 +42,11 @@ pub(super) struct NodeInfo {
 	),
 )]
 pub(super) async fn get_pipeline_node(
-	Path((pipeline_name, node_name)): Path<(String, String)>,
+	Path((pipeline_name, node_id)): Path<(String, String)>,
 	State(state): State<RouterState>,
 ) -> Response {
-	// For some odd reason, Utoipa doesn't take the type hint with multiple parameters
-	let pipeline_name: PipelineLabel = pipeline_name.into();
-	let node_name: PipelineNodeLabel = node_name.into();
+	let pipeline_name = PipelineName::new(&pipeline_name);
+	let node_id = PipelineNodeID::new(&node_id);
 
 	let pipe = if let Some(pipe) = state
 		.database
@@ -59,7 +58,7 @@ pub(super) async fn get_pipeline_node(
 		return StatusCode::NOT_FOUND.into_response();
 	};
 
-	let node = if let Some(node) = pipe.get_node(&node_name) {
+	let node = if let Some(node) = pipe.get_node(&node_id) {
 		node
 	} else {
 		return StatusCode::NOT_FOUND.into_response();
@@ -88,7 +87,7 @@ pub(super) async fn get_pipeline_node(
 	return (
 		StatusCode::OK,
 		Json(NodeInfo {
-			name: node_name,
+			name: node_id,
 			inputs,
 		}),
 	)

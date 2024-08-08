@@ -2,7 +2,7 @@
 use serde::de::DeserializeOwned;
 use std::{error::Error, fmt::Debug};
 
-use crate::{labels::PipelinePortLabel, NDataStub};
+use crate::{labels::PipelinePortID, NDataStub};
 
 /// The state of a [`PipelineNode`] at a point in time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,11 +96,14 @@ where
 	fn input_with_name(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-		input_name: &PipelinePortLabel,
+		input_name: &PipelinePortID,
 	) -> Option<usize>;
 
 	/// The default input type for each port.
 	/// `input_compatible_with` should return `true` for each of these types.
+	///
+	/// This is used when we need a data stub for this input, but none is available.
+	/// (for example, if we need to send `None` data to a disconnected input)
 	fn input_default_type(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
@@ -124,7 +127,7 @@ where
 	fn output_with_name(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-		output_name: &PipelinePortLabel,
+		output_name: &PipelinePortID,
 	) -> Option<usize>;
 
 	/// What type of data does the output with the given index produce?

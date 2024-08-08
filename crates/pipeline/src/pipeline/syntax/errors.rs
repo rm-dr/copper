@@ -5,7 +5,7 @@ use std::{error::Error, fmt::Display};
 use super::ports::NodeInput;
 use crate::{
 	api::PipelineDataStub,
-	labels::{PipelineLabel, PipelineNodeLabel, PipelinePortLabel},
+	labels::{PipelineName, PipelineNodeID, PipelinePortID},
 };
 
 /// A node specification in a [`PipelinePrepareError`]
@@ -21,7 +21,7 @@ pub enum PipelineErrorNode {
 	Inline,
 
 	/// A named node created by the user
-	Named(PipelineNodeLabel),
+	Named(PipelineNodeID),
 }
 
 /// An error we encounter when a pipeline spec is invalid
@@ -47,19 +47,19 @@ pub enum PipelinePrepareError<DataStubType: PipelineDataStub> {
 
 	/// There is no node named `node` in this pipeline.
 	NoNode {
-		/// The node label that doesn't exist
-		node: PipelineNodeLabel,
+		/// The node id that doesn't exist
+		node: PipelineNodeID,
 		/// We tried to connect to `node` from this input.
 		caused_by: NodeInput,
 	},
 
 	/// There is no node named `node` in this pipeline.
 	NoNodeAfter {
-		/// The node label that doesn't exist
-		node: PipelineNodeLabel,
+		/// The node id that doesn't exist
+		node: PipelineNodeID,
 
 		/// We tried to specify `node` in this node's `after` parameter
-		caused_by_after_in: PipelineNodeLabel,
+		caused_by_after_in: PipelineNodeID,
 	},
 
 	/// `node` has no input named `input`.
@@ -68,7 +68,7 @@ pub enum PipelinePrepareError<DataStubType: PipelineDataStub> {
 		/// The node we tried to reference
 		node: PipelineErrorNode,
 		/// The input name that doesn't exist
-		input: PipelinePortLabel,
+		input: PipelinePortID,
 	},
 
 	/// `node` has no output named `output`.
@@ -76,7 +76,7 @@ pub enum PipelinePrepareError<DataStubType: PipelineDataStub> {
 		/// The node we tried to connect to
 		node: PipelineErrorNode,
 		/// The output name that doesn't exist
-		output: PipelinePortLabel,
+		output: PipelinePortID,
 		// The node input we tried to connect to `output`
 		//caused_by: NodeInput,
 	},
@@ -85,7 +85,7 @@ pub enum PipelinePrepareError<DataStubType: PipelineDataStub> {
 	/// but their types don't match.
 	TypeMismatch {
 		/// The output we tried to connect
-		output: (PipelineErrorNode, PipelinePortLabel),
+		output: (PipelineErrorNode, PipelinePortID),
 
 		/// the type of this output
 		output_type: DataStubType,
@@ -106,9 +106,9 @@ pub enum PipelinePrepareError<DataStubType: PipelineDataStub> {
 	/// A `Pipeline` node in this graph references an unknown pipeline
 	NoSuchPipeline {
 		/// The Pipeline node with a bad pipeline
-		node: PipelineNodeLabel,
+		node: PipelineNodeID,
 		/// The bad pipeline
-		pipeline: PipelineLabel,
+		pipeline: PipelineName,
 	},
 }
 

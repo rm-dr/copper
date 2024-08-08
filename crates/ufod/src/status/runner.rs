@@ -7,7 +7,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use ufo_pipeline::{
 	api::PipelineNodeState,
-	labels::{PipelineLabel, PipelineNodeLabel},
+	labels::{PipelineName, PipelineNodeID},
 };
 use utoipa::ToSchema;
 
@@ -34,7 +34,7 @@ pub(super) struct RunningJobStatus {
 
 	/// The pipeline this job is running
 	#[schema(value_type = String)]
-	pub pipeline: PipelineLabel,
+	pub pipeline: PipelineName,
 
 	/// The status of each node in this pipline
 	pub node_status: Vec<RunningNodeStatus>,
@@ -49,7 +49,7 @@ pub(super) struct RunningJobStatus {
 pub(super) struct RunningNodeStatus {
 	/// This node's name
 	#[schema(value_type = String)]
-	pub name: PipelineNodeLabel,
+	pub name: PipelineNodeID,
 
 	/// This node's state
 	pub state: RunningNodeState,
@@ -92,7 +92,7 @@ pub(super) async fn get_runner_status(State(state): State<RouterState>) -> Respo
 				pipeline: p.get_name().clone(),
 				input_exemplar: format!("{:?}", job.get_input().first().unwrap()),
 				node_status: p
-					.iter_node_labels()
+					.iter_node_ids()
 					.map(|l| RunningNodeStatus {
 						name: l.clone(),
 						state: match job.get_node_status(l).unwrap() {

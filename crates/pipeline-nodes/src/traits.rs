@@ -1,6 +1,6 @@
 //! Helper traits
 
-use ufo_pipeline::labels::PipelinePortLabel;
+use ufo_pipeline::labels::PipelinePortID;
 
 use crate::{data::UFODataStub, nodetype::UFONodeType, UFOContext};
 
@@ -20,7 +20,7 @@ pub trait UFONode {
 	fn input_with_name(
 		stub: &UFONodeType,
 		ctx: &UFOContext,
-		input_name: &PipelinePortLabel,
+		input_name: &PipelinePortID,
 	) -> Option<usize>;
 
 	fn n_outputs(stub: &UFONodeType, ctx: &UFOContext) -> usize;
@@ -30,7 +30,7 @@ pub trait UFONode {
 	fn output_with_name(
 		stub: &UFONodeType,
 		ctx: &UFOContext,
-		output_name: &PipelinePortLabel,
+		output_name: &PipelinePortID,
 	) -> Option<usize>;
 }
 
@@ -60,12 +60,12 @@ where
 	fn input_with_name(
 		_stub: &UFONodeType,
 		_ctx: &UFOContext,
-		input_name: &PipelinePortLabel,
+		input_name: &PipelinePortID,
 	) -> Option<usize> {
 		Self::inputs()
 			.iter()
 			.enumerate()
-			.find(|(_, (n, _))| PipelinePortLabel::from(*n) == *input_name)
+			.find(|(_, (n, _))| PipelinePortID::new(n) == *input_name)
 			.map(|(x, _)| x)
 	}
 
@@ -84,12 +84,12 @@ where
 	fn output_with_name(
 		_stub: &UFONodeType,
 		_ctx: &UFOContext,
-		output_name: &PipelinePortLabel,
+		output_name: &PipelinePortID,
 	) -> Option<usize> {
 		Self::outputs()
 			.iter()
 			.enumerate()
-			.find(|(_, (n, _))| PipelinePortLabel::from(*n) == *output_name)
+			.find(|(_, (n, _))| PipelinePortID::new(n) == *output_name)
 			.map(|(x, _)| x)
 	}
 }

@@ -8,7 +8,7 @@ use std::{
 
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeStub},
-	labels::PipelineLabel,
+	labels::PipelineName,
 	pipeline::pipeline::Pipeline,
 };
 use ufo_pipeline_nodes::nodetype::UFONodeType;
@@ -18,7 +18,7 @@ use super::api::Pipestore;
 
 pub struct FsPipestore {
 	pipe_storage_dir: PathBuf,
-	pipeline_names: Vec<PipelineLabel>,
+	pipeline_names: Vec<PipelineName>,
 }
 
 // TODO: remove all quick send+sync and properly handle parallism
@@ -43,7 +43,7 @@ impl FsPipestore {
 					panic!()
 				}
 
-				pipeline_names.push(
+				pipeline_names.push(PipelineName::new(
 					entry
 						.path()
 						.file_name()
@@ -51,9 +51,8 @@ impl FsPipestore {
 						.to_str()
 						.unwrap()
 						.strip_suffix(".toml")
-						.unwrap()
-						.into(),
-				)
+						.unwrap(),
+				))
 			}
 		}
 
@@ -67,7 +66,7 @@ impl FsPipestore {
 impl Pipestore for FsPipestore {
 	fn load_pipeline(
 		&self,
-		name: &PipelineLabel,
+		name: &PipelineName,
 		context: Arc<<<UFONodeType as PipelineNodeStub>::NodeType as PipelineNode>::NodeContext>,
 	) -> Option<Pipeline<UFONodeType>> {
 		let path_to_pipeline = self.pipe_storage_dir.join(format!("{name}.toml"));
@@ -80,10 +79,10 @@ impl Pipestore for FsPipestore {
 		let mut s = String::new();
 		f.read_to_string(&mut s).unwrap();
 
-		Some(Pipeline::from_toml_str(name.into(), &s, context).unwrap())
+		Some(Pipeline::from_toml_str(name.name().as_str(), &s, context).unwrap())
 	}
 
-	fn all_pipelines(&self) -> &Vec<PipelineLabel> {
+	fn all_pipelines(&self) -> &Vec<PipelineName> {
 		&self.pipeline_names
 	}
 }

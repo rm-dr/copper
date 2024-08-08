@@ -5,14 +5,24 @@ use std::{fmt::Debug, sync::Arc};
 use crate::{
 	api::{PipelineNode, PipelineNodeStub},
 	graph::{finalized::FinalizedGraph, util::GraphNodeIdx},
-	labels::{PipelineLabel, PipelineNodeLabel},
+	labels::{PipelineName, PipelineNodeID},
 };
 
 use super::syntax::{builder::PipelineBuilder, spec::PipelineSpec};
 
-/// An edge in a pipeline
+/// A node in a pipeline graph
+#[derive(Debug)]
+pub struct PipelineNodeData<NodeStubType: PipelineNodeStub> {
+	/// The node's id
+	pub id: PipelineNodeID,
+
+	/// The node's type
+	pub node_type: NodeStubType,
+}
+
+/// An edge in a pipeline graph
 #[derive(Debug, Clone)]
-pub enum PipelineEdge {
+pub enum PipelineEdgeData {
 	/// A edge from an output port to an input port.
 	/// PTP edges carry data between nodes.
 	///
@@ -24,7 +34,7 @@ pub enum PipelineEdge {
 	After,
 }
 
-impl PipelineEdge {
+impl PipelineEdgeData {
 	/// Is this a `Self::PortToPort`?
 	pub fn is_ptp(&self) -> bool {
 		matches!(self, Self::PortToPort(_))
@@ -57,12 +67,12 @@ impl PipelineEdge {
 pub struct Pipeline<NodeStubType: PipelineNodeStub> {
 	/// This pipeline's name.
 	/// Must be unique.
-	pub(crate) name: PipelineLabel,
+	pub(crate) name: PipelineName,
 
 	pub(crate) input_node_idx: GraphNodeIdx,
 
 	/// This pipeline's node graph
-	pub(crate) graph: FinalizedGraph<(PipelineNodeLabel, NodeStubType), PipelineEdge>,
+	pub(crate) graph: FinalizedGraph<PipelineNodeData<NodeStubType>, PipelineEdgeData>,
 }
 
 impl<NodeStubType: PipelineNodeStub> Pipeline<NodeStubType> {
@@ -78,30 +88,25 @@ impl<NodeStubType: PipelineNodeStub> Pipeline<NodeStubType> {
 	}
 
 	/// Iterate over all nodes in this pipeline
-	pub fn iter_node_labels(&self) -> impl Iterator<Item = &PipelineNodeLabel> {
-		self.graph.iter_nodes().map(|(l, _)| l)
+	pub fn iter_node_ids(&self) -> impl Iterator<Item = &PipelineNodeID> {
+		self.graph.iter_nodes().map(|n| &n.id)
 	}
 
 	/// Get this pipeline's name
-	pub fn get_name(&self) -> &PipelineLabel {
+	pub fn get_name(&self) -> &PipelineName {
 		&self.name
 	}
 
 	/// Get a node by name
-	pub fn get_node(&self, node_label: &PipelineNodeLabel) -> Option<&NodeStubType> {
+	pub fn get_node(&self, node_id: &PipelineNodeID) -> Option<&NodeStubType> {
 		self.graph
 			.iter_nodes()
-			.find(|(l, _)| l == node_label)
-			.map(|x| &x.1)
+			.find(|n| n.id == *node_id)
+			.map(|x| &x.node_type)
 	}
 
-	/// Get this pipeline's input node's label
-	pub fn input_node_label(&self) -> &PipelineNodeLabel {
-		&self.graph.get_node(self.input_node_idx).0
-	}
-
-	/// Get this pipeline's output node's label
-	pub fn output_node_label(&self) -> &PipelineNodeLabel {
-		&self.graph.get_node(self.input_node_idx).0
+	/// Get this pipeline's input node's id
+	pub fn input_node_id(&self) -> &PipelineNodeID {
+		&self.graph.get_node(self.input_node_idx).id
 	}
 }

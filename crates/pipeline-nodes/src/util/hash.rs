@@ -3,7 +3,7 @@ use std::{collections::VecDeque, sync::Arc};
 use ufo_db_metastore::data::HashType;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
-	labels::PipelinePortLabel,
+	labels::PipelinePortID,
 };
 
 use crate::{
@@ -186,10 +186,10 @@ impl UFONode for Hash {
 	fn input_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
-		input_name: &PipelinePortLabel,
+		input_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
-			UFONodeType::Hash { .. } => match Into::<&str>::into(input_name) {
+			UFONodeType::Hash { .. } => match input_name.id().as_str() {
 				"data" => Some(0),
 				_ => None,
 			},
@@ -229,11 +229,11 @@ impl UFONode for Hash {
 	fn output_with_name(
 		stub: &UFONodeType,
 		_ctx: &UFOContext,
-		output_name: &PipelinePortLabel,
+		output_name: &PipelinePortID,
 	) -> Option<usize> {
 		match stub {
 			UFONodeType::Hash { .. } => {
-				if Into::<&str>::into(output_name) == "hash" {
+				if output_name.id().as_str() == "hash" {
 					Some(0)
 				} else {
 					None

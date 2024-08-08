@@ -8,7 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use ufo_database::api::UFODatabase;
-use ufo_pipeline::{api::PipelineNodeStub, labels::PipelineLabel};
+use ufo_pipeline::{api::PipelineNodeStub, labels::PipelineName};
 use ufo_pipeline_nodes::data::{UFOData, UFODataStub};
 use utoipa::ToSchema;
 
@@ -30,7 +30,7 @@ pub enum AddJobResult {
 	Ok, // TODO: return job id
 	BadPipeline {
 		#[schema(value_type = Option<String>)]
-		pipeline: PipelineLabel,
+		pipeline: PipelineName,
 	},
 	InvalidNumberOfArguments {
 		got: usize,
@@ -54,7 +54,7 @@ pub enum AddJobResult {
 )]
 pub(super) async fn run_pipeline(
 	State(state): State<RouterState>,
-	Path(pipeline_name): Path<PipelineLabel>,
+	Path(pipeline_name): Path<PipelineName>,
 	Json(payload): Json<AddJobParams>,
 ) -> Response {
 	let mut runner = state.runner.lock().await;
@@ -74,7 +74,7 @@ pub(super) async fn run_pipeline(
 	};
 
 	let ctx = runner.get_context();
-	let in_node = pipeline.input_node_label();
+	let in_node = pipeline.input_node_id();
 	let in_node = pipeline.get_node(in_node).unwrap();
 
 	// Check number of arguments

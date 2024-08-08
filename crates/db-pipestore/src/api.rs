@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeStub},
-	labels::PipelineLabel,
+	labels::PipelineName,
 	pipeline::pipeline::Pipeline,
 };
 use ufo_pipeline_nodes::nodetype::UFONodeType;
@@ -12,9 +12,9 @@ where
 {
 	fn load_pipeline(
 		&self,
-		name: &PipelineLabel,
+		name: &PipelineName,
 		context: Arc<<<UFONodeType as PipelineNodeStub>::NodeType as PipelineNode>::NodeContext>,
 	) -> Option<Pipeline<UFONodeType>>;
 
-	fn all_pipelines(&self) -> &Vec<PipelineLabel>;
+	fn all_pipelines(&self) -> &Vec<PipelineName>;
 }
