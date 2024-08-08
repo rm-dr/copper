@@ -54,13 +54,13 @@ impl Display for MimeType {
 	/// Get a string representation of this mimetype.
 	///
 	/// The following always holds
-	/// ```no_run
+	/// ```notrust
 	/// // x: MimeType
 	/// MimeType::from(x.to_string()) == x
 	/// ```
 	///
 	/// The following might not hold:
-	/// ```no_run
+	/// ```notrust
 	/// // y: &str
 	/// MimeType::from(y).to_string() == y
 	/// ```

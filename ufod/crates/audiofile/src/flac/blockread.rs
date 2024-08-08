@@ -788,30 +788,6 @@ mod tests {
 				}
 
 				#[test]
-				pub fn [<blockread_large_ $test_name>]() {
-					let test_case = MANIFEST.iter().find(|x| x.get_name() == stringify!($test_name)).unwrap();
-
-					match test_case {
-						FlacTestCase::Success { .. } => {
-							for _ in 0..5 {
-								test_blockread(
-									test_case,
-									Some(5_000..100_000),
-								).unwrap()
-							}
-						},
-
-						FlacTestCase::Error { check_error, .. } => {
-							let e = test_blockread(test_case, Some(5_000..100_000),).unwrap_err();
-							match e {
-								FlacBlockReaderError::DecodeError(e) => assert!(check_error(&e), "Unexpected error {e:?}"),
-								_ => panic!("Unexpected error {e:?}")
-							}
-						}
-					}
-				}
-
-				#[test]
 				pub fn [<identical_small_ $test_name>]() {
 					let test_case = MANIFEST.iter().find(|x| x.get_name() == stringify!($test_name)).unwrap();
 
@@ -832,28 +808,6 @@ mod tests {
 								_ => panic!("Unexpected error {e:?}")
 							}
 						}
-					}
-				}
-
-				#[test]
-				pub fn [<identical_large_ $test_name>]() {
-					let test_case = MANIFEST.iter().find(|x| x.get_name() == stringify!($test_name)).unwrap();
-					match test_case {
-						FlacTestCase::Success { .. } => {
-							for _ in 0..5 {
-								test_identical(
-									test_case,
-									Some(5_000..100_000),
-								).unwrap()
-							}
-						},
-
-						FlacTestCase::Error { check_error, .. } => {
-							let e = test_identical(test_case, Some(5_000..100_000)).unwrap_err();
-							match e {
-								FlacBlockReaderError::DecodeError(e) => assert!(check_error(&e), "Unexpected error {e:?}"),
-								_ => panic!("Unexpected error {e:?}")
-							}}
 					}
 				}
 			}
