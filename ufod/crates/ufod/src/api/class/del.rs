@@ -49,7 +49,7 @@ pub(super) async fn del_class(
 		}
 	};
 
-	let class_handle = match dataset.get_class(&payload.class).await {
+	let class = match dataset.get_class_by_name(&payload.class).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -73,7 +73,7 @@ pub(super) async fn del_class(
 		}
 	};
 
-	let res = dataset.del_class(class_handle).await;
+	let res = dataset.del_class(class.handle).await;
 
 	match res {
 		Ok(_) => return StatusCode::OK.into_response(),

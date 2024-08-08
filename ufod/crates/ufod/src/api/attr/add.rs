@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, error};
 use ufo_ds_core::{
 	api::meta::AttributeOptions, api::meta::Metastore, data::MetastoreDataStub,
-	errors::MetastoreError, handles::ClassHandle,
+	errors::MetastoreError,
 };
 use utoipa::ToSchema;
 
@@ -84,7 +84,7 @@ pub(in crate::api) async fn add_attr(
 		}
 	};
 
-	let class_handle: ClassHandle = match dataset.get_class(&payload.attr.class.class).await {
+	let class = match dataset.get_class_by_name(&payload.attr.class.class).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -110,7 +110,7 @@ pub(in crate::api) async fn add_attr(
 
 	let res = dataset
 		.add_attr(
-			class_handle,
+			class.handle,
 			&payload.attr.attr,
 			payload.data_type,
 			payload.options,

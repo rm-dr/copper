@@ -5,7 +5,7 @@ use axum::{
 	Json,
 };
 use tracing::error;
-use ufo_ds_core::{api::meta::Metastore, handles::ClassHandle};
+use ufo_ds_core::api::meta::Metastore;
 
 use super::AttrSelect;
 use crate::api::RouterState;
@@ -48,7 +48,7 @@ pub(in crate::api) async fn del_attr(
 		}
 	};
 
-	let class_handle: ClassHandle = match dataset.get_class(&payload.class.class).await {
+	let class = match dataset.get_class_by_name(&payload.class.class).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -72,7 +72,7 @@ pub(in crate::api) async fn del_attr(
 		}
 	};
 
-	let attr_handle = match dataset.get_attr(class_handle, &payload.attr).await {
+	let attr = match dataset.get_attr_by_name(class.handle, &payload.attr).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -100,7 +100,7 @@ pub(in crate::api) async fn del_attr(
 		}
 	};
 
-	let res = dataset.del_attr(attr_handle).await;
+	let res = dataset.del_attr(attr.handle).await;
 
 	match res {
 		Ok(_) => return StatusCode::OK.into_response(),
@@ -108,7 +108,7 @@ pub(in crate::api) async fn del_attr(
 			error!(
 				message = "Could not delete attribute",
 				dataset = payload.class.dataset,
-				class_handle = ?class_handle,
+				class = ?class,
 				payload.class.class = ?payload.class.class,
 				attr_name = payload.attr,
 				error = ?e

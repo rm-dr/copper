@@ -1,18 +1,20 @@
 use serde::{Deserialize, Serialize};
 
+/// The unique index of an item in it's class.
+/// This does NOT identify an item uniquely; it identifies an item uniquely *in its class*.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct ItemHandle {
+pub struct ItemIdx {
 	id: u32,
 }
 
-impl From<ItemHandle> for u32 {
-	fn from(value: ItemHandle) -> Self {
+impl From<ItemIdx> for u32 {
+	fn from(value: ItemIdx) -> Self {
 		value.id
 	}
 }
 
-impl From<u32> for ItemHandle {
+impl From<u32> for ItemIdx {
 	fn from(value: u32) -> Self {
 		Self { id: value }
 	}

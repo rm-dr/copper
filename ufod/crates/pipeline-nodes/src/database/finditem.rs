@@ -34,7 +34,7 @@ impl FindItem {
 		class: ClassHandle,
 		by_attr: AttrHandle,
 	) -> Result<Self, MetastoreError> {
-		let attr_type = block_on(ctx.dataset.attr_get_type(by_attr))?.into();
+		let attr_type = block_on(ctx.dataset.get_attr(by_attr))?.data_type.into();
 		Ok(FindItem {
 			dataset: ctx.dataset.clone(),
 
@@ -135,19 +135,26 @@ impl UFONode for FindItem {
 			UFONodeType::FindItem { class, by_attr } => {
 				assert!(input_idx == 0);
 
-				let class_h = if let Some(c) = block_on(ctx.dataset.get_class(&class[..]))? {
+				let class = if let Some(c) = block_on(ctx.dataset.get_class_by_name(&class[..]))? {
 					c
 				} else {
 					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
 				};
 
-				let attr = if let Some(a) = block_on(ctx.dataset.get_attr(class_h, &by_attr))? {
+				let attr = if let Some(a) =
+					block_on(ctx.dataset.get_attr_by_name(class.handle, &by_attr))?
+				{
 					a
 				} else {
-					return Err(UFONodeTypeError::NoSuchAttr(class.clone(), by_attr.clone()));
+					return Err(UFONodeTypeError::NoSuchAttr(
+						class.name.into(),
+						by_attr.clone(),
+					));
 				};
 
-				block_on(ctx.dataset.attr_get_type(attr)).unwrap().into()
+				block_on(ctx.dataset.get_attr(attr.handle))?
+					.data_type
+					.into()
 			}
 			_ => unreachable!(),
 		})
@@ -169,13 +176,15 @@ impl UFONode for FindItem {
 			UFONodeType::FindItem { class, .. } => {
 				assert!(output_idx == 0);
 
-				let class = if let Some(c) = block_on(ctx.dataset.get_class(&class[..]))? {
+				let class = if let Some(c) = block_on(ctx.dataset.get_class_by_name(&class[..]))? {
 					c
 				} else {
 					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
 				};
 
-				UFODataStub::Reference { class }
+				UFODataStub::Reference {
+					class: class.handle,
+				}
 			}
 			_ => unreachable!(),
 		})

@@ -1,17 +1,17 @@
 use itertools::Itertools;
-use smartstring::{LazyCompact, SmartString};
 use sqlx::{query::Query, sqlite::SqliteArguments, Connection, Row, Sqlite};
-use std::iter;
+use std::{iter, sync::Arc};
 use tracing::debug;
 use ufo_ds_core::{
 	api::{
 		blob::{BlobHandle, Blobstore},
-		meta::{AttributeOptions, Metastore},
+		meta::{AttrInfo, AttributeOptions, ClassInfo, ItemData, Metastore},
 	},
 	data::{MetastoreData, MetastoreDataStub},
 	errors::MetastoreError,
-	handles::{AttrHandle, ClassHandle, ItemHandle},
+	handles::{AttrHandle, ClassHandle, ItemIdx},
 };
+use ufo_util::mime::MimeType;
 
 use super::LocalDataset;
 
@@ -35,7 +35,6 @@ impl LocalDataset {
 			// and all following fields will be shifted left.
 			MetastoreData::None(_) => q.bind(None::<u32>),
 			MetastoreData::Text(s) => q.bind(&**s),
-			MetastoreData::Path(p) => q.bind(p.to_str().unwrap()),
 			MetastoreData::Integer(x) => q.bind(&*x),
 			MetastoreData::PositiveInteger(x) => q.bind(i64::from_be_bytes(x.to_be_bytes())),
 			MetastoreData::Boolean(x) => q.bind(*x),
@@ -58,11 +57,11 @@ impl LocalDataset {
 		let mut conn = self.conn.lock().await;
 
 		// Get all used blobs
-		for (c_handle, a_handle, _, attr_type) in attrs {
-			match attr_type {
+		for attr in attrs {
+			match attr.data_type {
 				MetastoreDataStub::Blob => {
-					let table_name = Self::get_table_name(c_handle);
-					let column_name = Self::get_column_name(a_handle);
+					let table_name = Self::get_table_name(attr.class);
+					let column_name = Self::get_column_name(attr.handle);
 
 					let res = sqlx::query(&format!(
 						"SELECT \"{column_name}\" FROM \"{table_name}\" ORDER BY id;"
@@ -260,7 +259,7 @@ impl Metastore for LocalDataset {
 		&self,
 		class: ClassHandle,
 		mut attrs: Vec<(AttrHandle, MetastoreData)>,
-	) -> Result<ItemHandle, MetastoreError> {
+	) -> Result<ItemIdx, MetastoreError> {
 		// Start transaction
 		let mut conn_lock = self.conn.lock().await;
 		let mut t = conn_lock
@@ -377,12 +376,18 @@ impl Metastore for LocalDataset {
 
 		// If any other dataset has references to this class,
 		// we can't delete it. Those reference attrs must first be removed.
-		if backlinks.iter().any(|x| x.0 != class) {
+		if backlinks.iter().any(|x| x.handle != class) {
 			return Err(MetastoreError::DeleteClassDanglingRef(
 				// Filter the class we tried to delete from the error vec
 				backlinks
 					.into_iter()
-					.filter_map(|(id, name)| if id == class { None } else { Some(name) })
+					.filter_map(|c| {
+						if c.handle == class {
+							None
+						} else {
+							Some(c.name)
+						}
+					})
 					.collect(),
 			));
 		}
@@ -411,8 +416,8 @@ impl Metastore for LocalDataset {
 
 			// Bind each attr id
 			let mut q = sqlx::query(&q_str);
-			for (attr, _, _) in attrs {
-				q = q.bind(u32::from(attr));
+			for a in attrs {
+				q = q.bind(u32::from(a.handle));
 			}
 
 			// Execute query
@@ -449,18 +454,18 @@ impl Metastore for LocalDataset {
 		return Ok(());
 	}
 
-	async fn del_item(&self, _item: ItemHandle) -> Result<(), MetastoreError> {
+	async fn del_item(&self, _item: ItemIdx) -> Result<(), MetastoreError> {
 		unimplemented!()
 	}
 
-	async fn get_attr(
+	async fn get_attr_by_name(
 		&self,
 		class: ClassHandle,
 		attr_name: &str,
-	) -> Result<Option<AttrHandle>, MetastoreError> {
+	) -> Result<Option<AttrInfo>, MetastoreError> {
 		let mut conn = self.conn.lock().await;
 
-		let res = sqlx::query("SELECT id FROM meta_attributes WHERE class_id=? AND pretty_name=?;")
+		let res = sqlx::query("SELECT id, class_id, pretty_name, data_type FROM meta_attributes WHERE class_id=? AND pretty_name=?;")
 			.bind(u32::from(class))
 			.bind(attr_name)
 			.fetch_one(&mut *conn)
@@ -469,14 +474,43 @@ impl Metastore for LocalDataset {
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Ok(None),
 			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
-			Ok(res) => Ok(Some(res.get::<u32, _>("id").into())),
+			Ok(res) => Ok(Some(AttrInfo {
+				handle: res.get::<u32, _>("id").into(),
+				class: res.get::<u32, _>("class_id").into(),
+				name: res.get::<String, _>("pretty_name").into(),
+				data_type: serde_json::from_str(res.get::<&str, _>("data_type")).unwrap(),
+			})),
 		};
 	}
 
-	async fn get_class(&self, class_name: &str) -> Result<Option<ClassHandle>, MetastoreError> {
+	async fn get_attr(&self, attr: AttrHandle) -> Result<AttrInfo, MetastoreError> {
+		let mut conn = self.conn.lock().await;
+		let res = sqlx::query(
+			"SELECT id, class_id, pretty_name, data_type FROM meta_attributes WHERE id=?;",
+		)
+		.bind(u32::from(attr))
+		.fetch_one(&mut *conn)
+		.await;
+
+		return match res {
+			Err(sqlx::Error::RowNotFound) => Err(MetastoreError::BadAttrHandle),
+			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
+			Ok(res) => Ok(AttrInfo {
+				handle: res.get::<u32, _>("id").into(),
+				class: res.get::<u32, _>("class_id").into(),
+				name: res.get::<String, _>("pretty_name").into(),
+				data_type: serde_json::from_str(res.get::<&str, _>("data_type")).unwrap(),
+			}),
+		};
+	}
+
+	async fn get_class_by_name(
+		&self,
+		class_name: &str,
+	) -> Result<Option<ClassInfo>, MetastoreError> {
 		let mut conn = self.conn.lock().await;
 
-		let res = sqlx::query("SELECT id FROM meta_classes WHERE pretty_name=?;")
+		let res = sqlx::query("SELECT id, pretty_name FROM meta_classes WHERE pretty_name=?;")
 			.bind(class_name)
 			.fetch_one(&mut *conn)
 			.await;
@@ -484,21 +518,32 @@ impl Metastore for LocalDataset {
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Ok(None),
 			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
-			Ok(res) => Ok(Some(res.get::<u32, _>("id").into())),
+			Ok(res) => Ok(Some(ClassInfo {
+				handle: res.get::<u32, _>("id").into(),
+				name: res.get::<&str, _>("pretty_name").into(),
+			})),
 		};
 	}
 
-	async fn get_all_attrs(
-		&self,
-	) -> Result<
-		Vec<(
-			ClassHandle,
-			AttrHandle,
-			SmartString<LazyCompact>,
-			MetastoreDataStub,
-		)>,
-		MetastoreError,
-	> {
+	async fn get_class(&self, class: ClassHandle) -> Result<ClassInfo, MetastoreError> {
+		let mut conn = self.conn.lock().await;
+
+		let res = sqlx::query("SELECT id, pretty_name FROM meta_classes WHERE id=?;")
+			.bind(u32::from(class))
+			.fetch_one(&mut *conn)
+			.await;
+
+		return match res {
+			Err(sqlx::Error::RowNotFound) => Err(MetastoreError::BadClassHandle),
+			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
+			Ok(res) => Ok(ClassInfo {
+				handle: res.get::<u32, _>("id").into(),
+				name: res.get::<&str, _>("pretty_name").into(),
+			}),
+		};
+	}
+
+	async fn get_all_attrs(&self) -> Result<Vec<AttrInfo>, MetastoreError> {
 		let mut conn = self.conn.lock().await;
 
 		let res = sqlx::query(
@@ -510,19 +555,16 @@ impl Metastore for LocalDataset {
 
 		return Ok(res
 			.into_iter()
-			.map(|x| {
-				(
-					x.get::<u32, _>("id").into(),
-					x.get::<u32, _>("class_id").into(),
-					x.get::<String, _>("pretty_name").into(),
-					serde_json::from_str(x.get::<&str, _>("data_type")).unwrap(),
-				)
+			.map(|res| AttrInfo {
+				handle: res.get::<u32, _>("id").into(),
+				class: res.get::<u32, _>("class_id").into(),
+				name: res.get::<String, _>("pretty_name").into(),
+				data_type: serde_json::from_str(res.get::<&str, _>("data_type")).unwrap(),
 			})
 			.collect());
 	}
-	async fn get_all_classes(
-		&self,
-	) -> Result<Vec<(ClassHandle, SmartString<LazyCompact>)>, MetastoreError> {
+
+	async fn get_all_classes(&self) -> Result<Vec<ClassInfo>, MetastoreError> {
 		let mut conn = self.conn.lock().await;
 
 		let res = sqlx::query("SELECT pretty_name, id FROM meta_classes ORDER BY id;")
@@ -532,119 +574,97 @@ impl Metastore for LocalDataset {
 
 		return Ok(res
 			.into_iter()
-			.map(|x| {
-				(
-					x.get::<u32, _>("id").into(),
-					x.get::<String, _>("pretty_name").into(),
-				)
+			.map(|x| ClassInfo {
+				handle: x.get::<u32, _>("id").into(),
+				name: x.get::<String, _>("pretty_name").into(),
 			})
 			.collect());
 	}
 
-	async fn get_all_items(
-		&self,
-	) -> Result<Vec<(ItemHandle, SmartString<LazyCompact>)>, MetastoreError> {
-		unimplemented!()
-	}
+	/*
+		async fn item_set_attr(
+			&self,
+			attr: AttrHandle,
+			mut data: MetastoreData,
+		) -> Result<(), MetastoreError> {
+			// Start transaction
+			let mut conn_lock = self.conn.lock().await;
+			let mut t = conn_lock
+				.begin()
+				.await
+				.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
-	async fn item_get_attr(
-		&self,
-		_item: ItemHandle,
-		_attr: AttrHandle,
-	) -> Result<MetastoreData, MetastoreError> {
-		unimplemented!()
-	}
+			// Find table and column name to modify
+			let (table_name, column_name, is_not_null): (String, String, bool) = {
+				let res = sqlx::query(
+					"
+					SELECT meta_classes.id, meta_attributes.id, is_not_null
+					FROM meta_attributes
+					INNER JOIN meta_classes ON meta_classes.id = meta_attributes.class_id
+					WHERE meta_attributes.id=?;
+					",
+				)
+				.bind(u32::from(attr))
+				.fetch_one(&mut *t)
+				.await;
 
-	async fn item_get_class(&self, _item: ItemHandle) -> Result<ClassHandle, MetastoreError> {
-		unimplemented!()
-	}
+				match res {
+					Err(sqlx::Error::RowNotFound) => Err(MetastoreError::BadAttrHandle),
+					Err(e) => Err(MetastoreError::DbError(Box::new(e))),
+					Ok(res) => {
+						let class_id: u32 = res.get("meta_classes.id");
+						let attr_id: u32 = res.get("meta_attributes.id");
 
-	async fn item_set_attr(
-		&self,
-		attr: AttrHandle,
-		mut data: MetastoreData,
-	) -> Result<(), MetastoreError> {
-		// Start transaction
-		let mut conn_lock = self.conn.lock().await;
-		let mut t = conn_lock
-			.begin()
-			.await
-			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
-
-		// Find table and column name to modify
-		let (table_name, column_name, is_not_null): (String, String, bool) = {
-			let res = sqlx::query(
-				"
-				SELECT meta_classes.id, meta_attributes.id, is_not_null
-				FROM meta_attributes
-				INNER JOIN meta_classes ON meta_classes.id = meta_attributes.class_id
-				WHERE meta_attributes.id=?;
-				",
-			)
-			.bind(u32::from(attr))
-			.fetch_one(&mut *t)
-			.await;
-
-			match res {
-				Err(sqlx::Error::RowNotFound) => Err(MetastoreError::BadAttrHandle),
-				Err(e) => Err(MetastoreError::DbError(Box::new(e))),
-				Ok(res) => {
-					let class_id: u32 = res.get("meta_classes.id");
-					let attr_id: u32 = res.get("meta_attributes.id");
-
-					Ok((
-						Self::get_table_name(class_id.into()),
-						Self::get_column_name(attr_id.into()),
-						res.get::<bool, _>("is_not_null"),
-					))
-				}
-			}
-		}?;
-
-		// Check "not none" constraint
-		// Unique constraint is checked later.
-		if is_not_null && data.is_none() {
-			return Err(MetastoreError::NotNoneViolated);
-		}
-
-		// Update data
-		{
-			let q_str = match data {
-				MetastoreData::None(_) => {
-					format!("UPDATE \"{table_name}\" SET \"{column_name}\" = NULL;")
-				}
-				_ => format!("UPDATE \"{table_name}\" SET \"{column_name}\" = ?;"),
-			};
-			let q = sqlx::query(&q_str);
-			let q = Self::bind_storage(q, &mut data);
-
-			// Handle errors
-			match q.execute(&mut *t).await {
-				Err(sqlx::Error::Database(e)) => {
-					if e.is_unique_violation() {
-						return Err(MetastoreError::UniqueViolated);
-					} else {
-						return Err(MetastoreError::DbError(Box::new(sqlx::Error::Database(e))));
+						Ok((
+							Self::get_table_name(class_id.into()),
+							Self::get_column_name(attr_id.into()),
+							res.get::<bool, _>("is_not_null"),
+						))
 					}
 				}
-				Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
-				Ok(_) => {}
+			}?;
+
+			// Check "not none" constraint
+			// Unique constraint is checked later.
+			if is_not_null && data.is_none() {
+				return Err(MetastoreError::NotNoneViolated);
+			}
+
+			// Update data
+			{
+				let q_str = match data {
+					MetastoreData::None(_) => {
+						format!("UPDATE \"{table_name}\" SET \"{column_name}\" = NULL;")
+					}
+					_ => format!("UPDATE \"{table_name}\" SET \"{column_name}\" = ?;"),
+				};
+				let q = sqlx::query(&q_str);
+				let q = Self::bind_storage(q, &mut data);
+
+				// Handle errors
+				match q.execute(&mut *t).await {
+					Err(sqlx::Error::Database(e)) => {
+						if e.is_unique_violation() {
+							return Err(MetastoreError::UniqueViolated);
+						} else {
+							return Err(MetastoreError::DbError(Box::new(sqlx::Error::Database(e))));
+						}
+					}
+					Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
+					Ok(_) => {}
+				};
 			};
-		};
 
-		// Commit transaction
-		t.commit()
-			.await
-			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+			// Commit transaction
+			t.commit()
+				.await
+				.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
-		Ok(())
-	}
+			Ok(())
+		}
+	*/
 
 	async fn class_set_name(&self, _class: ClassHandle, _name: &str) -> Result<(), MetastoreError> {
-		unimplemented!()
-	}
-
-	async fn class_get_name(&self, _class: ClassHandle) -> Result<&str, MetastoreError> {
 		unimplemented!()
 	}
 
@@ -652,15 +672,12 @@ impl Metastore for LocalDataset {
 		unimplemented!()
 	}
 
-	async fn class_get_attrs(
-		&self,
-		class: ClassHandle,
-	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, MetastoreDataStub)>, MetastoreError> {
+	async fn class_get_attrs(&self, class: ClassHandle) -> Result<Vec<AttrInfo>, MetastoreError> {
 		let mut conn = self.conn.lock().await;
 
 		let res = sqlx::query(
 			"
-			SELECT id, pretty_name, data_type
+			SELECT id, pretty_name, data_type, class_id
 			FROM meta_attributes WHERE class_id=?
 			ORDER BY id;
 			",
@@ -677,16 +694,11 @@ impl Metastore for LocalDataset {
 
 		Ok(res
 			.into_iter()
-			.map(|r| {
-				let id: u32 = r.get("id");
-				let name: &str = r.get("pretty_name");
-				let data_type: &str = r.get("data_type");
-
-				(
-					id.into(),
-					name.into(),
-					serde_json::from_str(data_type).unwrap(),
-				)
+			.map(|x| AttrInfo {
+				handle: x.get::<u32, _>("id").into(),
+				class: x.get::<u32, _>("class_id").into(),
+				name: x.get::<String, _>("pretty_name").into(),
+				data_type: serde_json::from_str(x.get::<&str, _>("data_type")).unwrap(),
 			})
 			.collect())
 	}
@@ -694,16 +706,19 @@ impl Metastore for LocalDataset {
 	async fn class_get_backlinks(
 		&self,
 		class: ClassHandle,
-	) -> Result<Vec<(ClassHandle, SmartString<LazyCompact>)>, MetastoreError> {
+	) -> Result<Vec<ClassInfo>, MetastoreError> {
 		let classes = self.get_all_classes().await?;
 		let mut out = Vec::new();
-		for (c_handle, c_name) in classes {
-			for (_, _, a_type) in self.class_get_attrs(c_handle).await? {
-				match a_type {
+		for i_class in classes {
+			for attr in self.class_get_attrs(i_class.handle).await? {
+				match attr.data_type {
 					MetastoreDataStub::Reference { class: ref_class } => {
 						if class == ref_class {
-							out.push((c_handle, c_name.clone()));
-							// We must include each class exactly once
+							out.push(ClassInfo {
+								handle: i_class.handle,
+								name: i_class.name,
+							});
+							// We include each class exactly once, so break here.
 							break;
 						}
 					}
@@ -719,44 +734,20 @@ impl Metastore for LocalDataset {
 		unimplemented!()
 	}
 
-	async fn attr_get_name(&self, _attr: AttrHandle) -> Result<&str, MetastoreError> {
-		unimplemented!()
-	}
-
-	async fn attr_get_type(&self, attr: AttrHandle) -> Result<MetastoreDataStub, MetastoreError> {
-		let mut conn = self.conn.lock().await;
-
-		let res = sqlx::query("SELECT data_type FROM meta_attributes WHERE id=?;")
-			.bind(u32::from(attr))
-			.fetch_one(&mut *conn)
-			.await;
-
-		return match res {
-			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
-			Ok(res) => {
-				let type_string = res.get::<String, _>("data_type");
-				Ok(serde_json::from_str(&type_string).unwrap())
-			}
-		};
-	}
-
-	async fn attr_get_class(&self, _attr: AttrHandle) -> ClassHandle {
-		unimplemented!()
-	}
-
 	async fn find_item_with_attr(
 		&self,
 		attr: AttrHandle,
 		mut attr_value: MetastoreData,
-	) -> Result<Option<ItemHandle>, MetastoreError> {
+	) -> Result<Option<ItemIdx>, MetastoreError> {
 		let mut conn = self.conn.lock().await;
 
 		// Find table and column name to modify
-		let (table_name, column_name): (String, String) = {
+		let column_name = Self::get_column_name(attr.into());
+		let table_name: String = {
+			// TODO: meta_attributes.id AS attr_id
 			let res = sqlx::query(
 				"
 					SELECT meta_classes.id AS class_id,
-					meta_attributes.id AS attr_id
 					FROM meta_attributes
 					INNER JOIN meta_classes ON meta_classes.id = meta_attributes.class_id
 					WHERE meta_attributes.id=?;
@@ -770,13 +761,8 @@ impl Metastore for LocalDataset {
 				Err(sqlx::Error::RowNotFound) => Err(MetastoreError::BadAttrHandle),
 				Err(e) => Err(MetastoreError::DbError(Box::new(e))),
 				Ok(res) => {
-					let class_id: u32 = res.get("class_id");
-					let attr_id: u32 = res.get("attr_id");
-
-					Ok((
-						Self::get_table_name(class_id.into()),
-						Self::get_column_name(attr_id.into()),
-					))
+					let class_id: ClassHandle = res.get::<u32, _>("class_id").into();
+					Ok(Self::get_table_name(class_id))
 				}
 			}
 		}?;
@@ -789,10 +775,74 @@ impl Metastore for LocalDataset {
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Ok(None),
 			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
-			Ok(res) => {
-				let id = res.get::<u32, _>("id");
-				Ok(Some(id.into()))
-			}
+			Ok(res) => Ok(Some(res.get::<u32, _>("id").into())),
 		};
+	}
+
+	async fn get_items(
+		&self,
+		class: ClassHandle,
+		page_size: usize,
+		start_at: usize,
+	) -> Result<Vec<ItemData>, MetastoreError> {
+		// Do this first, prevent deadlock
+		let attrs = self.class_get_attrs(class).await?;
+
+		// Start transaction
+		let mut conn_lock = self.conn.lock().await;
+
+		let table_name = Self::get_table_name(class);
+
+		let res = sqlx::query(&format!(
+				"SELECT * FROM \"{table_name}\" ORDER BY id LIMIT \"{page_size}\" OFFSET \"{start_at}\" ;"
+			))
+		.fetch_all(&mut *conn_lock)
+		.await
+		.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
+		let mut out = Vec::new();
+		for r in res {
+			out.push(ItemData {
+				handle: r.get::<u32, _>("id").into(),
+				attrs: attrs
+					.iter()
+					.map(|attr| {
+						let col_name = Self::get_column_name(attr.handle);
+						return match attr.data_type {
+							MetastoreDataStub::Float => MetastoreData::Float(r.get(&col_name[..])),
+							MetastoreDataStub::Boolean => {
+								MetastoreData::Boolean(r.get(&col_name[..]))
+							}
+							MetastoreDataStub::Integer => {
+								MetastoreData::Integer(r.get(&col_name[..]))
+							}
+							MetastoreDataStub::PositiveInteger => MetastoreData::PositiveInteger(
+								u64::from_be_bytes(r.get::<i64, _>(&col_name[..]).to_be_bytes()),
+							),
+							MetastoreDataStub::Text => {
+								MetastoreData::Text(Arc::new(r.get::<String, _>(&col_name[..])))
+							}
+							MetastoreDataStub::Reference { class } => MetastoreData::Reference {
+								class,
+								item: r.get::<u32, _>(&col_name[..]).into(),
+							},
+							MetastoreDataStub::Hash { hash_type } => MetastoreData::Hash {
+								format: hash_type,
+								data: Arc::new(r.get(&col_name[..])),
+							},
+							MetastoreDataStub::Blob => MetastoreData::Blob {
+								handle: r.get::<u32, _>(&col_name[..]).into(),
+							},
+							MetastoreDataStub::Binary => MetastoreData::Binary {
+								format: MimeType::Blob, // TODO:save
+								data: Arc::new(r.get(&col_name[..])),
+							},
+						};
+					})
+					.collect(),
+			})
+		}
+
+		return Ok(out);
 	}
 }

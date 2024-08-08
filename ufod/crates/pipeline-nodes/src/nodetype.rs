@@ -157,42 +157,43 @@ impl PipelineNodeStub for UFONodeType {
 				node: FileReader::new(ctx),
 			},
 			UFONodeType::AddItem { class, config } => {
-				let class = if let Some(c) = block_on(ctx.dataset.get_class(class))? {
+				let class = if let Some(c) = block_on(ctx.dataset.get_class_by_name(class))? {
 					c
 				} else {
 					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
 				};
 
-				let attrs = block_on(ctx.dataset.class_get_attrs(class))?
-					.into_iter()
-					.map(|(a, b, c)| (a, b, c.into()))
-					.collect();
+				let attrs = block_on(ctx.dataset.class_get_attrs(class.handle))?;
 
 				UFONodeInstance::AddItem {
 					node_type: self.clone(),
 					name: PipelineNodeID::new(name),
-					node: AddItem::new(ctx, class, attrs, *config),
+					node: AddItem::new(ctx, class.handle, attrs, *config),
 				}
 			}
 
 			UFONodeType::FindItem { class, by_attr } => {
-				let class_handle = if let Some(c) = block_on(ctx.dataset.get_class(class))? {
+				let class = if let Some(c) = block_on(ctx.dataset.get_class_by_name(class))? {
 					c
 				} else {
 					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
 				};
 
-				let attrs = if let Some(a) = block_on(ctx.dataset.get_attr(class_handle, &by_attr))?
+				let attr = if let Some(attr) =
+					block_on(ctx.dataset.get_attr_by_name(class.handle, &by_attr))?
 				{
-					a
+					attr
 				} else {
-					return Err(UFONodeTypeError::NoSuchAttr(class.clone(), by_attr.clone()));
+					return Err(UFONodeTypeError::NoSuchAttr(
+						class.name.into(),
+						by_attr.clone(),
+					));
 				};
 
 				UFONodeInstance::FindItem {
 					node_type: self.clone(),
 					name: PipelineNodeID::new(name),
-					node: FindItem::new(ctx, class_handle, attrs).unwrap(),
+					node: FindItem::new(ctx, class.handle, attr.handle).unwrap(),
 				}
 			}
 		})

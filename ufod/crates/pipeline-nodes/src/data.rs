@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use ufo_ds_core::{
 	data::{HashType, MetastoreData, MetastoreDataStub},
-	handles::{ClassHandle, ItemHandle},
+	handles::{ClassHandle, ItemIdx},
 };
 use ufo_pipeline::api::{PipelineData, PipelineDataStub};
 use ufo_util::mime::MimeType;
@@ -92,7 +92,7 @@ pub enum UFOData {
 		class: ClassHandle,
 
 		/// The item
-		item: ItemHandle,
+		item: ItemIdx,
 	},
 }
 

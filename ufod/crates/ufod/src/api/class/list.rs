@@ -104,14 +104,14 @@ pub(super) async fn list_classes(
 	};
 
 	let mut out = Vec::new();
-	for (class_handle, class_name) in classes {
-		let attrs = match dataset.class_get_attrs(class_handle).await {
+	for class in classes {
+		let attrs = match dataset.class_get_attrs(class.handle).await {
 			Ok(x) => x,
 			Err(e) => {
 				error!(
 					message = "Could not get class attributes",
 					dataset = ?query.dataset,
-					class_name = ?class_name,
+					class = ?class,
 					error = ?e
 				);
 				return (
@@ -123,14 +123,14 @@ pub(super) async fn list_classes(
 		};
 
 		out.push(ClassInfo {
-			name: class_name,
-			handle: class_handle.into(),
+			name: class.name,
+			handle: class.handle,
 			attrs: attrs
 				.into_iter()
-				.map(|(handle, name, data_type)| AttrInfo {
-					name,
-					handle: handle.into(),
-					data_type,
+				.map(|attr| AttrInfo {
+					name: attr.name,
+					handle: attr.handle,
+					data_type: attr.data_type,
 				})
 				.collect(),
 		});
