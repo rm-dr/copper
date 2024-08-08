@@ -48,7 +48,6 @@ pub struct CompletedJob<StubType: PipelineNodeStub> {
 /// no dependency cycles, no port type mismatch, etc
 pub struct PipelineRunner<StubType: PipelineNodeStub> {
 	_p: PhantomData<StubType>,
-	pipelines: Vec<Arc<Pipeline<StubType>>>,
 	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 	config: PipelineRunConfig,
 
@@ -74,7 +73,6 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	) -> Self {
 		Self {
 			_p: PhantomData,
-			pipelines: Vec::new(),
 			context: Arc::new(context),
 
 			active_jobs: (0..config.max_active_jobs).map(|_| None).collect(),
@@ -86,21 +84,6 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		}
 	}
 
-	/// Load a pipeline into this runner.
-	/// A pipeline must be loaded before any jobs can be created.
-	pub fn add_pipeline(&mut self, pipeline: Pipeline<StubType>) {
-		self.pipelines.push(Arc::new(pipeline));
-	}
-
-	/// Get a pipeline that has been added to this runner.
-	/// If we don't know of a pipeline with the given named, return `None`.
-	pub fn get_pipeline(&self, pipeline_name: &PipelineLabel) -> Option<&Pipeline<StubType>> {
-		self.pipelines
-			.iter()
-			.find(|x| x.name == *pipeline_name)
-			.map(|x| &**x)
-	}
-
 	/// Get this runner's context
 	pub fn get_context(&self) -> &Arc<<StubType::NodeType as PipelineNode>::NodeContext> {
 		&self.context
@@ -109,17 +92,14 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	/// Add a job to this runner's queue
 	pub fn add_job(
 		&mut self,
-
-		pipeline_name: &PipelineLabel,
+		pipeline: Arc<Pipeline<StubType>>,
 		pipeline_inputs: Vec<SDataType<StubType>>,
 	) {
-		debug!(source = "runner", summary = "Adding job", ?pipeline_name);
-		let pipeline = self
-			.pipelines
-			.iter()
-			.find(|x| x.name == *pipeline_name)
-			.unwrap()
-			.clone();
+		debug!(
+			source = "runner",
+			summary = "Adding job",
+			pipeline = ?pipeline.get_name()
+		);
 
 		let runner = PipelineSingleJob::new(
 			&self.config,

@@ -89,18 +89,14 @@ impl<StubType: PipelineNodeStub> Pipeline<StubType> {
 	}
 
 	/// Get a node by name
-	pub fn get_node(&self, node_label: &PipelineNodeLabel) -> &StubType {
-		let x = &self
-			.graph
+	pub fn get_node(&self, node_label: &PipelineNodeLabel) -> Option<&StubType> {
+		self.graph
 			.iter_nodes()
 			.find(|(l, _)| l == node_label)
-			.unwrap()
-			.1;
-
-		match x {
-			InternalNodeStub::Pipeline { .. } => unreachable!(),
-			InternalNodeStub::User(x) => &x,
-		}
+			.map(|x| match &x.1 {
+				InternalNodeStub::Pipeline { .. } => unreachable!(),
+				InternalNodeStub::User(x) => x,
+			})
 	}
 
 	/// Get this pipeline's input node's label

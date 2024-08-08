@@ -12,9 +12,9 @@ where
 {
 	fn load_pipeline(
 		&self,
-		name: PipelineLabel,
+		name: &PipelineLabel,
 		context: Arc<<<UFONodeType as PipelineNodeStub>::NodeType as PipelineNode>::NodeContext>,
-	) -> Pipeline<UFONodeType>;
+	) -> Option<Pipeline<UFONodeType>>;
 
-	fn all_pipelines(&self) -> &Vec<String>;
+	fn all_pipelines(&self) -> &Vec<PipelineLabel>;
 }

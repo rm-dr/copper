@@ -3,16 +3,22 @@ use std::{
 	fs::File,
 	io::Read,
 	path::{Path, PathBuf},
+	sync::Arc,
 };
 
-use ufo_pipeline::pipeline::pipeline::Pipeline;
+use ufo_pipeline::{
+	api::{PipelineNode, PipelineNodeStub},
+	labels::PipelineLabel,
+	pipeline::pipeline::Pipeline,
+};
+use ufo_pipeline_nodes::nodetype::UFONodeType;
 use walkdir::WalkDir;
 
 use super::api::Pipestore;
 
 pub struct FsPipestore {
 	pipe_storage_dir: PathBuf,
-	pipeline_names: Vec<String>,
+	pipeline_names: Vec<PipelineLabel>,
 }
 
 // TODO: remove all quick send+sync and properly handle parallism
@@ -46,7 +52,7 @@ impl FsPipestore {
 						.unwrap()
 						.strip_suffix(".toml")
 						.unwrap()
-						.to_string(),
+						.into(),
 				)
 			}
 		}
@@ -61,19 +67,23 @@ impl FsPipestore {
 impl Pipestore for FsPipestore {
 	fn load_pipeline(
 		&self,
-		name: ufo_pipeline::labels::PipelineLabel,
-		context: std::sync::Arc<<<ufo_pipeline_nodes::nodetype::UFONodeType as ufo_pipeline::api::PipelineNodeStub>::NodeType as ufo_pipeline::api::PipelineNode>::NodeContext>,
-	) -> ufo_pipeline::pipeline::pipeline::Pipeline<ufo_pipeline_nodes::nodetype::UFONodeType> {
+		name: &PipelineLabel,
+		context: Arc<<<UFONodeType as PipelineNodeStub>::NodeType as PipelineNode>::NodeContext>,
+	) -> Option<Pipeline<UFONodeType>> {
 		let path_to_pipeline = self.pipe_storage_dir.join(format!("{name}.toml"));
+
+		if !path_to_pipeline.is_file() {
+			return None;
+		}
 
 		let mut f = File::open(path_to_pipeline).unwrap();
 		let mut s = String::new();
 		f.read_to_string(&mut s).unwrap();
 
-		Pipeline::from_toml_str((&name).into(), &s, context).unwrap()
+		Some(Pipeline::from_toml_str(name.into(), &s, context).unwrap())
 	}
 
-	fn all_pipelines(&self) -> &Vec<String> {
+	fn all_pipelines(&self) -> &Vec<PipelineLabel> {
 		&self.pipeline_names
 	}
 }
