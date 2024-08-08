@@ -43,6 +43,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25bdb32cbbdce2b519a9cd7df3a678443100e265d5e25ca763b7572a5104f5f3"
 
 [[package]]
+name = "async-broadcast"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "258b52a1aa741b9f09783b2d86cf0aeeb617bbf847f6933340a39644227acbdb"
+dependencies = [
+ "event-listener 5.3.0",
+ "event-listener-strategy 0.5.2",
+ "futures-core",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "async-channel"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2026,14 +2038,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "ufo-blobstore"
+version = "0.1.0"
+dependencies = [
+ "smartstring",
+ "ufo-pipeline",
+ "ufo-util",
+]
+
+[[package]]
 name = "ufo-metadb"
 version = "0.1.0"
 dependencies = [
+ "async-broadcast",
  "futures",
  "itertools",
  "serde",
  "smartstring",
  "sqlx",
+ "ufo-blobstore",
  "ufo-pipeline",
  "ufo-util",
 ]

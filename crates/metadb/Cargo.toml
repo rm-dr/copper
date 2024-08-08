@@ -19,10 +19,12 @@ workspace = true
 [dependencies]
 ufo-util = { workspace = true }
 ufo-pipeline = { workspace = true }
+ufo-blobstore = { workspace = true }
 
 serde = { workspace = true }
 smartstring = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
+async-broadcast = { workspace = true }
 
 sqlx = { version = "0.7", features = ["sqlite", "runtime-async-std"] }

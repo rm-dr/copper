@@ -3,15 +3,20 @@ use crate::{
 	data::{MetaDbData, MetaDbDataStub},
 	errors::MetaDbError,
 };
+use async_broadcast::RecvError;
 use futures::executor::block_on;
 use itertools::Itertools;
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{
 	query::Query, sqlite::SqliteArguments, Connection, Executor, Row, Sqlite, SqliteConnection,
 };
-use std::iter;
+use std::{io::Write, iter, path::Path};
+use ufo_blobstore::{api::BlobStore, fs::store::FsBlobStore};
 
 pub struct SQLiteMetaDB {
+	/// The "large binary storage" backend
+	blobstore: FsBlobStore,
+
 	/// The path to the database we'll connect to
 	database: SmartString<LazyCompact>,
 
@@ -21,30 +26,35 @@ pub struct SQLiteMetaDB {
 }
 
 impl SQLiteMetaDB {
-	pub fn new(database: &str) -> Self {
-		Self {
-			database: database.into(),
-			conn: None,
-		}
-	}
+	pub fn connect(db_dir: &Path) -> Result<Self, MetaDbError> {
+		let database = db_dir.join("metadata.sqlite");
+		let blobstore = db_dir.join("blobs");
+		std::fs::create_dir(&blobstore).unwrap();
 
-	pub fn connect(&mut self) -> Result<(), MetaDbError> {
-		let mut conn = block_on(SqliteConnection::connect(&self.database))?;
+		let db_addr = format!("sqlite:{}?mode=rwc", database.to_str().unwrap());
+
+		let mut conn = block_on(SqliteConnection::connect(&db_addr))?;
 
 		block_on(sqlx::query(include_str!("./init_db.sql")).execute(&mut conn)).unwrap();
 
 		block_on(
-			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?, ?);")
+			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?, ?), (?, ?);")
 				.bind("ufo_version")
 				.bind(env!("CARGO_PKG_VERSION"))
+				.bind("blob_dir")
+				.bind("./blobs")
 				.execute(&mut conn),
 		)
 		.unwrap();
 
-		self.conn = Some(conn);
+		let blobstore = FsBlobStore::open(blobstore);
 
 		// TODO: load & check metadata, don't destroy db
-		Ok(())
+		Ok(Self {
+			database: db_addr.into(),
+			conn: Some(conn),
+			blobstore,
+		})
 	}
 }
 
@@ -75,18 +85,38 @@ impl SQLiteMetaDB {
 
 	fn bind_storage<'a>(
 		q: Query<'a, Sqlite, SqliteArguments<'a>>,
-		storage: &'a MetaDbData,
+		storage: &'a mut MetaDbData,
+		blobstore: &mut FsBlobStore,
 	) -> Query<'a, Sqlite, SqliteArguments<'a>> {
 		match storage {
-			MetaDbData::None(_) => q,
+			// We MUST bind something, even for null values.
+			// If we don't, the null value's '?' won't be used
+			// and all following fields will be shifted left.
+			MetaDbData::None(_) => q.bind(None::<u32>),
 			MetaDbData::Text(s) => q.bind(&**s),
 			MetaDbData::Path(p) => q.bind(p.to_str().unwrap()),
-			MetaDbData::Integer(x) => q.bind(x),
+			MetaDbData::Integer(x) => q.bind(&*x),
 			MetaDbData::PositiveInteger(x) => q.bind(i64::from_be_bytes(x.to_be_bytes())),
-			MetaDbData::Float(x) => q.bind(x),
-			MetaDbData::Hash { data, .. } => q.bind((**data).clone()),
-			MetaDbData::Binary { data, .. } => q.bind((**data).clone()),
+			MetaDbData::Float(x) => q.bind(&*x),
+			MetaDbData::Hash { data, .. } => q.bind(&**data),
+			MetaDbData::Binary { data, .. } => q.bind(&**data),
 			MetaDbData::Reference { item, .. } => q.bind(u32::from(*item)),
+			MetaDbData::Blob { format, data } => {
+				let mut b = blobstore.new_blob(&format);
+
+				loop {
+					match block_on(data.recv()) {
+						Err(RecvError::Closed) => break,
+						Err(_) => panic!(),
+						Ok(x) => {
+							b.write(&x).unwrap();
+						}
+					}
+				}
+
+				let h = blobstore.finish_blob(b).unwrap();
+				q.bind(h.to_db_str())
+			}
 		}
 	}
 }
@@ -150,6 +180,7 @@ impl MetaDb for SQLiteMetaDB {
 			MetaDbDataStub::PositiveInteger => "INTEGER",
 			MetaDbDataStub::Float => "REAL",
 			MetaDbDataStub::Binary => "BLOB",
+			MetaDbDataStub::Blob => "TEXT",
 			MetaDbDataStub::Reference { .. } => "INTEGER",
 			MetaDbDataStub::Hash { .. } => "BLOB",
 		};
@@ -243,7 +274,7 @@ impl MetaDb for SQLiteMetaDB {
 	fn add_item(
 		&mut self,
 		class: ClassHandle,
-		attrs: &[(AttrHandle, MetaDbData)],
+		mut attrs: Vec<(AttrHandle, MetaDbData)>,
 	) -> Result<ItemHandle, MetaDbError> {
 		// Start transaction
 		let mut t = if let Some(ref mut conn) = self.conn {
@@ -265,7 +296,7 @@ impl MetaDb for SQLiteMetaDB {
 			// Find rows of all provided attributes
 			let (attr_names, attr_values) = {
 				let mut attr_names: Vec<String> = Vec::new();
-				for (a, _) in attrs {
+				for (a, _) in &attrs {
 					let res = block_on(
 						sqlx::query("SELECT id FROM meta_attributes WHERE id=?;")
 							.bind(u32::from(*a))
@@ -293,8 +324,8 @@ impl MetaDb for SQLiteMetaDB {
 				format!("INSERT INTO \"{table_name}\" ({attr_names}) VALUES ({attr_values});",);
 			let mut q = sqlx::query(&q_str);
 
-			for (_, value) in attrs {
-				q = Self::bind_storage(q, value);
+			for (_, value) in &mut attrs {
+				q = Self::bind_storage(q, value, &mut self.blobstore);
 			}
 
 			block_on(q.execute(&mut *t))
@@ -390,7 +421,7 @@ impl MetaDb for SQLiteMetaDB {
 		unimplemented!()
 	}
 
-	fn item_set_attr(&mut self, attr: AttrHandle, data: &MetaDbData) -> Result<(), MetaDbError> {
+	fn item_set_attr(&mut self, attr: AttrHandle, mut data: MetaDbData) -> Result<(), MetaDbError> {
 		// Start transaction
 		let mut t = if let Some(ref mut conn) = self.conn {
 			block_on(conn.begin())?
@@ -444,7 +475,7 @@ impl MetaDb for SQLiteMetaDB {
 				_ => format!("UPDATE \"{table_name}\" SET \"{column_name}\" = ?;"),
 			};
 			let q = sqlx::query(&q_str);
-			let q = Self::bind_storage(q, data);
+			let q = Self::bind_storage(q, &mut data, &mut self.blobstore);
 
 			// Handle errors
 			match block_on(q.execute(&mut *t)) {

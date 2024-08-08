@@ -96,7 +96,7 @@ where
 	fn add_item(
 		&mut self,
 		class: ClassHandle,
-		attrs: &[(AttrHandle, MetaDbData)],
+		attrs: Vec<(AttrHandle, MetaDbData)>,
 	) -> Result<ItemHandle, MetaDbError>;
 	fn add_attr(
 		&mut self,
@@ -121,8 +121,8 @@ where
 		attr_name: &str,
 	) -> Result<Option<AttrHandle>, MetaDbError>;
 
-	// TODO: take &[(_, _)] instead of data
-	fn item_set_attr(&mut self, attr: AttrHandle, data: &MetaDbData) -> Result<(), MetaDbError>;
+	// TODO: take &[(_, _)] instead of single data
+	fn item_set_attr(&mut self, attr: AttrHandle, data: MetaDbData) -> Result<(), MetaDbError>;
 	fn item_get_attr(&self, item: ItemHandle, attr: AttrHandle) -> Result<MetaDbData, MetaDbError>;
 	fn item_get_class(&self, item: ItemHandle) -> Result<ClassHandle, MetaDbError>;
 

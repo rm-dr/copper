@@ -1,3 +1,4 @@
+use async_broadcast::Receiver;
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
@@ -11,7 +12,6 @@ use crate::api::{ClassHandle, ItemHandle};
 /// Cloning [`StorageData`] should be very fast. Consider wrapping
 /// big containers in an [`Arc`].
 ///
-/// TODO: split deserialize?
 /// Any variant that has a "deserialize" implementation
 /// may be used as a parameter in certain nodes.
 /// (for example, the `Constant` node's `value` field)
@@ -48,7 +48,8 @@ pub enum MetaDbData {
 		data: Arc<Vec<u8>>,
 	},
 
-	/// Binary data
+	/// Small binary data.
+	/// This will be stored in the metadata db.
 	#[serde(skip)]
 	Binary {
 		/// This data's media type
@@ -56,6 +57,17 @@ pub enum MetaDbData {
 
 		/// The data
 		data: Arc<Vec<u8>>,
+	},
+
+	/// Big binary data.
+	/// This will be stored in the blob store.
+	#[serde(skip)]
+	Blob {
+		/// This data's media type
+		format: MimeType,
+
+		/// A receiver that provides data
+		data: Receiver<Arc<Vec<u8>>>,
 	},
 
 	#[serde(skip)]
@@ -67,6 +79,9 @@ pub enum MetaDbData {
 		item: ItemHandle,
 	},
 }
+
+// TODO: split deserialize?
+// TODO: better debug
 
 impl PipelineData for MetaDbData {
 	type DataStub = MetaDbDataStub;
@@ -81,6 +96,7 @@ impl PipelineData for MetaDbData {
 			Self::Float(_) => MetaDbDataStub::Float,
 			Self::Hash { format, .. } => MetaDbDataStub::Hash { hash_type: *format },
 			Self::Binary { .. } => MetaDbDataStub::Binary,
+			Self::Blob { .. } => MetaDbDataStub::Blob,
 			Self::Reference { class, .. } => MetaDbDataStub::Reference { class: *class },
 		}
 	}
@@ -91,24 +107,12 @@ impl PipelineData for MetaDbData {
 }
 
 impl MetaDbData {
-	/// Transforms a data container into its type.
-	pub fn as_stub(&self) -> MetaDbDataStub {
-		match self {
-			Self::None(t) => *t,
-			Self::Text(_) => MetaDbDataStub::Text,
-			Self::Binary { .. } => MetaDbDataStub::Binary,
-			Self::Path(_) => MetaDbDataStub::Path,
-			Self::Integer(_) => MetaDbDataStub::Integer,
-			Self::PositiveInteger(_) => MetaDbDataStub::PositiveInteger,
-			Self::Float(_) => MetaDbDataStub::Float,
-			Self::Hash { format, .. } => MetaDbDataStub::Hash { hash_type: *format },
-			Self::Reference { class, .. } => MetaDbDataStub::Reference { class: *class },
-		}
-	}
-
-	/// `true` if this is `Self::None`
 	pub fn is_none(&self) -> bool {
 		matches!(self, Self::None(_))
+	}
+
+	pub fn is_blob(&self) -> bool {
+		matches!(self, Self::Blob { .. })
 	}
 }
 
@@ -126,6 +130,9 @@ pub enum MetaDbDataStub {
 
 	/// Binary data, in any format
 	Binary,
+
+	/// Big binary data
+	Blob,
 
 	/// A filesystem path
 	Path,
@@ -168,6 +175,7 @@ impl MetaDbDataStub {
 		match self {
 			Self::Text => "text".into(),
 			Self::Binary => "binary".into(),
+			Self::Blob => "blob".into(),
 			Self::Path => "path".into(),
 			Self::Integer => "integer".into(),
 			Self::PositiveInteger => "positiveinteger".into(),
@@ -188,6 +196,7 @@ impl MetaDbDataStub {
 			"text" => Some(Self::Text),
 			"binary" => Some(Self::Binary),
 			"path" => Some(Self::Path),
+			"blob" => Some(Self::Blob),
 			"integer" => Some(Self::Integer),
 			"positiveinteger" => Some(Self::PositiveInteger),
 			"float" => Some(Self::Float),
