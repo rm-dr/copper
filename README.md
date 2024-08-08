@@ -29,7 +29,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 ### Current:
 - Better db index names
 - Ifnone general type
-- Consistent attr ordering
 
 - Load and check db metadata
 - sanely handle duplicate album art
@@ -44,45 +43,52 @@ UFO's goal is to be "[Paperless] for everything," with...
 - clean up paths (pub use)
 
 
-### Later:
+### Small tweaks
+- Add nodes:
+  - Audio metadata: bit rate, length, sample rate, etc
+  - Strip spaces, regex
+  - external commands
+- Add datatypes:
+  - enum
+  - multi-enum
+  - date
+- Faster node inputs() and outputs()
+  - Fewer db hits (solve by caching?)
+- Clean up dependencies
+- Remove petgraph
+  - Write toposort algo, provide whole cycle in errors
+
+### Dataset
 - Store big files on fs, not in db
   - Incremental write to storage file
   - Configurable path
   - Configurable backend: fs, object, etc
   - Store mime with binary data
   - upload large files incrementally
-- Add datatypes:
-  - enum
-  - multi-enum
-  - date
-- Helpful pipeline parse errors
-- Faster node inputs() and outputs()
-  - Fewer db hits (solve by caching?)
+- Dataset caching
+- Async database
+- automatic attributes (computed by a pipeline, like hash of album art)
+
+
+### Pipeline runner
 - Smarter pipeline scheduler
   - efficient end condition: we don't need to run ALL nodes
   - What is blocking what? (data streams)
-- Warn on disconnected pipeline inputs?
-- Detect unused nodes when building?
-- Dataset caching
-- Better name; branding & site
-- tui, web ui
-- Docker container
-- Docs
-  - classes & attrs are immutable (cannot change once made)
-- Clean up dependencies
-- Async database
-- Fast search (index certain attributes)
+- Warn on disconnected pipeline inputs
+- Detect unused nodes when building
+- Arrays & foreach (a file could have many covers)
 - Discard node---what should we do for sub-pipelines?
   - Transactions?
-- Arrays & foreach (a file could have many covers)
-- Add nodes:
-  - Audio metadata: bit rate, length, sample rate, etc
-  - Strip spaces, regex
-  - external commands
-- Add attribute propeties:
-  - automatic (computed by a pipeline, like hash of album art)
+
+
+### Later
+- Helpful pipeline parse errors
+- Better name; branding & site
+- tui, web ui, server with auth, api
+- Docs
+  - classes & attrs are immutable (cannot change once made)
+- Fast search (index certain attributes)
 - Save pipelines in database
-- Remove petgraph
-  - Write toposort algo, provide whole cycle in errors
 - Web streams as pipeline input
 - Continuously-running pipelines
+- Plain pipeline tui
