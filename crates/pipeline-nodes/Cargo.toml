@@ -30,4 +30,4 @@ serde_with = { workspace = true }
 itertools = { workspace = true }
 crossbeam = { workspace = true }
 sha2 = { workspace = true }
-md5 = "0.7.0"
+md5 = { workspace = true }

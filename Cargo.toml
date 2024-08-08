@@ -83,12 +83,20 @@ petgraph = "0.6.5"
 anyhow = "1.0.83"
 itertools = "0.12.1"
 walkdir = "2"
+bytes = "1.6.0"
+rand = "0.8.5"
+md5 = "0.7.0"
 
 # Network
-reqwest = { version = "0.12.4", features = ["json", "blocking"] }
+reqwest = { version = "0.12.4", features = [
+	"json",
+	"blocking",
+	"multipart",
+	"stream",
+] }
 url = { version = "2.5.0", features = ["serde"] }
 tokio = { version = "1.0", features = ["full"] }
-axum = { version = "0.7.5", features = ["ws"] }
+axum = { version = "0.7.5", features = ["ws", "multipart"] }
 
 # Serde
 serde = { version = "1.0.201", features = ["serde_derive"] }
