@@ -122,6 +122,7 @@ export function EditPanel(params: {
 										<EditRow
 											key={`${val.attr.handle}-
 											${selectedItems.map((x) => x.idx).join(",")}`}
+											dataset={params.sel.dataset}
 											item={selectedItems[0]}
 											attr={val.attr}
 											value_new={v}
@@ -145,6 +146,7 @@ export function EditPanel(params: {
 }
 
 function EditRow(params: {
+	dataset: string | null;
 	attr: components["schemas"]["AttrInfo"];
 	item: components["schemas"]["ItemListItem"];
 	value_old: components["schemas"]["ItemListData"] | null;
@@ -156,6 +158,10 @@ function EditRow(params: {
 		return x.serialize_as === params.attr.data_type.type;
 	}) as attrTypeInfo;
 
+	if (params.dataset === null) {
+		return null;
+	}
+
 	let value_old_component =
 		params.value_old === null ? (
 			<Text c="dimmed" fs="italic">
@@ -163,6 +169,8 @@ function EditRow(params: {
 			</Text>
 		) : attr_spec.editor.type === "inline" ? (
 			attr_spec.editor.old_value({
+				dataset: params.dataset,
+				item_idx: params.item.idx,
 				attr_value: params.value_old,
 			})
 		) : (
@@ -190,6 +198,8 @@ function EditRow(params: {
 			</Text>
 		) : attr_spec.editor.type === "inline" ? (
 			attr_spec.editor.new_value({
+				dataset: params.dataset,
+				item_idx: params.item.idx,
 				attr_value: params.value_new,
 				onChange: console.log,
 			})

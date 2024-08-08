@@ -21,22 +21,13 @@ export const _refAttrType: attrTypeInfo = {
 			return <>Unreachable!</>;
 		}
 
-		if (params.attr_value.item === null) {
-			return (
-				<Text c="dimmed" fs="italic">
-					no value
-				</Text>
-			);
-		} else {
-			return (
-				<Text c="dimmed">
-					Reference to{" "}
-					<Text c="dimmed" fs="italic" span>
-						{params.attr_value.class}
-					</Text>
-				</Text>
-			);
-		}
+		return (
+			<RefPanelPreview
+				dataset={params.dataset}
+				item_idx={params.item_idx}
+				attr_value={params.attr_value}
+			/>
+		);
 	},
 
 	editor: {
@@ -52,13 +43,129 @@ export const _refAttrType: attrTypeInfo = {
 				<RefPanel
 					dataset={params.dataset}
 					item_idx={params.item_idx}
-					ref_attr_value={params.attr_value}
+					attr_value={params.attr_value}
 					inner={params.inner}
 				/>
 			);
 		},
 	},
 };
+
+function RefPanelPreview(params: {
+	dataset: string;
+	item_idx: number;
+	attr_value: Extract<
+		components["schemas"]["ItemListData"],
+		{ type: "Reference" }
+	>;
+}) {
+	const [data, setData] = useState<RefPanelData>({
+		loading: true,
+		error: null,
+		data: null,
+		class: null,
+		shown_attr: null,
+	});
+
+	useEffect(() => {
+		if (
+			params.attr_value.type !== "Reference" ||
+			params.attr_value.item === null ||
+			params.attr_value.item === undefined
+		) {
+			return;
+		}
+
+		console.log({
+			dataset: params.dataset,
+			class: params.attr_value.class,
+			item: params.attr_value.item,
+		});
+
+		Promise.all([
+			APIclient.GET("/item/get", {
+				params: {
+					query: {
+						dataset: params.dataset,
+						class: params.attr_value.class,
+						item: params.attr_value.item,
+					},
+				},
+			}),
+			APIclient.GET("/class/get", {
+				params: {
+					query: {
+						dataset: params.dataset,
+						class: params.attr_value.class,
+					},
+				},
+			}),
+		]).then(
+			([
+				{ data: i_data, error: i_error },
+				{ data: c_data, error: c_error },
+			]) => {
+				if (i_error !== undefined) {
+					setData({
+						loading: false,
+						error: i_error,
+						data: null,
+						class: null,
+						shown_attr: null,
+					});
+				} else if (c_error !== undefined) {
+					setData({
+						loading: false,
+						error: c_error,
+						data: null,
+						class: null,
+						shown_attr: null,
+					});
+				} else {
+					const shown_attr = Object.entries(i_data.attrs).sort(
+						([aa, av], [ba, bv]) =>
+							(av as unknown as components["schemas"]["ItemListData"]).attr
+								.idx -
+							(bv as unknown as components["schemas"]["ItemListData"]).attr.idx,
+					)[0][1];
+					setData({
+						loading: false,
+						error: null,
+						data: i_data,
+						class: c_data,
+						shown_attr,
+					});
+				}
+			},
+		);
+	}, [params.attr_value, params.dataset]);
+
+	if (
+		params.attr_value.type !== "Reference" ||
+		params.attr_value.item === null ||
+		params.attr_value.item === undefined
+	) {
+		return <>Unreachable!</>;
+	}
+
+	if (params.attr_value.item === null) {
+		return (
+			<Text c="dimmed" fs="italic">
+				no value
+			</Text>
+		);
+	} else {
+		return (
+			<Text c="dimmed">
+				Reference to
+				{` #${params.attr_value.item} of `}
+				<Text c="dimmed" fs="italic" span>
+					{data.class?.name}
+				</Text>
+			</Text>
+		);
+	}
+}
 
 function RefPanelBody(params: {
 	dataset: string;
@@ -74,7 +181,7 @@ function RefPanelBody(params: {
 				<div>
 					<Loader color="dimmed" size="4rem" />
 				</div>
-				<div>Loading..</div>
+				<div>Loading...</div>
 			</>
 		);
 	} else if (params.data.error !== null) {
@@ -143,7 +250,11 @@ function RefPanelBody(params: {
 						padding: "0.5rem",
 					}}
 				>
-					{d.editor.old_value({ attr_value })}
+					{d.editor.old_value({
+						dataset: params.dataset,
+						item_idx: params.ref_attr_value.item as number,
+						attr_value,
+					})}
 				</div>
 			);
 		}
@@ -251,7 +362,7 @@ type RefPanelData =
 function RefPanel(params: {
 	dataset: string;
 	item_idx: number;
-	ref_attr_value: Extract<
+	attr_value: Extract<
 		components["schemas"]["ItemListData"],
 		{ type: "Reference" }
 	>;
@@ -267,17 +378,17 @@ function RefPanel(params: {
 
 	useEffect(() => {
 		if (
-			params.ref_attr_value.type !== "Reference" ||
-			params.ref_attr_value.item === null ||
-			params.ref_attr_value.item === undefined
+			params.attr_value.type !== "Reference" ||
+			params.attr_value.item === null ||
+			params.attr_value.item === undefined
 		) {
 			return;
 		}
 
 		console.log({
 			dataset: params.dataset,
-			class: params.ref_attr_value.class,
-			item: params.ref_attr_value.item,
+			class: params.attr_value.class,
+			item: params.attr_value.item,
 		});
 
 		Promise.all([
@@ -285,8 +396,8 @@ function RefPanel(params: {
 				params: {
 					query: {
 						dataset: params.dataset,
-						class: params.ref_attr_value.class,
-						item: params.ref_attr_value.item,
+						class: params.attr_value.class,
+						item: params.attr_value.item,
 					},
 				},
 			}),
@@ -294,7 +405,7 @@ function RefPanel(params: {
 				params: {
 					query: {
 						dataset: params.dataset,
-						class: params.ref_attr_value.class,
+						class: params.attr_value.class,
 					},
 				},
 			}),
@@ -336,12 +447,12 @@ function RefPanel(params: {
 				}
 			},
 		);
-	}, [params.ref_attr_value, params.dataset]);
+	}, [params.attr_value, params.dataset]);
 
 	if (
-		params.ref_attr_value.type !== "Reference" ||
-		params.ref_attr_value.item === null ||
-		params.ref_attr_value.item === undefined
+		params.attr_value.type !== "Reference" ||
+		params.attr_value.item === null ||
+		params.attr_value.item === undefined
 	) {
 		return <>Unreachable!</>;
 	}
@@ -359,13 +470,13 @@ function RefPanel(params: {
 				<RefPanelBody
 					dataset={params.dataset}
 					data={data}
-					ref_attr_value={params.ref_attr_value}
+					ref_attr_value={params.attr_value}
 				/>
 			</div>
 			<RefPanelBottom
 				dataset={params.dataset}
 				data={data}
-				ref_attr_value={params.ref_attr_value}
+				ref_attr_value={params.attr_value}
 			/>
 		</div>
 	);

@@ -26,6 +26,8 @@ export type attrTypeInfo = {
 	// in the item table. This should be compact
 	// and non-interactive.
 	value_preview: (params: {
+		dataset: string;
+		item_idx: number;
 		attr_value: components["schemas"]["ItemListData"];
 	}) => ReactElement;
 
@@ -36,11 +38,15 @@ export type attrTypeInfo = {
 				// in the editor. `attr` param is the object
 				// returned by the api.
 				old_value: (params: {
+					dataset: string;
+					item_idx: number;
 					attr_value: components["schemas"]["ItemListData"];
 				}) => ReactElement;
 
 				// Inline value editor
 				new_value: (params: {
+					dataset: string;
+					item_idx: number;
 					attr_value: components["schemas"]["ItemListData"];
 					onChange: (value: any) => void;
 				}) => ReactElement;

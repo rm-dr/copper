@@ -519,9 +519,13 @@ export function ItemTablePanel(params: {
 						let v = data_entry.attrs[attr.handle.toString()];
 						return (
 							<td key={`${attr.handle}-${unique_id}`}>
-								{d.value_preview === undefined || v === undefined
+								{d.value_preview === undefined ||
+								v === undefined ||
+								params.sel.dataset === null
 									? null
 									: d.value_preview({
+											item_idx: data_entry.idx,
+											dataset: params.sel.dataset,
 											attr_value: v,
 									  })}
 							</td>
