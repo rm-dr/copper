@@ -1,0 +1,3 @@
+# Only global ignores go here.
+# Each project dir provides its own .gitignore.
+*.ignore
