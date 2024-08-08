@@ -20,6 +20,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## Small jobs
 - Trim all names
+- Consistent mime format & name (api & rust)
 
 ## 📦 CRUD items
 - [ ] Hash files when uploading (incremental)
@@ -32,7 +33,14 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Bottom panel (edit items)
   - [ ] Select attrs to show
   - [ ] Search panel (no logic yet)
-  - [ ] Sort by attr
+  - [ ] Sort by attrs
+  - [ ] List number of selected items
+  - [ ] Initial layout for table
+  - [ ] Select first panel item on open
+  - [ ] Change button style when attr shown in panel
+  - [ ] Class exemplar
+  - [ ] Multi-select and edit
+  - [ ] Better reference panel
 
 ## 📦 Authentication
 - [ ] CRUD users and groups from ui
@@ -41,6 +49,8 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Hide datasets/groups (view permission)
 - [ ] Clean up permission model
 - [ ] UI Account menu
+- [ ] Login lifetimes
+- [ ] Permissions everywhere (api)
 
 ## 📦 Database migrations
 - old dbs should not be destroyed
@@ -68,14 +78,13 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Font
 - [ ] Panel width. Center, or change page background?
 - [ ] Prettier errors from server (markdown? might be overkill.)
-- [ ] Fade bottom of all scrolls
-  - dataset tree
-  - upload queue
+- [ ] Fade bottom of all scrolls (component)
 - [ ] Loading state for modals
 - [ ] Add attr form
 - [ ] Sidebar & top bar shadow
 - [ ] Item table dynamic height
 - [ ] "No class" tree item
+- [ ] Icons in attr & dataset dropdown (component)
 
 
 ## 📦 Better uploads
@@ -108,6 +117,13 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Clippy
 - [ ] What if we panic when an unfinished blob is dropped? (log)
 - [ ] Which locks should be async?
+- [ ] No block_on
+- [ ] Use sqlx pool
+- [ ] Use fewer `Arc<Mutex>`
+- [ ] Why is hash length broken
+  - [ ] one tostr implementation
+- [ ] stream big files in `/items/attr`
+- [ ] `std::fs::read` when reading whole file
 
 ## 📦 Logging cleanup
 - [ ] logging everywhere
@@ -119,6 +135,10 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - Find all console.log
 - Better dataset tree (open/close spacing, background, etc)
 - Show running pipeline node count & progress
+- Use JS maps instead of objects
+- Fix all type definitions
+  - Replace `any`
+  - Generate api?
 
 ## 📦 Config cleanup
 - [ ] accept envvars (docker) and toml file?
@@ -159,6 +179,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] use memmap2 for files
 - [ ] One integer type, with options
 - [ ] Generic datasets, other dataset types
+- [ ] Helpful error backtraces (anyhow?)
 
 ## More async
 - [ ] asyncify blobstore
@@ -174,6 +195,8 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Track logins
 - [ ] Track user actions
 - [ ] Audit log admin page
+- [ ] Impersonate users
+- [ ] Show active sessions
 
 ## Dashboard (UI home page)
 - [ ] Show counts & sizes
@@ -265,6 +288,9 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Reorder attributes & classes
 - [ ] Rename set, class, attrs
 - [ ] Close dataset menu when dropdown closed
+- [ ] Preview panel data on hover
+- [ ] Audio player waveform
+- [ ] More panel types: video, pdf
 ---------------------------------------------------------------------
 
 ## Faster main db
