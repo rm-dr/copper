@@ -27,7 +27,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- Hash node: select hash
 - Better db index names
 
 - Load and check db metadata
@@ -56,6 +55,7 @@ UFO's goal is to be "[Paperless] for everything," with...
   - enum
   - multi-enum
   - date
+- Helpful pipeline parse errors
 - Smarter pipeline scheduler
   - efficient end condition: we don't need to run ALL nodes
   - What is blocking what? (data streams)

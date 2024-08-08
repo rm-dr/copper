@@ -1,4 +1,4 @@
-use sha2::{Digest, Sha256};
+use sha2::{Digest, Sha256, Sha512};
 use std::sync::Arc;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
@@ -11,17 +11,15 @@ use crate::UFOContext;
 #[derive(Clone)]
 pub struct Hash {
 	data: Option<StorageData>,
+	hash_type: HashType,
 }
 
 impl Hash {
-	pub fn new() -> Self {
-		Self { data: None }
-	}
-}
-
-impl Default for Hash {
-	fn default() -> Self {
-		Self::new()
+	pub fn new(hash_type: HashType) -> Self {
+		Self {
+			data: None,
+			hash_type,
+		}
 	}
 }
 
@@ -56,15 +54,25 @@ impl PipelineNode for Hash {
 			_ => panic!("bad data type"),
 		};
 
-		let mut hasher = Sha256::new();
-		hasher.update(&**data);
-		let result = hasher.finalize();
+		let result = match self.hash_type {
+			HashType::MD5 => md5::compute(&**data).to_vec(),
+			HashType::SHA256 => {
+				let mut hasher = Sha256::new();
+				hasher.update(&**data);
+				hasher.finalize().to_vec()
+			}
+			HashType::SHA512 => {
+				let mut hasher = Sha512::new();
+				hasher.update(&**data);
+				hasher.finalize().to_vec()
+			}
+		};
 
 		send_data(
 			0,
 			StorageData::Hash {
-				format: HashType::SHA256,
-				data: Arc::new(result.to_vec()),
+				format: self.hash_type,
+				data: Arc::new(result),
 			},
 		)?;
 

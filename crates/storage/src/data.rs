@@ -79,7 +79,7 @@ impl PipelineData for StorageData {
 			Self::Integer(_) => StorageDataStub::Integer,
 			Self::PositiveInteger(_) => StorageDataStub::PositiveInteger,
 			Self::Float(_) => StorageDataStub::Float,
-			Self::Hash { format, .. } => StorageDataStub::Hash { format: *format },
+			Self::Hash { format, .. } => StorageDataStub::Hash { hash_type: *format },
 			Self::Binary { .. } => StorageDataStub::Binary,
 			Self::Reference { class, .. } => StorageDataStub::Reference { class: *class },
 		}
@@ -101,7 +101,7 @@ impl StorageData {
 			Self::Integer(_) => StorageDataStub::Integer,
 			Self::PositiveInteger(_) => StorageDataStub::PositiveInteger,
 			Self::Float(_) => StorageDataStub::Float,
-			Self::Hash { format, .. } => StorageDataStub::Hash { format: *format },
+			Self::Hash { format, .. } => StorageDataStub::Hash { hash_type: *format },
 			Self::Reference { class, .. } => StorageDataStub::Reference { class: *class },
 		}
 	}
@@ -112,10 +112,11 @@ impl StorageData {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum HashType {
 	MD5,
 	SHA256,
+	SHA512,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -139,7 +140,7 @@ pub enum StorageDataStub {
 	Float,
 
 	/// A checksum
-	Hash { format: HashType },
+	Hash { hash_type: HashType },
 
 	/// A reference to an item
 	Reference { class: ClassHandle },
@@ -156,7 +157,7 @@ impl FromStr for StorageDataStub {
 			"path" => Ok(Self::Path),
 			"reference" => todo!(),
 			"hash::sha256" => Ok(Self::Hash {
-				format: HashType::SHA256,
+				hash_type: HashType::SHA256,
 			}),
 			_ => Err("bad data type"),
 		}
@@ -186,9 +187,10 @@ impl StorageDataStub {
 			Self::Integer => "integer".into(),
 			Self::PositiveInteger => "postiveinteger".into(),
 			Self::Float => "float".into(),
-			Self::Hash { format } => match format {
+			Self::Hash { hash_type: format } => match format {
 				HashType::MD5 => "hash::md5".into(),
 				HashType::SHA256 => "hash::sha256".into(),
+				HashType::SHA512 => "hash::sha512".into(),
 			},
 			Self::Reference { class } => format!("reference::{}", u32::from(*class)),
 		}
@@ -205,10 +207,13 @@ impl StorageDataStub {
 			"positiveinteger" => Some(Self::PositiveInteger),
 			"float" => Some(Self::Float),
 			"hash::md5" => Some(Self::Hash {
-				format: HashType::MD5,
+				hash_type: HashType::MD5,
 			}),
 			"hash::sha256" => Some(Self::Hash {
-				format: HashType::SHA256,
+				hash_type: HashType::SHA256,
+			}),
+			"hash::sha512" => Some(Self::Hash {
+				hash_type: HashType::SHA512,
 			}),
 			_ => None,
 		};

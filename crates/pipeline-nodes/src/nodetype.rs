@@ -32,8 +32,12 @@ pub enum UFONodeType {
 
 	// Utility nodes
 	IfNone,
-	Hash,
 	Print,
+
+	Hash {
+		hash_type: HashType,
+	},
+
 	Noop {
 		#[serde(rename = "input")]
 		#[serde_as(as = "serde_with::Map<_, _>")]
@@ -41,12 +45,13 @@ pub enum UFONodeType {
 	},
 
 	// Audio nodes
+	ExtractCovers,
+	StripTags,
 	ExtractTags {
 		tags: Vec<TagType>,
 	},
-	ExtractCovers,
-	StripTags,
 
+	// Etc
 	File,
 	Dataset {
 		class: String,
@@ -84,10 +89,10 @@ impl PipelineNodeStub for UFONodeType {
 				name: name.into(),
 				node: Print::new(),
 			},
-			UFONodeType::Hash => UFONodeInstance::Hash {
+			UFONodeType::Hash { hash_type } => UFONodeInstance::Hash {
 				node_type: self.clone(),
 				name: name.into(),
-				node: Hash::new(),
+				node: Hash::new(*hash_type),
 			},
 
 			// Audio
@@ -137,7 +142,7 @@ impl PipelineNodeStub for UFONodeType {
 				("ifnone", StorageDataStub::Text),
 			]),
 			Self::Noop { inputs } => PipelinePortSpec::Vec(inputs),
-			Self::Hash => PipelinePortSpec::Static(&[("data", StorageDataStub::Binary)]),
+			Self::Hash { .. } => PipelinePortSpec::Static(&[("data", StorageDataStub::Binary)]),
 			Self::Print => PipelinePortSpec::VecOwned(vec![(
 				"data".into(),
 				StorageDataStub::Reference {
@@ -183,10 +188,10 @@ impl PipelineNodeStub for UFONodeType {
 
 			// Util
 			Self::IfNone => PipelinePortSpec::Static(&[("out", StorageDataStub::Text)]),
-			Self::Hash => PipelinePortSpec::Static(&[(
-				"hash",
+			Self::Hash { hash_type } => PipelinePortSpec::VecOwned(vec![(
+				"hash".into(),
 				StorageDataStub::Hash {
-					format: HashType::SHA256,
+					hash_type: *hash_type,
 				},
 			)]),
 			Self::Print => PipelinePortSpec::Static(&[]),

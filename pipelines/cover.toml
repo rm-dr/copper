@@ -12,4 +12,5 @@ input."image_data" = { pipeline = "cover_data" }
 
 [node."hash"]
 node.type = "Hash"
+node.hash_type = "SHA256"
 input."data" = { pipeline = "cover_data" }

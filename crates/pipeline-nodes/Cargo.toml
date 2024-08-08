@@ -27,3 +27,4 @@ smartstring = { workspace = true }
 serde_with = { workspace = true }
 itertools = { workspace = true }
 sha2 = { workspace = true }
+md5 = "0.7.0"

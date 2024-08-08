@@ -73,7 +73,7 @@ fn main() -> Result<()> {
 			cover_art,
 			"content_hash",
 			StorageDataStub::Hash {
-				format: HashType::SHA256,
+				hash_type: HashType::SHA256,
 			},
 			AttributeOptions::new().unique(true),
 		)
