@@ -91,7 +91,7 @@ fn main() -> Result<()> {
 		runner.run(
 			ctx.clone(),
 			"audio".into(),
-			vec![UFOData::Text(Arc::new(p.into()))],
+			vec![UFOData::Path(Arc::new(p.into()))],
 		)?;
 	}
 

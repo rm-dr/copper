@@ -156,7 +156,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::StripTags => PipelinePortSpec::Static(&[("data", UFODataStub::Binary)]),
 			Self::ExtractCovers => PipelinePortSpec::Static(&[("data", UFODataStub::Binary)]),
 
-			Self::File => PipelinePortSpec::Static(&[("path", UFODataStub::Text)]),
+			Self::File => PipelinePortSpec::Static(&[("path", UFODataStub::Path)]),
 			Self::Dataset { attrs, .. } => PipelinePortSpec::VecOwned(
 				attrs
 					.iter()
@@ -192,7 +192,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::ExtractCovers => PipelinePortSpec::Static(&[("cover_data", UFODataStub::Binary)]),
 
 			Self::File => PipelinePortSpec::Static(&[
-				("file_name", UFODataStub::Text),
+				("path", UFODataStub::Path),
 				("data", UFODataStub::Binary),
 			]),
 

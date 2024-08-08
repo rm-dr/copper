@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read, path::PathBuf, str::FromStr, sync::Arc};
+use std::{fs::File, io::Read, path::PathBuf, sync::Arc};
 
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
@@ -33,7 +33,7 @@ impl PipelineNode for FileInput {
 	{
 		assert!(input.len() == 1);
 		self.path = match input.pop().unwrap() {
-			UFOData::Text(t) => Some(PathBuf::from_str(&t).unwrap()),
+			UFOData::Path(p) => Some((*p).clone()),
 			_ => panic!(),
 		};
 		Ok(PipelineNodeState::Pending)
@@ -55,7 +55,7 @@ impl PipelineNode for FileInput {
 		let file_format = MimeType::from_extension(p.extension().unwrap().to_str().unwrap())
 			.unwrap_or(MimeType::Blob);
 
-		send_data(0, UFOData::Text(Arc::new(p.to_str().unwrap().to_string())))?;
+		send_data(0, UFOData::Path(Arc::new(p.clone())))?;
 
 		send_data(
 			1,
