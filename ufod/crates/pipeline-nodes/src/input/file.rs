@@ -44,7 +44,7 @@ impl PipelineNode for FileReader {
 					x => panic!("bad data {x:?}"),
 				};
 
-				self.file = Some(File::open(self.path.as_ref().unwrap()).unwrap());
+				self.file = Some(File::open(self.path.as_ref().unwrap())?);
 			}
 			_ => unreachable!("bad input port {port}"),
 		}
@@ -71,8 +71,7 @@ impl PipelineNode for FileReader {
 			.as_mut()
 			.unwrap()
 			.take(self.blob_fragment_size.try_into().unwrap())
-			.read_to_end(&mut read_buf)
-			.unwrap();
+			.read_to_end(&mut read_buf)?;
 		let is_last = n < self.blob_fragment_size;
 
 		send_data(
