@@ -8,7 +8,6 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
-use futures::executor::block_on;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -139,46 +138,50 @@ pub(in crate::api) async fn list_item(
 		}
 	};
 
-	let res = dataset
-		.get_items(class.handle, query.page_size, query.start_at)
-		.await;
+	// The scope here is necessary, res must be dropped to avoid an error.
+	let itemdata = {
+		let res = dataset
+			.get_items(class.handle, query.page_size, query.start_at)
+			.await;
 
-	let res = match res {
-		Ok(x) => x,
-		Err(e) => {
-			error!(
-				message = "Could not get items",
-				query = ?query,
-				error = ?e
-			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get items: {e}"),
-			)
-				.into_response();
+		match res {
+			Ok(x) => x,
+			Err(e) => {
+				error!(
+					message = "Could not get items",
+					query = ?query,
+					error = ?e
+				);
+				return (
+					StatusCode::INTERNAL_SERVER_ERROR,
+					format!("Could not get items: {e}"),
+				)
+					.into_response();
+			}
 		}
 	};
 
-	// TODO: make this async
-	let attrs = block_on(dataset.class_get_attrs(class.handle));
-	let attrs = match attrs {
-		Ok(x) => x,
-		Err(e) => {
-			error!(
-				message = "Could not get attrs",
-				query = ?query,
-				error = ?e
-			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get attrs: {e}"),
-			)
-				.into_response();
+	let attrs = {
+		let res = dataset.class_get_attrs(class.handle).await;
+		match res {
+			Ok(x) => x,
+			Err(e) => {
+				error!(
+					message = "Could not get attrs",
+					query = ?query,
+					error = ?e
+				);
+				return (
+					StatusCode::INTERNAL_SERVER_ERROR,
+					format!("Could not get attrs: {e}"),
+				)
+					.into_response();
+			}
 		}
 	};
 
 	let mut out = Vec::new();
-	for r in res.into_iter() {
+	for r in itemdata.into_iter() {
 		let mut itemlistdata = HashMap::new();
 		for (attr, val) in attrs.iter().zip(r.attrs.iter()) {
 			// TODO: move to method (after making generic dataset type)
@@ -201,7 +204,7 @@ pub(in crate::api) async fn list_item(
 				},
 				MetastoreData::Reference { class, item } => {
 					// TODO: make this async
-					let class = match block_on(dataset.get_class(*class)) {
+					let class = match dataset.get_class(*class).await {
 						Ok(x) => x,
 						Err(e) => {
 							error!(

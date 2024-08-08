@@ -720,8 +720,6 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn class_get_attrs(&self, class: ClassHandle) -> Result<Vec<AttrInfo>, MetastoreError> {
-		let mut conn = self.conn.lock().await;
-
 		let res = sqlx::query(
 			"
 			SELECT id, pretty_name, data_type, class_id
@@ -730,7 +728,7 @@ impl Metastore for LocalDataset {
 			",
 		)
 		.bind(u32::from(class))
-		.fetch_all(&mut *conn)
+		.fetch_all(&mut *self.conn.lock().await)
 		.await;
 
 		let res = match res {
