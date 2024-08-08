@@ -98,7 +98,7 @@ impl Pipeline {
 					if out_type != PipelineDataType::Text {
 						return PipelineCheckResult::InlineTypeMismatch {
 							inline_type: PipelineDataType::Text,
-							input: PortLink {
+							input: PortLink::Node {
 								node: "out".into(),
 								port: out_name.clone(),
 							},
@@ -107,15 +107,15 @@ impl Pipeline {
 				}
 				PipelineLink::Link(link) => {
 					// Special case: we're linked to pipeline input
-					if link.node == "in" {
-						let input = self.pipeline.input.get(&link.port[..]);
+					if link.node_str() == "in" {
+						let input = self.pipeline.input.get(link.port_str());
 
 						if let Some(oout_type) = input {
 							// Make sure input type matches output type
 							if out_type != *oout_type {
 								return PipelineCheckResult::TypeMismatch {
 									output: link.clone(),
-									input: PortLink {
+									input: PortLink::Node {
 										node: "out".into(),
 										port: out_name.clone(),
 									},
@@ -123,8 +123,8 @@ impl Pipeline {
 							}
 						} else {
 							return PipelineCheckResult::NoPipelineInput {
-								pipeline_input_name: link.port.clone(),
-								caused_by_input: PortLink {
+								pipeline_input_name: link.port_str().into(),
+								caused_by_input: PortLink::Node {
 									node: "out".into(),
 									port: out_name.clone(),
 								},
@@ -133,21 +133,21 @@ impl Pipeline {
 
 					// We're linked to another node's output
 					} else {
-						let source_node = self.nodes.get(&link.node);
+						let source_node = self.nodes.get(link.node_str());
 
 						if let Some(source_node) = source_node {
 							let output = source_node
 								.node_type
 								.get_outputs()
 								.iter()
-								.find(|x| x.0 == &link.port[..]);
+								.find(|x| x.0 == link.port_str());
 
 							if let Some(output) = output {
 								let oout_type = output.1;
 								if out_type != oout_type {
 									return PipelineCheckResult::TypeMismatch {
 										output: link.clone(),
-										input: PortLink {
+										input: PortLink::Node {
 											node: "out".into(),
 											port: out_name.clone(),
 										},
@@ -156,8 +156,8 @@ impl Pipeline {
 							} else {
 								return PipelineCheckResult::NoNodeOutput {
 									node: source_node.clone(),
-									output_name: link.port.clone(),
-									caused_by_input: PortLink {
+									output_name: link.port_str().into(),
+									caused_by_input: PortLink::Node {
 										node: "out".into(),
 										port: out_name.clone(),
 									},
@@ -165,8 +165,8 @@ impl Pipeline {
 							}
 						} else {
 							return PipelineCheckResult::NoNode {
-								node: link.node.clone(),
-								caused_by_input: PortLink {
+								node: link.node_str().into(),
+								caused_by_input: PortLink::Node {
 									node: "out".into(),
 									port: out_name.clone(),
 								},
@@ -210,7 +210,7 @@ impl Pipeline {
 						if in_type != PipelineDataType::Text {
 							return PipelineCheckResult::InlineTypeMismatch {
 								inline_type: PipelineDataType::Text,
-								input: PortLink {
+								input: PortLink::Node {
 									node: "out".into(),
 									port: input_name.clone(),
 								},
@@ -219,15 +219,15 @@ impl Pipeline {
 					}
 					PipelineLink::Link(link) => {
 						// Special case: we're linked to pipeline input
-						if link.node == "in" {
-							let input = self.pipeline.input.get(&link.port[..]);
+						if link.node_str() == "in" {
+							let input = self.pipeline.input.get(link.port_str());
 
 							if let Some(out_type) = input {
 								// Make sure input type matches output type
 								if in_type != *out_type {
 									return PipelineCheckResult::TypeMismatch {
 										output: link.clone(),
-										input: PortLink {
+										input: PortLink::Node {
 											node: node_name.clone(),
 											port: input_name.clone(),
 										},
@@ -235,8 +235,8 @@ impl Pipeline {
 								}
 							} else {
 								return PipelineCheckResult::NoPipelineInput {
-									pipeline_input_name: link.port.clone(),
-									caused_by_input: PortLink {
+									pipeline_input_name: link.port_str().into(),
+									caused_by_input: PortLink::Node {
 										node: node_name.clone(),
 										port: input_name.clone(),
 									},
@@ -245,21 +245,21 @@ impl Pipeline {
 
 						// We're linked to another node's output
 						} else {
-							let source_node = self.nodes.get(&link.node);
+							let source_node = self.nodes.get(link.node_str());
 
 							if let Some(source_node) = source_node {
 								let output = source_node
 									.node_type
 									.get_outputs()
 									.iter()
-									.find(|x| x.0 == &link.port[..]);
+									.find(|x| x.0 == link.port_str());
 
 								if let Some(output) = output {
 									let out_type = output.1;
 									if in_type != out_type {
 										return PipelineCheckResult::TypeMismatch {
 											output: link.clone(),
-											input: PortLink {
+											input: PortLink::Node {
 												node: node_name.clone(),
 												port: input_name.clone(),
 											},
@@ -268,8 +268,8 @@ impl Pipeline {
 								} else {
 									return PipelineCheckResult::NoNodeOutput {
 										node: source_node.clone(),
-										output_name: link.port.clone(),
-										caused_by_input: PortLink {
+										output_name: link.port_str().into(),
+										caused_by_input: PortLink::Node {
 											node: node_name.clone(),
 											port: input_name.clone(),
 										},
@@ -277,8 +277,8 @@ impl Pipeline {
 								}
 							} else {
 								return PipelineCheckResult::NoNode {
-									node: link.node.clone(),
-									caused_by_input: PortLink {
+									node: link.node_str().into(),
+									caused_by_input: PortLink::Node {
 										node: node_name.clone(),
 										port: input_name.clone(),
 									},
@@ -300,7 +300,7 @@ impl Pipeline {
 			for (_input_name, out_link) in &node_spec.input {
 				match out_link {
 					PipelineLink::Link(link) => {
-						deps.add_edge(&link.node, node_name, ());
+						deps.add_edge(link.node_str(), node_name, ());
 					}
 					_ => {}
 				}
@@ -380,9 +380,15 @@ where
 	if a.is_none() || b.is_none() || i.next().is_some() {
 		return Err(de::Error::custom("bad link format"));
 	}
+	let a = a.unwrap();
+	let b = b.unwrap();
 
-	Ok(PortLink {
-		node: a.unwrap().into(),
-		port: b.unwrap().into(),
+	Ok(match a {
+		"in" => PortLink::Pinput { port: b.into() },
+		"out" => PortLink::Poutput { port: b.into() },
+		_ => PortLink::Node {
+			node: a.into(),
+			port: b.into(),
+		},
 	})
 }

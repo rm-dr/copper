@@ -62,13 +62,47 @@ impl FromStr for PipelineDataType {
 // TODO: enforce docs
 // TODO: node id, port id type
 #[derive(Debug, Hash, PartialEq, Eq, Deserialize, Clone)]
-pub struct PortLink {
-	node: SmartString<LazyCompact>,
-	port: SmartString<LazyCompact>,
+pub enum PortLink {
+	/// A pipeline input
+	Pinput { port: SmartString<LazyCompact> },
+
+	/// A pipeline output
+	Poutput { port: SmartString<LazyCompact> },
+
+	/// An input or output in a node
+	Node {
+		node: SmartString<LazyCompact>,
+		port: SmartString<LazyCompact>,
+	},
 }
+
+impl PortLink {
+	pub fn node_str(&self) -> &str {
+		match self {
+			Self::Pinput { .. } => &"in",
+			Self::Poutput { .. } => &"out",
+			Self::Node { node, .. } => &node,
+		}
+	}
+
+	pub fn port_str(&self) -> &str {
+		match self {
+			Self::Pinput { port } | Self::Poutput { port } | Self::Node { port, .. } => &port,
+		}
+	}
+}
+
+//pub struct PortLink {
+//	node: SmartString<LazyCompact>,
+//	port: SmartString<LazyCompact>,
+//}
 
 impl Display for PortLink {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "{}.{}", self.node, self.port)
+		match self {
+			Self::Pinput { port } => write!(f, "in.{}", port),
+			Self::Poutput { port } => write!(f, "out.{}", port),
+			Self::Node { node, port } => write!(f, "{}.{}", node, port),
+		}
 	}
 }
