@@ -157,7 +157,7 @@ pub(super) async fn run_pipeline(
 
 	let context = UFOContext {
 		dataset: dataset.clone(),
-		blob_fragment_size: state.config.blob_fragment_size,
+		blob_fragment_size: state.config.pipeline.blob_fragment_size,
 		input,
 	};
 

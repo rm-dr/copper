@@ -22,8 +22,6 @@ use tracing::info;
 	),
 )]
 pub(super) async fn logout(jar: CookieJar, State(state): State<RouterState>) -> Response {
-	info!(message = "Received logout request", cookies = ?jar);
-
 	match state.main_db.auth.terminate_session(&jar).await {
 		Some(x) => {
 			info!(

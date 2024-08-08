@@ -1,15 +1,3 @@
-# The maximum size, in bytes, of a blob channel fragment
-# larger fragments make the runner use more memory, but make it run faster.
-# fragments should not be absurdly large, diminishing returns.
-blob_fragment_size = 2097152
-
-[network]
-# Address and port to bind to
-server_addr = "127.0.0.1:3030"
-
-# Max request body size, in bytes
-request_body_limit = 2097152 # 2 megabytes
-
 [paths]
 # All paths are relative to the location of this file.
 #
@@ -26,3 +14,49 @@ dataset_dir = "./datasets"
 
 # Path to main database file.
 main_db = "./ufo.sqlite"
+
+
+[network]
+# Address and port to bind to
+server_addr = "127.0.0.1:3030"
+
+# Max request body size, in bytes
+# If you're using a reverse proxy, make sure it
+# is also configured for requests of this size.
+request_body_limit = 2_000_000
+
+
+[pipeline]
+# The maximum size, in bytes, of a binary fragment in the pipeline.
+# Smaller values slow down pipelines; larger values use more memory.
+# The default of 2mb is usually fine.
+blob_fragment_size = 2_000_000
+
+# Pipeline parallelism configuration.
+# We'll run `parallel_jobs` jobs at once, allowing each to use at most
+# `threads_per_job` threads.
+#
+# Note that a pipeline runner can't always utilize all the threads it is
+# allowed to use. Therefore, the runner will rarely---if ever---use all
+# `parallel_jobs * threads_per_job` threads it is allowed to start.
+#
+# It is probably a good idea to set `parallel_jobs` to *roughly* your cpu's core count.
+# A large `threads_per_job` will rarely affect the performance of most workloads.
+parallel_jobs = 4
+threads_per_job = 4
+
+
+[logging]
+# Log level config.
+# These defaults make sense unless you're tracking down a bug.
+#
+# - sqlx: Log level for sqlx (sql queries)
+# - http: Log level for axum (web server)
+# - pipeline: Log level for pipeline runner
+# - server: Log level for copperd core (auth, api, etc)
+# - all: Log level for all other sources. This can get noisy.
+level.sqlx = "Info"
+level.http = "Info"
+level.pipeline = "Info"
+level.server = "Info"
+level.all = "Warn"

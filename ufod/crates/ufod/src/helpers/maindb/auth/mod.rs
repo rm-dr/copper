@@ -12,7 +12,7 @@ use rand::{distributions::Alphanumeric, rngs::OsRng, Rng};
 use sqlx::{Row, SqlitePool};
 use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
-use tracing::error;
+use tracing::{debug, error, info};
 
 pub mod errors;
 mod info;
@@ -136,6 +136,12 @@ impl AuthProvider {
 						// This probably happened because our user was deleted.
 						// Invalidate this session and return None.
 						self.terminate_session(jar).await;
+
+						debug!(
+							message = "Tried to authenticate as a user that doesn't exist",
+							cookies = ?jar
+						);
+
 						Ok(None)
 					}
 					Err(e) => Err(e),
@@ -172,6 +178,12 @@ impl AuthProvider {
 		user_name: &str,
 		password: &str,
 	) -> Result<Option<AuthToken>, sqlx::Error> {
+		info!(
+			message = "Received login request",
+			user = user_name,
+			password = password,
+		);
+
 		let mut conn = self.pool.acquire().await?;
 		let (user_id, pw_hash): (UserId, String) = {
 			let res = sqlx::query("SELECT id, pw_hash FROM users WHERE user_name=?;")
@@ -180,8 +192,25 @@ impl AuthProvider {
 				.await;
 
 			match res {
-				Err(sqlx::Error::RowNotFound) => return Ok(None),
-				Err(e) => return Err(e),
+				Err(sqlx::Error::RowNotFound) => {
+					info!(
+						message = "Login failed: user not found",
+						user = user_name,
+						password = password,
+					);
+
+					return Ok(None);
+				}
+				Err(e) => {
+					error!(
+						message = "Login failed: error",
+						user = user_name,
+						password = password,
+						error = ?e,
+					);
+
+					return Err(e);
+				}
 				Ok(res) => (
 					res.get::<u32, _>("id").into(),
 					res.get::<String, _>("pw_hash"),
@@ -195,9 +224,22 @@ impl AuthProvider {
 		if verify.is_ok() {
 			let t = self.generate_token(user_id).await;
 			self.active_tokens.lock().await.push(t.clone());
+
+			info!(
+				message = "Login success",
+				user = user_name,
+				password = password,
+				new_token = ?t.token
+			);
+
 			return Ok(Some(t));
 		}
 
+		info!(
+			message = "Login failed: did not pass verification",
+			user = user_name,
+			password = password,
+		);
 		return Ok(None);
 	}
 

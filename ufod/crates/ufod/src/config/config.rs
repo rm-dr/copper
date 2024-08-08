@@ -1,3 +1,11 @@
+//! This module contains Copperd's config defaults & deserializer.
+//! A few notes:
+//!
+//! - All config fields that *can* have a default *should* have a default
+//! - All config fields should be listed and documented in `default-config.toml`
+
+use serde::Deserialize;
+use smartstring::{LazyCompact, SmartString};
 use std::{
 	error::Error,
 	fmt::Display,
@@ -7,10 +15,7 @@ use std::{
 	time::Duration,
 };
 
-use serde::Deserialize;
-use smartstring::{LazyCompact, SmartString};
-
-/// Ufod server configuration
+/// Server configuration
 #[derive(Deserialize, Debug)]
 pub struct UfodConfig {
 	/// Network settings
@@ -19,10 +24,9 @@ pub struct UfodConfig {
 	/// Path settings
 	pub paths: UfodPathConfig,
 
-	/// The maximum size, in bytes, of a blob channel fragment
-	pub blob_fragment_size: u64,
+	#[serde(default)]
+	pub pipeline: UfodPipelineConfig,
 
-	/// Uploader settings
 	#[serde(default)]
 	pub upload: UfodUploadConfig,
 
@@ -56,7 +60,48 @@ impl UfodConfig {
 	}
 }
 
-/// Ufod network settings
+/// Pipeline runner settings
+#[derive(Deserialize, Debug)]
+pub struct UfodPipelineConfig {
+	/// The maximum size, in bytes, of a binary fragment in the pipeline.
+	/// Smaller values slow down pipelines; larger values use more memory.
+	#[serde(default = "UfodPipelineConfig::default_frag_size")]
+	pub blob_fragment_size: u64,
+
+	/// How many pipeline jobs to run at once
+	#[serde(default = "UfodPipelineConfig::default_parallel_jobs")]
+	pub parallel_jobs: usize,
+
+	/// How many threads each job may use
+	#[serde(default = "UfodPipelineConfig::default_job_threads")]
+	pub threads_per_job: usize,
+}
+
+impl Default for UfodPipelineConfig {
+	fn default() -> Self {
+		Self {
+			blob_fragment_size: Self::default_frag_size(),
+			parallel_jobs: Self::default_parallel_jobs(),
+			threads_per_job: Self::default_job_threads(),
+		}
+	}
+}
+
+impl UfodPipelineConfig {
+	fn default_frag_size() -> u64 {
+		2_000_000
+	}
+
+	fn default_parallel_jobs() -> usize {
+		4
+	}
+
+	fn default_job_threads() -> usize {
+		4
+	}
+}
+
+/// Network settings
 #[derive(Deserialize, Debug)]
 pub struct UfodNetworkConfig {
 	/// IP and port to bind to
@@ -97,9 +142,16 @@ impl Display for LogLevel {
 	}
 }
 
-/// Ufod logging settings
-#[derive(Deserialize, Debug)]
+/// Logging settings
+#[derive(Deserialize, Debug, Default)]
 pub struct UfodLoggingConfig {
+	#[serde(default)]
+	pub level: UfodLogLevelConfig,
+}
+
+/// Logging settings
+#[derive(Deserialize, Debug)]
+pub struct UfodLogLevelConfig {
 	#[serde(default)]
 	pub sqlx: LogLevel,
 
@@ -109,38 +161,42 @@ pub struct UfodLoggingConfig {
 	#[serde(default)]
 	pub pipeline: LogLevel,
 
-	#[serde(default = "UfodLoggingConfig::default_warn")]
+	#[serde(default)]
+	pub server: LogLevel,
+
+	#[serde(default = "UfodLogLevelConfig::default_all")]
 	pub all: LogLevel,
 }
 
-impl Default for UfodLoggingConfig {
+impl Default for UfodLogLevelConfig {
 	fn default() -> Self {
 		Self {
-			sqlx: Default::default(),
-			http: Default::default(),
-			pipeline: LogLevel::Debug,
+			sqlx: LogLevel::default(),
+			http: LogLevel::default(),
+			pipeline: LogLevel::default(),
+			server: LogLevel::default(),
 
 			// This can get noisy, so default to a higher level
-			all: LogLevel::Warn,
+			all: Self::default_all(),
 		}
 	}
 }
 
-impl UfodLoggingConfig {
-	fn default_warn() -> LogLevel {
+impl UfodLogLevelConfig {
+	fn default_all() -> LogLevel {
 		LogLevel::Warn
 	}
 
 	/// Convert this logging config to a tracing env filter
 	pub fn to_env_filter(&self) -> String {
 		format!(
-			"ufo_pipeline={},sqlx={},tower_http={},{}",
-			self.pipeline, self.sqlx, self.http, self.all
+			"ufo_pipeline={},sqlx={},tower_http={},ufod={},{}",
+			self.pipeline, self.sqlx, self.http, self.server, self.all
 		)
 	}
 }
 
-/// Ufod path settings
+/// Path settings
 #[derive(Deserialize, Debug)]
 pub struct UfodPathConfig {
 	/// Directory for in-progress uploads
@@ -162,7 +218,7 @@ impl UfodPathConfig {
 	}
 }
 
-/// Ufod uploader settings
+/// Uploader settings
 #[derive(Deserialize, Debug)]
 pub struct UfodUploadConfig {
 	/// Delete upload jobs that have been bound to a pipeline

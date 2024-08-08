@@ -6,7 +6,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use serde::Deserialize;
-use tracing::{debug, error};
+use tracing::{error, info};
 use ufo_ds_core::{
 	api::meta::{AttributeOptions, Metastore},
 	data::MetastoreDataStub,
@@ -54,7 +54,7 @@ pub(super) async fn add_attr(
 		return x;
 	}
 
-	debug!(
+	info!(
 		message = "Making a new attribute",
 		payload = ?payload
 	);

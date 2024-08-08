@@ -112,7 +112,7 @@ pub(super) async fn list_pipelines(
 				runner.get_dispatcher(),
 				&UFOContext {
 					dataset: dataset.clone(),
-					blob_fragment_size: state.config.blob_fragment_size,
+					blob_fragment_size: state.config.pipeline.blob_fragment_size,
 					input: BTreeMap::new(), // Unused when building pipelines
 				},
 				&pipe_name,

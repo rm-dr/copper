@@ -6,7 +6,7 @@ use std::{
 	collections::{BTreeMap, VecDeque},
 	sync::Arc,
 };
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 use super::single::{PipelineSingleJob, PipelineSingleJobError, SingleJobState};
 use crate::{
@@ -189,7 +189,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				match x.run() {
 					Ok(SingleJobState::Running) => {}
 					Ok(SingleJobState::Done) => {
-						debug!(
+						info!(
 							message = "Job finished",
 							job_id = id,
 							pipeline = ?x.get_pipeline().name
@@ -242,7 +242,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				// Start a new job if we have space
 				*r = self.job_queue.pop_front();
 
-				debug!(
+				info!(
 					message = "Starting job",
 					job_id = ?r.as_ref().unwrap().0,
 					pipeline = ?r.as_ref().unwrap().1.get_pipeline().name,

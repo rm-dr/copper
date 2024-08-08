@@ -2,7 +2,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use sha2::{Digest, Sha256};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::HashMap, fs::File, io::Write, path::PathBuf, sync::Arc, time::Instant};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 use ufo_node_base::{data::UFOData, UFOContext};
 use ufo_pipeline::runner::runner::PipelineRunner;
 use ufo_util::mime::MimeType;
@@ -52,7 +52,7 @@ impl Uploader {
 	pub fn open(config: Arc<UfodConfig>) -> Self {
 		// Initialize upload dir
 		if !config.paths.upload_dir.exists() {
-			info!(
+			warn!(
 				message = "Creating upload dir because it doesn't exist",
 				upload_dir = ?config.paths.upload_dir
 			);
@@ -133,14 +133,14 @@ impl Uploader {
 			// just in case it has been created but hasn't yet been added to the runner.
 			if j.last_activity + offset < now {
 				if j.bound_to_pipeline_job.is_none() {
-					info!(
+					debug!(
 						message = "Removing job",
 						reason = "timeout",
 						job_id = ?j.id,
 						started_at = ?j.started_at
 					);
 				} else {
-					info!(
+					debug!(
 						message = "Removing job",
 						reason = "pipeline is done",
 						job_id = ?j.id,
@@ -226,7 +226,7 @@ impl Uploader {
 		}
 
 		job.bound_to_pipeline_job = Some(pipeline_job_id);
-		info!(
+		debug!(
 			message = "Bound job to pipeline",
 			upload_job = ?job.id,
 			pipeline_job = pipeline_job_id
@@ -436,7 +436,7 @@ impl Uploader {
 				expected: final_hash.into(),
 			});
 		}
-		info!(
+		debug!(
 			message = "Finished uploading file",
 			job = ?job_id,
 			file = ?file_id,

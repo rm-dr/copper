@@ -6,7 +6,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error};
+use tracing::{error, info};
 use ufo_ds_impl::DatasetType;
 use utoipa::ToSchema;
 
@@ -51,7 +51,7 @@ pub(super) async fn add_dataset(
 		}
 	}
 
-	debug!(message = "Making new dataset", payload = ?payload);
+	info!(message = "Making new dataset", payload = ?payload);
 
 	if payload.name.is_empty() {
 		return (StatusCode::BAD_REQUEST, "Dataset name cannot be empty").into_response();

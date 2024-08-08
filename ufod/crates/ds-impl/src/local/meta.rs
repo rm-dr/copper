@@ -5,7 +5,7 @@ use sqlx::{
 	Connection, Row, Sqlite,
 };
 use std::{io::Read, iter, str::FromStr, sync::Arc};
-use tracing::debug;
+use tracing::info;
 use ufo_ds_core::{
 	api::{
 		blob::{BlobHandle, Blobstore},
@@ -198,7 +198,7 @@ impl LocalDataset {
 		drop(conn);
 
 		for b in all_blobs {
-			debug!(
+			info!(
 				message = "Deleting dead blob",
 				blob_handle = ?b
 			);

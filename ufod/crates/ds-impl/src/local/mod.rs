@@ -4,7 +4,7 @@ use std::{
 };
 
 use sqlx::{sqlite::SqliteConnectOptions, Connection, Row, SqliteConnection, SqlitePool};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use ufo_ds_core::{api::Dataset, errors::MetastoreError};
 use ufo_pipeline::api::{PipelineData, PipelineJobContext};
 
@@ -78,7 +78,7 @@ impl LocalDataset {
 	}
 
 	pub async fn open(ds_root: &Path) -> Result<Self, ()> {
-		debug!(
+		info!(
 			message = "Opening dataset",
 			ds_root = ?ds_root
 		);

@@ -43,14 +43,7 @@ pub(super) async fn try_login(
 		.await
 	{
 		Ok(Some(x)) => {
-			info!(
-				message = "Successfully logged in",
-				auth_info = ?x.user,
-				payload = ?payload
-			);
-
 			let token = x.token.to_string();
-
 			let cookie = Cookie::build((AUTH_COOKIE_NAME, token))
 				.path("/")
 				.secure(true)

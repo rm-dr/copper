@@ -21,12 +21,14 @@ use helpers::{maindb::MainDB, uploader::Uploader};
 async fn main() -> Result<(), Box<dyn Error>> {
 	let config_path: PathBuf = "./data/config.toml".into();
 	if !config_path.exists() {
+		// We cannot log here, logger hasn't been initialized
 		println!(
 			"Generating default config at {}",
 			config_path.to_str().unwrap()
 		);
 		UfodConfig::create_default_config(&config_path).unwrap();
 	} else if !config_path.is_file() {
+		// We cannot log here, logger hasn't been initialized
 		println!(
 			"Config path `{}` isn't a file, cannot start",
 			config_path.to_str().unwrap()
@@ -36,9 +38,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 	let config = Arc::new(UfodConfig::load_from_file(&config_path).unwrap());
 
-	// We cannot log before this point
+	// Logging is available after this point
 	tracing_subscriber::fmt()
-		.with_env_filter(config.logging.to_env_filter())
+		.with_env_filter(config.logging.level.to_env_filter())
 		.without_time()
 		.with_ansi(true)
 		.init();
@@ -52,14 +54,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		MainDB::create(&config.paths.main_db).await.unwrap();
 	}
 
-	// TODO: arc config?
 	let main_db = MainDB::open(config.clone()).await.unwrap();
 	let uploader = Uploader::open(config.clone());
 
 	// Prep runner
 	let mut runner: PipelineRunner<UFOData, UFOContext> = PipelineRunner::new(PipelineRunConfig {
-		node_threads: 2,
-		max_active_jobs: 8,
+		node_threads: config.pipeline.threads_per_job,
+		max_active_jobs: config.pipeline.parallel_jobs,
 	});
 
 	{
@@ -87,7 +88,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	let listener = tokio::net::TcpListener::bind(state.config.network.server_addr.to_string())
 		.await
 		.unwrap();
-	tracing::debug!("listening on {}", listener.local_addr().unwrap());
+	info!("listening on {}", listener.local_addr().unwrap());
 
 	let app = api::router(state.clone());
 
