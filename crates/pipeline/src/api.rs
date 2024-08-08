@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 
-use crate::{errors::PipelineError, portspec::PipelinePortSpec, NDataStub};
+use crate::{errors::PipelineError, labels::PipelinePortLabel, NDataStub};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipelineNodeState {
@@ -98,12 +98,24 @@ where
 		name: &str,
 	) -> Self::NodeType;
 
-	/// What inputs does this node produce?
-	/// The types provided here are the "defaults" for each port.
-	fn inputs(
+	/// How many inputs does this node produce?
+	fn n_inputs(&self, ctx: &<Self::NodeType as PipelineNode>::NodeContext) -> usize;
+
+	/// Find the index of the input with the given name.
+	/// Returns `None` if no such input exists.
+	fn input_with_name(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> PipelinePortSpec<NDataStub<Self::NodeType>>;
+		input_name: &PipelinePortLabel,
+	) -> Option<usize>;
+
+	/// The default input type for each port.
+	/// `input_compatible_with` should return `true` for each of these types.
+	fn input_default_type(
+		&self,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+		input_idx: usize,
+	) -> NDataStub<Self::NodeType>;
 
 	/// Can the specified inport port consume the given data type?
 	/// This allows inputs to consume many types of data.
@@ -114,11 +126,23 @@ where
 		input_type: NDataStub<Self::NodeType>,
 	) -> bool;
 
-	/// What outputs does this node produce?
-	fn outputs(
+	/// How many inputs does this node produce?
+	fn n_outputs(&self, ctx: &<Self::NodeType as PipelineNode>::NodeContext) -> usize;
+
+	/// Find the index of the output with the given name.
+	/// Returns `None` if no such output exists.
+	fn output_with_name(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> PipelinePortSpec<NDataStub<Self::NodeType>>;
+		output_name: &PipelinePortLabel,
+	) -> Option<usize>;
+
+	/// What type of data does the output with the given index produce?
+	fn output_type(
+		&self,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+		output_idx: usize,
+	) -> NDataStub<Self::NodeType>;
 }
 
 pub trait PipelineData

@@ -4,10 +4,10 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
-use ufo_storage::data::StorageData;
+use ufo_storage::data::{StorageData, StorageDataStub};
 use ufo_util::mime::MimeType;
 
-use crate::UFOContext;
+use crate::{UFOContext, UFOStaticNode};
 
 pub struct FileInput {
 	path: Option<PathBuf>,
@@ -67,5 +67,18 @@ impl PipelineNode for FileInput {
 		)?;
 
 		return Ok(PipelineNodeState::Done);
+	}
+}
+
+impl UFOStaticNode for FileInput {
+	fn inputs() -> &'static [(&'static str, StorageDataStub)] {
+		&[("path", StorageDataStub::Path)]
+	}
+
+	fn outputs() -> &'static [(&'static str, StorageDataStub)] {
+		&[
+			("path", StorageDataStub::Path),
+			("data", StorageDataStub::Binary),
+		]
 	}
 }

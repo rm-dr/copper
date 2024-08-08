@@ -78,6 +78,12 @@ impl From<SmartString<LazyCompact>> for PipelinePortLabel {
 	}
 }
 
+impl From<&SmartString<LazyCompact>> for PipelinePortLabel {
+	fn from(s: &SmartString<LazyCompact>) -> Self {
+		PipelinePortLabel(s.clone())
+	}
+}
+
 impl From<PipelinePortLabel> for SmartString<LazyCompact> {
 	fn from(value: PipelinePortLabel) -> Self {
 		value.0

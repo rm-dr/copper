@@ -7,10 +7,10 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
-use ufo_storage::data::StorageData;
+use ufo_storage::data::{StorageData, StorageDataStub};
 use ufo_util::mime::MimeType;
 
-use crate::UFOContext;
+use crate::{UFOContext, UFOStaticNode};
 
 #[derive(Clone)]
 pub struct StripTags {
@@ -84,5 +84,15 @@ impl PipelineNode for StripTags {
 		)?;
 
 		return Ok(PipelineNodeState::Done);
+	}
+}
+
+impl UFOStaticNode for StripTags {
+	fn inputs() -> &'static [(&'static str, ufo_storage::data::StorageDataStub)] {
+		&[("data", StorageDataStub::Binary)]
+	}
+
+	fn outputs() -> &'static [(&'static str, StorageDataStub)] {
+		&[("out", StorageDataStub::Binary)]
 	}
 }

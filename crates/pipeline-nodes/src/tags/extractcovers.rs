@@ -7,10 +7,10 @@ use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
-use ufo_storage::data::StorageData;
+use ufo_storage::data::{StorageData, StorageDataStub};
 use ufo_util::mime::MimeType;
 
-use crate::UFOContext;
+use crate::{UFOContext, UFOStaticNode};
 
 #[derive(Clone)]
 pub struct ExtractCovers {
@@ -78,5 +78,15 @@ impl PipelineNode for ExtractCovers {
 		)?;
 
 		return Ok(PipelineNodeState::Done);
+	}
+}
+
+impl UFOStaticNode for ExtractCovers {
+	fn inputs() -> &'static [(&'static str, ufo_storage::data::StorageDataStub)] {
+		&[("data", StorageDataStub::Binary)]
+	}
+
+	fn outputs() -> &'static [(&'static str, StorageDataStub)] {
+		&[("cover_data", StorageDataStub::Binary)]
 	}
 }

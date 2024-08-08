@@ -4,7 +4,6 @@ use std::fmt::Debug;
 use crate::{
 	api::{PipelineNode, PipelineNodeStub},
 	labels::PipelineLabel,
-	portspec::PipelinePortSpec,
 	NDataStub,
 };
 
@@ -56,23 +55,61 @@ impl<StubType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<StubType>
 		}
 	}
 
-	fn inputs(
-		&self,
-		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> PipelinePortSpec<NDataStub<Self::NodeType>> {
+	fn n_inputs(&self, ctx: &<Self::NodeType as PipelineNode>::NodeContext) -> usize {
 		match self {
 			Self::Pipeline { .. } => unreachable!(),
-			Self::User(n) => n.inputs(ctx),
+			Self::User(n) => n.n_inputs(ctx),
 		}
 	}
 
-	fn outputs(
+	fn input_default_type(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> PipelinePortSpec<NDataStub<Self::NodeType>> {
+		input_idx: usize,
+	) -> NDataStub<Self::NodeType> {
 		match self {
 			Self::Pipeline { .. } => unreachable!(),
-			Self::User(n) => n.outputs(ctx),
+			Self::User(n) => n.input_default_type(ctx, input_idx),
+		}
+	}
+
+	fn input_with_name(
+		&self,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+		input_name: &crate::labels::PipelinePortLabel,
+	) -> Option<usize> {
+		match self {
+			Self::Pipeline { .. } => unreachable!(),
+			Self::User(n) => n.input_with_name(ctx, input_name),
+		}
+	}
+
+	fn n_outputs(&self, ctx: &<Self::NodeType as PipelineNode>::NodeContext) -> usize {
+		match self {
+			Self::Pipeline { .. } => unreachable!(),
+			Self::User(n) => n.n_outputs(ctx),
+		}
+	}
+
+	fn output_with_name(
+		&self,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+		output_name: &crate::labels::PipelinePortLabel,
+	) -> Option<usize> {
+		match self {
+			Self::Pipeline { .. } => unreachable!(),
+			Self::User(n) => n.output_with_name(ctx, output_name),
+		}
+	}
+
+	fn output_type(
+		&self,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+		output_idx: usize,
+	) -> NDataStub<Self::NodeType> {
+		match self {
+			Self::Pipeline { .. } => unreachable!(),
+			Self::User(n) => n.output_type(ctx, output_idx),
 		}
 	}
 }

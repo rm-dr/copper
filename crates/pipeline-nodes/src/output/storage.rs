@@ -1,14 +1,16 @@
+use itertools::Itertools;
 use smartstring::{LazyCompact, SmartString};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
+	labels::PipelinePortLabel,
 };
 use ufo_storage::{
 	api::{AttrHandle, ClassHandle},
 	data::{StorageData, StorageDataStub},
 };
 
-use crate::UFOContext;
+use crate::{nodetype::UFONodeType, UFOContext, UFONode};
 
 pub struct StorageOutput {
 	class: ClassHandle,
@@ -73,5 +75,139 @@ impl PipelineNode for StorageOutput {
 		)?;
 
 		Ok(PipelineNodeState::Done)
+	}
+}
+
+impl UFONode for StorageOutput {
+	fn n_inputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
+		match stub {
+			UFONodeType::Dataset { class } => {
+				let class = ctx
+					.dataset
+					.lock()
+					.unwrap()
+					.get_class(&class[..])
+					.unwrap()
+					.unwrap();
+				let attrs = ctx.dataset.lock().unwrap().class_get_attrs(class).unwrap();
+
+				attrs
+					.into_iter()
+					.sorted_by_key(|(_, a, _)| a.clone()) // Guarantee consistent ordering
+					.count()
+			}
+			_ => unreachable!(),
+		}
+	}
+
+	fn input_compatible_with(
+		stub: &UFONodeType,
+		ctx: &UFOContext,
+		input_idx: usize,
+		input_type: StorageDataStub,
+	) -> bool {
+		match stub {
+			UFONodeType::Dataset { .. } => {
+				Self::input_default_type(stub, ctx, input_idx) == input_type
+			}
+			_ => unreachable!(),
+		}
+	}
+
+	fn input_with_name(
+		stub: &UFONodeType,
+		ctx: &UFOContext,
+		input_name: &PipelinePortLabel,
+	) -> Option<usize> {
+		match stub {
+			UFONodeType::Dataset { class } => {
+				let class = ctx
+					.dataset
+					.lock()
+					.unwrap()
+					.get_class(&class[..])
+					.unwrap()
+					.unwrap();
+				let attrs = ctx.dataset.lock().unwrap().class_get_attrs(class).unwrap();
+
+				attrs
+					.into_iter()
+					.sorted_by_key(|(_, a, _)| a.clone()) // Guarantee consistent ordering
+					.enumerate()
+					.find(|(_, (_, name, _))| PipelinePortLabel::from(name) == *input_name)
+					.map(|(i, _)| i)
+			}
+			_ => unreachable!(),
+		}
+	}
+
+	fn input_default_type(
+		stub: &UFONodeType,
+		ctx: &UFOContext,
+		input_idx: usize,
+	) -> StorageDataStub {
+		match stub {
+			UFONodeType::Dataset { class } => {
+				let class = ctx
+					.dataset
+					.lock()
+					.unwrap()
+					.get_class(&class[..])
+					.unwrap()
+					.unwrap();
+				let attrs = ctx.dataset.lock().unwrap().class_get_attrs(class).unwrap();
+
+				attrs
+					.into_iter()
+					.sorted_by_key(|(_, a, _)| a.clone()) // Guarantee consistent ordering
+					.nth(input_idx)
+					.unwrap()
+					.2
+			}
+			_ => unreachable!(),
+		}
+	}
+
+	fn n_outputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
+		match stub {
+			UFONodeType::Dataset { class } => {
+				let class = ctx
+					.dataset
+					.lock()
+					.unwrap()
+					.get_class(&class[..])
+					.unwrap()
+					.unwrap();
+				let attrs = ctx.dataset.lock().unwrap().class_get_attrs(class).unwrap();
+				attrs.into_iter().count()
+			}
+			_ => unreachable!(),
+		}
+	}
+
+	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> StorageDataStub {
+		match stub {
+			UFONodeType::Dataset { class } => {
+				assert!(output_idx == 0);
+				let mut d = ctx.dataset.lock().unwrap();
+				let class = d.get_class(class).unwrap().unwrap();
+				StorageDataStub::Reference { class }
+			}
+			_ => unreachable!(),
+		}
+	}
+
+	fn output_with_name(
+		stub: &UFONodeType,
+		_ctx: &UFOContext,
+		output_name: &PipelinePortLabel,
+	) -> Option<usize> {
+		match stub {
+			UFONodeType::Dataset { .. } => match Into::<&str>::into(output_name) {
+				"added_item" => Some(0),
+				_ => None,
+			},
+			_ => unreachable!(),
+		}
 	}
 }

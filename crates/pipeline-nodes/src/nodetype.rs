@@ -1,16 +1,14 @@
-use itertools::Itertools;
 use serde::Deserialize;
 use serde_with::serde_as;
 use ufo_audiofile::common::tagtype::TagType;
 use ufo_pipeline::{
-	api::{PipelineData, PipelineNode, PipelineNodeStub},
+	api::{PipelineNode, PipelineNodeStub},
 	labels::PipelinePortLabel,
-	portspec::PipelinePortSpec,
 	NDataStub,
 };
 use ufo_storage::data::{HashType, StorageData, StorageDataStub};
 
-use crate::{input::file::FileInput, output::storage::StorageOutput};
+use crate::{input::file::FileInput, output::storage::StorageOutput, UFONode};
 
 use super::{
 	nodeinstance::UFONodeInstance,
@@ -128,45 +126,18 @@ impl PipelineNodeStub for UFONodeType {
 		}
 	}
 
-	fn inputs(
-		&self,
-		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> PipelinePortSpec<NDataStub<Self::NodeType>> {
+	fn n_inputs(&self, ctx: &<Self::NodeType as PipelineNode>::NodeContext) -> usize {
 		match self {
-			// Util
-			Self::Constant { .. } => PipelinePortSpec::Static(&[]),
-			Self::IfNone => PipelinePortSpec::Static(&[
-				("data", StorageDataStub::Text),
-				("ifnone", StorageDataStub::Text),
-			]),
-			Self::Noop { inputs } => PipelinePortSpec::Vec(inputs),
-			Self::Hash { .. } => PipelinePortSpec::Static(&[("data", StorageDataStub::Binary)]),
-			Self::Print => PipelinePortSpec::Static(&[("data", StorageDataStub::Text)]),
-
-			// Audio
-			Self::ExtractTags { .. } => {
-				PipelinePortSpec::Static(&[("data", StorageDataStub::Binary)])
-			}
-			Self::StripTags => PipelinePortSpec::Static(&[("data", StorageDataStub::Binary)]),
-			Self::ExtractCovers => PipelinePortSpec::Static(&[("data", StorageDataStub::Binary)]),
-
-			Self::File => PipelinePortSpec::Static(&[("path", StorageDataStub::Path)]),
-			Self::Dataset { class } => PipelinePortSpec::VecOwned({
-				let class = ctx
-					.dataset
-					.lock()
-					.unwrap()
-					.get_class(&class[..])
-					.unwrap()
-					.unwrap();
-				let attrs = ctx.dataset.lock().unwrap().class_get_attrs(class).unwrap();
-
-				attrs
-					.into_iter()
-					.sorted_by_key(|(_, a, _)| a.clone()) // Guarantee consistent ordering
-					.map(|(_, name, data_type)| (name.into(), data_type))
-					.collect()
-			}),
+			Self::Constant { .. } => Constant::n_inputs(self, ctx),
+			Self::IfNone => IfNone::n_inputs(self, ctx),
+			Self::Print => Print::n_inputs(self, ctx),
+			Self::Hash { .. } => Hash::n_inputs(self, ctx),
+			Self::Noop { .. } => Noop::n_inputs(self, ctx),
+			Self::ExtractCovers => ExtractCovers::n_inputs(self, ctx),
+			Self::StripTags => StripTags::n_inputs(self, ctx),
+			Self::ExtractTags { .. } => ExtractTags::n_inputs(self, ctx),
+			Self::File => FileInput::n_inputs(self, ctx),
+			Self::Dataset { .. } => StorageOutput::n_inputs(self, ctx),
 		}
 	}
 
@@ -177,71 +148,115 @@ impl PipelineNodeStub for UFONodeType {
 		input_type: NDataStub<Self::NodeType>,
 	) -> bool {
 		match self {
-			// Inherit input from `input()`
-			Self::Constant { .. }
-			| Self::Noop { .. }
-			| Self::Hash { .. }
-			| Self::IfNone
-			| Self::ExtractTags { .. }
-			| Self::ExtractCovers
-			| Self::StripTags
-			| Self::File
-			| Self::Dataset { .. } => self
-				.inputs(ctx)
-				.get(input_idx)
-				.map(|x| x.1 == input_type)
-				.unwrap_or(false),
-
-			// Print can take any input type
-			Self::Print => self.inputs(ctx).get(input_idx).is_some(),
+			Self::Constant { .. } => {
+				Constant::input_compatible_with(self, ctx, input_idx, input_type)
+			}
+			Self::IfNone => IfNone::input_compatible_with(self, ctx, input_idx, input_type),
+			Self::Print => Print::input_compatible_with(self, ctx, input_idx, input_type),
+			Self::Hash { .. } => Hash::input_compatible_with(self, ctx, input_idx, input_type),
+			Self::Noop { .. } => Noop::input_compatible_with(self, ctx, input_idx, input_type),
+			Self::ExtractCovers => {
+				ExtractCovers::input_compatible_with(self, ctx, input_idx, input_type)
+			}
+			Self::StripTags => StripTags::input_compatible_with(self, ctx, input_idx, input_type),
+			Self::ExtractTags { .. } => {
+				ExtractTags::input_compatible_with(self, ctx, input_idx, input_type)
+			}
+			Self::File => FileInput::input_compatible_with(self, ctx, input_idx, input_type),
+			Self::Dataset { .. } => {
+				StorageOutput::input_compatible_with(self, ctx, input_idx, input_type)
+			}
 		}
 	}
 
-	fn outputs(
+	fn input_default_type(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> PipelinePortSpec<NDataStub<Self::NodeType>> {
+		input_idx: usize,
+	) -> NDataStub<Self::NodeType> {
 		match self {
-			// Magic
-			Self::Constant { value } => {
-				PipelinePortSpec::VecOwned(vec![("value".into(), value.as_stub())])
-			}
+			Self::Constant { .. } => Constant::input_default_type(self, ctx, input_idx),
+			Self::IfNone => IfNone::input_default_type(self, ctx, input_idx),
+			Self::Print => Print::input_default_type(self, ctx, input_idx),
+			Self::Hash { .. } => Hash::input_default_type(self, ctx, input_idx),
+			Self::Noop { .. } => Noop::input_default_type(self, ctx, input_idx),
+			Self::ExtractCovers => ExtractCovers::input_default_type(self, ctx, input_idx),
+			Self::StripTags => StripTags::input_default_type(self, ctx, input_idx),
+			Self::ExtractTags { .. } => ExtractTags::input_default_type(self, ctx, input_idx),
+			Self::File => FileInput::input_default_type(self, ctx, input_idx),
+			Self::Dataset { .. } => StorageOutput::input_default_type(self, ctx, input_idx),
+		}
+	}
 
-			// Util
-			Self::IfNone => PipelinePortSpec::Static(&[("out", StorageDataStub::Text)]),
-			Self::Hash { hash_type } => PipelinePortSpec::VecOwned(vec![(
-				"hash".into(),
-				StorageDataStub::Hash {
-					hash_type: *hash_type,
-				},
-			)]),
-			Self::Print => PipelinePortSpec::Static(&[]),
-			Self::Noop { inputs } => PipelinePortSpec::Vec(inputs),
+	fn input_with_name(
+		&self,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+		input_name: &PipelinePortLabel,
+	) -> Option<usize> {
+		match self {
+			Self::Constant { .. } => Constant::input_with_name(self, ctx, input_name),
+			Self::IfNone => IfNone::input_with_name(self, ctx, input_name),
+			Self::Print => Print::input_with_name(self, ctx, input_name),
+			Self::Hash { .. } => Hash::input_with_name(self, ctx, input_name),
+			Self::Noop { .. } => Noop::input_with_name(self, ctx, input_name),
+			Self::ExtractCovers => ExtractCovers::input_with_name(self, ctx, input_name),
+			Self::StripTags => StripTags::input_with_name(self, ctx, input_name),
+			Self::ExtractTags { .. } => ExtractTags::input_with_name(self, ctx, input_name),
+			Self::File => FileInput::input_with_name(self, ctx, input_name),
+			Self::Dataset { .. } => StorageOutput::input_with_name(self, ctx, input_name),
+		}
+	}
 
-			// Audio
-			Self::ExtractTags { tags } => PipelinePortSpec::VecOwned(
-				tags.iter()
-					.map(|x| (Into::<&str>::into(x).into(), StorageDataStub::Text))
-					.collect(),
-			),
-			Self::StripTags => PipelinePortSpec::Static(&[("out", StorageDataStub::Binary)]),
-			Self::ExtractCovers => {
-				PipelinePortSpec::Static(&[("cover_data", StorageDataStub::Binary)])
-			}
+	fn n_outputs(&self, ctx: &<Self::NodeType as PipelineNode>::NodeContext) -> usize {
+		match self {
+			Self::Constant { .. } => Constant::n_outputs(self, ctx),
+			Self::IfNone => IfNone::n_outputs(self, ctx),
+			Self::Print => Print::n_outputs(self, ctx),
+			Self::Hash { .. } => Hash::n_outputs(self, ctx),
+			Self::Noop { .. } => Noop::n_outputs(self, ctx),
+			Self::ExtractCovers => ExtractCovers::n_outputs(self, ctx),
+			Self::StripTags => StripTags::n_outputs(self, ctx),
+			Self::ExtractTags { .. } => ExtractTags::n_outputs(self, ctx),
+			Self::File => FileInput::n_outputs(self, ctx),
+			Self::Dataset { .. } => StorageOutput::n_outputs(self, ctx),
+		}
+	}
 
-			Self::File => PipelinePortSpec::Static(&[
-				("path", StorageDataStub::Path),
-				("data", StorageDataStub::Binary),
-			]),
+	fn output_type(
+		&self,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+		output_idx: usize,
+	) -> NDataStub<Self::NodeType> {
+		match self {
+			Self::Constant { .. } => Constant::output_type(self, ctx, output_idx),
+			Self::IfNone => IfNone::output_type(self, ctx, output_idx),
+			Self::Print => Print::output_type(self, ctx, output_idx),
+			Self::Hash { .. } => Hash::output_type(self, ctx, output_idx),
+			Self::Noop { .. } => Noop::output_type(self, ctx, output_idx),
+			Self::ExtractCovers => ExtractCovers::output_type(self, ctx, output_idx),
+			Self::StripTags => StripTags::output_type(self, ctx, output_idx),
+			Self::ExtractTags { .. } => ExtractTags::output_type(self, ctx, output_idx),
+			Self::File => FileInput::output_type(self, ctx, output_idx),
+			Self::Dataset { .. } => StorageOutput::output_type(self, ctx, output_idx),
+		}
+	}
 
-			Self::Dataset { class, .. } => {
-				let mut d = ctx.dataset.lock().unwrap();
-				let class = d.get_class(class).unwrap().unwrap();
-				PipelinePortSpec::VecOwned(vec![(
-					"added_item".into(),
-					StorageDataStub::Reference { class },
-				)])
-			}
+	fn output_with_name(
+		&self,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+		output_name: &PipelinePortLabel,
+	) -> Option<usize> {
+		match self {
+			Self::Constant { .. } => Constant::output_with_name(self, ctx, output_name),
+			Self::IfNone => IfNone::output_with_name(self, ctx, output_name),
+			Self::Print => Print::output_with_name(self, ctx, output_name),
+			Self::Hash { .. } => Hash::output_with_name(self, ctx, output_name),
+			Self::Noop { .. } => Noop::output_with_name(self, ctx, output_name),
+			Self::ExtractCovers => ExtractCovers::output_with_name(self, ctx, output_name),
+			Self::StripTags => StripTags::output_with_name(self, ctx, output_name),
+			Self::ExtractTags { .. } => ExtractTags::output_with_name(self, ctx, output_name),
+			Self::File => FileInput::output_with_name(self, ctx, output_name),
+			Self::Dataset { .. } => StorageOutput::output_with_name(self, ctx, output_name),
 		}
 	}
 }

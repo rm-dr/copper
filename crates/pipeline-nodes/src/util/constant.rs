@@ -1,10 +1,11 @@
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
+	labels::PipelinePortLabel,
 };
-use ufo_storage::data::StorageData;
+use ufo_storage::data::{StorageData, StorageDataStub};
 
-use crate::UFOContext;
+use crate::{nodetype::UFONodeType, UFOContext, UFONode};
 
 #[derive(Clone)]
 pub struct Constant {
@@ -33,5 +34,79 @@ impl PipelineNode for Constant {
 		assert!(input.is_empty());
 		send_data(0, self.value.clone())?;
 		Ok(PipelineNodeState::Done)
+	}
+}
+
+impl UFONode for Constant {
+	fn n_inputs(stub: &UFONodeType, _ctx: &UFOContext) -> usize {
+		match stub {
+			UFONodeType::Constant { .. } => 0,
+			_ => unreachable!(),
+		}
+	}
+
+	fn input_compatible_with(
+		stub: &UFONodeType,
+		_ctx: &UFOContext,
+		_input_idx: usize,
+		_input_type: StorageDataStub,
+	) -> bool {
+		match stub {
+			UFONodeType::Constant { .. } => false,
+			_ => unreachable!(),
+		}
+	}
+
+	fn input_with_name(
+		stub: &UFONodeType,
+		_ctx: &UFOContext,
+		_input_name: &PipelinePortLabel,
+	) -> Option<usize> {
+		match stub {
+			UFONodeType::Constant { .. } => None,
+			_ => unreachable!(),
+		}
+	}
+
+	fn input_default_type(
+		_stub: &UFONodeType,
+		_ctx: &UFOContext,
+		_input_idx: usize,
+	) -> StorageDataStub {
+		unreachable!()
+	}
+
+	fn n_outputs(stub: &UFONodeType, _ctx: &UFOContext) -> usize {
+		match stub {
+			UFONodeType::Constant { .. } => 1,
+			_ => unreachable!(),
+		}
+	}
+
+	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> StorageDataStub {
+		match stub {
+			UFONodeType::Constant { value } => {
+				assert!(output_idx == 0);
+				value.as_stub()
+			}
+			_ => unreachable!(),
+		}
+	}
+
+	fn output_with_name(
+		stub: &UFONodeType,
+		_ctx: &UFOContext,
+		output_name: &PipelinePortLabel,
+	) -> Option<usize> {
+		match stub {
+			UFONodeType::ExtractTags { .. } => {
+				if Into::<&str>::into(output_name) == "value" {
+					Some(0)
+				} else {
+					None
+				}
+			}
+			_ => unreachable!(),
+		}
 	}
 }

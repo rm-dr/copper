@@ -92,7 +92,7 @@ impl PipelineData for StorageData {
 
 impl StorageData {
 	/// Transforms a data container into its type.
-	pub fn get_type(&self) -> StorageDataStub {
+	pub fn as_stub(&self) -> StorageDataStub {
 		match self {
 			Self::None(t) => *t,
 			Self::Text(_) => StorageDataStub::Text,

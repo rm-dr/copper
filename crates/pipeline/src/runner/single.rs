@@ -103,8 +103,7 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 					.graph
 					.get_node(pipeline.input_node_idx)
 					.1
-					.inputs(&context)
-					.len()
+					.n_inputs(&context)
 		);
 
 		let node_instances = pipeline
@@ -248,9 +247,9 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 			} else {
 				// Initialize all with None, in case some are disconnected.
 				let node_type = &self.pipeline.graph.get_node(node).1;
-				let i = node_type.inputs(&self.context);
-				let mut inputs = Vec::with_capacity(i.len());
-				for (_, t) in i.iter() {
+				let mut inputs = Vec::with_capacity(node_type.n_inputs(&self.context));
+				for i in 0..node_type.n_inputs(&self.context) {
+					let t = node_type.input_default_type(&self.context, i);
 					inputs.push(PipelineData::new_empty(t));
 				}
 

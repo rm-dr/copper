@@ -232,24 +232,22 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 						pipeline: pipeline.clone(),
 					})?;
 				let n = &p.graph.get_node(p.input_node_idx).1;
-				let idx = n
-					.inputs(&self.context)
-					.find_with_name(input_port_label)
-					.ok_or(PipelinePrepareError::NoNodeInput {
+				let idx = n.input_with_name(&self.context, input_port_label).ok_or(
+					PipelinePrepareError::NoNodeInput {
 						node: PipelineErrorNode::Named(node_label.clone()),
 						input: input_port_label.clone(),
-					})?;
-				n.input_compatible_with(&self.context, idx.0, input_type)
+					},
+				)?;
+				n.input_compatible_with(&self.context, idx, input_type)
 			}
 			t => {
-				let idx = t
-					.inputs(&self.context)
-					.find_with_name(input_port_label)
-					.ok_or(PipelinePrepareError::NoNodeInput {
+				let idx = t.input_with_name(&self.context, input_port_label).ok_or(
+					PipelinePrepareError::NoNodeInput {
 						node: PipelineErrorNode::Named(node_label.clone()),
 						input: input_port_label.clone(),
-					})?;
-				t.input_compatible_with(&self.context, idx.0, input_type)
+					},
+				)?;
+				t.input_compatible_with(&self.context, idx, input_type)
 			}
 		})
 	}
@@ -265,7 +263,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 		// Only used for errors
 		node_label: &PipelineNodeLabel,
 	) -> Result<usize, PipelinePrepareError<SDataStub<StubType>>> {
-		Ok(match node_type {
+		match node_type {
 			// `Pipeline` nodes don't know what inputs they provide,
 			// we need to find them ourselves.
 			InternalNodeStub::Pipeline { pipeline } => {
@@ -280,15 +278,14 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 					})?;
 
 				let n = &p.graph.get_node(p.input_node_idx).1;
-				n.inputs(&self.context).find_with_name(input_port_label)
+				n.input_with_name(&self.context, input_port_label)
 			}
-			t => t.inputs(&self.context).find_with_name(input_port_label),
+			t => t.input_with_name(&self.context, input_port_label),
 		}
 		.ok_or(PipelinePrepareError::NoNodeInput {
 			node: PipelineErrorNode::Named(node_label.clone()),
 			input: input_port_label.clone(),
-		})?
-		.0)
+		})
 	}
 
 	/// Find the port index and type of the output port labeled `output_port_label`
@@ -318,18 +315,27 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 						node: node_label.clone(),
 						pipeline: pipeline.clone(),
 					})?;
-				p.graph
-					.get_node(p.output_node_idx)
-					.1
-					.outputs(&self.context)
-					.find_with_name(output_port_label)
+				let p = &p.graph.get_node(p.output_node_idx).1;
+				let idx = p.output_with_name(&self.context, output_port_label).ok_or(
+					PipelinePrepareError::NoNodeOutput {
+						output: output_port_label.clone(),
+						node: PipelineErrorNode::Named(node_label.clone()),
+					},
+				)?;
+				let output_type = p.output_type(&self.context, idx);
+				Ok((idx, output_type))
 			}
-			t => t.outputs(&self.context).find_with_name(output_port_label),
+			t => {
+				let idx = t.output_with_name(&self.context, output_port_label).ok_or(
+					PipelinePrepareError::NoNodeOutput {
+						output: output_port_label.clone(),
+						node: PipelineErrorNode::Named(node_label.clone()),
+					},
+				)?;
+				let output_type = t.output_type(&self.context, idx);
+				Ok((idx, output_type))
+			}
 		}
-		.ok_or(PipelinePrepareError::NoNodeOutput {
-			output: output_port_label.clone(),
-			node: PipelineErrorNode::Named(node_label.clone()),
-		})
 	}
 
 	/// Connect `out_link` to port index `in_port` of node `node_idx`.
@@ -345,12 +351,8 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 				let out_port = self
 					.spec
 					.input
-					.outputs(&self.context)
-					.iter()
-					.enumerate()
-					.find(|(_, (a, _))| a == port)
-					.unwrap()
-					.0;
+					.output_with_name(&self.context, port)
+					.unwrap();
 				self.graph.borrow_mut().add_edge(
 					self.input_node_idx,
 					node_idx,
@@ -402,23 +404,17 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 		let output_type: SDataStub<StubType> = match output {
 			NodeOutput::Inline(node) => {
 				// Inline nodes must have exactly one output
-				if node.outputs(&self.context).len() != 1 {
+				if node.n_outputs(&self.context) != 1 {
 					return Err(PipelinePrepareError::BadInlineNode {
 						input: input.clone(),
 					});
 				}
-				node.outputs(&self.context).iter().next().unwrap().1
+				node.output_type(&self.context, 0)
 			}
 
 			NodeOutput::Pipeline { port } => {
-				if let Some((_, from_type)) = self
-					.spec
-					.input
-					.outputs(&self.context)
-					.iter()
-					.find(|(a, _)| a == port)
-				{
-					from_type
+				if let Some(idx) = self.spec.input.output_with_name(&self.context, port) {
+					self.spec.input.output_type(&self.context, idx)
 				} else {
 					return Err(PipelinePrepareError::NoNodeOutput {
 						node: PipelineErrorNode::PipelineInput,
@@ -445,12 +441,11 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 		// While doing this, make sure both the input node and port exist.
 		let compatible = match &input {
 			NodeInput::Pipeline { port } => {
-				if let Some((idx, _)) = self
+				if let Some(idx) = self
 					.spec
 					.output
 					.node_type
-					.inputs(&self.context)
-					.find_with_name(port)
+					.input_with_name(&self.context, port)
 				{
 					self.spec.output.node_type.input_compatible_with(
 						&self.context,

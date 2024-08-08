@@ -28,6 +28,8 @@ UFO's goal is to be "[Paperless] for everything," with...
 
 ### Current:
 - Better db index names
+- Ifnone general type
+- Consistent attr ordering
 
 - Load and check db metadata
 - sanely handle duplicate album art
@@ -55,7 +57,6 @@ UFO's goal is to be "[Paperless] for everything," with...
   - date
 - Helpful pipeline parse errors
 - Faster node inputs() and outputs()
-  - No (less?) allocation
   - Fewer db hits (solve by caching?)
 - Smarter pipeline scheduler
   - efficient end condition: we don't need to run ALL nodes
