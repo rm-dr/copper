@@ -1,3 +1,5 @@
+//! Errors we may encounter when running a pipeline
+
 use std::{error::Error, fmt::Display};
 
 #[derive(Debug)]

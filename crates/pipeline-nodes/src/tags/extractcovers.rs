@@ -10,7 +10,7 @@ use ufo_pipeline::{
 use ufo_storage::data::{StorageData, StorageDataStub};
 use ufo_util::mime::MimeType;
 
-use crate::{UFOContext, UFOStaticNode};
+use crate::{helpers::UFOStaticNode, UFOContext};
 
 #[derive(Clone)]
 pub struct ExtractCovers {

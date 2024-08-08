@@ -1,4 +1,5 @@
-//! Error helpers for pipeline spec parsing
+//! Errors we can encounter when parsing a pipeline
+
 use std::{error::Error, fmt::Display};
 
 use super::ports::NodeInput;

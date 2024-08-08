@@ -15,7 +15,7 @@ use ufo_pipeline::{
 use ufo_storage::data::{StorageData, StorageDataStub};
 use ufo_util::mime::MimeType;
 
-use crate::{nodetype::UFONodeType, UFOContext, UFONode};
+use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
 
 #[derive(Clone)]
 pub struct ExtractTags {

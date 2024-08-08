@@ -9,7 +9,7 @@ use ufo_storage::{
 	data::{StorageData, StorageDataStub},
 };
 
-use crate::{nodetype::UFONodeType, UFOContext, UFONode};
+use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
 
 pub struct AddToDataset {
 	class: ClassHandle,

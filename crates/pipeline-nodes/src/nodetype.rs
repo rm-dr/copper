@@ -8,13 +8,12 @@ use ufo_pipeline::{
 };
 use ufo_storage::data::{HashType, StorageData, StorageDataStub};
 
-use crate::{input::file::FileReader, output::addtodataset::AddToDataset, UFONode};
-
 use super::{
 	nodeinstance::UFONodeInstance,
 	tags::{extractcovers::ExtractCovers, extracttags::ExtractTags, striptags::StripTags},
 	util::{constant::Constant, hash::Hash, ifnone::IfNone, noop::Noop, print::Print},
 };
+use crate::{helpers::UFONode, input::file::FileReader, output::addtodataset::AddToDataset};
 
 #[serde_as]
 #[derive(Debug, Deserialize, Clone)]

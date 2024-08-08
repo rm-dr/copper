@@ -40,7 +40,7 @@ UFO's goal is to be "[Paperless] for everything," with...
 - Clean up all error handling (search for unwrap, assert, and panic)
   - db errors in pipeline run & build
   - detect bad classes?
-- clean up paths (pub use)
+
 
 
 ### Small tweaks
@@ -71,6 +71,7 @@ UFO's goal is to be "[Paperless] for everything," with...
 
 
 ### Pipeline runner
+- Rework pipeline errors
 - Smarter pipeline scheduler
   - efficient end condition: we don't need to run ALL nodes
   - What is blocking what? (data streams)

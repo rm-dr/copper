@@ -7,7 +7,7 @@ use ufo_pipeline::{
 use ufo_storage::data::{StorageData, StorageDataStub};
 use ufo_util::mime::MimeType;
 
-use crate::{UFOContext, UFOStaticNode};
+use crate::{helpers::UFOStaticNode, UFOContext};
 
 /// A node that reads data from a file
 pub struct FileReader {

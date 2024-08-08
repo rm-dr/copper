@@ -1,17 +1,23 @@
+//! Traits that allow external code to defune pipeline nodes
+
 use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 
 use crate::{errors::PipelineError, labels::PipelinePortLabel, NDataStub};
 
+/// The state of a [`PipelineNode`] at a point in time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipelineNodeState {
 	/// This node has not been started
+	/// and is waiting for `init()`.
 	NotStarted,
 
 	/// This node has more work to do
+	/// and is waiting to be `run()`.
 	Pending,
 
-	/// This node has output all its data and should not be run again
+	/// This node has output all its data
+	/// and will not be run again.
 	Done,
 }
 
@@ -32,6 +38,12 @@ impl PipelineNodeState {
 	}
 }
 
+/// An instance of a pipeline node, with some state.
+///
+/// When a pipeline is run, a [`PipelineNode`] is created for each of its nodes.
+///
+/// A [`PipelineNode`] is used to run exactly one pipeline instance,
+/// and is dropped when that pipeline finishes.
 pub trait PipelineNode {
 	/// Extra resources available to nodes
 	type NodeContext: Send + Sync;
@@ -84,6 +96,8 @@ pub trait PipelineNode {
 	}
 }
 
+/// An object that represents a "type" of pipeline node.
+/// Stubs are small and stateless.
 pub trait PipelineNodeStub
 where
 	Self: Debug + Clone + DeserializeOwned + Sync + Send,
@@ -145,10 +159,15 @@ where
 	) -> NDataStub<Self::NodeType>;
 }
 
+/// An immutable bit of data inside a pipeline.
+///
+/// These should be easy to clone. [`PipelineData`]s that
+/// carry something big probably wrap it in an [`std::sync::Arc`].
 pub trait PipelineData
 where
 	Self: Debug + Clone + Send + Sync,
 {
+	/// The stub type that represents this node.
 	type DataStub: PipelineDataStub;
 
 	/// Transform this data container into its type.
@@ -158,6 +177,10 @@ where
 	fn new_empty(stub: Self::DataStub) -> Self;
 }
 
+/// A "type" of [`PipelineData`].
+///
+/// This does NOT carry data. Rather, it tells us
+/// what *kind* of data a pipeline inputs/outputs.
 pub trait PipelineDataStub
 where
 	Self: Debug + PartialEq + Eq + Clone + Copy + Send + Sync,

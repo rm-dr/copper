@@ -1,3 +1,6 @@
+//! Top-level pipeline runner.
+//! Asynchronously Runs a set of pipelines on multiple threads.
+
 use std::{fs::File, io::Read, marker::PhantomData, path::Path, sync::Arc};
 
 use super::single::{PipelineSingleRunner, SingleRunnerState};
@@ -21,6 +24,7 @@ pub struct PipelineRunner<StubType: PipelineNodeStub> {
 }
 
 impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
+	/// Initialize a new runner
 	pub fn new(
 		context: <StubType::NodeType as PipelineNode>::NodeContext,
 		node_runners: usize,
@@ -33,6 +37,9 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		}
 	}
 
+	/// Load a pipeline into this runner.
+	///
+	/// A pipeline must be loaded before any instances of it are run.
 	pub fn add_pipeline(
 		&mut self,
 		ctx: <StubType::NodeType as PipelineNode>::NodeContext,
@@ -63,6 +70,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 			.cloned()
 	}
 
+	/// Run a pipeline with the given inputs
 	pub fn run(
 		&self,
 		pipeline_name: &PipelineLabel,

@@ -7,7 +7,7 @@ use ufo_pipeline::{
 };
 use ufo_storage::data::{HashType, StorageData, StorageDataStub};
 
-use crate::{nodetype::UFONodeType, UFOContext, UFONode};
+use crate::{helpers::UFONode, nodetype::UFONodeType, UFOContext};
 
 #[derive(Clone)]
 pub struct Hash {
