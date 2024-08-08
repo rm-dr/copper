@@ -264,7 +264,7 @@ impl Pipeline {
 		};
 
 		if n == pipeline.output_node_idx {
-			// If we can run the external node, we're done.
+			// If we can run the pipeline output node, we're done.
 			return Some(inputs);
 		} else {
 			// Otherwise, add this node to the pool.

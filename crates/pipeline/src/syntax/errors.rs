@@ -11,8 +11,9 @@ use super::{
 /// A node specification in a [`PipelinePrepareError`]
 #[derive(Debug)]
 pub enum PipelineErrorNode {
-	/// The pipeline's external interface node
-	Pipeline,
+	/// The pipeline's output node
+	PipelineOutput,
+	PipelineInput,
 
 	/// A named node created by the user
 	Named(PipelineNodeLabel),

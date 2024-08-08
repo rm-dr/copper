@@ -101,7 +101,7 @@ impl PipelineSpec {
 					from_type
 				} else {
 					return Err(PipelinePrepareError::NoNodeOutput {
-						node: PipelineErrorNode::Pipeline,
+						node: PipelineErrorNode::PipelineInput,
 						output: port.clone(),
 						caused_by: input.clone(),
 					});
@@ -139,7 +139,7 @@ impl PipelineSpec {
 					from_type
 				} else {
 					return Err(PipelinePrepareError::NoNodeInput {
-						node: PipelineErrorNode::Pipeline,
+						node: PipelineErrorNode::PipelineOutput,
 						input: port.clone(),
 					});
 				}
@@ -275,7 +275,7 @@ impl PipelineSpec {
 	/// [`Pipeline`].
 	pub fn prepare(self) -> Result<Pipeline, PipelinePrepareError> {
 		// Check each node's name and inputs;
-		// Build node array and initialize external node;
+		// Build node array
 		// Initialize nodes in graph
 		let mut nodes: Vec<(PipelineNodeLabel, PipelineNodeType)> = Vec::new();
 		let mut edges = Vec::new();
