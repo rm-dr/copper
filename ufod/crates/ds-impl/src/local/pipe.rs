@@ -24,6 +24,11 @@ impl<PipelineNodeStubType: PipelineNodeStub> Pipestore<PipelineNodeStubType> for
 				.fetch_one(&mut *conn),
 		);
 
+		// IMPORTANT!
+		// from_toml_str also locks this connection,
+		// and will deadlock if we don't drop here
+		drop(conn);
+
 		let pipe_spec = match res {
 			Err(sqlx::Error::RowNotFound) => return Ok(None),
 			Err(e) => return Err(PipestoreError::DbError(Box::new(e))),
