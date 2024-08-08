@@ -56,7 +56,17 @@ struct UploadJobFile {
 pub(crate) struct Uploader {
 	tmp_dir: PathBuf,
 	jobs: Mutex<Vec<UploadJob>>,
-	delete_job_after: Duration,
+	delete_job_after_bound: Duration,
+	delete_job_after_unbound: Duration,
+}
+
+#[derive(Debug)]
+pub enum JobBindError {
+	/// We tried to bind a job that doesn't exist
+	NoSuchJob,
+
+	/// We tried to bind a job that has already been bound
+	AlreadyBound,
 }
 
 impl Uploader {
@@ -64,7 +74,8 @@ impl Uploader {
 		Self {
 			tmp_dir,
 			jobs: Mutex::new(Vec::new()),
-			delete_job_after: Duration::from_secs(5),
+			delete_job_after_unbound: Duration::from_secs(5),
+			delete_job_after_bound: Duration::from_secs(10),
 		}
 	}
 
@@ -107,6 +118,11 @@ impl Uploader {
 			.collect()
 	}
 
+	/// Check all active jobs in this uploader,
+	/// and remove jobs we no longer need.
+	///
+	/// This cleans up jobs that have timed out,
+	/// and jobs bound to a pipeline that has been finished.
 	pub async fn check_jobs(&self, runner: &PipelineRunner<UFONodeType>) {
 		let mut jobs = self.jobs.lock().await;
 
@@ -126,9 +142,15 @@ impl Uploader {
 				}
 			}
 
+			let offset = if j.bound_to_pipeline_job.is_some() {
+				self.delete_job_after_bound
+			} else {
+				self.delete_job_after_unbound
+			};
+
 			// Wait for timeout even if this job is bound,
 			// just in case it has been created but hasn't yet been added to the runner.
-			if j.last_activity + self.delete_job_after < now {
+			if j.last_activity + offset < now {
 				if j.bound_to_pipeline_job.is_none() {
 					debug!(message = "Removing job", reason = "timeout", job_id = ?j.id);
 				} else {
@@ -153,12 +175,6 @@ impl Uploader {
 	}
 }
 
-#[derive(Debug)]
-pub enum JobBindError {
-	NoSuchJob,
-	AlreadyBound,
-}
-
 impl Uploader {
 	/// Get a path to the given file
 	pub async fn get_job_file_path(
@@ -177,6 +193,28 @@ impl Uploader {
 		return Some(file.path.clone());
 	}
 
+	/// Has the given file been finished?
+	pub async fn has_file_been_finished(
+		&self,
+		job_id: &SmartString<LazyCompact>,
+		file_name: &SmartString<LazyCompact>,
+	) -> Option<bool> {
+		let jobs = self.jobs.lock().await;
+
+		let job = jobs.iter().find(|us| us.id == *job_id)?;
+		let file = job.files.iter().find(|f| f.name == *file_name)?;
+		return Some(file.hasher.is_none());
+	}
+
+	/// Bind the given job to the given pipeline.
+	///
+	/// This ensures that this job's files will removed only after
+	/// this pipeline finishes running.
+	///
+	/// Notes:
+	/// - Unbound jobs are removed after a preset duration of inactivity.
+	/// - Any job may only be bound to one pipeline.
+	/// - Once a job is bound, it cannot be bound again.
 	pub async fn bind_job_to_pipeline(
 		&self,
 		job_id: &SmartString<LazyCompact>,
@@ -231,12 +269,18 @@ impl Uploader {
 		let upload_job_dir = uploader.tmp_dir.join(id.to_string());
 		match std::fs::create_dir(&upload_job_dir) {
 			Ok(_) => {}
-			Err(_) => {
+			Err(e) => {
+				error!(
+					message = "Could not create upload job",
+					job = ?id,
+					error = ?e
+				);
+
 				return (
 					StatusCode::INTERNAL_SERVER_ERROR,
 					format!("could not create directory for upload job `{id}`"),
 				)
-					.into_response()
+					.into_response();
 			}
 		}
 
@@ -250,6 +294,7 @@ impl Uploader {
 			bound_to_pipeline_job: None,
 		});
 
+		debug!(message = "Created upload job", job=?id);
 		return (StatusCode::OK, Json(UploadStartResult { job_id: id })).into_response();
 	}
 
@@ -265,11 +310,16 @@ impl Uploader {
 		let job = match jobs.iter_mut().find(|us| us.id == upload_job_id) {
 			Some(x) => x,
 			None => {
+				warn!(
+					message = "Tried to start a file in a job that doesn't exist",
+					bad_job_id = ?upload_job_id,
+				);
+
 				return (
 					StatusCode::NOT_FOUND,
 					format!("upload job {upload_job_id} does not exist"),
 				)
-					.into_response()
+					.into_response();
 			}
 		};
 		job.last_activity = Instant::now();
@@ -286,24 +336,37 @@ impl Uploader {
 		let file_path = job.dir.join(&file_name);
 		match File::create(&file_path) {
 			Ok(_) => {}
-			Err(_) => {
+			Err(e) => {
+				error!(
+					message = "Could not initialize file in upload job",
+					job = ?job.id,
+					error = ?e,
+				);
+
 				return (
 					StatusCode::INTERNAL_SERVER_ERROR,
 					format!("could not create file {file_name} for upload job {upload_job_id}"),
 				)
-					.into_response()
+					.into_response();
 			}
 		}
 
 		job.files.push(UploadJobFile {
 			name: file_name.clone().into(),
 			path: file_path,
-			file_type: start_info.file_type,
+			file_type: start_info.file_type.clone(),
 
 			fragments_received: 0,
 			is_done: false,
 			hasher: Some(Sha256::new()),
 		});
+
+		debug!(
+			message = "Created a new upload file",
+			job = ?job.id,
+			file_name= ?file_name,
+			file_type = ?start_info.file_type
+		);
 
 		return (
 			StatusCode::OK,
@@ -325,11 +388,16 @@ impl Uploader {
 		let job = match jobs.iter_mut().find(|us| us.id == job_id) {
 			Some(x) => x,
 			None => {
+				warn!(
+					message = "Tried to upload a fragment to a job that doesn't exist",
+					bad_job_id = ?job_id,
+				);
+
 				return (
 					StatusCode::NOT_FOUND,
 					format!("upload job {job_id} does not exist"),
 				)
-					.into_response()
+					.into_response();
 			}
 		};
 		job.last_activity = Instant::now();
@@ -338,15 +406,27 @@ impl Uploader {
 		let file = match job.files.iter_mut().find(|f| f.name == file_id) {
 			Some(x) => x,
 			None => {
+				warn!(
+					message = "Tried to upload a fragment to a file that doesn't exist",
+					job = ?job_id,
+					bad_file_id = ?file_id
+				);
+
 				return (
 					StatusCode::NOT_FOUND,
 					format!("upload job {job_id} does have a file with id {file_id}"),
 				)
-					.into_response()
+					.into_response();
 			}
 		};
 
 		if file.is_done {
+			warn!(
+				message = "Tried to upload a fragment to a file that has been finished",
+				job = ?job_id,
+				file_id = ?file_id
+			);
+
 			return (
 				StatusCode::BAD_REQUEST,
 				format!("file {} has already been finished", file_id),
@@ -363,6 +443,12 @@ impl Uploader {
 			match &name[..] {
 				"metadata" => {
 					if saw_meta {
+						warn!(
+							message = "Multiple `metadata` fields in a file fragment",
+							job = ?job_id,
+							file_id = ?file_id
+						);
+
 						return (
 							StatusCode::BAD_REQUEST,
 							"multiple `metadata` fields in one file fragment",
@@ -375,6 +461,14 @@ impl Uploader {
 					let meta: UploadFragmentMetadata = serde_json::from_str(&meta).unwrap();
 
 					if file.fragments_received != meta.part_idx {
+						warn!(
+							message = "Bad fragment index",
+							job = ?job_id,
+							file_id = ?file_id,
+							expected_idx = file.fragments_received,
+							got_idx = meta.part_idx,
+						);
+
 						return (
 							StatusCode::BAD_REQUEST,
 							format!(
@@ -390,6 +484,12 @@ impl Uploader {
 
 				"fragment" => {
 					if saw_data {
+						warn!(
+							message = "Multiple `fragment` fields in a file fragment",
+							job = ?job_id,
+							file_id = ?file_id
+						);
+
 						return (
 							StatusCode::BAD_REQUEST,
 							"multiple `fragment` fields in one file fragment",
@@ -409,7 +509,15 @@ impl Uploader {
 					match f {
 						Ok(mut f) => match f.write(&data) {
 							Ok(_) => {}
-							Err(_) => {
+							Err(e) => {
+								error!(
+									message = "Could not write fragment to file",
+									job = ?job_id,
+									file_id = ?file_id,
+									file_path = ?file.path,
+									error = ?e
+								);
+
 								return (
 									StatusCode::INTERNAL_SERVER_ERROR,
 									format!(
@@ -420,7 +528,15 @@ impl Uploader {
 									.into_response();
 							}
 						},
-						Err(_) => {
+						Err(e) => {
+							error!(
+								message = "Could not open file to write fragment",
+								job = ?job_id,
+								file_id = ?file_id,
+								file_path = ?file.path,
+								error = ?e
+							);
+
 							return (
 								StatusCode::INTERNAL_SERVER_ERROR,
 								format!("could not open file {} in job {}", file_id, job_id),
@@ -430,6 +546,13 @@ impl Uploader {
 					};
 				}
 				_ => {
+					warn!(
+						message = "Bad field name in fragment upload request",
+						job = ?job_id,
+						file_id = ?file_id,
+						field_name = ?name
+					);
+
 					return (StatusCode::BAD_REQUEST, format!("bad field name `{name}`"))
 						.into_response();
 				}
@@ -450,11 +573,16 @@ impl Uploader {
 		let job = match jobs.iter_mut().find(|us| us.id == job_id) {
 			Some(x) => x,
 			None => {
+				warn!(
+					message = "Tried to finish a file in a job that doesn't exist",
+					bad_job_id = ?job_id,
+				);
+
 				return (
 					StatusCode::NOT_FOUND,
 					format!("upload job {job_id} does not exist"),
 				)
-					.into_response()
+					.into_response();
 			}
 		};
 		job.last_activity = Instant::now();
@@ -463,11 +591,17 @@ impl Uploader {
 		let file = match job.files.iter_mut().find(|f| f.name == file_id) {
 			Some(x) => x,
 			None => {
+				warn!(
+					message = "Tried to finish a file that doesn't exist",
+					job = ?job_id,
+					bad_file_id = ?file_id
+				);
+
 				return (
 					StatusCode::NOT_FOUND,
 					format!("upload job {job_id} does have a file with id {file_id}"),
 				)
-					.into_response()
+					.into_response();
 			}
 		};
 
@@ -475,8 +609,16 @@ impl Uploader {
 		let our_hash = format!("{:X}", file.hasher.take().unwrap().finalize());
 
 		if our_hash != finish_data.hash {
+			warn!(
+				message = "Uploaded hash does not match expected hash",
+				job = ?job_id,
+				file = ?file_id,
+				expected_hash = ?finish_data.hash,
+				got_hash = ?our_hash
+			);
+
 			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
+				StatusCode::BAD_REQUEST,
 				format!(
 					"uploaded file hash `{}` does not match expected hash `{}`",
 					our_hash, finish_data.hash
@@ -484,6 +626,13 @@ impl Uploader {
 			)
 				.into_response();
 		} else {
+			debug!(
+				message = "Finished uploading file",
+				job = ?job_id,
+				file = ?file_id,
+				hash = ?our_hash
+			);
+
 			return StatusCode::OK.into_response();
 		}
 	}
