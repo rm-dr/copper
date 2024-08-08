@@ -27,26 +27,27 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
+- clean up pipeline prepare
+- Attach "after" to *output* of sub-pipeline
+
 - foreign key datatype
-- add output returns foreign key
-- clean up runner
 - async binary readers
-- limit channel size
 - handle channel errors (Pending when full?)
 - args to node one by one
 - sanely handle duplicate album art
-- Attach "after" to *output* of sub-pipeline
 - Clean up all error handling (search for unwrap, assert, and panic)
 - clean up paths (pub use)
 
 ### Later:
 - Better name
 - tui, web ui
+- async pipeline runners
 - Docker container
 - Docs
+- limit channel size
 - Dynamic node definitions
 - Fast search
-- Discard pipelines---what should we do for sub-pipelines?
+- Discard node---what should we do for sub-pipelines?
   - Transactions?
 - Arrays & foreach (a file could have many covers)
 - Add nodes:
