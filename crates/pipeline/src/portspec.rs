@@ -3,12 +3,13 @@ use ufo_util::data::PipelineDataType;
 use crate::syntax::labels::PipelinePortLabel;
 
 /// Name and datatype for a set of ports.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum PipelinePortSpec<'a> {
 	// TODO: make `&'static str` a `PipelinePortLabel` once we can
 	// statically make SmartStrings.
 	Static(&'static [(&'static str, PipelineDataType)]),
 	Vec(&'a Vec<(PipelinePortLabel, PipelineDataType)>),
+	VecOwned(Vec<(PipelinePortLabel, PipelineDataType)>),
 }
 
 impl<'a> PipelinePortSpec<'a> {
@@ -16,6 +17,7 @@ impl<'a> PipelinePortSpec<'a> {
 		match self {
 			Self::Static(x) => x.len(),
 			Self::Vec(x) => x.len(),
+			Self::VecOwned(x) => x.len(),
 		}
 	}
 
@@ -35,6 +37,11 @@ impl<'a> PipelinePortSpec<'a> {
 				.enumerate()
 				.find(|(_, (l, _))| l == name)
 				.map(|(i, (_, t))| (i, *t)),
+			Self::VecOwned(x) => x
+				.iter()
+				.enumerate()
+				.find(|(_, (l, _))| l == name)
+				.map(|(i, (_, t))| (i, *t)),
 		}
 	}
 
@@ -42,6 +49,7 @@ impl<'a> PipelinePortSpec<'a> {
 		match self {
 			Self::Static(data) => PipelineArgSpecIterator::Static { data, idx: 0 },
 			Self::Vec(data) => PipelineArgSpecIterator::Vec { data, idx: 0 },
+			Self::VecOwned(data) => PipelineArgSpecIterator::Vec { data, idx: 0 },
 		}
 	}
 }

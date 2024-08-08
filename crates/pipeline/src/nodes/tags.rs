@@ -1,29 +1,142 @@
+use itertools::Itertools;
 use lofty::{
 	config::ParseOptions,
 	file::AudioFile,
-	tag::{Accessor, Tag},
+	tag::{ItemKey, Tag},
 };
+use serde_with::DeserializeFromStr;
 use std::{
+	fmt::Display,
 	io::{Cursor, Read, Seek},
+	str::FromStr,
 	sync::Arc,
 };
 use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData, PipelineDataType};
 
 use crate::{errors::PipelineError, PipelineStatelessRunner};
 
-pub struct ExtractTags {}
+#[derive(Debug, DeserializeFromStr, Clone, Copy, Hash, PartialEq, Eq)]
+pub enum TagType {
+	Album,
+	AlbumArtist,
+	Comment,
+	ReleaseDate,
+	DiskNumber,
+	DiskTotal,
+	Genre,
+	ISRC,
+	Lyrics,
+	TrackNumber,
+	TrackTitle,
+	TrackArtist,
+	Year,
+}
 
-impl ExtractTags {
-	pub fn new() -> Self {
-		Self {}
+impl TagType {
+	pub fn get_type(&self) -> PipelineDataType {
+		match self {
+			Self::Album
+			| Self::AlbumArtist
+			| Self::Comment
+			| Self::Genre
+			| Self::ISRC
+			| Self::Lyrics
+			| Self::TrackTitle
+			| Self::TrackArtist => PipelineDataType::Text,
+			Self::ReleaseDate => PipelineDataType::Text,
+			Self::DiskNumber => PipelineDataType::Text,
+			Self::DiskTotal => PipelineDataType::Text,
+			Self::TrackNumber => PipelineDataType::Text,
+			Self::Year => PipelineDataType::Text,
+		}
+	}
+
+	fn extract(&self, t: &Tag) -> PipelineData {
+		t.get_string(&match self {
+			Self::Album => ItemKey::AlbumTitle,
+			Self::AlbumArtist => ItemKey::AlbumArtist,
+			Self::Comment => ItemKey::Comment,
+			Self::ReleaseDate => ItemKey::ReleaseDate,
+			Self::DiskNumber => ItemKey::DiscNumber,
+			Self::DiskTotal => ItemKey::DiscNumber,
+			Self::Genre => ItemKey::Genre,
+			Self::ISRC => ItemKey::Isrc,
+			Self::Lyrics => ItemKey::Lyrics,
+			Self::TrackNumber => ItemKey::TrackNumber,
+			Self::TrackTitle => ItemKey::TrackTitle,
+			Self::TrackArtist => ItemKey::TrackArtist,
+			Self::Year => ItemKey::Year,
+		})
+		.map(|x| PipelineData::Text(x.to_string()))
+		.unwrap_or(PipelineData::None(PipelineDataType::Text))
 	}
 }
 
+impl Display for TagType {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			// This should match `FromStr` below
+			Self::Album => write!(f, "Album"),
+			Self::AlbumArtist => write!(f, "AlbumArtist"),
+			Self::Comment => write!(f, "Comment"),
+			Self::ReleaseDate => write!(f, "ReleaseDate"),
+			Self::DiskNumber => write!(f, "DiskNumber"),
+			Self::DiskTotal => write!(f, "DiskTotal"),
+			Self::Genre => write!(f, "Genre"),
+			Self::ISRC => write!(f, "ISRC"),
+			Self::Lyrics => write!(f, "Lyrics"),
+			Self::TrackNumber => write!(f, "TrackNumber"),
+			Self::TrackTitle => write!(f, "Title"),
+			Self::TrackArtist => write!(f, "Artist"),
+			Self::Year => write!(f, "Year"),
+		}
+	}
+}
+
+// TODO: better error
+impl FromStr for TagType {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		// This should match `Display` above
+		Ok(match s {
+			"Album" => Self::Album,
+			"AlbumArtist" => Self::AlbumArtist,
+			"Comment" => Self::Comment,
+			"ReleaseDate" => Self::ReleaseDate,
+			"DiskNumber" => Self::DiskNumber,
+			"DiskTotal" => Self::DiskTotal,
+			"Genre" => Self::Genre,
+			"ISRC" => Self::ISRC,
+			"Lyrics" => Self::Lyrics,
+			"TrackNumber" => Self::TrackNumber,
+			"Title" => Self::TrackTitle,
+			"Artist" => Self::TrackArtist,
+			"Year" => Self::Year,
+			x => return Err(format!("Unknown tag {x}")),
+		})
+	}
+}
+
+pub struct ExtractTags {
+	tags: Vec<TagType>,
+}
+
+impl ExtractTags {
+	pub fn new(tags: Vec<TagType>) -> Self {
+		Self {
+			tags: tags.into_iter().unique().collect(),
+		}
+	}
+}
+
+/*
 impl Default for ExtractTags {
 	fn default() -> Self {
 		Self::new()
 	}
 }
+*/
 
 impl ExtractTags {
 	fn parse_flac<R>(mut data_read: &mut R) -> Result<Option<Tag>, PipelineError>
@@ -90,72 +203,20 @@ impl PipelineStatelessRunner for ExtractTags {
 		if t.is_err() {
 			return Err(t.err().unwrap());
 		}
-		let t = t.unwrap();
+		let tag = t.unwrap();
 
-		let h = if let Some(t) = t {
-			let title = t
-				.title()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None(PipelineDataType::Text));
-			let album = t
-				.album()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None(PipelineDataType::Text));
-			let artist = t
-				.artist()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None(PipelineDataType::Text));
-			let genre = t
-				.genre()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None(PipelineDataType::Text));
-			let comment = t
-				.comment()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None(PipelineDataType::Text));
-			let track = t
-				.comment()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None(PipelineDataType::Text));
-			let disk = t
-				.disk()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None(PipelineDataType::Text));
-			let disk_total = t
-				.disk_total()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None(PipelineDataType::Text));
-			let year = t
-				.year()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None(PipelineDataType::Text));
+		let mut out = Vec::with_capacity(self.tags.len());
 
-			vec![
-				Arc::new(title),
-				Arc::new(album),
-				Arc::new(artist),
-				Arc::new(genre),
-				Arc::new(comment),
-				Arc::new(track),
-				Arc::new(disk),
-				Arc::new(disk_total),
-				Arc::new(year),
-			]
+		if let Some(tag) = tag {
+			for t in &self.tags {
+				out.push(Arc::new(t.extract(&tag)))
+			}
 		} else {
-			// TODO: should these all be the same arc?
-			vec![
-				Arc::new(PipelineData::None(PipelineDataType::Text)),
-				Arc::new(PipelineData::None(PipelineDataType::Text)),
-				Arc::new(PipelineData::None(PipelineDataType::Text)),
-				Arc::new(PipelineData::None(PipelineDataType::Text)),
-				Arc::new(PipelineData::None(PipelineDataType::Text)),
-				Arc::new(PipelineData::None(PipelineDataType::Text)),
-				Arc::new(PipelineData::None(PipelineDataType::Text)),
-				Arc::new(PipelineData::None(PipelineDataType::Text)),
-				Arc::new(PipelineData::None(PipelineDataType::Text)),
-			]
+			for t in &self.tags {
+				out.push(Arc::new(PipelineData::None(t.get_type())))
+			}
 		};
 
-		return Ok(h);
+		return Ok(out);
 	}
 }

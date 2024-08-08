@@ -1,28 +1,34 @@
 use serde::Deserialize;
-use smartstring::{LazyCompact, SmartString};
-use std::str::FromStr;
+use serde_with::serde_as;
 use ufo_util::data::PipelineDataType;
 
 use crate::portspec::PipelinePortSpec;
 
-use super::{ifnone::IfNone, nodeinstance::PipelineNodeInstance, tags::ExtractTags};
+use super::{
+	ifnone::IfNone,
+	nodeinstance::PipelineNodeInstance,
+	tags::{ExtractTags, TagType},
+};
 
-#[derive(Debug, Clone, Copy)]
+#[serde_as]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(tag = "type")]
+#[serde(deny_unknown_fields)]
 pub enum PipelineNodeType {
-	ExtractTags,
+	ExtractTags { tags: Vec<TagType> },
 	IfNone,
 }
 
 impl PipelineNodeType {
-	pub fn build(self, name: &str) -> PipelineNodeInstance {
+	pub fn build(&self, name: &str) -> PipelineNodeInstance {
 		match self {
-			PipelineNodeType::IfNone => PipelineNodeInstance::IfNone {
+			Self::IfNone => PipelineNodeInstance::IfNone {
 				name: name.into(),
 				node: IfNone::new(),
 			},
-			PipelineNodeType::ExtractTags => PipelineNodeInstance::ExtractTags {
+			Self::ExtractTags { tags } => PipelineNodeInstance::ExtractTags {
 				name: name.into(),
-				node: ExtractTags::new(),
+				node: ExtractTags::new(tags.clone()),
 			},
 		}
 	}
@@ -31,54 +37,24 @@ impl PipelineNodeType {
 impl PipelineNodeType {
 	pub fn outputs(&self) -> PipelinePortSpec {
 		match self {
-			PipelineNodeType::ExtractTags => PipelinePortSpec::Static(&[
-				("title", PipelineDataType::Text),
-				("album", PipelineDataType::Text),
-				("artist", PipelineDataType::Text),
-				("genre", PipelineDataType::Text),
-				("comment", PipelineDataType::Text),
-				("track", PipelineDataType::Text),
-				("disk", PipelineDataType::Text),
-				("disk_total", PipelineDataType::Text),
-				("year", PipelineDataType::Text),
-			]),
-			PipelineNodeType::IfNone => {
-				PipelinePortSpec::Static(&[("out", PipelineDataType::Text)])
-			}
+			Self::ExtractTags { tags } => PipelinePortSpec::VecOwned(
+				tags.iter()
+					.map(|x| (x.to_string().into(), x.get_type()))
+					.collect(),
+			),
+			Self::IfNone => PipelinePortSpec::Static(&[("out", PipelineDataType::Text)]),
 		}
 	}
 
 	pub fn inputs(&self) -> PipelinePortSpec {
 		match self {
-			Self::ExtractTags => PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)]),
+			Self::ExtractTags { .. } => {
+				PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)])
+			}
 			Self::IfNone => PipelinePortSpec::Static(&[
 				("data", PipelineDataType::Text),
 				("ifnone", PipelineDataType::Text),
 			]),
 		}
-	}
-}
-
-// TODO: better error
-impl FromStr for PipelineNodeType {
-	type Err = String;
-
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		match s {
-			"ExtractTag" => Ok(Self::ExtractTags),
-			"IfNone" => Ok(Self::IfNone),
-			_ => Err("bad node type".to_string()),
-		}
-	}
-}
-
-impl<'de> Deserialize<'de> for PipelineNodeType {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where
-		D: serde::Deserializer<'de>,
-	{
-		let addr_str = SmartString::<LazyCompact>::deserialize(deserializer)?;
-		let s = Self::from_str(&addr_str);
-		s.map_err(serde::de::Error::custom)
 	}
 }

@@ -1,10 +1,9 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
-use ufo_util::data::PipelineData;
-
-use crate::{errors::PipelineError, PipelineStatelessRunner};
+use ufo_util::data::{PipelineData, PipelineDataType};
 
 use super::{ifnone::IfNone, nodetype::PipelineNodeType, tags::ExtractTags};
+use crate::{errors::PipelineError, portspec::PipelinePortSpec, PipelineStatelessRunner};
 
 pub enum PipelineNodeInstance {
 	ExternalNode,
@@ -42,12 +41,22 @@ impl PipelineStatelessRunner for PipelineNodeInstance {
 }
 
 impl PipelineNodeInstance {
-	pub fn get_type(&self) -> Option<PipelineNodeType> {
+	pub fn inputs(&self) -> Option<PipelinePortSpec> {
 		match self {
 			Self::ExternalNode => None,
 			Self::ConstantNode(_) => None,
-			Self::ExtractTags { .. } => Some(PipelineNodeType::ExtractTags),
-			Self::IfNone { .. } => Some(PipelineNodeType::IfNone),
+			Self::ExtractTags { .. } => Some(PipelinePortSpec::Static(&[
+				("title", PipelineDataType::Text),
+				("album", PipelineDataType::Text),
+				("artist", PipelineDataType::Text),
+				("genre", PipelineDataType::Text),
+				("comment", PipelineDataType::Text),
+				("track", PipelineDataType::Text),
+				("disk", PipelineDataType::Text),
+				("disk_total", PipelineDataType::Text),
+				("year", PipelineDataType::Text),
+			])),
+			Self::IfNone { .. } => Some(PipelineNodeType::IfNone.inputs()),
 		}
 	}
 }

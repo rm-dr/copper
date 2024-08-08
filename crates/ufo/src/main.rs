@@ -7,7 +7,7 @@ use ufo_pipeline::{
 	pipeline::Pipeline,
 };
 use ufo_storage::{api::Dataset, sea::dataset::SeaDataset};
-use ufo_util::data::{self, PipelineData, PipelineDataType};
+use ufo_util::data::{PipelineData, PipelineDataType};
 
 fn main() -> Result<()> {
 	// Make dataset
@@ -17,10 +17,14 @@ fn main() -> Result<()> {
 		let x = block_on(d.add_class("AudioFile")).unwrap();
 		block_on(d.add_attr(x, "album", PipelineDataType::Text)).unwrap();
 		block_on(d.add_attr(x, "artist", PipelineDataType::Text)).unwrap();
-		block_on(d.add_attr(x, "albm", PipelineDataType::Text)).unwrap();
+		block_on(d.add_attr(x, "albumartist", PipelineDataType::Text)).unwrap();
+		block_on(d.add_attr(x, "tracknumber", PipelineDataType::Text)).unwrap();
+		block_on(d.add_attr(x, "year", PipelineDataType::Text)).unwrap();
+		block_on(d.add_attr(x, "genre", PipelineDataType::Text)).unwrap();
+		block_on(d.add_attr(x, "ISRC", PipelineDataType::Text)).unwrap();
+		block_on(d.add_attr(x, "lyrics", PipelineDataType::Text)).unwrap();
 		d
 	};
-	//println!("{:#?}", dataset);
 
 	// Load pipeline
 	let pipe = Pipeline::from_file(Path::new("pipeline.toml"))?;
@@ -52,8 +56,6 @@ fn main() -> Result<()> {
 		&PipelineData::None(PipelineDataType::Text),
 	))
 	.unwrap();
-
-	//println!("\n\n\n\n{:#?}", dataset);
 
 	Ok(())
 }

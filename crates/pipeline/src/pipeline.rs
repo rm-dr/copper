@@ -139,7 +139,7 @@ impl Pipeline {
 						}
 					}
 					x => {
-						for (_, t) in x.get_type().unwrap().inputs().iter() {
+						for (_, t) in x.inputs().unwrap().iter() {
 							inputs.push(Arc::new(PipelineData::None(t)));
 						}
 					}
