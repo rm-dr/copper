@@ -53,11 +53,7 @@ pub enum PipelineNodeType {
 }
 
 impl PipelineNodeType {
-	pub fn build(
-		&self,
-		name: &str,
-		pipeline_inputs: &Vec<Arc<PipelineData>>,
-	) -> PipelineNodeInstance {
+	pub fn build(&self, name: &str) -> PipelineNodeInstance {
 		match self {
 			PipelineNodeType::ConstantNode { .. } => PipelineNodeInstance::ConstantNode {
 				node_type: self.clone(),
@@ -67,7 +63,6 @@ impl PipelineNodeType {
 			},
 			PipelineNodeType::PipelineInputs { .. } => PipelineNodeInstance::PipelineInputs {
 				node_type: self.clone(),
-				input_values: pipeline_inputs.clone(),
 			},
 			PipelineNodeType::IfNone => PipelineNodeInstance::IfNone {
 				node_type: self.clone(),

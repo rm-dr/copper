@@ -15,7 +15,6 @@ pub enum PipelineNodeInstance {
 	// PipelineNodeType::build().
 	PipelineInputs {
 		node_type: PipelineNodeType,
-		input_values: Vec<Arc<PipelineData>>,
 	},
 	PipelineOutputs {
 		node_type: PipelineNodeType,
@@ -59,12 +58,9 @@ impl PipelineNode for PipelineNodeInstance {
 		F: Fn(usize, Arc<PipelineData>) -> Result<(), PipelineError>,
 	{
 		match self {
-			Self::PipelineInputs { input_values, .. } => {
-				for (i, v) in input_values.iter().enumerate() {
-					send_data(i, v.clone())?;
-				}
-				Ok(())
-			}
+			// Inputs and Outputs do nothing, these are handled
+			// as special cases by Pipeline::run().
+			Self::PipelineInputs { .. } => Ok(()),
 			Self::PipelineOutputs { .. } => Ok(()),
 			Self::ConstantNode { node_type } => match node_type {
 				PipelineNodeType::ConstantNode { value } => {

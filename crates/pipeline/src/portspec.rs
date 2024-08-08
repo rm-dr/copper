@@ -52,6 +52,10 @@ impl<'a> PipelinePortSpec<'a> {
 			Self::VecOwned(data) => PipelineArgSpecIterator::Vec { data, idx: 0 },
 		}
 	}
+
+	pub fn to_vec(&self) -> Vec<(PipelinePortLabel, PipelineDataType)> {
+		self.iter().collect()
+	}
 }
 
 pub enum PipelineArgSpecIterator<'a> {

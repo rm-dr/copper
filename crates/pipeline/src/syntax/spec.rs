@@ -1,6 +1,9 @@
 //! A user-provided pipeline specification
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+	collections::HashMap,
+	sync::{Arc, Mutex},
+};
 
 use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
 use serde::Deserialize;
@@ -196,7 +199,7 @@ impl PipelineSpec {
 		nodes: &mut Vec<(PipelineNodeLabel, PipelineNodeType)>,
 		edges: &mut Vec<(NodePort, NodePort)>,
 		node_name_map: &HashMap<PipelineNodeLabel, usize>,
-		pipeline_inputs_idx: usize,
+		input_node_idx: usize,
 
 		in_port: usize,
 		node_idx: usize,
@@ -235,7 +238,7 @@ impl PipelineSpec {
 					.0;
 				edges.push((
 					NodePort {
-						node_idx: pipeline_inputs_idx,
+						node_idx: input_node_idx,
 						port: out_port,
 					},
 					NodePort {
@@ -284,7 +287,7 @@ impl PipelineSpec {
 				outputs: self.config.input.get_outputs().to_vec(),
 			},
 		));
-		let pipeline_inputs_idx = 0;
+		let input_node_idx = 0;
 
 		nodes.push((
 			"".into(),
@@ -292,7 +295,7 @@ impl PipelineSpec {
 				inputs: self.config.output.get_inputs().to_vec(),
 			},
 		));
-		let pipeline_outputs_idx = 1;
+		let output_node_idx = 1;
 
 		for (node_name, node_spec) in &self.nodes {
 			for (input_name, out_link) in &node_spec.input {
@@ -334,7 +337,7 @@ impl PipelineSpec {
 					&mut nodes,
 					&mut edges,
 					&node_name_map,
-					pipeline_inputs_idx,
+					input_node_idx,
 					in_port,
 					node_idx,
 					out_link,
@@ -357,14 +360,14 @@ impl PipelineSpec {
 				&mut nodes,
 				&mut edges,
 				&node_name_map,
-				pipeline_inputs_idx,
+				input_node_idx,
 				self.config
 					.output
 					.get_inputs()
 					.find_with_name(port_label)
 					.unwrap()
 					.0,
-				pipeline_outputs_idx,
+				output_node_idx,
 				node_output,
 			)
 		}
@@ -377,8 +380,17 @@ impl PipelineSpec {
 			rev_edge_map[x.1.node_idx].push(i);
 		}
 
+		let node_instances = Arc::new(
+			nodes
+				.iter()
+				.map(|(name, x)| (name.clone(), Mutex::new(x.build(name.into()))))
+				.collect::<Vec<_>>(),
+		);
+
 		return Ok(Pipeline {
-			nodes,
+			nodes: node_instances,
+			input_node_idx,
+			output_node_idx,
 			edges,
 
 			edge_map_out: edge_map,

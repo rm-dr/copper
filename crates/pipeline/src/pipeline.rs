@@ -14,7 +14,7 @@ use ufo_util::data::PipelineData;
 
 use crate::{
 	errors::PipelineError,
-	nodes::{nodeinstance::PipelineNodeInstance, nodetype::PipelineNodeType},
+	nodes::nodeinstance::PipelineNodeInstance,
 	syntax::{
 		errors::PipelinePrepareError,
 		labels::PipelineNodeLabel,
@@ -58,8 +58,12 @@ pub struct Pipeline {
 	/// This pipeline's configuration
 	pub(crate) config: PipelineConfig,
 
+	//TODO: Mutex shouldn't be necessary
 	/// Array of nodes in this pipeline, indexed by node idx
-	pub(crate) nodes: Vec<(PipelineNodeLabel, PipelineNodeType)>,
+	pub(crate) nodes: Arc<Vec<(PipelineNodeLabel, Mutex<PipelineNodeInstance>)>>,
+
+	pub(crate) input_node_idx: usize,
+	pub(crate) output_node_idx: usize,
 
 	/// Array of directed edges, indexed by edge idx
 	pub(crate) edges: Vec<(NodePort, NodePort)>,
@@ -113,34 +117,26 @@ impl Pipeline {
 	) -> Result<Vec<Arc<PipelineData>>, PipelineError> {
 		assert!(pipeline_inputs.len() == self.config.input.get_outputs().len());
 
-		// Create node instances and find output node
-		let mut output_node_idx = 0;
-
-		// TODO: instance once?
-		let node_instances = Arc::new(
-			self.nodes
-				.iter()
-				.enumerate()
-				.map(|(i, (name, x))| {
-					match x {
-						PipelineNodeType::PipelineOutputs { .. } => output_node_idx = i,
-						_ => {}
-					};
-					Mutex::new(x.build(name.into(), &pipeline_inputs))
-				})
-				.collect::<Vec<_>>(),
-		);
-
 		// The data inside each edge.
 		// We consume node data once it is read so that unneeded memory may be freed.
 		let mut edge_values = {
 			(0..self.edges.len())
-				.map(|_| EdgeValue::Uninitialized)
+				.map(|edge_idx| {
+					let edge = self.edges.get(edge_idx).unwrap();
+					if edge.0.node_idx == self.input_node_idx {
+						EdgeValue::Data(pipeline_inputs.get(edge.0.port).unwrap().clone())
+					} else {
+						EdgeValue::Uninitialized
+					}
+				})
 				.collect::<Vec<_>>()
 		};
 
-		// Keep track of nodes we have already run
-		let mut node_has_been_run = (0..self.nodes.len()).map(|_| false).collect::<Vec<_>>();
+		// Keep track of nodes we have already run.
+		// We already initialized all input edges, so mark that node `true`.
+		let mut node_has_been_run = (0..self.nodes.len())
+			.map(|x| x == self.input_node_idx)
+			.collect::<Vec<_>>();
 
 		// Threadpool we'll use to run nodes
 		let pool = ThreadPool::new(node_threads);
@@ -171,8 +167,6 @@ impl Pipeline {
 					&pool,
 					&mut node_has_been_run,
 					&mut edge_values,
-					node_instances.clone(),
-					output_node_idx,
 					send_data.clone(),
 					send_status.clone(),
 				) {
@@ -221,8 +215,6 @@ impl Pipeline {
 		pool: &ThreadPool,
 		node_has_been_run: &mut Vec<bool>,
 		edge_values: &mut Vec<EdgeValue>,
-		node_instances: Arc<Vec<Mutex<PipelineNodeInstance>>>,
-		output_node_idx: usize,
 		send_data: Sender<(usize, usize, Arc<PipelineData>)>,
 		send_status: Sender<(usize, Result<(), PipelineError>)>,
 	) -> Option<Vec<Arc<PipelineData>>> {
@@ -249,7 +241,7 @@ impl Pipeline {
 		// We've found a node we can run, prepare inputs.
 		let inputs = {
 			// Initialize all with None, in case some are disconnected.
-			let instance = &*node_instances.get(n).unwrap().lock().unwrap();
+			let instance = &pipeline.nodes.get(n).unwrap().1.lock().unwrap();
 			let mut inputs = Vec::with_capacity(instance.get_type().inputs().len());
 			for (_, t) in instance.get_type().inputs().iter() {
 				inputs.push(Arc::new(PipelineData::None(t)));
@@ -271,14 +263,15 @@ impl Pipeline {
 			inputs
 		};
 
-		if n == output_node_idx {
+		if n == pipeline.output_node_idx {
 			// If we can run the external node, we're done.
 			return Some(inputs);
 		} else {
 			// Otherwise, add this node to the pool.
 			let pool_inputs = inputs.clone();
+			let nodes = pipeline.nodes.clone();
 			pool.execute(move || {
-				let node = node_instances.get(n).unwrap().lock().unwrap();
+				let node = &nodes.get(n).unwrap().1.lock().unwrap();
 
 				println!("Running {:?}", node);
 
