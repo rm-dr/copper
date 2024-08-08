@@ -300,8 +300,8 @@ export function useDeleteClassModal(params: {
 					{errorMessage.response
 						? errorMessage.response
 						: errorMessage.name
-						? errorMessage.name
-						: ""}
+							? errorMessage.name
+							: ""}
 				</Text>
 			</TreeModal>
 		),
@@ -592,12 +592,12 @@ export function useAddAttrModal(params: {
 					{errorMessage.response
 						? errorMessage.response
 						: errorMessage.name
-						? errorMessage.name
-						: errorMessage.type
-						? errorMessage.type
-						: errorMessage.extra_params
-						? errorMessage.extra_params
-						: ""}
+							? errorMessage.name
+							: errorMessage.type
+								? errorMessage.type
+								: errorMessage.extra_params
+									? errorMessage.extra_params
+									: ""}
 				</Text>
 			</TreeModal>
 		),

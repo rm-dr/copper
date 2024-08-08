@@ -41,7 +41,7 @@ export function AttrList(params: {
 						key={`dataset-${params.dataset}-class-${params.class}-attr-${attr_type}`}
 						is_clickable={true}
 						is_selected={false}
-						onClick={() => {}}
+						onClick={() => { }}
 						icon={type_def?.icon}
 						text={attr_name}
 						icon_tooltip={type_def?.pretty_name}
@@ -257,8 +257,8 @@ export function useDeleteAttrModal(params: {
 					{errorMessage.response
 						? errorMessage.response
 						: errorMessage.name
-						? errorMessage.name
-						: ""}
+							? errorMessage.name
+							: ""}
 				</Text>
 			</TreeModal>
 		),

@@ -4,26 +4,6 @@ import { Button, PasswordInput, Text, TextInput } from "@mantine/core";
 import styles from "./page.module.scss";
 import { useState } from "react";
 
-function setCookie(name: string, value: string, expires: string) {
-	document.cookie = `${name}=${value};expires=${expires};path=/`;
-}
-
-function getCookie(name: string) {
-	let c_name = name + "=";
-	let decodedCookie = decodeURIComponent(document.cookie);
-	let ca = decodedCookie.split(";");
-	for (let i = 0; i < ca.length; i++) {
-		let c = ca[i];
-		while (c.charAt(0) == " ") {
-			c = c.substring(1);
-		}
-		if (c.indexOf(c_name) == 0) {
-			return c.substring(c_name.length, c.length);
-		}
-	}
-	return "";
-}
-
 import Banner from "../../../public/banner.svg";
 
 export default function Page() {
@@ -77,7 +57,9 @@ export default function Page() {
 								} else {
 									return res.text().then((text) => {
 										setLoading(false);
-										document.cookie = `authtoken=${text}`;
+
+										// Middleware will redirect to main page
+										location.reload();
 									});
 								}
 							})

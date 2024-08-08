@@ -288,8 +288,8 @@ export function useDeleteDatasetModal(params: {
 					{errorMessage.response
 						? errorMessage.response
 						: errorMessage.name
-						? errorMessage.name
-						: ""}
+							? errorMessage.name
+							: ""}
 				</Text>
 			</TreeModal>
 		),

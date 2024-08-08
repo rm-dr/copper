@@ -19,23 +19,23 @@ export type TreeData = {
 	loading: boolean;
 
 	datasets:
-		| null
-		| {
-				// Dataset info
+	| null
+	| {
+		// Dataset info
+		name: string;
+		type: string;
+		open: boolean;
+		classes: {
+			// Classes in this dataset
+			name: string;
+			open: boolean;
+			attrs: {
+				// Attrs in this class
 				name: string;
 				type: string;
-				open: boolean;
-				classes: {
-					// Classes in this dataset
-					name: string;
-					open: boolean;
-					attrs: {
-						// Attrs in this class
-						name: string;
-						type: string;
-					}[];
-				}[];
-		  }[];
+			}[];
+		}[];
+	}[];
 };
 
 const Wrapper = (params: { children: ReactNode }) => {
@@ -87,9 +87,9 @@ export function TreePanel(params: {}) {
 					data.map(async ({ ds_type, name: dataset }) => {
 						const res = await fetch(
 							"/api/class/list?" +
-								new URLSearchParams({
-									dataset,
-								}).toString(),
+							new URLSearchParams({
+								dataset,
+							}).toString(),
 						);
 						const data: {
 							name: string;
@@ -127,7 +127,6 @@ export function TreePanel(params: {}) {
 							d_idx = td.datasets.findIndex((y) => {
 								return y.name == x.name;
 							});
-							console.log(d_idx);
 							if (d_idx != -1) {
 								is_open = td.datasets[d_idx].open;
 							} else {

@@ -56,12 +56,19 @@ export function useNewDsModal(onSuccess: () => void) {
 		}).then((res) => {
 			setLoading(false);
 			if (!res.ok) {
-				res.text().then((text) => {
+				if (res.status == 401) {
 					setErrorMessage((e) => ({
 						...e,
-						response: text,
+						response: "Not authorized",
 					}));
-				});
+				} else {
+					res.text().then((text) => {
+						setErrorMessage((e) => ({
+							...e,
+							response: text,
+						}));
+					});
+				}
 			} else {
 				// Successfully created new dataset
 				onSuccess();
@@ -152,10 +159,10 @@ export function useNewDsModal(onSuccess: () => void) {
 					{errorMessage.response
 						? errorMessage.response
 						: errorMessage.name
-						? errorMessage.name
-						: errorMessage.type
-						? errorMessage.type
-						: ""}
+							? errorMessage.name
+							: errorMessage.type
+								? errorMessage.type
+								: ""}
 				</Text>
 			</TreeModal>
 		),
