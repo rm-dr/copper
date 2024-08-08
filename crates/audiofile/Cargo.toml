@@ -1,0 +1,23 @@
+[package]
+name = "ufo-audiofile"
+description = "Audio file decoders"
+categories = { workspace = true }
+keywords = { workspace = true }
+version = { workspace = true }
+rust-version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true }
+smartstring = { workspace = true }
+itertools = { workspace = true }
+serde_with = { workspace = true }
