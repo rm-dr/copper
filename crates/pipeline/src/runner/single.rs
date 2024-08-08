@@ -35,7 +35,9 @@ struct NodeInstanceContainer<StubType: PipelineNodeStub> {
 	label: PipelineNodeLabel,
 
 	/// A queue of inputs to send to this node
-	input_queue: VecDeque<(usize, SDataType<StubType>)>,
+	// This will be `None` only if the node is done,
+	/// since done nodes don't take input.
+	input_queue: Option<VecDeque<(usize, SDataType<StubType>)>>,
 
 	/// This node's status
 	state: NodeRunState,
@@ -43,7 +45,8 @@ struct NodeInstanceContainer<StubType: PipelineNodeStub> {
 	/// When we last ran this node
 	last_run: Instant,
 
-	/// The node
+	/// The node. This will be `None` if the node is done,
+	/// so that its resources are dropped.
 	node: Arc<Mutex<Option<SNodeType<StubType>>>>,
 }
 
@@ -190,7 +193,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 
 				NodeInstanceContainer {
 					label: name.clone(),
-					input_queue,
+					input_queue: Some(input_queue),
 					last_run: instant_now,
 					state: NodeRunState::NotRunning(PipelineNodeState::Pending("not started")),
 					node: Arc::new(Mutex::new(Some(x.build(&context, name.into())))),
@@ -342,8 +345,18 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 		let mut locked_node = node_instance.lock().unwrap();
 
 		// Send new input to node
-		while !node_instance_container.input_queue.is_empty() {
-			let data = node_instance_container.input_queue.pop_front().unwrap();
+		while !node_instance_container
+			.input_queue
+			.as_ref()
+			.unwrap()
+			.is_empty()
+		{
+			let data = node_instance_container
+				.input_queue
+				.as_mut()
+				.unwrap()
+				.pop_front()
+				.unwrap();
 			locked_node.as_mut().unwrap().take_input(data)?;
 		}
 		self.handle_all_messages()?;
@@ -432,13 +445,15 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 				if !(edge.is_ptp() && edge.source_port() == Some(port)) {
 					continue;
 				}
+				let node = self.node_instances.get_mut(to_node.as_usize()).unwrap();
 
-				// Send data to target port
-				self.node_instances
-					.get_mut(to_node.as_usize())
-					.unwrap()
-					.input_queue
-					.push_back((edge.target_port().unwrap(), data.clone()));
+				// Don't give input to nodes that are done
+				if !node.state.is_done() {
+					node.input_queue
+						.as_mut()
+						.unwrap()
+						.push_back((edge.target_port().unwrap(), data.clone()));
+				}
 			}
 		}
 
@@ -480,14 +495,16 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 
 						let mut x = self.node_instances[node.as_usize()].node.lock().unwrap();
 						drop(x.take());
+						drop(x);
+						drop(self.node_instances[node.as_usize()].input_queue.take());
 
 						// Quick sanity check
-						drop(x);
 						assert!(self.node_instances[node.as_usize()]
 							.node
 							.try_lock()
 							.unwrap()
-							.is_none())
+							.is_none());
+						assert!(self.node_instances[node.as_usize()].input_queue.is_none());
 					}
 				}
 			}
