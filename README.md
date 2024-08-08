@@ -39,7 +39,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 Audiofile library
 - [ ] Tests
-  - [ ] Test vorbis extraction
   - [ ] "Uncommon" tests
   - [ ] Add failing tests
   - [ ] Many metadata blocks

@@ -406,10 +406,13 @@ mod tests {
 	use paste::paste;
 	use rand::Rng;
 	use sha2::{Digest, Sha256};
-	use std::{io::Write, ops::Range};
+	use std::{io::Write, ops::Range, str::FromStr};
 
 	use super::*;
-	use crate::flac::tests::{FlacBlockOutput, MANIFEST};
+	use crate::{
+		common::tagtype::TagType,
+		flac::tests::{FlacBlockOutput, VorbisCommentTestValue, MANIFEST},
+	};
 
 	fn read_file(
 		test_name: &str,
@@ -630,7 +633,54 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::VorbisComment(_) => {}
+				FlacBlock::VorbisComment(v) => match &x.get_blocks().unwrap()[result_i] {
+					FlacBlockOutput::VorbisComment { vendor, comments } => {
+						assert_eq!(*vendor, v.comment.vendor, "Comment vendor doesn't match");
+
+						match comments {
+							VorbisCommentTestValue::Raw(comments) => {
+								assert_eq!(
+									v.comment.comments.len(),
+									comments.len(),
+									"Number of comments doesn't match"
+								);
+
+								for ((got_tag, got_val), (exp_tag, exp_val)) in
+									v.comment.comments.iter().zip(*comments)
+								{
+									assert_eq!(
+										*got_tag,
+										TagType::from_str(*exp_tag).unwrap(),
+										"Tag key doesn't match"
+									);
+									assert_eq!(
+										got_val, exp_val,
+										"Tag value of {exp_tag} doesn't match"
+									);
+								}
+							}
+
+							VorbisCommentTestValue::Hash { n_comments, hash } => {
+								assert_eq!(
+									v.comment.comments.len(),
+									*n_comments,
+									"Number of comments doesn't match"
+								);
+
+								let mut hasher = Sha256::new();
+								for (got_tag, got_val) in v.comment.comments {
+									hasher.update(format!("{got_tag}={got_val};").as_bytes())
+								}
+								assert_eq!(
+									&format!("{:x}", hasher.finalize()),
+									hash,
+									"Comment hash doesn't match"
+								);
+							}
+						}
+					}
+					_ => panic!("Unexpected block type"),
+				},
 
 				FlacBlock::AudioFrame(data) => {
 					data.encode(&mut audio_data_hasher).unwrap();

@@ -64,6 +64,21 @@ mod tests {
 
 	use super::errors::FlacDecodeError;
 
+	/// The value of a vorbis comment.
+	///
+	/// Some files have VERY large comments, and providing them
+	/// explicitly here doesn't make sense.
+	pub enum VorbisCommentTestValue {
+		/// The comments, in order
+		Raw(&'static [(&'static str, &'static str)]),
+		/// The hash of all comments concatenated together,
+		/// stringified as `{key}={value};`
+		Hash {
+			n_comments: usize,
+			hash: &'static str,
+		},
+	}
+
 	pub enum FlacBlockOutput {
 		Application {
 			application_id: u32,
@@ -111,7 +126,8 @@ mod tests {
 			img_data: &'static str,
 		},
 		VorbisComment {
-			hash: &'static str,
+			vendor: &'static str,
+			comments: VorbisCommentTestValue,
 		},
 	}
 
@@ -228,7 +244,10 @@ mod tests {
 					total_samples: 0,
 					md5_signature: "c41ae3b82c35d8f5c3dab1729f948fde",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Raw(&[]),
+				},
 			],
 			audio_hash: "3fb3482ebc1724559bdd57f34de472458563d78a676029614e76e32b5d2b8816",
 			stripped_hash: "31631ac227ebe2689bac7caa1fa964b47e71a9f1c9c583a04ea8ebd9371508d0",
@@ -252,7 +271,10 @@ mod tests {
 					total_samples: 282866,
 					md5_signature: "fd131e6ebc75251ed83f8f4c07df36a4",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Raw(&[]),
+				},
 			],
 			audio_hash: "a1eed422462b386a932b9eb3dff3aea3687b41eca919624fb574aadb7eb50040",
 			stripped_hash: "9e57cd77f285fc31f87fa4e3a31ab8395d68d5482e174c8e0d0bba9a0c20ba27",
@@ -300,7 +322,10 @@ mod tests {
 				FlacBlockOutput::Seektable {
 					hash: "21ca2184ae22fe26b690fd7cbd8d25fcde1d830ff6e5796ced4107bab219d7c0",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Raw(&[]),
+				},
 			],
 			audio_hash: "c2d691f2c4c986fe3cd5fd7864d9ba9ce6dd68a4ffc670447f008434b13102c2",
 			stripped_hash: "abc9a0c40a29c896bc6e1cc0b374db1c8e157af716a5a3c43b7db1591a74c4e8",
@@ -324,7 +349,10 @@ mod tests {
 					total_samples: 258939,
 					md5_signature: "6e78f221caaaa5d570a53f1714d84ded",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Raw(&[]),
+				},
 				FlacBlockOutput::Padding { size: 16777215 },
 			],
 			audio_hash: "5007be7109b28b0149d1b929d2a0e93a087381bd3e68cf2a3ef78ea265ea20c3",
@@ -349,7 +377,10 @@ mod tests {
 					total_samples: 265617,
 					md5_signature: "82164e4da30ed43b47e6027cef050648",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Raw(&[]),
+				},
 				FlacBlockOutput::Picture {
 					picture_type: PictureType::FrontCover,
 					mime: MimeType::Jpg,
@@ -383,7 +414,13 @@ mod tests {
 					total_samples: 289972,
 					md5_signature: "5ff622c88f8dd9bc201a6a541f3890d3",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Hash {
+						n_comments: 39,
+						hash: "01984e9ec0cfad41f27b3b4e84184966f6725ead84b7815bd0b3313549ee4229",
+					},
+				},
 			],
 			audio_hash: "76419865d10eb22a74f020423a4e515e800f0177441676afd0418557c2d76c36",
 			stripped_hash: "c0ca6c6099b5d9ec53d6bb370f339b2b1570055813a6cd3616fac2db83a2185e",
@@ -407,7 +444,10 @@ mod tests {
 					total_samples: 317876,
 					md5_signature: "eb7140266bc194527488c21ab49bc47b",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Raw(&[]),
+				},
 				FlacBlockOutput::Application {
 					application_id: 0x74657374,
 					hash: "cfc0b8969e4ba6bd507999ba89dea2d274df69d94749d6ae3cf117a7780bba09",
@@ -438,7 +478,10 @@ mod tests {
 				FlacBlockOutput::Seektable {
 					hash: "18629e1b874cb27e4364da72fb3fec2141eb0618baae4a1cee6ed09562aa00a8",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Raw(&[]),
+				},
 				FlacBlockOutput::CueSheet {
 					hash: "70638a241ca06881a52c0a18258ea2d8946a830137a70479c49746d2a1344bdd",
 				},
@@ -465,7 +508,13 @@ mod tests {
 					total_samples: 433151,
 					md5_signature: "1d950e92b357dedbc5290a7f2210a2ef",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Hash {
+						n_comments: 20000,
+						hash: "433f34ae532d265835153139b1db79352a26ad0d3b03e2f1a1b88ada34abfc77",
+					},
+				},
 			],
 			audio_hash: "4721b784058410c6263f73680079e9a71aee914c499afcf5580c121fce00e874",
 			stripped_hash: "5c8b92b83c0fa17821add38263fa323d1c66cfd2ee57aca054b50bd05b9df5c2",
@@ -492,7 +541,13 @@ mod tests {
 				FlacBlockOutput::Seektable {
 					hash: "58dfa7bac4974edf1956b068f5aa72d1fbd9301c36a3085a8a57b9db11a2dbf0",
 				},
-				FlacBlockOutput::VorbisComment { hash: "todo" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.3 20190804",
+					comments: VorbisCommentTestValue::Hash {
+						n_comments: 40036,
+						hash: "66cac9f9c42f48128e9fc24e1e96b46a06e885d233155556da16d9b05a23486e",
+					},
+				},
 				FlacBlockOutput::CueSheet {
 					hash: "db11916c8f5f39648256f93f202e00ff8d73d7d96b62f749b4c77cf3ea744f90",
 				},
@@ -534,7 +589,10 @@ mod tests {
 					total_samples: 220026,
 					md5_signature: "5b0e898d9c2626d0c28684f5a586813f",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Raw(&[]),
+				},
 				FlacBlockOutput::Picture {
 					picture_type: PictureType::FrontCover,
 					mime: MimeType::Jpg,
@@ -568,7 +626,10 @@ mod tests {
 					total_samples: 221623,
 					md5_signature: "ad16957bcf8d5a3ec8caf261e43d5ff7",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Raw(&[]),
+				},
 				FlacBlockOutput::Picture {
 					picture_type: PictureType::FrontCover,
 					mime: MimeType::Png,
@@ -602,7 +663,10 @@ mod tests {
 					total_samples: 219826,
 					md5_signature: "7c1810602a7db96d7a48022ac4aa495c",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Raw(&[]),
+				},
 				FlacBlockOutput::Picture {
 					picture_type: PictureType::FrontCover,
 					mime: MimeType::Gif,
@@ -636,7 +700,10 @@ mod tests {
 					total_samples: 221423,
 					md5_signature: "d354246011ca204159c06f52cad5f634",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Raw(&[]),
+				},
 				FlacBlockOutput::Picture {
 					picture_type: PictureType::FrontCover,
 					mime: MimeType::Avif,
@@ -670,7 +737,10 @@ mod tests {
 					total_samples: 265617,
 					md5_signature: "82164e4da30ed43b47e6027cef050648",
 				},
-				FlacBlockOutput::VorbisComment { hash: "idk" },
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Raw(&[]),
+				},
 				FlacBlockOutput::Picture {
 					picture_type: PictureType::FrontCover,
 					mime: MimeType::Jpg,
