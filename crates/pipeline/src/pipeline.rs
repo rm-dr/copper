@@ -1,9 +1,13 @@
-use std::{fmt::Debug, sync::Arc};
-
+use std::{fmt::Debug, fs::File, io::Read, path::Path, sync::Arc};
 use ufo_util::data::PipelineData;
 
 use crate::{
-	errors::PipelineError, nodes::PipelineNodeInstance, syntax::spec::PipelineConfig,
+	errors::PipelineError,
+	nodes::PipelineNodeInstance,
+	syntax::{
+		errors::PipelinePrepareError,
+		spec::{PipelineConfig, PipelineSpec},
+	},
 	PipelineStatelessRunner,
 };
 
@@ -53,6 +57,23 @@ impl Debug for Pipeline {
 			.field("external_node_idx", &self.external_node_idx)
 			.field("edges", &self.edges)
 			.finish()
+	}
+}
+
+impl Pipeline {
+	pub fn from_file(path: &Path) -> Result<Self, PipelinePrepareError> {
+		let mut f =
+			File::open(path).map_err(|error| PipelinePrepareError::CouldNotOpenFile { error })?;
+
+		let mut s: String = Default::default();
+
+		f.read_to_string(&mut s)
+			.map_err(|error| PipelinePrepareError::CouldNotReadFile { error })?;
+
+		let spec: PipelineSpec = toml::from_str(&s)
+			.map_err(|error| PipelinePrepareError::CouldNotParseFile { error })?;
+
+		spec.prepare()
 	}
 }
 
@@ -111,7 +132,7 @@ impl Pipeline {
 				let n_inputs = match self.nodes.get(n).unwrap() {
 					PipelineNodeInstance::ConstantNode(_) => 0,
 					PipelineNodeInstance::ExternalNode => self.config.output.get_inputs().len(),
-					x => x.get_type().unwrap().n_inputs(),
+					x => x.get_type().unwrap().inputs().len(),
 				};
 
 				// Initialize all inputs with None,

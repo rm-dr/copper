@@ -3,6 +3,8 @@ use smartstring::{LazyCompact, SmartString};
 use std::str::FromStr;
 use ufo_util::data::PipelineDataType;
 
+use crate::syntax::labels::PipelinePortLabel;
+
 use super::{ifnone::IfNone, nodeinstance::PipelineNodeInstance, tags::ExtractTags};
 
 #[derive(Debug, Clone, Copy)]
@@ -27,84 +29,33 @@ impl PipelineNodeType {
 }
 
 impl PipelineNodeType {
-	pub fn n_outputs(&self) -> usize {
+	// TODO: efficiency. Don't allocate a new vec here.
+	pub fn outputs(&self) -> Vec<(PipelinePortLabel, PipelineDataType)> {
 		match self {
-			PipelineNodeType::ExtractTags => 9,
-			PipelineNodeType::IfNone => 1,
+			PipelineNodeType::ExtractTags => vec![
+				("title".into(), PipelineDataType::Text),
+				("album".into(), PipelineDataType::Text),
+				("artist".into(), PipelineDataType::Text),
+				("genre".into(), PipelineDataType::Text),
+				("comment".into(), PipelineDataType::Text),
+				("track".into(), PipelineDataType::Text),
+				("disk".into(), PipelineDataType::Text),
+				("disk_total".into(), PipelineDataType::Text),
+				("year".into(), PipelineDataType::Text),
+			],
+			PipelineNodeType::IfNone => vec![("out".into(), PipelineDataType::Text)],
 		}
 	}
 
-	pub fn output_name(&self, output: usize) -> String {
+	// TODO: efficiency. Don't allocate a new vec here.
+	pub fn inputs(&self) -> Vec<(PipelinePortLabel, PipelineDataType)> {
 		match self {
-			PipelineNodeType::ExtractTags => [
-				"title",
-				"album",
-				"artist",
-				"genre",
-				"comment",
-				"track",
-				"disk",
-				"disk_total",
-				"year",
-			]
-			.get(output),
-
-			PipelineNodeType::IfNone => ["out"].get(output),
+			Self::ExtractTags => vec![("data".into(), PipelineDataType::Binary)],
+			Self::IfNone => vec![
+				("data".into(), PipelineDataType::Text),
+				("ifnone".into(), PipelineDataType::Text),
+			],
 		}
-		.unwrap()
-		.to_string()
-	}
-
-	pub fn output_type(&self, output: usize) -> PipelineDataType {
-		*match self {
-			PipelineNodeType::ExtractTags => [
-				PipelineDataType::Text,
-				PipelineDataType::Text,
-				PipelineDataType::Text,
-				PipelineDataType::Text,
-				PipelineDataType::Text,
-				PipelineDataType::Text,
-				PipelineDataType::Text,
-				PipelineDataType::Text,
-				PipelineDataType::Text,
-			]
-			.get(output),
-
-			PipelineNodeType::IfNone => [PipelineDataType::Text].get(output),
-		}
-		.unwrap()
-	}
-
-	pub fn output_with_name(&self, name: &str) -> Option<usize> {
-		(0..self.n_outputs()).find(|x| self.output_name(*x) == name)
-	}
-
-	pub fn n_inputs(&self) -> usize {
-		match self {
-			Self::ExtractTags => 1,
-			Self::IfNone => 2,
-		}
-	}
-
-	pub fn input_name(&self, input: usize) -> String {
-		match self {
-			Self::ExtractTags => ["data"].get(input),
-			Self::IfNone => ["data", "ifnone"].get(input),
-		}
-		.unwrap()
-		.to_string()
-	}
-
-	pub fn input_type(&self, input: usize) -> PipelineDataType {
-		*match self {
-			Self::ExtractTags => [PipelineDataType::Binary].get(input),
-			Self::IfNone => [PipelineDataType::Text, PipelineDataType::Text].get(input),
-		}
-		.unwrap()
-	}
-
-	pub fn input_with_name(&self, name: &str) -> Option<usize> {
-		(0..self.n_inputs()).find(|x| self.input_name(*x) == name)
 	}
 }
 

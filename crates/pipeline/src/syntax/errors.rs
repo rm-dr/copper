@@ -1,3 +1,5 @@
+use std::{error::Error, fmt::Display};
+
 use smartstring::{LazyCompact, SmartString};
 use ufo_util::data::PipelineDataType;
 
@@ -8,6 +10,15 @@ use super::{
 
 #[derive(Debug)]
 pub enum PipelinePrepareError {
+	/// We could not open a pipeline spec file
+	CouldNotOpenFile { error: std::io::Error },
+
+	/// We could not read a pipeline spec file
+	CouldNotReadFile { error: std::io::Error },
+
+	/// We could not parse a pipeline spec file
+	CouldNotParseFile { error: toml::de::Error },
+
 	/// We tried to create a node with a reserved name
 	NodeHasReservedName { node: SmartString<LazyCompact> },
 
@@ -50,3 +61,11 @@ pub enum PipelinePrepareError {
 	/// This graph has a cycle containing `node`
 	HasCycle,
 }
+
+impl Display for PipelinePrepareError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "")
+	}
+}
+
+impl Error for PipelinePrepareError {}

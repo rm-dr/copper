@@ -1,12 +1,12 @@
 use anyhow::Result;
-use std::{fs::File, io::Read};
+use std::path::Path;
 use ufo_storage::{api::Dataset, mem::MemDataset};
 use ufo_util::data::PipelineDataType;
 
 use ufo_pipeline::{
 	input::{file::FileInput, PipelineInput, PipelineInputKind},
 	output::{storage::StorageOutput, PipelineOutput, PipelineOutputKind},
-	syntax::spec::PipelineSpec,
+	pipeline::Pipeline,
 };
 
 fn main() -> Result<()> {
@@ -14,24 +14,15 @@ fn main() -> Result<()> {
 	let mut dataset = {
 		let mut d = MemDataset::new();
 		let x = d.add_class("AudioFile").unwrap();
-		d.add_attr(x, "a", PipelineDataType::Text).unwrap();
-		d.add_attr(x, "b", PipelineDataType::Text).unwrap();
+		d.add_attr(x, "artist", PipelineDataType::Text).unwrap();
+		d.add_attr(x, "album", PipelineDataType::Text).unwrap();
+		//d.add_attr(x, "albm", PipelineDataType::Text).unwrap();
 		d
 	};
 	println!("{:#?}", dataset);
 
 	// Load pipeline
-	let mut f = File::open("pipeline.toml").unwrap();
-	let mut s: String = Default::default();
-	f.read_to_string(&mut s)?;
-	let spec: PipelineSpec = toml::from_str(&s)?;
-	let pipe = match spec.prepare() {
-		Ok(x) => x,
-		Err(x) => {
-			println!("{:?}", x);
-			panic!()
-		}
-	};
+	let pipe = Pipeline::from_file(Path::new("pipeline.toml"))?;
 
 	let input = match &pipe.get_config().input {
 		PipelineInputKind::File => {

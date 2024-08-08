@@ -2,6 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
 use serde::Deserialize;
+use serde_with::{self, serde_as};
 use ufo_util::data::{PipelineData, PipelineDataType};
 
 use crate::{
@@ -19,6 +20,7 @@ use super::{
 };
 
 /// Pipeline configuration
+#[serde_as]
 #[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PipelineConfig {
@@ -26,10 +28,12 @@ pub struct PipelineConfig {
 	pub output: PipelineOutputKind,
 
 	#[serde(default)]
-	pub output_map: HashMap<PipelinePortLabel, NodeOutput>,
+	#[serde_as(as = "serde_with::Map<_, _>")]
+	pub output_map: Vec<(PipelinePortLabel, NodeOutput)>,
 }
 
 /// A description of a node in a pipeline
+#[serde_as]
 #[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 struct PipelineNodeSpec {
@@ -39,13 +43,14 @@ struct PipelineNodeSpec {
 
 	/// Where this node should read its input from.
 	#[serde(default)]
-	input: HashMap<PipelinePortLabel, NodeOutput>,
+	#[serde_as(as = "serde_with::Map<_, _>")]
+	input: Vec<(PipelinePortLabel, NodeOutput)>,
 }
 
 /// A description of a data processing pipeline
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct PipelineSpec {
+pub(crate) struct PipelineSpec {
 	/// Pipeline parameters
 	config: PipelineConfig,
 
@@ -108,16 +113,17 @@ impl PipelineSpec {
 					});
 				}
 				let get_node = get_node.unwrap();
-				let out_idx = get_node.node_type.output_with_name(port.into());
+				let a = get_node.node_type.outputs();
+				let b = a.iter().enumerate().find(|(_, (x, _))| x == port);
 
-				if out_idx.is_none() {
+				if b.is_none() {
 					return Err(PipelinePrepareError::NoNodeOutput {
 						node: node.clone(),
 						output: port.clone(),
 						caused_by: input.clone(),
 					});
 				}
-				get_node.node_type.output_type(out_idx.unwrap())
+				b.unwrap().1 .1
 			}
 		};
 
@@ -154,15 +160,16 @@ impl PipelineSpec {
 					});
 				}
 				let get_node = get_node.unwrap();
-				let in_idx = get_node.node_type.input_with_name(port.into());
+				let a = get_node.node_type.inputs();
+				let b = a.iter().enumerate().find(|(_, (x, _))| x == port);
 
-				if in_idx.is_none() {
+				if b.is_none() {
 					return Err(PipelinePrepareError::NoNodeInput {
 						node: node.clone(),
 						input: port.clone(),
 					});
 				}
-				get_node.node_type.input_type(in_idx.unwrap())
+				b.unwrap().1 .1
 			}
 		};
 
@@ -231,13 +238,18 @@ impl PipelineSpec {
 							.unwrap()
 							.0
 					}
-					PipelineNode::Node(x) => self
-						.nodes
-						.get(x)
-						.unwrap()
-						.node_type
-						.output_with_name(port.into())
-						.unwrap(),
+					PipelineNode::Node(x) => {
+						self.nodes
+							.get(x)
+							.unwrap()
+							.node_type
+							.outputs()
+							.iter()
+							.enumerate()
+							.find(|(_, (x, _))| x == port)
+							.unwrap()
+							.0
+					}
 				};
 				edges.push((
 					NodePort {
@@ -255,7 +267,7 @@ impl PipelineSpec {
 
 	/// Check this pipeline spec's structure and use it to build a
 	/// [`Pipeline`].
-	pub fn prepare(&self) -> Result<Pipeline, PipelinePrepareError> {
+	pub fn prepare(self) -> Result<Pipeline, PipelinePrepareError> {
 		// Check each node's name and inputs;
 		// Build node array and initialize external node;
 		// Initialize nodes in graph
@@ -304,8 +316,12 @@ impl PipelineSpec {
 			for (input_name, out_link) in node_spec.input.iter() {
 				let in_port = node_spec
 					.node_type
-					.input_with_name(input_name.into())
-					.unwrap();
+					.inputs()
+					.iter()
+					.enumerate()
+					.find(|(_, (x, _))| x == input_name)
+					.unwrap()
+					.0;
 
 				self.add_to_graph(
 					&mut nodes,
