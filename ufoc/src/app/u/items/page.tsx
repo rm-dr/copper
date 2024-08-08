@@ -40,7 +40,11 @@ export default function Page() {
 				</div>
 			</div>
 			<div className={styles.wrap_bottom}>
-				<EditPanel data={itemdata} select={select} />
+				<EditPanel
+					data={itemdata}
+					select={select}
+					class_attrs={itemdata.data.length === 0 ? [] : itemdata.data[0].attrs}
+				/>
 			</div>
 		</main>
 	);

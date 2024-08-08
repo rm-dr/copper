@@ -30,7 +30,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Sort by attrs
   - [ ] List number of selected items
   - [ ] Initial layout for table
-  - [ ] Select first panel item on open
   - [ ] Class exemplar
   - [ ] Multi-select and edit
   - [ ] Better reference panel

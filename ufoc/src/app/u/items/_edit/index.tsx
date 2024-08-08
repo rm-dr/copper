@@ -14,7 +14,11 @@ import {
 } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
 
-export function EditPanel(params: { data: ItemData; select: Selected }) {
+export function EditPanel(params: {
+	data: ItemData;
+	select: Selected;
+	class_attrs: { [attr: string]: any };
+}) {
 	const selectedItem =
 		params.select.selected[0] === undefined
 			? undefined
@@ -26,8 +30,26 @@ export function EditPanel(params: { data: ItemData; select: Selected }) {
 	} | null>(null);
 
 	useEffect(() => {
-		setPanelAttr(null);
-	}, [params.data.class, params.data.dataset]);
+		let selected = null;
+		for (const [attr_name, value] of Object.entries(
+			params.class_attrs,
+		).sort()) {
+			const d = attrTypes.find((x) => {
+				return x.serialize_as === value.type;
+			});
+			// When changing class / dataset, select the first
+			// panel-display attribute (if there is one)
+			if (d?.editor.type === "panel") {
+				selected = {
+					name: attr_name,
+					value,
+				};
+				break;
+			}
+		}
+
+		setPanelAttr(selected);
+	}, [params.data.class, params.data.dataset, params.class_attrs]);
 
 	const selected_attr_spec = attrTypes.find((x) => {
 		return x.serialize_as === panelAttr?.value.type;
