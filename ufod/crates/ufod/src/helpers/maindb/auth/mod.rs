@@ -103,6 +103,7 @@ impl AuthProvider {
 			.expires(Expiration::from(OffsetDateTime::UNIX_EPOCH));
 
 		return Err((
+			StatusCode::UNAUTHORIZED,
 			AppendHeaders([(SET_COOKIE, cookie.to_string())]),
 			"Invalid auth cookie, logging out",
 		)
