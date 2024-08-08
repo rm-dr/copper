@@ -1,26 +1,21 @@
 //! A user-provided pipeline specification
 
-use std::{
-	collections::HashMap,
-	sync::{Arc, Mutex},
-};
-
 use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
 use serde::Deserialize;
 use serde_with::{self, serde_as};
+use std::{collections::HashMap, sync::Arc};
 use ufo_util::data::{PipelineData, PipelineDataType};
-
-use crate::{
-	input::PipelineInputKind,
-	nodes::nodetype::PipelineNodeType,
-	output::PipelineOutputKind,
-	pipeline::{NodePort, Pipeline},
-};
 
 use super::{
 	errors::{PipelineErrorNode, PipelinePrepareError},
 	labels::{PipelineNodeLabel, PipelinePortLabel},
 	ports::{NodeInput, NodeOutput},
+};
+use crate::{
+	input::PipelineInputKind,
+	nodes::nodetype::PipelineNodeType,
+	output::PipelineOutputKind,
+	pipeline::{NodePort, Pipeline},
 };
 
 /// Pipeline configuration
@@ -383,7 +378,7 @@ impl PipelineSpec {
 		let node_instances = Arc::new(
 			nodes
 				.iter()
-				.map(|(name, x)| (name.clone(), Mutex::new(x.build(name.into()))))
+				.map(|(name, x)| (name.clone(), x.build(name.into())))
 				.collect::<Vec<_>>(),
 		);
 

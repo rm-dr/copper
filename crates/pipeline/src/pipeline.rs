@@ -2,13 +2,7 @@ use crossbeam::{
 	channel::{unbounded, Receiver, Sender},
 	select,
 };
-use std::{
-	fmt::Debug,
-	fs::File,
-	io::Read,
-	path::Path,
-	sync::{Arc, Mutex},
-};
+use std::{fmt::Debug, fs::File, io::Read, path::Path, sync::Arc};
 use threadpool::ThreadPool;
 use ufo_util::data::PipelineData;
 
@@ -58,9 +52,8 @@ pub struct Pipeline {
 	/// This pipeline's configuration
 	pub(crate) config: PipelineConfig,
 
-	//TODO: Mutex shouldn't be necessary
 	/// Array of nodes in this pipeline, indexed by node idx
-	pub(crate) nodes: Arc<Vec<(PipelineNodeLabel, Mutex<PipelineNodeInstance>)>>,
+	pub(crate) nodes: Arc<Vec<(PipelineNodeLabel, PipelineNodeInstance)>>,
 
 	pub(crate) input_node_idx: usize,
 	pub(crate) output_node_idx: usize,
@@ -243,7 +236,7 @@ impl Pipeline {
 		// We've found a node we can run, prepare inputs.
 		let inputs = {
 			// Initialize all with None, in case some are disconnected.
-			let instance = &pipeline.nodes.get(n).unwrap().1.lock().unwrap();
+			let instance = &pipeline.nodes.get(n).unwrap().1;
 			let mut inputs = Vec::with_capacity(instance.get_type().inputs().len());
 			for (_, t) in instance.get_type().inputs().iter() {
 				inputs.push(PipelineData::None(t));
@@ -273,7 +266,7 @@ impl Pipeline {
 			let pool_inputs = inputs.clone();
 			let nodes = pipeline.nodes.clone();
 			pool.execute(move || {
-				let node = &nodes.get(n).unwrap().1.lock().unwrap();
+				let node = &nodes.get(n).unwrap().1;
 
 				println!("Running {:?}", node);
 
