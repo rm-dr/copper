@@ -4,7 +4,7 @@ import Link from "next/link";
 import React, { useState } from "react";
 
 import styles from "./sidebar.module.scss";
-import { XIconDatabaseCog, XIconUpload } from "../icons";
+import { XIconDatabaseCog, XIconItems, XIconUpload } from "../icons";
 import { useDisclosure } from "@mantine/hooks";
 import { Burger, Tooltip } from "@mantine/core";
 import clsx from "clsx";
@@ -25,6 +25,11 @@ const SideBar = () => {
 			name: "Manage datasets",
 			icon: <XIconDatabaseCog />,
 			link: "/datasets",
+		},
+		{
+			name: "View items",
+			icon: <XIconItems />,
+			link: "/items",
 		},
 	];
 

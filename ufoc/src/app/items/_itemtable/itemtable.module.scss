@@ -1,0 +1,86 @@
+#panel_itemtable {
+	grid-row: 1 / 2;
+	grid-column: 1 / 2;
+}
+
+.itemtable {
+	width: 100%;
+	display: grid;
+	overflow: scroll;
+	height: 20rem;
+
+	.resize_handle {
+		display: block;
+		position: absolute;
+		cursor: col-resize;
+		width: 4px;
+		left: -2px;
+		top: 0;
+		z-index: 1;
+		background-color: var(--mantine-color-dark-5);
+		&:hover {
+			background-color: var(--mantine-color-white);
+		}
+		&.active {
+			background-color: var(--mantine-primary-color-9);
+		}
+	}
+
+	thead th {
+		user-select: none;
+		border-bottom: 2px solid var(--mantine-color-dark-5);
+		background-color: var(--mantine-color-dark-7);
+		position: sticky;
+		top: 0;
+	}
+
+	thead,
+	tbody,
+	tr {
+		display: contents;
+	}
+
+	th {
+		position: relative;
+		font-size: 1.1rem;
+		text-align: left;
+		width: 100%;
+		padding: 0.5rem;
+
+		.sorticon {
+			display: flex;
+			width: 1.5rem;
+			height: 1.5rem;
+			align-items: center;
+			color: var(--mantine-color-dimmed);
+
+			&:hover {
+				background-color: var(--mantine-color-dark-6);
+			}
+		}
+	}
+
+	// no border for topmost tr
+	tr:nth-child(n + 2) td {
+		border-top: 1px solid var(--mantine-color-dark-5);
+	}
+
+	td {
+		text-align: left;
+		width: 100%;
+		padding: 0.5rem;
+	}
+
+	td:nth-child(n + 2) {
+		border-left: 1px solid var(--mantine-color-dark-5);
+	}
+}
+
+// TODO: rewrite  \/
+.itemtable th span,
+.itemtable td span {
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	overflow: hidden;
+	display: block;
+}
