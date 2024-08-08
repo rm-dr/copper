@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, io::Read};
 
 use crate::flac::errors::{FlacDecodeError, FlacEncodeError};
 
@@ -34,10 +34,11 @@ impl FlacMetablockEncode for FlacPaddingBlock {
 		};
 
 		header.encode(target)?;
+		std::io::copy(
+			&mut std::io::repeat(0u8).take(self.size.try_into().unwrap()),
+			target,
+		)?;
 
-		// TODO: Don't allocate a ton of zeros.
-		let zeros: Vec<u8> = std::iter::repeat(0u8).take(self.size).collect();
-		target.write_all(&zeros)?;
 		return Ok(());
 	}
 }
