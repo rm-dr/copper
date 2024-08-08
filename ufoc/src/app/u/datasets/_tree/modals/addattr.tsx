@@ -264,7 +264,6 @@ export function useAddAttrModal(params: {
 								setErrorMessage((e) => ({ ...e, extra_params: m }));
 							}}
 							onChange={(x: any) => {
-								console.log(x);
 								setNewAttrParams(x);
 							}}
 						/>

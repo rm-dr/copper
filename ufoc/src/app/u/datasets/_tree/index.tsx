@@ -103,8 +103,6 @@ export function TreePanel(params: {}) {
 				);
 			})
 			.then((data) => {
-				console.log(data);
-
 				const tree_data: TreeNode<null>[] = [];
 				for (const d of data) {
 					let d_type = datasetTypes.find((x) => x.serialize_as === d.type);
