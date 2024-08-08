@@ -35,18 +35,16 @@ const SideBar = () => {
 			}
 		>
 			<div className={styles.item} onClick={toggleCurrent}>
-				<Link href="/">
-					<div
-						className={
-							showCurrent
-								? `${styles.itemicon} ${styles.hidebutton}`
-								: `${styles.itemicon} ${styles.hidebutton} ${styles.hidebuttonhide}`
-						}
-					>
-						{/* TODO: use mantine & place elsewhere */}
-						<XIconMenu />
-					</div>
-				</Link>
+				<div
+					className={
+						showCurrent
+							? `${styles.itemicon} ${styles.hidebutton}`
+							: `${styles.itemicon} ${styles.hidebutton} ${styles.hidebuttonhide}`
+					}
+				>
+					{/* TODO: use mantine & place elsewhere */}
+					<XIconMenu />
+				</div>
 			</div>
 
 			<hr className={styles.break}></hr>

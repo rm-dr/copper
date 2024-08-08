@@ -12,7 +12,7 @@ import { ColorSchemeScript } from "@mantine/core";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-	title: "UFO webui",
+	title: "Copper",
 	description: "TODO",
 };
 
