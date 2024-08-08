@@ -101,7 +101,11 @@ export function useAddAttrModal(params: {
 				>
 					<Text c="dimmed" size="sm">
 						Add an attribute to the class
-						<Text c="gray" span>{` ${params.class.name}`}</Text>:
+						<Text
+							c="var(--mantine-primary-color-4)"
+							span
+						>{` ${params.class.name}`}</Text>
+						:
 					</Text>
 				</div>
 				<Select

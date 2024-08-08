@@ -27,6 +27,8 @@ import {
 import { XIcon } from "@/app/components/icons";
 import { APIclient } from "@/app/_util/api";
 import { components } from "@/app/_util/api/openapi";
+import { useRenameAttrModal } from "./modals/renameattr";
+import { useRenameClassModal } from "./modals/renameclass";
 
 type TreeState = {
 	error: boolean;
@@ -359,9 +361,16 @@ function ClassMenu(params: {
 		onSuccess: params.onSuccess,
 	});
 
+	const { open: openRename, modal: modalRename } = useRenameClassModal({
+		dataset_name: params.dataset_name,
+		class: params.class,
+		onSuccess: params.onSuccess,
+	});
+
 	return (
 		<>
 			{modalDelete}
+			{modalRename}
 			{modalAddAttr}
 			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
 				<Menu.Target>
@@ -379,6 +388,7 @@ function ClassMenu(params: {
 								style={{ width: rem(14), height: rem(14) }}
 							/>
 						}
+						onClick={openRename}
 					>
 						Rename
 					</Menu.Item>
@@ -420,16 +430,23 @@ function AttrMenu(params: {
 	attr: components["schemas"]["AttrInfo"];
 	onSuccess: () => void;
 }) {
-	const { open: openDelAttr, modal: modalDelAttr } = useDeleteAttrModal({
+	const { open: openDelete, modal: modalDelete } = useDeleteAttrModal({
 		dataset_name: params.dataset_name,
 		class: params.class,
 		attr: params.attr,
 		onSuccess: params.onSuccess,
 	});
 
+	const { open: openRename, modal: modalRename } = useRenameAttrModal({
+		dataset_name: params.dataset_name,
+		attr: params.attr,
+		onSuccess: params.onSuccess,
+	});
+
 	return (
 		<>
-			{modalDelAttr}
+			{modalRename}
+			{modalDelete}
 			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
@@ -446,6 +463,7 @@ function AttrMenu(params: {
 								style={{ width: rem(14), height: rem(14) }}
 							/>
 						}
+						onClick={openRename}
 					>
 						Rename
 					</Menu.Item>
@@ -460,7 +478,7 @@ function AttrMenu(params: {
 								style={{ width: rem(14), height: rem(14) }}
 							/>
 						}
-						onClick={openDelAttr}
+						onClick={openDelete}
 					>
 						Delete this attribute
 					</Menu.Item>

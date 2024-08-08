@@ -1,7 +1,7 @@
 "use client";
 
 import "@mantine/core/styles.css";
-import { MantineProvider, Modal, createTheme } from "@mantine/core";
+import { MantineProvider, createTheme } from "@mantine/core";
 
 const theme = createTheme({
 	fontFamily: "Open Sans, sans-serif",

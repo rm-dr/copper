@@ -4,27 +4,32 @@ import { useState } from "react";
 import { ModalBase } from "@/app/components/modal_base";
 import { useForm } from "@mantine/form";
 import { XIcon } from "@/app/components/icons";
-import { IconFolderPlus } from "@tabler/icons-react";
+import { IconTrash } from "@tabler/icons-react";
 import { APIclient } from "@/app/_util/api";
+import { components } from "@/app/_util/api/openapi";
 
-export function useAddClassModal(params: {
+export function useRenameClassModal(params: {
 	dataset_name: string;
+	class: components["schemas"]["ClassInfo"];
 	onSuccess: () => void;
 }) {
 	const [opened, { open, close }] = useDisclosure(false);
-
 	const [isLoading, setLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			new_class_name: "",
-			dataset: params.dataset_name,
+			new_name: "",
 		},
 		validate: {
-			new_class_name: (value) =>
-				value.trim().length === 0 ? "Name cannot be empty" : null,
+			new_name: (value) => {
+				if (value.trim().length === 0) {
+					return "This field is required";
+				}
+
+				return null;
+			},
 		},
 	});
 
@@ -41,7 +46,7 @@ export function useAddClassModal(params: {
 			<ModalBase
 				opened={opened}
 				close={reset}
-				title="Add a class"
+				title="Rename class"
 				keepOpen={isLoading}
 			>
 				<div
@@ -50,12 +55,12 @@ export function useAddClassModal(params: {
 					}}
 				>
 					<Text c="dimmed" size="sm">
-						Add a class to the dataset
+						You are renaming the class
 						<Text
 							c="var(--mantine-primary-color-4)"
 							span
-						>{` ${params.dataset_name}`}</Text>
-						:
+						>{` ${params.class.name}`}</Text>
+						.
 					</Text>
 				</div>
 				<form
@@ -63,7 +68,13 @@ export function useAddClassModal(params: {
 						setLoading(true);
 						setErrorMessage(null);
 
-						APIclient.POST("/class/add", { body: values })
+						APIclient.POST("/class/rename", {
+							body: {
+								dataset: params.dataset_name,
+								class: params.class.handle,
+								new_name: values.new_name,
+							},
+						})
 							.then(({ data, error }) => {
 								if (error !== undefined) {
 									throw error;
@@ -73,19 +84,20 @@ export function useAddClassModal(params: {
 								params.onSuccess();
 								reset();
 							})
-							.catch((e) => {
+							.catch((err) => {
 								setLoading(false);
-								setErrorMessage(e);
+								setErrorMessage(err);
 							});
 					})}
 				>
 					<TextInput
 						data-autofocus
-						placeholder="New class name"
+						placeholder="Enter new name"
 						disabled={isLoading}
-						key={form.key("new_class_name")}
-						{...form.getInputProps("new_class_name")}
+						key={form.key("new_name")}
+						{...form.getInputProps("new_name")}
 					/>
+
 					<Button.Group style={{ marginTop: "1rem" }}>
 						<Button
 							variant="light"
@@ -98,17 +110,18 @@ export function useAddClassModal(params: {
 						</Button>
 						<Button
 							variant="filled"
+							color="green"
 							fullWidth
-							color={errorMessage === null ? "green" : "red"}
-							loading={isLoading}
-							leftSection={<XIcon icon={IconFolderPlus} />}
+							leftSection={<XIcon icon={IconTrash} />}
 							type="submit"
+							loading={isLoading}
 						>
-							Create class
+							Confirm
 						</Button>
 					</Button.Group>
+
 					<Text c="red" ta="center">
-						{errorMessage ? errorMessage : null}
+						{errorMessage}
 					</Text>
 				</form>
 			</ModalBase>
