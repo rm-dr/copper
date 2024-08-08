@@ -29,3 +29,4 @@ ufo-util = { workspace = true }
 anyhow = { workspace = true }
 smartstring = { workspace = true }
 serde = { workspace = true }
+futures = { workspace = true }
