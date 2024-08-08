@@ -1,4 +1,4 @@
-use crate::{node::PipelineDataStub, syntax::labels::PipelinePortLabel};
+use crate::{api::PipelineDataStub, syntax::labels::PipelinePortLabel};
 
 /// Name and datatype for a set of ports.
 #[derive(Debug, Clone)]

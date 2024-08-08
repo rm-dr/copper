@@ -1,4 +1,4 @@
-use crate::node::{PipelineData, PipelineNodeState};
+use crate::api::{PipelineData, PipelineNodeState};
 
 #[derive(Debug)]
 pub(super) enum EdgeValue<DataType: PipelineData> {

@@ -2,8 +2,8 @@ use smartstring::{LazyCompact, SmartString};
 use std::fmt::Debug;
 
 use crate::{
+	api::PipelineNodeStub,
 	graph::{finalized::FinalizedGraph, util::GraphNodeIdx},
-	node::PipelineNodeStub,
 	syntax::{labels::PipelineNodeLabel, spec::InternalNodeStub},
 };
 

@@ -1,8 +1,8 @@
 use std::{fs::File, io::Read, path::PathBuf, str::FromStr, sync::Arc};
 
 use ufo_pipeline::{
+	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
-	node::{PipelineNode, PipelineNodeState},
 };
 use ufo_util::mime::MimeType;
 

@@ -3,8 +3,8 @@
 mod graph;
 pub mod syntax;
 
+pub mod api;
 pub mod errors;
-pub mod node;
 #[allow(clippy::module_inception)]
 pub mod pipeline;
 pub mod portspec;

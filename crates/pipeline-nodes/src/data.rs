@@ -7,7 +7,7 @@ use std::{
 	str::FromStr,
 	sync::Arc,
 };
-use ufo_pipeline::node::{PipelineData, PipelineDataStub};
+use ufo_pipeline::api::{PipelineData, PipelineDataStub};
 use ufo_storage::{
 	api::{ClassHandle, ItemHandle},
 	StorageData, StorageDataType,

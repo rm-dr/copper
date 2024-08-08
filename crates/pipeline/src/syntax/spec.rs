@@ -13,8 +13,8 @@ use super::{
 	ports::{NodeInput, NodeOutput},
 };
 use crate::{
+	api::{PipelineData, PipelineNode, PipelineNodeStub},
 	graph::{graph::Graph, util::GraphNodeIdx},
-	node::{PipelineData, PipelineNode, PipelineNodeStub},
 	pipeline::{Pipeline, PipelineEdge},
 	portspec::PipelinePortSpec,
 };

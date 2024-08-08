@@ -11,9 +11,9 @@ use threadpool::ThreadPool;
 
 use super::util::{EdgeValue, NodeRunState};
 use crate::{
+	api::{PipelineData, PipelineNode, PipelineNodeState, PipelineNodeStub},
 	errors::PipelineError,
 	graph::util::GraphNodeIdx,
-	node::{PipelineData, PipelineNode, PipelineNodeState, PipelineNodeStub},
 	pipeline::Pipeline,
 	syntax::{errors::PipelinePrepareError, labels::PipelineNodeLabel, spec::PipelineSpec},
 };

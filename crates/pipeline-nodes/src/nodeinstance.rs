@@ -1,8 +1,8 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
 use ufo_pipeline::{
+	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
-	node::{PipelineNode, PipelineNodeState},
 };
 
 use crate::{data::UFOData, input::file::FileInput, output::storage::StorageOutput, UFOContext};

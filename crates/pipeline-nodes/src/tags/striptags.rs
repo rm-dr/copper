@@ -4,8 +4,8 @@ use std::{
 };
 use ufo_audiofile::flac::metastrip::FlacMetaStrip;
 use ufo_pipeline::{
+	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
-	node::{PipelineNode, PipelineNodeState},
 };
 use ufo_util::mime::MimeType;
 

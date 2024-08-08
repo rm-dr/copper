@@ -5,7 +5,7 @@ use serde_with::serde_as;
 use smartstring::{LazyCompact, SmartString};
 use ufo_audiofile::common::tagtype::TagType;
 use ufo_pipeline::{
-	node::{PipelineData, PipelineNode, PipelineNodeStub},
+	api::{PipelineData, PipelineNode, PipelineNodeStub},
 	portspec::PipelinePortSpec,
 	syntax::labels::PipelinePortLabel,
 };

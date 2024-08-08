@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use smartstring::{LazyCompact, SmartString};
 use ufo_pipeline::{
+	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
-	node::{PipelineNode, PipelineNodeState},
 };
 use ufo_storage::api::{ClassHandle, Dataset};
 
