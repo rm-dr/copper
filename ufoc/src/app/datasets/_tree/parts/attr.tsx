@@ -190,8 +190,11 @@ export function useDeleteAttrModal(params: {
 			<TreeModal
 				opened={opened}
 				close={() => {
-					close();
+					// Reset everything on close
+					setDelAttrName("");
+					setLoading(false);
 					setErrorMessage({ name: null, response: null });
+					close();
 				}}
 				title="Delete attribute"
 				keepOpen={isLoading}

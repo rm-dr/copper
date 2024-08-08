@@ -76,8 +76,12 @@ export function useNewDsModal(onSuccess: () => void) {
 			<TreeModal
 				opened={opened}
 				close={() => {
-					close();
+					// Reset everything on close
+					setNewDsName("");
+					setNewDsType(null);
+					setLoading(false);
 					setErrorMessage({ name: null, type: null, response: null });
+					close();
 				}}
 				title="Create a new dataset"
 				keepOpen={isLoading}

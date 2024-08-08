@@ -228,8 +228,11 @@ export function useDeleteDatasetModal(params: {
 			<TreeModal
 				opened={opened}
 				close={() => {
-					close();
+					// Reset everything on close
+					setLoading(false);
+					setDelDatasetName("");
 					setErrorMessage({ name: null, response: null });
+					close();
 				}}
 				title="Delete dataset"
 				keepOpen={isLoading}
@@ -351,8 +354,11 @@ export function useAddClassModal(params: {
 			<TreeModal
 				opened={opened}
 				close={() => {
-					close();
+					// Reset everything on close
+					setNewClassName("");
+					setLoading(false);
 					setErrorMessage(null);
+					close();
 				}}
 				title="Add a class"
 				keepOpen={isLoading}

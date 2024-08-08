@@ -223,8 +223,11 @@ export function useDeleteClassModal(params: {
 			<TreeModal
 				opened={opened}
 				close={() => {
-					close();
+					// Reset everything on close
+					setDelClassName("");
+					setLoading(false);
 					setErrorMessage({ name: null, response: null });
+					close();
 				}}
 				title="Delete class"
 				keepOpen={isLoading}
@@ -400,7 +403,18 @@ export function useAddAttrModal(params: {
 		modal: (
 			<TreeModal
 				opened={opened}
-				close={close}
+				close={() => {
+					// Reset everything on close
+					setNewAttrName("");
+					setNewAttrType(null);
+					setErrorMessage({
+						name: null,
+						type: null,
+						response: null,
+						extra_params: null,
+					});
+					close();
+				}}
 				title="Add an attribute"
 				keepOpen={isLoading}
 			>
