@@ -5,7 +5,7 @@ import { MantineProvider, Modal, createTheme } from "@mantine/core";
 
 const theme = createTheme({
 	fontFamily: "Open Sans, sans-serif",
-	primaryColor: "red",
+	primaryColor: "blue",
 });
 
 export default function Provider({
