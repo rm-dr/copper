@@ -13,50 +13,50 @@ use super::{
 use crate::api::{Dataset, DatasetHandle};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct SeaItemIdx(i32);
+pub struct SeaItemHandle(i32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct SeaClassIdx(i32);
+pub struct SeaClassHandle(i32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct SeaAttrIdx(i32);
+pub struct SeaAttrHandle(i32);
 
-impl DatasetHandle for SeaItemIdx {}
-impl DatasetHandle for SeaClassIdx {}
-impl DatasetHandle for SeaAttrIdx {}
+impl DatasetHandle for SeaItemHandle {}
+impl DatasetHandle for SeaClassHandle {}
+impl DatasetHandle for SeaAttrHandle {}
 
-impl From<i32> for SeaItemIdx {
+impl From<i32> for SeaItemHandle {
 	fn from(value: i32) -> Self {
 		Self(value)
 	}
 }
 
-impl From<SeaItemIdx> for i32 {
-	fn from(value: SeaItemIdx) -> Self {
+impl From<SeaItemHandle> for i32 {
+	fn from(value: SeaItemHandle) -> Self {
 		value.0
 	}
 }
 
-impl From<i32> for SeaAttrIdx {
+impl From<i32> for SeaAttrHandle {
 	fn from(value: i32) -> Self {
 		Self(value)
 	}
 }
 
-impl From<SeaAttrIdx> for i32 {
-	fn from(value: SeaAttrIdx) -> Self {
+impl From<SeaAttrHandle> for i32 {
+	fn from(value: SeaAttrHandle) -> Self {
 		value.0
 	}
 }
 
-impl From<i32> for SeaClassIdx {
+impl From<i32> for SeaClassHandle {
 	fn from(value: i32) -> Self {
 		Self(value)
 	}
 }
 
-impl From<SeaClassIdx> for i32 {
-	fn from(value: SeaClassIdx) -> Self {
+impl From<SeaClassHandle> for i32 {
+	fn from(value: SeaClassHandle) -> Self {
 		value.0
 	}
 }
@@ -120,9 +120,9 @@ impl SeaDataset {
 }
 
 impl Dataset for SeaDataset {
-	type ClassHandle = SeaClassIdx;
-	type AttrHandle = SeaAttrIdx;
-	type ItemHandle = SeaItemIdx;
+	type ClassHandle = SeaClassHandle;
+	type AttrHandle = SeaAttrHandle;
+	type ItemHandle = SeaItemHandle;
 	type ErrorType = SeaDatasetError;
 
 	async fn add_attr(

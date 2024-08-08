@@ -2,6 +2,8 @@ use std::io::Read;
 
 use super::errors::FlacError;
 
+/// See FLAC spec
+#[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum FlacMetablockType {
 	Streaminfo,

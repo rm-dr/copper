@@ -1,8 +1,14 @@
+//! MIME type convenience structures
+
 use smartstring::{LazyCompact, SmartString};
 
+/// A MIME type, conveniently parsed.
 #[derive(Debug, PartialEq, Eq)]
 pub enum MimeType {
+	/// A mimetype we didn't recognize
 	Unknown(SmartString<LazyCompact>),
+
+	/// A png image
 	Png,
 }
 

@@ -1,25 +1,44 @@
+//! Cross-format normalized tag types
+
 use std::str::FromStr;
 
 use serde_with::DeserializeFromStr;
 use smartstring::{LazyCompact, SmartString};
 
-/// Universal tag types.
+/// A universal tag type
 #[derive(Debug, Hash, PartialEq, Eq, Clone, DeserializeFromStr)]
 pub enum TagType {
+	/// A tag we didn't recognize
 	Other(SmartString<LazyCompact>),
+
+	/// Album name
 	Album,
+	/// Album artist
 	AlbumArtist,
+	/// Comment
 	Comment,
+	/// Release date
 	ReleaseDate,
+	/// Disk number
 	DiskNumber,
+	/// Total disks in album
 	DiskTotal,
+	/// Genre
 	Genre,
+	/// International standard recording code
 	Isrc,
+	/// Track lyrics, possibly time-coded
 	Lyrics,
-	TrackNumber, // This track's number in its album
-	TrackTotal,  // The total number of tracks in this track's album
+	/// This track's number in its album
+	TrackNumber,
+	/// The total number of tracks in this track's album
+	TrackTotal,
+	/// The title of this track
 	TrackTitle,
+	/// This track's artist (the usual `Artist`,
+	/// compare to `AlbumArtist`)
 	TrackArtist,
+	/// The year this track was released
 	Year,
 }
 

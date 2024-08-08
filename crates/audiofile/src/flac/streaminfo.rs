@@ -1,7 +1,11 @@
+//! Decode FLAC StreamInfo metadata blocks
+
 use std::{fmt::Display, io::Read};
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub enum FlacStreamInfoError {
+	/// We encountered an i/o error while reading a block
 	IoError(std::io::Error),
 }
 
@@ -28,6 +32,8 @@ impl From<std::io::Error> for FlacStreamInfoError {
 }
 
 // TODO: enforce flac constraints and write
+
+/// A FLAC file's StreamInfo.
 pub struct FlacStreamInfo {
 	min_block_size: u32,
 	max_block_size: u32,
@@ -41,6 +47,7 @@ pub struct FlacStreamInfo {
 }
 
 impl FlacStreamInfo {
+	/// Try to decode a StreamInfo block from the given reader.
 	pub fn decode<R>(mut read: R) -> Result<Self, FlacStreamInfoError>
 	where
 		R: Read,

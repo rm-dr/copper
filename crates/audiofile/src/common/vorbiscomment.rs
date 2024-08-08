@@ -1,12 +1,18 @@
+//! Decode and write Vorbis comment blocks
+
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Display, io::Read, string::FromUtf8Error};
 
 use super::tagtype::TagType;
 
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub enum VorbisCommentError {
+	/// We encountered an IoError while processing a block
 	IoError(std::io::Error),
+	/// We tried to decode a string, but got invalid data
 	FailedStringDecode(FromUtf8Error),
+	/// The given comment string isn't within spec
 	MalformedCommentString(String),
 }
 
@@ -46,6 +52,7 @@ impl From<FromUtf8Error> for VorbisCommentError {
 	}
 }
 
+/// A decoded vorbis comment block
 #[derive(Debug)]
 pub struct VorbisComment {
 	vendor: SmartString<LazyCompact>,
@@ -53,6 +60,7 @@ pub struct VorbisComment {
 }
 
 impl VorbisComment {
+	/// Try to decode a vorbis block using the given reader
 	pub fn decode<R>(mut read: R) -> Result<Self, VorbisCommentError>
 	where
 		R: Read,
@@ -107,6 +115,7 @@ impl VorbisComment {
 		})
 	}
 
+	/// Get a tag in this comment block
 	pub fn get_tag(&self, tag: &TagType) -> Option<String> {
 		for (t, c) in &self.comments {
 			if t == tag {
@@ -117,6 +126,7 @@ impl VorbisComment {
 		return None;
 	}
 
+	/// Get this block's `vendor` string
 	pub fn get_vendor(&self) -> &str {
 		&self.vendor
 	}

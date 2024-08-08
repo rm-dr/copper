@@ -1,3 +1,5 @@
+//! Datatypes and containers
+
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::{
@@ -12,7 +14,12 @@ use std::{
 /// What kind of audio data is this?
 #[derive(Debug, Copy, Clone)]
 pub enum AudioFormat {
+	/// An MP3 file, with all metadata removed.
+	/// (see ufo-audiofile)
 	Mp3,
+
+	/// A FLAC file, with all metadata removed.
+	/// (see ufo-audiofile)
 	Flac,
 	//Ogg,
 }
@@ -33,9 +40,11 @@ pub enum BinaryFormat {
 // TODO: rename
 /// A bit of data inside a pipeline.
 /// These are instances of [`PipelineDataType`].
-#[derive(Clone)]
 pub enum PipelineData {
+	/// Typed, unset data
 	None(PipelineDataType),
+
+	/// A block of text
 	Text(String),
 	Binary { format: BinaryFormat, data: Vec<u8> },
 }
@@ -51,6 +60,7 @@ impl Debug for PipelineData {
 }
 
 impl PipelineData {
+	/// Transforms a data container into its type.
 	pub fn get_type(&self) -> PipelineDataType {
 		match self {
 			Self::None(t) => *t,
@@ -64,7 +74,10 @@ impl PipelineData {
 /// Corresponds to [`PipelineData`]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PipelineDataType {
+	/// Plain text
 	Text,
+
+	/// Binary data, in any format
 	Binary,
 }
 

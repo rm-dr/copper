@@ -44,6 +44,8 @@ where
 }
 
 impl<R: Read + Seek> FlacMetaStrip<R> {
+	/// Create an object that strips tags from the given reader.
+	/// `read` should be a complete, valid FLAC file.
 	pub fn new(mut read: R) -> Result<Self, FlacError> {
 		let mut block = [0u8; 4];
 		read.read_exact(&mut block)?;

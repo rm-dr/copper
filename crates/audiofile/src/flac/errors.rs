@@ -4,13 +4,20 @@ use crate::common::vorbiscomment::VorbisCommentError;
 
 // TODO: simplify errors?
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub enum FlacError {
 	// TODO: multiple comment blocks are an error
-	BadMagicBytes, // FLAC does not start with 0x66 0x4C 0x61 0x43
+	/// FLAC does not start with 0x66 0x4C 0x61 0x43
+	BadMagicBytes,
+
+	/// We got an invalid metadata block type
 	BadMetablockType(u8),
 
+	/// We encountered an i/o error while processing
 	IoError(std::io::Error),
+
+	/// We could not parse a vorbis comment
 	VorbisComment(VorbisCommentError),
 }
 
