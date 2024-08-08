@@ -2,19 +2,21 @@
 
 use std::{
 	collections::VecDeque,
+	error::Error,
+	fmt::Display,
 	io::{Cursor, Read, Seek},
 };
 
 use super::{
-	blocks::{FlacMetablockDecode, FlacMetablockHeader, FlacMetablockType},
+	blocks::{
+		FlacAudioFrame, FlacCommentBlock, FlacMetablockDecode, FlacMetablockHeader,
+		FlacMetablockType,
+	},
 	errors::FlacDecodeError,
 };
-use crate::{
-	common::vorbiscomment::VorbisComment,
-	flac::blocks::{
-		FlacApplicationBlock, FlacCuesheetBlock, FlacPaddingBlock, FlacPictureBlock,
-		FlacSeektableBlock, FlacStreaminfoBlock,
-	},
+use crate::flac::blocks::{
+	FlacApplicationBlock, FlacCuesheetBlock, FlacPaddingBlock, FlacPictureBlock,
+	FlacSeektableBlock, FlacStreaminfoBlock,
 };
 
 /// Select which blocks we want to keep.
@@ -93,7 +95,40 @@ pub enum FlacBlock {
 	SeekTable(FlacSeektableBlock),
 	VorbisComment(VorbisComment),
 	CueSheet(FlacCuesheetBlock),
-	AudioFrame(Vec<u8>),
+}
+
+/// An error produced by a [`FlacBlockReader`]
+#[derive(Debug)]
+pub enum FlacBlockReaderError {
+	/// Could not decode flac data
+	DecodeError(FlacDecodeError),
+
+	/// Tried to finish or push data to a finished reader.
+	AlreadyFinished,
+}
+
+impl Display for FlacBlockReaderError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::DecodeError(_) => write!(f, "decode error while reading flac blocks"),
+			Self::AlreadyFinished => write!(f, "flac block reader is already finished"),
+		}
+	}
+}
+
+impl Error for FlacBlockReaderError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		Some(match self {
+			Self::DecodeError(e) => e,
+			Self::AlreadyFinished => return None,
+		})
+	}
+}
+
+impl From<FlacDecodeError> for FlacBlockReaderError {
+	fn from(value: FlacDecodeError) -> Self {
+		Self::DecodeError(value)
+	}
 }
 
 /// A buffered flac block reader.
@@ -136,12 +171,12 @@ impl FlacBlockReader {
 	/// Pass the given data through this block extractor.
 	/// Output data is stored in an internal buffer, and should be accessed
 	/// through `Read`.
-	pub fn push_data(&mut self, buf: &[u8]) -> Result<(), FlacDecodeError> {
+	pub fn push_data(&mut self, buf: &[u8]) -> Result<(), FlacBlockReaderError> {
 		let mut buf = Cursor::new(buf);
 		let mut last_read_size = 1;
 
 		if self.current_block.is_none() {
-			panic!("Tried to push data to a finished reader")
+			return Err(FlacBlockReaderError::AlreadyFinished);
 		}
 
 		'outer: while last_read_size != 0 {
@@ -152,7 +187,7 @@ impl FlacBlockReader {
 
 					if *left_to_read == 0 {
 						if *data != [0x66, 0x4C, 0x61, 0x43] {
-							return Err(FlacDecodeError::BadMagicBytes);
+							return Err(FlacDecodeError::BadMagicBytes.into());
 						};
 
 						self.current_block = Some(FlacBlockType::MetablockHeader {
@@ -175,7 +210,7 @@ impl FlacBlockReader {
 						let header = FlacMetablockHeader::decode(data)?;
 						if *is_first && !matches!(header.block_type, FlacMetablockType::Streaminfo)
 						{
-							return Err(FlacDecodeError::BadFirstBlock);
+							return Err(FlacDecodeError::BadFirstBlock.into());
 						}
 
 						self.current_block = Some(FlacBlockType::MetaBlock {
@@ -253,7 +288,7 @@ impl FlacBlockReader {
 					// (`if` makes sure we only do this once)
 					if data.len() - last_read_size <= 2 {
 						if !(data[0] == 0b1111_1111 && data[1] & 0b1111_1100 == 0b1111_1000) {
-							return Err(FlacDecodeError::BadSyncBytes);
+							return Err(FlacDecodeError::BadSyncBytes.into());
 						}
 					}
 
@@ -285,14 +320,10 @@ impl FlacBlockReader {
 								}
 
 								// Backtrack to the first bit AFTER this new sync sequence
-								let e = buf.seek(std::io::SeekFrom::Current(
+								buf.seek(std::io::SeekFrom::Current(
 									-i64::try_from(data.len() - i).unwrap(),
-								));
-
-								if e.is_err() {
-									println!("{} {}", data.len() - i, buf.position());
-									return Err(e.unwrap_err().into());
-								}
+								))
+								.unwrap();
 
 								self.current_block = Some(FlacBlockType::AudioData {
 									data: Vec::from(&data[i - 2..i]),
@@ -313,20 +344,18 @@ impl FlacBlockReader {
 	///
 	/// `finish()` should be called exactly once once we have finished each stream.
 	/// Finishing twice or pushing data to a finished reader results in a panic.
-	pub fn finish(&mut self) -> Result<(), FlacDecodeError> {
+	pub fn finish(&mut self) -> Result<(), FlacBlockReaderError> {
 		match self.current_block.take() {
-			None => {
-				panic!("Called `finish()` on a finished reader")
-			}
+			None => return Err(FlacBlockReaderError::AlreadyFinished),
 
 			Some(FlacBlockType::AudioData { data }) => {
 				// We can't run checks if we don't have enough data.
 				if data.len() <= 2 {
-					return Err(FlacDecodeError::MalformedBlock);
+					return Err(FlacDecodeError::MalformedBlock.into());
 				}
 
 				if !(data[0] == 0b1111_1111 && data[1] & 0b1111_1100 == 0b1111_1000) {
-					return Err(FlacDecodeError::BadSyncBytes);
+					return Err(FlacDecodeError::BadSyncBytes.into());
 				}
 
 				if self.selector.pick_audio {
@@ -339,7 +368,7 @@ impl FlacBlockReader {
 
 			// All other blocks have a known length and
 			// are finished automatically.
-			_ => return Err(FlacDecodeError::MalformedBlock),
+			_ => return Err(FlacDecodeError::MalformedBlock.into()),
 		}
 	}
 }
@@ -416,7 +445,7 @@ mod tests {
 
 		selector: FlacBlockSelector,
 		in_hash: &str,
-	) -> Result<Vec<FlacBlock>, FlacDecodeError> {
+	) -> Vec<FlacBlock> {
 		let file_data = std::fs::read(test_file_path).unwrap();
 
 		// Make sure input file is correct
@@ -435,19 +464,21 @@ mod tests {
 				if head + frag_size > file_data.len() {
 					frag_size = file_data.len() - head;
 				}
-				reader.push_data(&file_data[head..head + frag_size])?;
+				reader
+					.push_data(&file_data[head..head + frag_size])
+					.unwrap();
 				head += frag_size;
 			}
 		} else {
-			reader.push_data(&file_data)?;
+			reader.push_data(&file_data).unwrap();
 		}
 
-		reader.finish()?;
+		reader.finish().unwrap();
 		while let Some(b) = reader.pop_block() {
 			out_blocks.push(b)
 		}
 
-		return Ok(out_blocks);
+		return out_blocks;
 	}
 
 	fn test_strip(
@@ -455,7 +486,7 @@ mod tests {
 		fragment_size_range: Option<std::ops::Range<usize>>,
 		in_hash: &str,
 		out_hash: &str,
-	) -> Result<(), FlacDecodeError> {
+	) {
 		let out_blocks = read_file(
 			test_file_path,
 			fragment_size_range,
@@ -470,10 +501,10 @@ mod tests {
 				pick_audio: true,
 			},
 			in_hash,
-		)?;
+		);
 
 		let mut out = Vec::new();
-		out.write_all(&[0x66, 0x4C, 0x61, 0x43])?;
+		out.write_all(&[0x66, 0x4C, 0x61, 0x43]).unwrap();
 
 		for i in 0..out_blocks.len() {
 			let b = &out_blocks[i];
@@ -497,8 +528,6 @@ mod tests {
 		hasher.update(out);
 		let result = format!("{:x}", hasher.finalize());
 		assert_eq!(result, out_hash, "Stripped FLAC hash doesn't match");
-
-		return Ok(());
 	}
 
 	fn test_blockread(
@@ -507,7 +536,7 @@ mod tests {
 		in_hash: &str,
 		result: &[FlacBlockOutput],
 		audio_hash: &str,
-	) -> Result<(), FlacDecodeError> {
+	) {
 		let out_blocks = read_file(
 			test_file_path,
 			fragment_size_range,
@@ -522,7 +551,7 @@ mod tests {
 				pick_audio: true,
 			},
 			in_hash,
-		)?;
+		);
 
 		assert_eq!(
 			result.len(),
@@ -665,8 +694,6 @@ mod tests {
 
 		// Check audio data hash
 		assert_eq!(audio_hash, format!("{:x}", audio_data_hasher.finalize()));
-
-		return Ok(());
 	}
 
 	// Helper macros to generate tests
@@ -704,7 +731,7 @@ mod tests {
 							$in_hash,
 							$result,
 							$audio_hash
-						).unwrap()
+						)
 					}
 				}
 
@@ -717,7 +744,7 @@ mod tests {
 							$in_hash,
 							$result,
 							$audio_hash
-						).unwrap()
+						)
 					}
 				}
 
@@ -729,7 +756,9 @@ mod tests {
 							Some(5_000..100_000),
 							$in_hash,
 							$stripped_hash
-						).unwrap()
+						)
+					}
+				}
 					}
 				}
 			}
