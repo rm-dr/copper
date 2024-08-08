@@ -196,6 +196,14 @@ impl Metastore for LocalDataset {
 		data_type: MetastoreDataStub,
 		options: AttributeOptions,
 	) -> Result<AttrHandle, MetastoreError> {
+		// No empty names
+		let attr_name = attr_name.trim();
+		if attr_name == "" {
+			return Err(MetastoreError::BadAttrName(
+				"Attr name cannot be empty".into(),
+			));
+		}
+
 		// Start transaction
 		let mut conn_lock = self.conn.lock().await;
 		let mut t = (conn_lock.begin().await).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
@@ -292,6 +300,14 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn add_class(&self, class_name: &str) -> Result<ClassHandle, MetastoreError> {
+		// No empty names
+		let class_name = class_name.trim();
+		if class_name == "" {
+			return Err(MetastoreError::BadClassName(
+				"Class name cannot be empty".into(),
+			));
+		}
+
 		// Start transaction
 		let mut conn_lock = self.conn.lock().await;
 		let mut t = conn_lock

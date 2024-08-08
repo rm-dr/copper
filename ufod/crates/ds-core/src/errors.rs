@@ -18,8 +18,14 @@ pub enum MetastoreError {
 	/// We were given a bad attribute handle
 	BadAttrHandle,
 
+	/// We tried to create an attr with an invalid name
+	BadAttrName(SmartString<LazyCompact>),
+
 	/// We were given a bad class handle
 	BadClassHandle,
+
+	/// We tried to create a class with an invalid name
+	BadClassName(SmartString<LazyCompact>),
 
 	/// We were given a bad item idx
 	BadItemIdx,
@@ -56,6 +62,8 @@ impl Display for MetastoreError {
 			Self::BlobstoreError(_) => write!(f, "Blobstore error"),
 			Self::BadAttrHandle => write!(f, "BadAttrHandle"),
 			Self::BadClassHandle => write!(f, "BadClassHandle"),
+			Self::BadClassName(_) => write!(f, "BadClassName"),
+			Self::BadAttrName(_) => write!(f, "BadAttrName"),
 			Self::BadItemIdx => write!(f, "BadItemIdx"),
 			Self::TypeMismatch => write!(f, "TypeMismatch"),
 			Self::UniqueViolated => write!(f, "UniqueViolated"),

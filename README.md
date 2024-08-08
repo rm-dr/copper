@@ -18,9 +18,6 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release.
 The goal is a *minimal* working version: robust, usable, but possibly slow and missing fancy features.
 
 
-## Small jobs
-- Trim all names
-
 ## 📦 CRUD items
 - [ ] Hash files when uploading (incremental)
   - make sure uploads don't expire
