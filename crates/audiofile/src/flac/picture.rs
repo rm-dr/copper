@@ -1,8 +1,56 @@
-use std::io::Read;
+use std::{fmt::Display, io::Read, string::FromUtf8Error};
 
-use crate::common::{mime::MimeType, picturetype::PictureType};
+use crate::common::{
+	mime::MimeType,
+	picturetype::{PictureType, PictureTypeError},
+};
 
-use super::errors::FlacError;
+#[derive(Debug)]
+pub enum FlacPictureError {
+	IoError(std::io::Error),
+	FailedStringDecode(FromUtf8Error),
+	BadPictureType(PictureTypeError),
+}
+
+impl Display for FlacPictureError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::IoError(_) => write!(f, "io error while reading flac picture"),
+			Self::BadPictureType(_) => write!(f, "flac has invalid picture type"),
+			Self::FailedStringDecode(_) => {
+				write!(f, "string decode error while reading flac picture")
+			}
+		}
+	}
+}
+
+impl std::error::Error for FlacPictureError {
+	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		match self {
+			Self::IoError(x) => Some(x),
+			Self::FailedStringDecode(x) => Some(x),
+			_ => None,
+		}
+	}
+}
+
+impl From<PictureTypeError> for FlacPictureError {
+	fn from(value: PictureTypeError) -> Self {
+		Self::BadPictureType(value)
+	}
+}
+
+impl From<std::io::Error> for FlacPictureError {
+	fn from(value: std::io::Error) -> Self {
+		Self::IoError(value)
+	}
+}
+
+impl From<FromUtf8Error> for FlacPictureError {
+	fn from(value: FromUtf8Error) -> Self {
+		Self::FailedStringDecode(value)
+	}
+}
 
 // TODO: enforce flac constraints and write
 pub struct FlacPicture {
@@ -17,7 +65,7 @@ pub struct FlacPicture {
 }
 
 impl FlacPicture {
-	pub fn decode<R>(mut read: R) -> Result<Self, FlacError>
+	pub fn decode<R>(mut read: R) -> Result<Self, FlacPictureError>
 	where
 		R: Read,
 	{

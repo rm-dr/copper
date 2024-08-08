@@ -3,6 +3,7 @@ use std::str::FromStr;
 use serde_with::DeserializeFromStr;
 use smartstring::{LazyCompact, SmartString};
 
+/// Universal tag types.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, DeserializeFromStr)]
 pub enum TagType {
 	Other(SmartString<LazyCompact>),
@@ -47,7 +48,6 @@ impl<'b, 'a: 'b> From<&'a TagType> for &'b str {
 	}
 }
 
-// TODO: better error
 impl From<&str> for TagType {
 	fn from(s: &str) -> Self {
 		// This must match `From<&_>` above

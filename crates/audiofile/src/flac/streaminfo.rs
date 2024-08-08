@@ -1,6 +1,31 @@
-use std::io::Read;
+use std::{fmt::Display, io::Read};
 
-use super::errors::FlacError;
+#[derive(Debug)]
+pub enum FlacStreamInfoError {
+	IoError(std::io::Error),
+}
+
+impl Display for FlacStreamInfoError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::IoError(_) => write!(f, "io error while reading flac streaminfo"),
+		}
+	}
+}
+
+impl std::error::Error for FlacStreamInfoError {
+	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		match self {
+			Self::IoError(x) => Some(x),
+		}
+	}
+}
+
+impl From<std::io::Error> for FlacStreamInfoError {
+	fn from(value: std::io::Error) -> Self {
+		Self::IoError(value)
+	}
+}
 
 // TODO: enforce flac constraints and write
 pub struct FlacStreamInfo {
@@ -16,7 +41,7 @@ pub struct FlacStreamInfo {
 }
 
 impl FlacStreamInfo {
-	pub fn decode<R>(mut read: R) -> Result<Self, FlacError>
+	pub fn decode<R>(mut read: R) -> Result<Self, FlacStreamInfoError>
 	where
 		R: Read,
 	{
