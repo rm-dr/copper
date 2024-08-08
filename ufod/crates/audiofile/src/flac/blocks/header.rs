@@ -34,6 +34,7 @@ impl FlacMetablockType {
 }
 
 /// The header of a flac metadata block
+#[derive(Clone)]
 pub struct FlacMetablockHeader {
 	/// The type of block this is
 	pub block_type: FlacMetablockType,

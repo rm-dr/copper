@@ -103,8 +103,8 @@ impl PipelineNode for ExtractTags {
 		let tagger = tagger.unwrap();
 
 		for (i, tag_type) in self.tags.iter().enumerate() {
-			if let Some(tag_value) = tagger.get_tag(tag_type) {
-				send_data(i, UFOData::Text(Arc::new(tag_value)))?;
+			if let Some((_, tag_value)) = tagger.comments.iter().find(|x| x.0 == *tag_type) {
+				send_data(i, UFOData::Text(Arc::new(tag_value.clone())))?;
 			} else {
 				send_data(i, UFOData::None(UFODataStub::Text))?;
 			}

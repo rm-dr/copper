@@ -1,7 +1,13 @@
 //! Decode and write Vorbis comment blocks
 
 use smartstring::{LazyCompact, SmartString};
-use std::{fmt::Display, io::Read, string::FromUtf8Error};
+use std::{
+	fmt::Display,
+	io::{Cursor, Read},
+	string::FromUtf8Error,
+};
+
+use crate::FileBlockDecode;
 
 use super::tagtype::TagType;
 
@@ -10,10 +16,15 @@ use super::tagtype::TagType;
 pub enum VorbisCommentError {
 	/// We encountered an IoError while processing a block
 	IoError(std::io::Error),
+
 	/// We tried to decode a string, but got invalid data
 	FailedStringDecode(FromUtf8Error),
+
 	/// The given comment string isn't within spec
 	MalformedCommentString(String),
+
+	/// The comment we're reading is invalid
+	MalformedData,
 }
 
 impl Display for VorbisCommentError {
@@ -25,6 +36,10 @@ impl Display for VorbisCommentError {
 			}
 			Self::MalformedCommentString(x) => {
 				write!(f, "malformed comment string `{x}`")
+			}
+
+			Self::MalformedData => {
+				write!(f, "malformed comment data")
 			}
 		}
 	}
@@ -55,37 +70,51 @@ impl From<FromUtf8Error> for VorbisCommentError {
 /// A decoded vorbis comment block
 #[derive(Debug)]
 pub struct VorbisComment {
-	vendor: SmartString<LazyCompact>,
-	comments: Vec<(TagType, String)>,
+	/// This comment's vendor string
+	pub vendor: SmartString<LazyCompact>,
+
+	/// List of (tag, value)
+	pub comments: Vec<(TagType, String)>,
 }
 
-impl VorbisComment {
-	/// Try to decode a vorbis block using the given reader
-	pub fn decode<R>(mut read: R) -> Result<Self, VorbisCommentError>
-	where
-		R: Read,
-	{
+impl FileBlockDecode for VorbisComment {
+	type DecodeErrorType = VorbisCommentError;
+
+	fn decode(data: &[u8]) -> Result<Self, Self::DecodeErrorType> {
+		let mut d = Cursor::new(data);
+
 		// This is re-used whenever we need to read four bytes
 		let mut block = [0u8; 4];
 
 		let vendor = {
-			read.read_exact(&mut block)?;
+			d.read_exact(&mut block)
+				.map_err(|_| VorbisCommentError::MalformedData)?;
+
 			let length = u32::from_le_bytes(block);
 			let mut text = vec![0u8; length.try_into().unwrap()];
-			read.read_exact(&mut text)?;
+
+			d.read_exact(&mut text)
+				.map_err(|_| VorbisCommentError::MalformedData)?;
+
 			String::from_utf8(text)?
 		};
 
-		read.read_exact(&mut block)?;
+		d.read_exact(&mut block)
+			.map_err(|_| VorbisCommentError::MalformedData)?;
 		let n_comments: usize = u32::from_le_bytes(block).try_into().unwrap();
 
 		let mut comments = Vec::with_capacity(n_comments);
 		for _ in 0..n_comments {
 			let comment = {
-				read.read_exact(&mut block)?;
+				d.read_exact(&mut block)
+					.map_err(|_| VorbisCommentError::MalformedData)?;
+
 				let length = u32::from_le_bytes(block);
 				let mut text = vec![0u8; length.try_into().unwrap()];
-				read.read_exact(&mut text)?;
+
+				d.read_exact(&mut text)
+					.map_err(|_| VorbisCommentError::MalformedData)?;
+
 				String::from_utf8(text)?
 			};
 			let (var, val) = comment
@@ -116,21 +145,5 @@ impl VorbisComment {
 			vendor: vendor.into(),
 			comments,
 		})
-	}
-
-	/// Get a tag in this comment block
-	pub fn get_tag(&self, tag: &TagType) -> Option<String> {
-		for (t, c) in &self.comments {
-			if t == tag {
-				// TODO: handle many tags
-				return Some(c.clone());
-			}
-		}
-		return None;
-	}
-
-	/// Get this block's `vendor` string
-	pub fn get_vendor(&self) -> &str {
-		&self.vendor
 	}
 }

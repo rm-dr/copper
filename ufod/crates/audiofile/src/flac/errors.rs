@@ -29,6 +29,9 @@ pub enum FlacError {
 	/// We tried to read a block, but it was out of spec.
 	MalformedBlock,
 
+	/// We didn't find frame sync bytes where we expected them
+	BadSyncBytes,
+
 	/// We tried to decode a bad picture type
 	PictureTypeError(PictureTypeError),
 }
@@ -44,6 +47,7 @@ impl Display for FlacError {
 			Self::FailedStringDecode(_) => write!(f, "error while decoding string"),
 			Self::MalformedBlock => write!(f, "malformed flac block"),
 			Self::PictureTypeError(_) => write!(f, "bad picture type"),
+			Self::BadSyncBytes => write!(f, "bad frame sync bytes"),
 		}
 	}
 }

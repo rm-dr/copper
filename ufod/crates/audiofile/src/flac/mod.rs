@@ -33,8 +33,14 @@ where
 
 		match h.block_type {
 			FlacMetablockType::VorbisComment => {
-				return Ok(Some(VorbisComment::decode(read.take(h.length.into()))?));
+				let comment_block = {
+					let mut v = Vec::new();
+					read.by_ref().take(h.length.into()).read_to_end(&mut v)?;
+					v
+				};
+				return Ok(Some(VorbisComment::decode(&comment_block)?));
 			}
+
 			_ => {
 				read.seek(SeekFrom::Current(h.length.into()))?;
 			}
