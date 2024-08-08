@@ -1,7 +1,7 @@
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{Connection, Row, SqliteConnection};
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 use ufo_ds_impl::{local::LocalDataset, DatasetType};
 
@@ -20,7 +20,7 @@ pub struct DatasetEntry {
 pub struct DatasetProvider {
 	conn: Arc<Mutex<SqliteConnection>>,
 	config: Arc<UfodConfig>,
-	open_datasets: Mutex<Vec<(SmartString<LazyCompact>, Arc<LocalDataset>)>>,
+	open_datasets: Mutex<BTreeMap<SmartString<LazyCompact>, Arc<LocalDataset>>>,
 }
 
 impl DatasetProvider {
@@ -28,7 +28,7 @@ impl DatasetProvider {
 		Self {
 			conn,
 			config,
-			open_datasets: Mutex::new(Vec::new()),
+			open_datasets: Mutex::new(BTreeMap::new()),
 		}
 	}
 }
@@ -171,7 +171,7 @@ impl DatasetProvider {
 		self.open_datasets
 			.lock()
 			.await
-			.push((entry.name.clone(), ds.clone()));
+			.insert(entry.name.clone(), ds.clone());
 
 		Ok(Some(match entry.ds_type {
 			DatasetType::Local => ds,
@@ -181,13 +181,7 @@ impl DatasetProvider {
 	pub async fn del_dataset(&self, dataset_name: &str) -> Result<(), sqlx::Error> {
 		// If this dataset is already open, close it
 		let mut ods_lock = self.open_datasets.lock().await;
-		if let Some((idx, _)) = ods_lock
-			.iter()
-			.enumerate()
-			.find(|(_, x)| x.0 == dataset_name)
-		{
-			ods_lock.swap_remove(idx);
-		}
+		ods_lock.remove(dataset_name);
 		drop(ods_lock);
 
 		// Start transaction

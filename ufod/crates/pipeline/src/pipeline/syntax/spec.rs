@@ -1,7 +1,6 @@
 //! A user-provided pipeline specification
 
 use serde::{de::DeserializeOwned, Deserialize};
-use serde_with::{self, serde_as};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::{BTreeMap, HashMap},
@@ -16,7 +15,6 @@ use crate::{
 };
 
 /// A description of a node in a pipeline
-#[serde_as]
 #[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 #[serde(bound = "DataType: DeserializeOwned")]
@@ -33,8 +31,7 @@ pub(crate) struct PipelineNodeSpec<DataType: PipelineData> {
 	/// Where this node should read its input from.
 	#[serde(default)]
 	#[serde(rename = "input")]
-	#[serde_as(as = "serde_with::Map<_, _>")]
-	pub inputs: Vec<(PipelinePortID, NodeOutput)>,
+	pub inputs: BTreeMap<PipelinePortID, NodeOutput>,
 
 	#[serde(default)]
 	/// Nodes that must complete before this node starts

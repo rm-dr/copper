@@ -111,7 +111,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		self.graph.iter_nodes().find(|n| n.id == *node_id)
 	}
 
-	/// Get this pipeline's input node's id
+	/// Get this pipeline's input node ids
 	pub fn input_nodes(&self) -> Vec<(PipelineNodeID, <DataType as PipelineData>::DataStubType)> {
 		self.graph
 			.iter_nodes()

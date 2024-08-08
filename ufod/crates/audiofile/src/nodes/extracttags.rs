@@ -168,9 +168,7 @@ impl PipelineNode<UFOData> for ExtractTags {
 			match b {
 				FlacBlock::VorbisComment(comment) => {
 					for (i, tag_type) in self.tags.iter().enumerate() {
-						if let Some((_, tag_value)) =
-							comment.comment.comments.iter().find(|x| x.0 == *tag_type)
-						{
+						if let Some(tag_value) = comment.comment.comments.get(tag_type) {
 							send_data(
 								i,
 								UFOData::Text {

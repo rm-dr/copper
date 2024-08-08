@@ -3,6 +3,7 @@
 use base64::Engine;
 use smartstring::{LazyCompact, SmartString};
 use std::{
+	collections::BTreeMap,
 	fmt::Display,
 	io::{Cursor, Read, Write},
 	string::FromUtf8Error,
@@ -116,7 +117,7 @@ pub struct VorbisComment {
 	pub vendor: SmartString<LazyCompact>,
 
 	/// List of (tag, value)
-	pub comments: Vec<(TagType, String)>,
+	pub comments: BTreeMap<TagType, String>,
 
 	/// A list of pictures found in this comment
 	pub pictures: Vec<FlacPictureBlock>,
@@ -147,7 +148,7 @@ impl VorbisComment {
 			.map_err(|_| VorbisCommentDecodeError::MalformedData)?;
 		let n_comments: usize = u32::from_le_bytes(block).try_into().unwrap();
 
-		let mut comments = Vec::with_capacity(n_comments);
+		let mut comments = BTreeMap::new();
 		let mut pictures = Vec::new();
 		for _ in 0..n_comments {
 			let comment = {
@@ -181,7 +182,7 @@ impl VorbisComment {
 					);
 				} else {
 					// Make sure empty strings are saved as "None"
-					comments.push((
+					comments.insert(
 						match &var.to_uppercase()[..] {
 							"TITLE" => TagType::TrackTitle,
 							"ALBUM" => TagType::Album,
@@ -196,7 +197,7 @@ impl VorbisComment {
 							x => TagType::Other(x.into()),
 						},
 						val.into(),
-					))
+					);
 				}
 			};
 		}

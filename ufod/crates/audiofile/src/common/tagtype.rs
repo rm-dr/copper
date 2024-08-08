@@ -5,7 +5,9 @@ use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Display, str::FromStr};
 
 /// A universal tag type
-#[derive(Debug, Hash, PartialEq, Eq, Clone, DeserializeFromStr, SerializeDisplay)]
+#[derive(
+	Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone, DeserializeFromStr, SerializeDisplay,
+)]
 pub enum TagType {
 	/// A tag we didn't recognize
 	Other(SmartString<LazyCompact>),
