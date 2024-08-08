@@ -25,6 +25,21 @@ pub(super) async fn add_class(
 	State(state): State<RouterState>,
 	Json(payload): Json<ClassSelect>,
 ) -> Response {
+	// TODO: ONE function to check name?
+	if payload.class == "" {
+		return (
+			StatusCode::BAD_REQUEST,
+			format!("Class name cannot be empty"),
+		)
+			.into_response();
+	} else if payload.class.trim() == "" {
+		return (
+			StatusCode::BAD_REQUEST,
+			format!("Class name cannot be whitespace"),
+		)
+			.into_response();
+	}
+
 	let dataset = match state.main_db.get_dataset(&payload.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {

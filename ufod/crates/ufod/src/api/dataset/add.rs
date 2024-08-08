@@ -41,6 +41,20 @@ pub(super) async fn add_dataset(
 ) -> Response {
 	debug!(message = "Making new dataset", payload = ?payload);
 
+	if payload.name == "" {
+		return (
+			StatusCode::BAD_REQUEST,
+			format!("Dataset name cannot be empty"),
+		)
+			.into_response();
+	} else if payload.name.trim() == "" {
+		return (
+			StatusCode::BAD_REQUEST,
+			format!("Dataset name cannot be whitespace"),
+		)
+			.into_response();
+	}
+
 	match payload.params {
 		NewDatasetParams::Local => {
 			let res = state

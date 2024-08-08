@@ -47,6 +47,20 @@ pub(in crate::api) async fn add_attr(
 		payload = ?payload
 	);
 
+	if payload.attr.attr == "" {
+		return (
+			StatusCode::BAD_REQUEST,
+			format!("Attribute name cannot be empty"),
+		)
+			.into_response();
+	} else if payload.attr.attr.trim() == "" {
+		return (
+			StatusCode::BAD_REQUEST,
+			format!("Attribute name cannot be whitespace"),
+		)
+			.into_response();
+	}
+
 	let dataset = match state.main_db.get_dataset(&payload.attr.class.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {

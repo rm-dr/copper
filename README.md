@@ -18,8 +18,6 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release.
 The goal is a *minimal* working version: robust, usable, but possibly slow and missing fancy features.
 
 
-- name validation: no empty string after strip
-
 ## 📦 CRUD items
 - [ ] Create items by pipeline
   - [ ] Fetch item node should work
