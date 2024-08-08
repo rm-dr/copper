@@ -31,7 +31,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## 📦 Fixes
 - [ ] Server deadlocks with two parallel clients
 - [ ] Show item idx in list
-- [ ] Fix unique constraint
 
 ## 📦 API endpoints
 - [ ] Rename users & groups
@@ -73,7 +72,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Fade bottom of all scrolls (component? overscroll?)
 - [ ] Loading state for modals
 - [ ] Modal builder
-- [ ] Add attr form
 - [ ] Sidebar & top bar shadow
 - [ ] Icons in attr & dataset dropdown (component)
 - [ ] Show menu on right-click in trees
@@ -138,7 +136,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - Nodes take input even when not ready
 
 ## 📦 Inline documenation
-- UI should be usable without a manual
+- UI should be usable without a manual (info hovers)
 - [ ] Dataset & attribute type descriptions
 
 
