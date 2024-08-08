@@ -1,3 +1,6 @@
+# eslint and typescript versions are restricted
+# by nextjs.
+
 depcheck:
   ignoreMatches:
     [
@@ -5,5 +8,4 @@ depcheck:
       "@svgr/webpack",
       "@types/node",
       "@types/react-dom",
-      "typescript",
     ]
