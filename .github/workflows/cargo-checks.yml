@@ -20,3 +20,12 @@ jobs:
       - name: Run cargo fmt
         working-directory: ./copperd
         run: cargo fmt --check
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run: cargo build
+    - name: Test
+      run: cargo test --workspace
