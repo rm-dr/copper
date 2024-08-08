@@ -444,7 +444,19 @@ export function useAddAttrModal(params: {
 		}
 		return (
 			<Group flex="1" gap="xs">
-				<div style={{ width: "1.5rem", color: "var(--mantine-color-dimmed)" }}>
+				<div
+					style={{
+						// center icon vertically
+						display: "flex",
+						flexDirection: "column",
+						justifyContent: "center",
+						alignItems: "center",
+						height: "100%",
+						// looks
+						width: "1.5rem",
+						color: "var(--mantine-color-dimmed)",
+					}}
+				>
 					{icon}
 				</div>
 

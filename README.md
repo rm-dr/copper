@@ -8,10 +8,9 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 CRUD datasets
 - [ ] Rename set, class, attr endpoint
-- [ ] Create reference attr
 - [ ] Complete class deletion
   - [ ] Delete blobs
-  - [ ] Check references (do not allow deletion if refs exist)
+  - [ ] Check references (do not allow deletion if refs exist, unless to self)
   - [ ] Check pipelines
     - (or let them be invalid? Connected to pipeline CRUD)
   - [ ] How to handle running jobs?
@@ -22,7 +21,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Polish UI: (`/datasets` page)
   - [ ] Dataset & attribute type descriptions
   - [ ] Enter to make new set/attr/etc
-  - [ ] Center icons in dropdown
 
 ## 📦 Dataset locks
 - [ ] delete dataset while pipeline is running?
@@ -243,6 +241,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - mysql + ?
 - object store?
 - No blobs at all (with fast db backend)
+- Each dataset has its own types?
 
 ## Hash blobs
 - integrity check?
