@@ -1,238 +1,225 @@
 //! Strip metadata from a FLAC file without loading the whole thing into memory.
 
-use std::io::{Read, Seek, SeekFrom};
+use std::{
+	collections::VecDeque,
+	io::{Cursor, Read, Write},
+};
 
-use super::{errors::FlacError, metablocktype::FlacMetablockType};
+use super::metablocktype::FlacMetablockType;
 
 // TODO: tests
 // TODO: select blocks to keep
 // TODO: implement Seek
 
-/// Given a reader to flac data, write another flac file
-/// with all non-essential metadata flags stripped.
-///
-/// Note that this isn't designed to write data to the filesystem:
-/// This does NOT add padding frames---thus, editing the tags
-/// of the resulting file requires us to re-write the whole file again.
-///
-/// Rather, this prepares a flac file for storage in another format,
-/// where tags are stored seperately (a database, for example).
-pub struct FlacMetaStrip<R>
-where
-	R: Read + Seek,
-{
-	// The old file
-	read: R,
-
-	// All blocks we want to keep.
-	// Format: (type, position_in_old_file, len_in_bytes)
-	// These must be in order.
-	blocks: Vec<(FlacMetablockType, u64, u32)>,
-
-	// Where we are in the new stream
-	position: u64,
-
-	// The number of bytes in the old file's metadata
-	// (including magic bytes)
-	old_meta_len: u64,
-
-	// The number of bytes in the new file's metadata
-	// (including magic bytes)
-	new_meta_len: u64,
-
-	// The number of bytes in the new file
-	// (including metadata)
-	new_total_len: u64,
+#[derive(Debug, Clone, Copy)]
+enum FlacMetaStripBlockType {
+	MagicBits,
+	BlockHeader,
+	MetaBlock {
+		header: [u8; 4],
+		keep_this_block: bool,
+	},
+	AudioData,
 }
 
-impl<R: Read + Seek> FlacMetaStrip<R> {
-	/// Create an object that strips tags from the given reader.
-	/// `read` should be a complete, valid FLAC file.
-	pub fn new(mut read: R) -> Result<Self, FlacError> {
-		let mut block = [0u8; 4];
-		read.read_exact(&mut block)?;
-		if block != [0x66, 0x4C, 0x61, 0x43] {
-			return Err(FlacError::BadMagicBytes);
-		};
+impl FlacMetaStripBlockType {
+	fn is_audiodata(&self) -> bool {
+		matches!(self, Self::AudioData)
+	}
+}
 
-		let mut blocks = Vec::new();
-		let mut new_meta_len = 4u64; // Initial 4 bytes for "fLaC" header
-		let mut old_meta_len = 4u64;
+/// A buffered flac metadata stripper.
+/// `Write` flac data into this struct,
+/// `Read` the same flac data but with metadata removed.
+pub struct FlacMetaStrip {
+	// The block we're currently reading
+	current_block: Vec<u8>,
+
+	// The total length of the block we're currently reading.
+	current_block_total_length: usize,
+
+	// The number of bytes we're currently written to `current_block_type`.
+	// This is usually equal to `current_block_type.len()`, except for when
+	// we fake-read blocks we ignore.
+	current_block_length: usize,
+
+	// The type of the block we're currently reading
+	current_block_type: FlacMetaStripBlockType,
+
+	// If `true`, we've read all metadata blocks
+	done_with_meta: bool,
+
+	// The last block we kept.
+	// Used to mark the "is_last" metadata bit.
+	last_kept_block: Option<([u8; 4], Vec<u8>)>,
+
+	// Flac data with removed blocks goes here.
+	output_buffer: VecDeque<u8>,
+}
+
+impl FlacMetaStrip {
+	/// Make a new [`FlacMetaStrip`].
+	pub fn new() -> Self {
+		Self {
+			current_block: Vec::new(),
+			current_block_total_length: 4,
+			current_block_type: FlacMetaStripBlockType::MagicBits,
+			done_with_meta: false,
+			last_kept_block: None,
+			current_block_length: 0,
+			output_buffer: VecDeque::new(),
+		}
+	}
+}
+
+impl Write for FlacMetaStrip {
+	fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+		let mut buf = Cursor::new(buf);
+		let mut written: usize = 0;
+
 		loop {
-			let (block_type, length, is_last) = FlacMetablockType::parse_header(&mut read)?;
-
-			let keep_block = match block_type {
-				FlacMetablockType::Streaminfo => true,
-				FlacMetablockType::Padding => false,
-				FlacMetablockType::Application => false,
-				FlacMetablockType::Seektable => true,
-				FlacMetablockType::VorbisComment => false,
-				FlacMetablockType::Cuesheet => true,
-				FlacMetablockType::Picture => false,
-			};
-
-			old_meta_len += 4 + u64::from(length);
-			if keep_block {
-				blocks.push((block_type, read.stream_position()?, length));
-				new_meta_len += 4 + u64::from(length);
-			}
-
-			if is_last {
-				break;
-			} else {
-				read.seek(SeekFrom::Current(length.into()))?;
-				continue;
-			}
-		}
-
-		let x = read.seek(SeekFrom::End(0))?;
-
-		Ok(Self {
-			read,
-			blocks,
-			position: 0,
-			new_meta_len,
-			old_meta_len,
-			new_total_len: x - old_meta_len + new_meta_len,
-		})
-	}
-}
-
-// TODO: test this implementation
-impl<R: Read + Seek> Seek for FlacMetaStrip<R> {
-	fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
-		match pos {
-			SeekFrom::Current(x) => {
-				let p: u64 = x.abs().try_into().unwrap();
-				if x >= 0 {
-					self.position += p;
-				} else {
-					if p < self.position {
-						return Err(std::io::Error::new(
-							std::io::ErrorKind::InvalidInput,
-							"invalid seek to a negative or overflowing position",
-						));
-					}
-					self.position -= p;
-				}
-			}
-			SeekFrom::Start(x) => self.position = x,
-			SeekFrom::End(x) => {
-				let p: u64 = x.abs().try_into().unwrap();
-				if x >= 0 {
-					self.position = self.new_total_len + p;
-				} else {
-					if p < self.new_total_len {
-						return Err(std::io::Error::new(
-							std::io::ErrorKind::InvalidInput,
-							"invalid seek to a negative or overflowing position",
-						));
-					}
-					self.position = self.new_total_len - p;
-				}
-			}
-		}
-
-		Ok(self.position)
-	}
-}
-
-impl<R: Read + Seek> Read for FlacMetaStrip<R> {
-	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-		let mut bytes_written = 0;
-
-		// Write magic bytes
-		if self.position <= 3 {
-			let magic_bytes = [0x66, 0x4C, 0x61, 0x43];
-
-			let space_left = buf.len() - bytes_written;
-			let n_to_write = space_left.min(4);
-			let start_at = usize::try_from(self.position).unwrap();
-			for b in magic_bytes.iter().take(n_to_write).skip(start_at) {
-				buf[bytes_written] = *b;
-				bytes_written += 1;
-				self.position += 1;
-			}
-
-			if bytes_written == buf.len() {
-				return Ok(bytes_written);
-			}
-		}
-		assert!(bytes_written < buf.len());
-
-		// Write the metablocks we're keeping
-		while self.position < self.new_meta_len {
-			// Find which block we're in
-			let mut current_block_idx = 0usize;
-			let mut current_block_start = 4u64;
-			for (_, _, l) in &self.blocks {
-				let lx = u64::from(*l);
-				if self.position < (current_block_start + lx + 4) {
-					break;
-				} else {
-					current_block_start += lx + 4;
-					current_block_idx += 1;
-				}
-			}
-
-			let byte_in_block = self.position - current_block_start;
-
-			// Write metablock header
-			let byte_in_block = if byte_in_block <= 3 {
-				let header = self.blocks[current_block_idx].0.make_header(
-					current_block_idx == self.blocks.len() - 1,
-					self.blocks[current_block_idx].2,
+			// If we've read all metadata and aren't currently reading a block,
+			// write directly to output.
+			if self.current_block_type.is_audiodata() {
+				return Ok(
+					usize::try_from(std::io::copy(&mut buf, &mut self.output_buffer)?).unwrap()
+						+ written,
 				);
+			}
 
-				let space_left = buf.len() - bytes_written;
-				let n_to_write = space_left.min(4);
-				let start_at = usize::try_from(byte_in_block).unwrap();
-				for b in header.iter().take(n_to_write).skip(start_at) {
-					buf[bytes_written] = *b;
-					bytes_written += 1;
-					self.position += 1;
+			let current_block_left = self.current_block_total_length - self.current_block_length;
+
+			if current_block_left == 0 {
+				// If we filled this block, clean up and start the next one.
+
+				match self.current_block_type {
+					FlacMetaStripBlockType::MetaBlock {
+						header,
+						keep_this_block,
+					} => {
+						// If we're keeping this block, we know that the previously
+						// kept block wasn't last. Write it to output and replace it
+						// with this block.
+						if keep_this_block {
+							assert!(self.current_block_length == self.current_block.len());
+							if let Some((header, block)) = self.last_kept_block.take() {
+								self.output_buffer.extend(header);
+								self.output_buffer.extend(block);
+							}
+							self.last_kept_block = Some((
+								header,
+								std::mem::replace(&mut self.current_block, Vec::new()),
+							));
+						}
+
+						if self.done_with_meta {
+							// We just read the last metadata block.
+							// Append last_kept_block and prepare to read audio data
+							if let Some((header, block)) = self.last_kept_block.take() {
+								let x = FlacMetablockType::parse_header(&header[..]);
+								let (block_type, length, _) = x.unwrap();
+								self.output_buffer
+									.extend(block_type.make_header(true, length));
+								self.output_buffer.extend(block);
+							}
+							self.current_block_total_length = 0;
+							self.current_block_type = FlacMetaStripBlockType::AudioData;
+						} else {
+							// We have another metadata block to read,
+							// prepare to read the header.
+							self.current_block_total_length = 4;
+							self.current_block_type = FlacMetaStripBlockType::BlockHeader;
+						}
+					}
+
+					FlacMetaStripBlockType::MagicBits => {
+						assert!(self.current_block.len() == 4);
+						assert!(self.current_block_length == 4);
+						if self.current_block != [0x66, 0x4C, 0x61, 0x43] {
+							panic!() //TODO: error
+							 //return Err(FlacError::BadMagicBytes);
+						};
+						self.output_buffer.extend(&self.current_block);
+						self.current_block_total_length = 4;
+						self.current_block_type = FlacMetaStripBlockType::BlockHeader;
+					}
+
+					FlacMetaStripBlockType::BlockHeader => {
+						assert!(self.current_block.len() == 4);
+						assert!(self.current_block_length == 4);
+						let x = FlacMetablockType::parse_header(&self.current_block[..]);
+						let (block_type, length, is_last) = x.unwrap(); // TODO: handle errors
+						self.done_with_meta = is_last;
+						self.current_block_total_length = length.try_into().unwrap();
+
+						let keep_next_block = match block_type {
+							FlacMetablockType::Streaminfo => true,
+							FlacMetablockType::Padding => false,
+							FlacMetablockType::Application => false,
+							FlacMetablockType::Seektable => true,
+							FlacMetablockType::VorbisComment => false,
+							FlacMetablockType::Cuesheet => true,
+							FlacMetablockType::Picture => false,
+						};
+
+						self.current_block_type = FlacMetaStripBlockType::MetaBlock {
+							header: self.current_block[..].try_into().unwrap(),
+							keep_this_block: keep_next_block,
+						};
+					}
+
+					FlacMetaStripBlockType::AudioData => unreachable!(),
 				}
 
-				if bytes_written == buf.len() {
-					return Ok(bytes_written);
-				}
-				0
+				self.current_block.clear();
+				self.current_block_length = 0;
 			} else {
-				byte_in_block - 4
-			};
+				// Minor optimization:
+				// Don't even read blocks we're skipping.
+				let really_read = match self.current_block_type {
+					FlacMetaStripBlockType::MetaBlock {
+						keep_this_block, ..
+					} => keep_this_block,
+					_ => true,
+				};
 
-			// Write metablock data
-			self.read.seek(SeekFrom::Start(
-				self.blocks[current_block_idx].1 + byte_in_block,
-			))?;
+				// Otherwise, keep reading.
+				let read = usize::try_from(if really_read {
+					std::io::copy(
+						&mut buf.by_ref().take(current_block_left.try_into().unwrap()),
+						&mut self.current_block,
+					)
+				} else {
+					std::io::copy(
+						&mut buf.by_ref().take(current_block_left.try_into().unwrap()),
+						&mut std::io::empty(),
+					)
+				}?)
+				.unwrap();
+				self.current_block_length += read;
 
-			let mut c = self
-				.read
-				.by_ref()
-				.take(u64::from(self.blocks[current_block_idx].2) - byte_in_block);
-
-			let l = c.read(&mut buf[bytes_written..])?;
-
-			self.position += u64::try_from(l).unwrap();
-			bytes_written += l;
-			if bytes_written == buf.len() {
-				return Ok(bytes_written);
+				if read == 0 {
+					return Ok(written);
+				} else {
+					written += read;
+				}
 			}
 		}
-		assert!(bytes_written < buf.len());
+	}
 
-		// Write frames
-		if self.position >= self.new_meta_len {
-			let pos_in_data = self.position - self.new_meta_len;
-			let pos_in_old = self.old_meta_len + pos_in_data;
-			self.read.seek(SeekFrom::Start(pos_in_old))?;
-			let l = self.read.read(&mut buf[bytes_written..])?;
-			self.position += u64::try_from(l).unwrap();
-			bytes_written += l;
-			if bytes_written == buf.len() {
-				return Ok(bytes_written);
-			}
-		}
-		return Ok(bytes_written);
+	fn flush(&mut self) -> std::io::Result<()> {
+		return Ok(());
+	}
+}
+
+impl Read for FlacMetaStrip {
+	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+		let n_to_read = buf.len().min(self.output_buffer.len());
+
+		let x = Read::by_ref(&mut self.output_buffer)
+			.take(n_to_read.try_into().unwrap())
+			.read(buf)?;
+		//self.output_buffer.drain(0..x);
+		return Ok(x);
 	}
 }
