@@ -2,9 +2,13 @@
 	height: 100%;
 }
 
-.edit_container {
+.edit_container_rows {
+	vertical-align: top;
+	display: inline-block;
 	overflow: scroll;
 	max-height: 100%;
+	width: 70%;
+	padding-right: 1rem;
 }
 
 .editrow {
@@ -13,7 +17,6 @@
 	overflow: hidden;
 	background-color: var(--mantine-color-dark-7);
 	max-height: 10rem;
-	width: 75%;
 
 	.editrow_icon {
 		width: 2rem;
@@ -53,5 +56,66 @@
 		width: calc((100% - 10rem - 2rem) / 2);
 		padding-left: 0.5rem;
 		border-bottom: 2px solid var(--mantine-color-dark-6);
+	}
+}
+
+.edit_container_panel {
+	vertical-align: top;
+	display: inline-flex;
+	flex-direction: column;
+	width: 30%;
+	height: 100%;
+
+	.paneltitle {
+		display: flex;
+		flex-direction: row;
+		overflow: hidden;
+		width: 100%;
+		height: 2rem;
+
+		.paneltitle_icon {
+			width: 2rem;
+			min-height: 100%;
+			background-color: var(--mantine-primary-color-8);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.paneltitle_name {
+			flex-grow: 1;
+			min-height: 100%;
+			padding: 0.25rem;
+			background-color: var(--mantine-color-dark-6);
+			user-select: none;
+		}
+	}
+
+	.panelbody {
+		width: 100%;
+		flex-grow: 1;
+		background-color: var(--mantine-color-dark-7);
+		cursor: zoom-in;
+		padding: 1rem;
+
+		.panelimage {
+			position: relative;
+			width: 100%;
+			height: 100%;
+		}
+	}
+
+	.panelbottom {
+		position: relative;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+
+		width: 100%;
+		height: 3rem;
+		padding: 0.5rem;
+		gap: 0.5rem;
+
+		background-color: var(--mantine-color-dark-6);
 	}
 }
