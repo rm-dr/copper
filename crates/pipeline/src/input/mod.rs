@@ -1,4 +1,4 @@
-use crate::syntax::labels::PipelinePortLabel;
+use crate::portspec::PipelinePortSpec;
 use serde::Deserialize;
 use std::sync::Arc;
 use ufo_util::data::{PipelineData, PipelineDataType};
@@ -19,13 +19,13 @@ pub enum PipelineInputKind {
 }
 
 impl PipelineInputKind {
-	pub fn get_outputs(&self) -> Vec<(PipelinePortLabel, PipelineDataType)> {
+	pub fn get_outputs(&self) -> PipelinePortSpec {
 		match self {
 			// Order must match
-			Self::File => vec![
-				("path".into(), PipelineDataType::Text),
-				("data".into(), PipelineDataType::Binary),
-			],
+			Self::File => PipelinePortSpec::Static(&[
+				("path", PipelineDataType::Text),
+				("data", PipelineDataType::Binary),
+			]),
 		}
 	}
 }

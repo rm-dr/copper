@@ -5,7 +5,7 @@ use std::{
 use ufo_audiofile::flac::metastrip::FlacMetaStrip;
 use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData};
 
-use crate::{errors::PipelineError, PipelineStatelessNode};
+use crate::{errors::PipelineError, PipelineNode};
 
 #[derive(Clone)]
 pub struct StripTags {}
@@ -16,7 +16,7 @@ impl StripTags {
 	}
 }
 
-impl PipelineStatelessNode for StripTags {
+impl PipelineNode for StripTags {
 	fn run<F>(&self, send_data: F, input: Vec<Arc<PipelineData>>) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Arc<PipelineData>) -> Result<(), PipelineError>,

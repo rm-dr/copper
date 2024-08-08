@@ -1,26 +1,40 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
-use ufo_util::data::{PipelineData, PipelineDataType};
+use ufo_util::data::PipelineData;
 
 use super::{
 	nodetype::PipelineNodeType,
 	tags::{striptags::StripTags, tags::ExtractTags},
 	util::ifnone::IfNone,
 };
-use crate::{errors::PipelineError, portspec::PipelinePortSpec, PipelineStatelessNode};
+use crate::{errors::PipelineError, PipelineNode};
 
 pub enum PipelineNodeInstance {
-	ExternalNode,
-	ConstantNode(Arc<PipelineData>),
+	// Each node instance must have a node_type field,
+	// which is guaranteed to be correct by
+	// PipelineNodeType::build().
+	PipelineInputs {
+		node_type: PipelineNodeType,
+		input_values: Vec<Arc<PipelineData>>,
+	},
+	PipelineOutputs {
+		node_type: PipelineNodeType,
+	},
+	ConstantNode {
+		node_type: PipelineNodeType,
+	},
 	ExtractTags {
+		node_type: PipelineNodeType,
 		name: SmartString<LazyCompact>,
 		node: ExtractTags,
 	},
 	IfNone {
+		node_type: PipelineNodeType,
 		name: SmartString<LazyCompact>,
 		node: IfNone,
 	},
 	StripTags {
+		node_type: PipelineNodeType,
 		name: SmartString<LazyCompact>,
 		node: StripTags,
 	},
@@ -29,8 +43,9 @@ pub enum PipelineNodeInstance {
 impl Debug for PipelineNodeInstance {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Self::ExternalNode => write!(f, "ExternalNode"),
-			Self::ConstantNode(_) => write!(f, "ConstantNode"),
+			Self::PipelineInputs { .. } => write!(f, "PipelineInputs"),
+			Self::PipelineOutputs { .. } => write!(f, "PipelineOutputs"),
+			Self::ConstantNode { .. } => write!(f, "ConstantNode"),
 			Self::ExtractTags { name, .. } => write!(f, "ExtractTags({name})"),
 			Self::IfNone { name, .. } => write!(f, "IfNone({name})"),
 			Self::StripTags { name, .. } => write!(f, "StripTags({name})"),
@@ -38,17 +53,26 @@ impl Debug for PipelineNodeInstance {
 	}
 }
 
-impl PipelineStatelessNode for PipelineNodeInstance {
+impl PipelineNode for PipelineNodeInstance {
 	fn run<F>(&self, send_data: F, input: Vec<Arc<PipelineData>>) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Arc<PipelineData>) -> Result<(), PipelineError>,
 	{
 		match self {
-			Self::ExternalNode => Ok(()),
-			Self::ConstantNode(x) => {
-				send_data(0, x.clone())?;
+			Self::PipelineInputs { input_values, .. } => {
+				for (i, v) in input_values.iter().enumerate() {
+					send_data(i, v.clone())?;
+				}
 				Ok(())
 			}
+			Self::PipelineOutputs { .. } => Ok(()),
+			Self::ConstantNode { node_type } => match node_type {
+				PipelineNodeType::ConstantNode { value } => {
+					send_data(0, value.clone())?;
+					Ok(())
+				}
+				_ => unreachable!(),
+			},
 			Self::ExtractTags { node, .. } => node.run(send_data, input),
 			Self::IfNone { node, .. } => node.run(send_data, input),
 			Self::StripTags { node, .. } => node.run(send_data, input),
@@ -57,23 +81,14 @@ impl PipelineStatelessNode for PipelineNodeInstance {
 }
 
 impl PipelineNodeInstance {
-	pub fn inputs(&self) -> Option<PipelinePortSpec> {
+	pub fn get_type(&self) -> &PipelineNodeType {
 		match self {
-			Self::ExternalNode => None,
-			Self::ConstantNode(_) => None,
-			Self::ExtractTags { .. } => Some(PipelinePortSpec::Static(&[
-				("title", PipelineDataType::Text),
-				("album", PipelineDataType::Text),
-				("artist", PipelineDataType::Text),
-				("genre", PipelineDataType::Text),
-				("comment", PipelineDataType::Text),
-				("track", PipelineDataType::Text),
-				("disk", PipelineDataType::Text),
-				("disk_total", PipelineDataType::Text),
-				("year", PipelineDataType::Text),
-			])),
-			Self::IfNone { .. } => Some(PipelineNodeType::IfNone.inputs()),
-			Self::StripTags { .. } => Some(PipelineNodeType::StripTags.inputs()),
+			Self::PipelineInputs { node_type, .. }
+			| Self::PipelineOutputs { node_type, .. }
+			| Self::ConstantNode { node_type, .. }
+			| Self::ExtractTags { node_type, .. }
+			| Self::IfNone { node_type, .. }
+			| Self::StripTags { node_type, .. } => &node_type,
 		}
 	}
 }

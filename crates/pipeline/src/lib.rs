@@ -13,7 +13,7 @@ use errors::PipelineError;
 use std::sync::Arc;
 use ufo_util::data::PipelineData;
 
-pub trait PipelineStatelessNode {
+pub trait PipelineNode {
 	fn run<F>(
 		&self,
 		// Call this when data is ready.

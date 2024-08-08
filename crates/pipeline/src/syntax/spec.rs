@@ -41,15 +41,15 @@ pub struct PipelineConfig {
 #[serde_as]
 #[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct PipelineNodeSpec {
+struct PipelineNodeSpec {
 	/// What kind of node is this?
 	#[serde(rename = "type")]
-	pub node_type: PipelineNodeType,
+	node_type: PipelineNodeType,
 
 	/// Where this node should read its input from.
 	#[serde(default)]
 	#[serde_as(as = "serde_with::Map<_, _>")]
-	pub input: Vec<(PipelinePortLabel, NodeOutput)>,
+	input: Vec<(PipelinePortLabel, NodeOutput)>,
 }
 
 /// A description of a data processing pipeline
@@ -95,7 +95,7 @@ impl PipelineSpec {
 					.iter()
 					.find(|(a, _)| a == port)
 				{
-					*from_type
+					from_type
 				} else {
 					return Err(PipelinePrepareError::NoNodeOutput {
 						node: PipelineErrorNode::Pipeline,
@@ -196,7 +196,7 @@ impl PipelineSpec {
 		nodes: &mut Vec<(PipelineNodeLabel, PipelineNodeType)>,
 		edges: &mut Vec<(NodePort, NodePort)>,
 		node_name_map: &HashMap<PipelineNodeLabel, usize>,
-		external_node_idx: usize,
+		pipeline_inputs_idx: usize,
 
 		in_port: usize,
 		node_idx: usize,
@@ -219,7 +219,7 @@ impl PipelineSpec {
 				nodes.push((
 					"".into(),
 					PipelineNodeType::ConstantNode {
-						data: Arc::new(PipelineData::Text(text.clone())),
+						value: Arc::new(PipelineData::Text(text.clone())),
 					},
 				));
 			}
@@ -235,7 +235,7 @@ impl PipelineSpec {
 					.0;
 				edges.push((
 					NodePort {
-						node_idx: external_node_idx,
+						node_idx: pipeline_inputs_idx,
 						port: out_port,
 					},
 					NodePort {
@@ -277,8 +277,23 @@ impl PipelineSpec {
 		let mut nodes: Vec<(PipelineNodeLabel, PipelineNodeType)> = Vec::new();
 		let mut edges = Vec::new();
 		let mut node_name_map: HashMap<PipelineNodeLabel, usize> = HashMap::new();
-		nodes.push(("".into(), PipelineNodeType::ExternalNode));
-		let external_node_idx = 0;
+
+		nodes.push((
+			"".into(),
+			PipelineNodeType::PipelineInputs {
+				outputs: self.config.input.get_outputs().to_vec(),
+			},
+		));
+		let pipeline_inputs_idx = 0;
+
+		nodes.push((
+			"".into(),
+			PipelineNodeType::PipelineOutputs {
+				inputs: self.config.output.get_inputs().to_vec(),
+			},
+		));
+		let pipeline_outputs_idx = 1;
+
 		for (node_name, node_spec) in &self.nodes {
 			for (input_name, out_link) in &node_spec.input {
 				self.check_link(
@@ -319,7 +334,7 @@ impl PipelineSpec {
 					&mut nodes,
 					&mut edges,
 					&node_name_map,
-					external_node_idx,
+					pipeline_inputs_idx,
 					in_port,
 					node_idx,
 					out_link,
@@ -342,14 +357,14 @@ impl PipelineSpec {
 				&mut nodes,
 				&mut edges,
 				&node_name_map,
-				external_node_idx,
+				pipeline_inputs_idx,
 				self.config
 					.output
 					.get_inputs()
 					.find_with_name(port_label)
 					.unwrap()
 					.0,
-				external_node_idx,
+				pipeline_outputs_idx,
 				node_output,
 			)
 		}
@@ -368,8 +383,6 @@ impl PipelineSpec {
 
 			edge_map_out: edge_map,
 			edge_map_in: rev_edge_map,
-			external_node_idx,
-
 			config: self.config.clone(),
 		});
 	}

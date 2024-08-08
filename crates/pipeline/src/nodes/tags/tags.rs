@@ -9,7 +9,7 @@ use ufo_audiofile::{
 };
 use ufo_util::data::{AudioFormat, BinaryFormat, PipelineData, PipelineDataType};
 
-use crate::{errors::PipelineError, PipelineStatelessNode};
+use crate::{errors::PipelineError, PipelineNode};
 
 #[derive(Clone)]
 pub struct ExtractTags {
@@ -34,7 +34,7 @@ impl ExtractTags {
 	}
 }
 
-impl PipelineStatelessNode for ExtractTags {
+impl PipelineNode for ExtractTags {
 	fn run<F>(&self, send_data: F, input: Vec<Arc<PipelineData>>) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Arc<PipelineData>) -> Result<(), PipelineError>,
