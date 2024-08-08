@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 use utoipa::ToSchema;
 
-use super::uploader::Uploader;
+use crate::uploader::Uploader;
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 pub(super) struct UploadFragmentMetadata {

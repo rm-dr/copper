@@ -1,50 +1,19 @@
-use axum::{extract::DefaultBodyLimit, routing::get, Router};
+use api::RouterState;
 use futures::executor::block_on;
 use std::{path::PathBuf, sync::Arc, thread};
 use tokio::sync::Mutex;
-use tower_http::trace::TraceLayer;
-use ufo_ds_core::api::Dataset;
 use ufo_ds_impl::local::LocalDataset;
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+use uploader::Uploader;
 
 use ufo_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
 use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
 
-mod dataset;
-mod pipeline;
-mod status;
-mod upload;
-
+mod api;
 mod config;
-use upload::uploader::Uploader;
-
-#[derive(Clone)]
-pub struct RouterState {
-	config: Arc<config::UfodConfig>,
-	runner: Arc<Mutex<PipelineRunner<UFONodeType>>>,
-	database: Arc<dyn Dataset<UFONodeType>>,
-	context: Arc<UFOContext>,
-	uploader: Arc<Uploader>,
-}
+mod uploader;
 
 // TODO: guaranteed unique pipeline job id (?)
 // delete after timeout (what if uploading takes a while? Multiple big files?)
-
-// TODO: fix utoipa tags
-#[derive(OpenApi)]
-#[openapi(
-	nest(
-		(path = "/status", api = status::StatusApi),
-		(path = "/pipelines", api = pipeline::PipelineApi),
-		(path = "/upload", api = upload::UploadApi),
-		(path = "/dataset", api = dataset::DatasetApi)
-	),
-	tags(
-		(name = "ufod", description = "UFO backend daemon")
-	),
-)]
-struct ApiDoc;
 
 #[tokio::main]
 async fn main() {
@@ -88,23 +57,12 @@ async fn main() {
 		uploader: Arc::new(Uploader::new("./tmp".into())),
 	};
 
-	let app = Router::new()
-		.merge(SwaggerUi::new("/docs").url("/docs/openapi.json", ApiDoc::openapi()))
-		.route("/", get(root))
-		//
-		.nest("/upload", upload::router(state.uploader.clone()))
-		.nest("/pipelines", pipeline::router())
-		.nest("/status", status::router())
-		.nest("/dataset", dataset::router())
-		//
-		.layer(TraceLayer::new_for_http())
-		.layer(DefaultBodyLimit::max(state.config.request_body_limit))
-		.with_state(state.clone());
-
 	let listener = tokio::net::TcpListener::bind(state.config.server_addr.to_string())
 		.await
 		.unwrap();
 	tracing::debug!("listening on {}", listener.local_addr().unwrap());
+
+	let app = api::router(state.clone());
 
 	thread::spawn(move || loop {
 		let mut runner = block_on(state.runner.lock());
@@ -116,8 +74,4 @@ async fn main() {
 	});
 
 	axum::serve(listener, app).await.unwrap();
-}
-
-async fn root() -> &'static str {
-	"Hello, World!"
 }

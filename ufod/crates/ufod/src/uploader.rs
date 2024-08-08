@@ -11,7 +11,7 @@ use crate::config::UfodConfig;
 
 const UPLOAD_ID_LENGTH: usize = 8;
 
-pub(super) struct UploadJob {
+pub struct UploadJob {
 	pub id: SmartString<LazyCompact>,
 	pub dir: PathBuf,
 	pub bound_to_pipeline_job: Option<u128>,
@@ -22,14 +22,14 @@ pub(super) struct UploadJob {
 }
 
 #[derive(Clone)]
-pub(super) struct UploadJobFile {
+pub struct UploadJobFile {
 	pub name: SmartString<LazyCompact>,
 	pub file_type: MimeType,
 	pub is_done: bool,
 }
 
 #[derive(Debug)]
-pub(crate) enum JobBindError {
+pub enum JobBindError {
 	/// We tried to bind a job that doesn't exist
 	NoSuchJob,
 
@@ -37,9 +37,9 @@ pub(crate) enum JobBindError {
 	AlreadyBound,
 }
 
-pub(crate) struct Uploader {
-	pub(super) tmp_dir: PathBuf,
-	pub(super) jobs: Mutex<Vec<UploadJob>>,
+pub struct Uploader {
+	pub tmp_dir: PathBuf,
+	pub jobs: Mutex<Vec<UploadJob>>,
 }
 
 impl Uploader {
@@ -51,7 +51,7 @@ impl Uploader {
 	}
 
 	#[inline(always)]
-	pub(super) fn generate_id() -> SmartString<LazyCompact> {
+	pub fn generate_id() -> SmartString<LazyCompact> {
 		rand::thread_rng()
 			.sample_iter(&Alphanumeric)
 			.take(UPLOAD_ID_LENGTH)

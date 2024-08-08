@@ -3,13 +3,14 @@ use std::sync::Arc;
 use axum::{routing::post, Router};
 use utoipa::OpenApi;
 
-use crate::RouterState;
+use crate::uploader::Uploader;
+
+use super::RouterState;
 
 mod finish;
 mod new_file;
 mod new_upload;
 mod upload;
-pub mod uploader;
 
 use finish::*;
 use new_file::*;
@@ -33,7 +34,7 @@ use upload::*;
 )]
 pub(super) struct UploadApi;
 
-pub(super) fn router(uploader: Arc<uploader::Uploader>) -> Router<RouterState> {
+pub(super) fn router(uploader: Arc<Uploader>) -> Router<RouterState> {
 	let mut r = Router::new();
 
 	let u = uploader.clone();

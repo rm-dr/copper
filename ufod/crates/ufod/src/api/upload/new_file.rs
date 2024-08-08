@@ -12,7 +12,7 @@ use tracing::{info, warn};
 use ufo_util::mime::MimeType;
 use utoipa::ToSchema;
 
-use super::uploader::{UploadJobFile, Uploader};
+use crate::uploader::{UploadJobFile, Uploader};
 
 /// Parameters to start a new file
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
