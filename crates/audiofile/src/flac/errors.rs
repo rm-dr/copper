@@ -1,8 +1,10 @@
+//! FLAC parsing errors
+
 use std::{error::Error, fmt::Display};
 
 use crate::common::vorbiscomment::VorbisCommentError;
 
-// TODO: simplify errors?
+// TODO: refactor errors?
 
 #[allow(missing_docs)]
 #[derive(Debug)]

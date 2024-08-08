@@ -1,3 +1,5 @@
+//! FLAC metablock types. See spec.
+
 use std::io::Read;
 
 use super::errors::FlacError;

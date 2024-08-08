@@ -1,3 +1,5 @@
+//! Strip metadata from a FLAC file without loading the whole thing into memory.
+
 use std::io::{Read, Seek, SeekFrom};
 
 use super::{errors::FlacError, metablocktype::FlacMetablockType};
