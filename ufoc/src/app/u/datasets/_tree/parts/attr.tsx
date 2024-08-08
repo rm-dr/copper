@@ -31,7 +31,7 @@ export function AttrList(params: {
 
 				return (
 					<TreeEntry
-						key={`dataset-${params.dataset}-class-${params.class}-attr-${attr_type}`}
+						key={`dataset-${params.dataset}-class-${params.class}-attr-${attr_name}`}
 						is_clickable={true}
 						is_selected={false}
 						onClick={() => {}}
