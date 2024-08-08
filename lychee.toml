@@ -1,4 +1,6 @@
-cache = false
+cache = true
+max_cache_age = "2d"
+
 verbose = "info"
 
 glob_ignore_case = false
