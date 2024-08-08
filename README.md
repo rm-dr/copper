@@ -26,22 +26,22 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- elegantly handle duplicate album art
-
 - no channel for take_input
-- pipeline node logging
-- handle channel errors (Pending when full?)
-- limit channel size
-- rework flac methods, better errors (when incomplete data)
-- flac strip stream (internal buffer, read & write?)
+- Deadlock detection
+- Pipeline status
+- Rename pipeline, runner, job, db, database, dataset, metadata (well-defined)
+- Do "after"s cause deadlocks? (probably)
 
-- Clean up all error handling (search for unwrap, assert, and panic)
+- Clean up pipeline error handling (search for unwrap, assert, and panic)
   - db errors in pipeline run & build
   - detect bad classes when building AddToDataset node
-
+  - elegantly handle duplicate album art (fail pipelines)
+    - how about sub-pipelines?
+    - none data vs error
 
 
 ### Small tweaks
+- pipeline node logging
 - Add nodes:
   - Audio metadata: bit rate, length, sample rate, etc
   - Strip spaces, regex
@@ -84,8 +84,15 @@ UFO's goal is to be "[Paperless] for everything," with...
 - tui, web ui, server with auth, api
 - Docs
   - classes & attrs are immutable (cannot change once made)
+  - node deadlocks: buffer blobs even if input not ready
 - Fast search (index certain attributes)
 - Save pipelines in database
 - Web streams as pipeline input
 - Continuously-running pipelines
 - Plain pipeline tui
+
+
+### Write tests:
+- Tiny blob queue sizes
+- Big blob queue sizes
+- Malformed flac files (many headers, not a flac, too long, etc)
