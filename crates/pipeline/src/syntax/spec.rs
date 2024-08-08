@@ -4,8 +4,12 @@ use itertools::Itertools;
 use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
 use serde::Deserialize;
 use serde_with::{self, serde_as};
+use smartstring::{LazyCompact, SmartString};
 use std::{collections::HashMap, sync::Arc};
-use ufo_util::data::{PipelineData, PipelineDataType};
+use ufo_util::{
+	data::{PipelineData, PipelineDataType},
+	graph::{Graph, GraphNodeIdx},
+};
 
 use super::{
 	errors::{PipelineErrorNode, PipelinePrepareError},
@@ -16,7 +20,7 @@ use crate::{
 	input::PipelineInputKind,
 	nodes::nodetype::PipelineNodeType,
 	output::PipelineOutputKind,
-	pipeline::{NodePort, Pipeline, PipelineEdge},
+	pipeline::{Pipeline, PipelineEdge},
 };
 
 /// Pipeline configuration
@@ -42,7 +46,7 @@ pub struct PipelineConfig {
 #[serde(deny_unknown_fields)]
 struct PipelineNodeSpec {
 	/// What kind of node is this?
-	#[serde(rename = "type")]
+	#[serde(rename = "node")]
 	node_type: PipelineNodeType,
 
 	/// Where this node should read its input from.
@@ -196,35 +200,23 @@ impl PipelineSpec {
 	fn add_to_graph(
 		&self,
 		// Current build state
-		nodes: &mut Vec<(PipelineNodeLabel, PipelineNodeType)>,
-		edges: &mut Vec<PipelineEdge>,
-		node_name_map: &HashMap<PipelineNodeLabel, usize>,
-		input_node_idx: usize,
+		graph: &mut Graph<(PipelineNodeLabel, PipelineNodeType), PipelineEdge>,
+		node_name_map: &HashMap<PipelineNodeLabel, GraphNodeIdx>,
+		input_node_idx: GraphNodeIdx,
 
 		in_port: usize,
-		node_idx: usize,
+		node_idx: GraphNodeIdx,
 		out_link: &NodeOutput,
 	) {
 		match out_link {
 			NodeOutput::InlineText { text } => {
-				edges.push(PipelineEdge::PortToPort((
-					NodePort {
-						// This must be done BEFORE pushing to `nodes`
-						// so that nodes.len() gives us the right id.
-						node_idx: nodes.len(),
-						port: 0,
-					},
-					NodePort {
-						node_idx,
-						port: in_port,
-					},
-				)));
-				nodes.push((
-					"".into(),
+				let n = graph.add_node((
+					"CONSTANT".into(),
 					PipelineNodeType::ConstantNode {
 						value: PipelineData::Text(Arc::new(text.clone())),
 					},
 				));
+				graph.add_edge(n, node_idx, PipelineEdge::PortToPort((0, in_port)));
 			}
 			NodeOutput::Pipeline { port } => {
 				let out_port = self
@@ -236,16 +228,11 @@ impl PipelineSpec {
 					.find(|(_, (a, _))| a == port)
 					.unwrap()
 					.0;
-				edges.push(PipelineEdge::PortToPort((
-					NodePort {
-						node_idx: input_node_idx,
-						port: out_port,
-					},
-					NodePort {
-						node_idx,
-						port: in_port,
-					},
-				)));
+				graph.add_edge(
+					input_node_idx,
+					node_idx,
+					PipelineEdge::PortToPort((out_port, in_port)),
+				);
 			}
 			NodeOutput::Node { node, port } => {
 				let out_port = self
@@ -257,45 +244,43 @@ impl PipelineSpec {
 					.find_with_name(port)
 					.unwrap()
 					.0;
-				edges.push(PipelineEdge::PortToPort((
-					NodePort {
-						node_idx: *node_name_map.get(node).unwrap(),
-						port: out_port,
-					},
-					NodePort {
-						node_idx,
-						port: in_port,
-					},
-				)));
+				graph.add_edge(
+					*node_name_map.get(node).unwrap(),
+					node_idx,
+					PipelineEdge::PortToPort((out_port, in_port)),
+				);
 			}
 		}
 	}
 
 	/// Check this pipeline spec's structure and use it to build a
 	/// [`Pipeline`].
-	pub fn prepare(self) -> Result<Pipeline, PipelinePrepareError> {
+	pub fn prepare(
+		self,
+		pipeline_name: String,
+		// TODO: pipeline name type
+		pipelines: &Vec<(SmartString<LazyCompact>, Arc<Pipeline>)>,
+	) -> Result<Pipeline, PipelinePrepareError> {
 		// Check each node's name and inputs;
 		// Build node array
 		// Initialize nodes in graph
-		let mut nodes: Vec<(PipelineNodeLabel, PipelineNodeType)> = Vec::new();
-		let mut edges: Vec<PipelineEdge> = Vec::new();
-		let mut node_name_map: HashMap<PipelineNodeLabel, usize> = HashMap::new();
+		let mut node_name_map: HashMap<PipelineNodeLabel, GraphNodeIdx> = HashMap::new();
+		let mut graph = Graph::new();
 
-		nodes.push((
-			"".into(),
+		let input_node_idx = graph.add_node((
+			"INPUT".into(),
 			PipelineNodeType::PipelineInputs {
 				outputs: self.config.input.get_outputs().to_vec(),
 			},
 		));
-		let input_node_idx = 0;
 
-		nodes.push((
-			"".into(),
+		let output_node_idx = graph.add_node((
+			"OUTPUT".into(),
 			PipelineNodeType::PipelineOutputs {
+				pipeline: pipeline_name.clone().into(),
 				inputs: self.config.output.get_inputs().to_vec(),
 			},
 		));
-		let output_node_idx = 1;
 
 		for (node_name, node_spec) in &self.nodes {
 			// Make sure all links going into this node are valid
@@ -309,9 +294,10 @@ impl PipelineSpec {
 				)?;
 			}
 
-			// Add this node to all tables
-			node_name_map.insert(node_name.clone(), nodes.len());
-			nodes.push((node_name.clone(), node_spec.node_type.clone()));
+			node_name_map.insert(
+				node_name.clone(),
+				graph.add_node((node_name.clone(), node_spec.node_type.clone())),
+			);
 		}
 
 		// Make sure all "after" specifications are valid
@@ -319,10 +305,11 @@ impl PipelineSpec {
 		for (node_name, node_spec) in &self.nodes {
 			for after_name in node_spec.after.iter().unique() {
 				if let Some(after_idx) = node_name_map.get(after_name) {
-					edges.push(PipelineEdge::After((
+					graph.add_edge(
 						*after_idx,
 						*node_name_map.get(node_name).unwrap(),
-					)));
+						PipelineEdge::After,
+					);
 				} else {
 					return Err(PipelinePrepareError::NoNodeAfter {
 						node: after_name.clone(),
@@ -354,8 +341,7 @@ impl PipelineSpec {
 					.0;
 
 				self.add_to_graph(
-					&mut nodes,
-					&mut edges,
+					&mut graph,
 					&node_name_map,
 					input_node_idx,
 					in_port,
@@ -365,23 +351,22 @@ impl PipelineSpec {
 			}
 		}
 
-		// Build graph and check for cycles
-		let mut graph = GraphMap::<usize, (), Directed>::new();
-		for e in &edges {
+		// Check for cycles
+		let mut fake_graph = GraphMap::<usize, (), Directed>::new();
+		for (from, to, _) in graph.iter_edges() {
 			// TODO: write custom cycle detection algorithm,
 			// print all nodes that the cycle contains.
 			// We don't need all edges---just node-to-node.
-			graph.add_edge(e.source_node(), e.target_node(), ());
+			fake_graph.add_edge((*from).into(), (*to).into(), ());
 		}
-		if toposort(&graph, None).is_err() {
+		if toposort(&fake_graph, None).is_err() {
 			return Err(PipelinePrepareError::HasCycle);
 		}
 
 		// Finish graph, adding output edges
 		for (port_label, node_output) in &self.config.output_map {
 			self.add_to_graph(
-				&mut nodes,
-				&mut edges,
+				&mut graph,
 				&node_name_map,
 				input_node_idx,
 				self.config
@@ -411,13 +396,8 @@ impl PipelineSpec {
 		);
 
 		return Ok(Pipeline {
-			nodes: node_instances,
-			input_node_idx,
-			output_node_idx,
-			edges,
-
-			edge_map_out: edge_map,
-			edge_map_in: rev_edge_map,
+			name: pipeline_name.into(),
+			graph: graph.finalize(),
 			config: self.config.clone(),
 		});
 	}

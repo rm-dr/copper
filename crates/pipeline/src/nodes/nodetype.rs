@@ -16,6 +16,7 @@ use super::{
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
 pub enum PipelineNodeType {
+	// Magic nodes
 	/// The pipeline's outputs.
 	/// This cannot be created by a user;
 	/// and EXACTLY one must exist in every pipeline.
@@ -23,6 +24,7 @@ pub enum PipelineNodeType {
 	/// Note that pipeline outputs provide *inputs* inside the pipeline.
 	#[serde(skip_deserializing)]
 	PipelineOutputs {
+		pipeline: String,
 		inputs: Vec<(PipelinePortLabel, PipelineDataType)>,
 	},
 
@@ -43,18 +45,28 @@ pub enum PipelineNodeType {
 		value: PipelineData,
 	},
 
+	/// A node that invokes another pipeline.
+	/// This will never appear in a fully prepared pipeline graph,
+	/// since it is replaced with the given pipeline's contents.
+	Pipeline {
+		pipeline: String,
+	},
+
+	// Utility nodes
+	IfNone,
+
+	// Audio nodes
 	ExtractTags {
 		tags: Vec<TagType>,
 	},
-
 	ExtractCovers,
 	StripTags,
-	IfNone,
 }
 
 impl PipelineNodeType {
 	pub fn build(&self, name: &str) -> PipelineNodeInstance {
 		match self {
+			PipelineNodeType::Pipeline { .. } => unreachable!(),
 			PipelineNodeType::ConstantNode { .. } => PipelineNodeInstance::ConstantNode {
 				node_type: self.clone(),
 			},
@@ -91,6 +103,7 @@ impl PipelineNodeType {
 impl PipelineNodeType {
 	pub fn inputs(&self) -> PipelinePortSpec {
 		match self {
+			Self::Pipeline { .. } => unreachable!(),
 			Self::PipelineOutputs { inputs, .. } => PipelinePortSpec::Vec(inputs),
 			Self::PipelineInputs { .. } => PipelinePortSpec::Static(&[]),
 			Self::ConstantNode { .. } => PipelinePortSpec::Static(&[]),
@@ -108,6 +121,7 @@ impl PipelineNodeType {
 
 	pub fn outputs(&self) -> PipelinePortSpec {
 		match self {
+			Self::Pipeline { .. } => unreachable!(),
 			Self::PipelineOutputs { .. } => PipelinePortSpec::Static(&[]),
 			Self::PipelineInputs { outputs, .. } => PipelinePortSpec::Vec(outputs),
 			Self::ConstantNode { value } => {
@@ -122,5 +136,9 @@ impl PipelineNodeType {
 			Self::StripTags => PipelinePortSpec::Static(&[("out", PipelineDataType::Binary)]),
 			Self::ExtractCovers => PipelinePortSpec::Static(&[]),
 		}
+	}
+
+	pub fn is_pipeline_input(&self) -> bool {
+		matches!(self, Self::PipelineInputs { .. })
 	}
 }

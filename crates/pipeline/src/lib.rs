@@ -7,6 +7,7 @@ pub mod output;
 #[allow(clippy::module_inception)]
 pub mod pipeline;
 pub mod portspec;
+pub mod runner;
 pub mod syntax;
 
 use errors::PipelineError;

@@ -11,8 +11,10 @@ use crate::{errors::PipelineError, PipelineNode};
 
 pub enum PipelineNodeInstance {
 	// Each node instance must have a node_type field,
-	// which is guaranteed to be correct by
-	// PipelineNodeType::build().
+	// which is guaranteed to have the correct enum variant.
+	// (see PipelineNodeType::build())
+
+	// Magic nodes
 	PipelineInputs {
 		node_type: PipelineNodeType,
 	},
@@ -22,15 +24,19 @@ pub enum PipelineNodeInstance {
 	ConstantNode {
 		node_type: PipelineNodeType,
 	},
-	ExtractTags {
-		node_type: PipelineNodeType,
-		name: SmartString<LazyCompact>,
-		node: ExtractTags,
-	},
+
+	// Utility nodes
 	IfNone {
 		node_type: PipelineNodeType,
 		name: SmartString<LazyCompact>,
 		node: IfNone,
+	},
+
+	// Audio nodes
+	ExtractTags {
+		node_type: PipelineNodeType,
+		name: SmartString<LazyCompact>,
+		node: ExtractTags,
 	},
 	StripTags {
 		node_type: PipelineNodeType,
@@ -64,10 +70,11 @@ impl PipelineNode for PipelineNodeInstance {
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{
 		match self {
-			// Inputs and Outputs do nothing, these are handled
-			// as special cases by Pipeline::run().
+			// These are handled as special cases by Pipeline::run().
 			Self::PipelineInputs { .. } => unreachable!(),
 			Self::PipelineOutputs { .. } => unreachable!(),
+
+			// Nodes that are run here
 			Self::ConstantNode { node_type } => match node_type {
 				PipelineNodeType::ConstantNode { value } => {
 					send_data(0, value.clone())?;

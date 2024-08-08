@@ -3,6 +3,7 @@ type = "File"
 
 [config.output]
 type = "DataSet"
+class = "AudioFile"
 attr."album" = "text"
 attr."artist" = "text"
 attr."albumartist" = "text"
@@ -26,8 +27,8 @@ attr."audio_data" = "binary"
 
 
 [node."tags"]
-type.type = "ExtractTags"
-type.tags = [
+node.type = "ExtractTags"
+node.tags = [
 	"Album",
 	"Artist",
 	"AlbumArtist",
@@ -44,16 +45,21 @@ input.data = { "pipeline" = "data" }
 #input.data = "fs.data"
 
 [node.if_none]
-type.type = "IfNone"
+node.type = "IfNone"
 input.data = { node = "tags", output = "Lyrics" }
 #input.data = "if_none.out"
 input.ifnone = { "text" = "Unknown Lyrics" }
 
 [node.strip]
-type.type = "StripTags"
+node.type = "StripTags"
 input.data = { pipeline = "data" }
 after = ["if_none"]
 
 [node."covers"]
-type.type = "ExtractCovers"
+node.type = "ExtractCovers"
 input.data = { "pipeline" = "data" }
+
+#[node."add_cover"]
+#node.type = "Pipeline"
+#node.pipeline = "cover"
+#input.data = { "pipeline" = "data" }

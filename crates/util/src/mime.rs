@@ -1,3 +1,5 @@
+//! Media type utilities
+
 use smartstring::{LazyCompact, SmartString};
 use std::fmt::Display;
 

@@ -21,6 +21,8 @@ pub enum PipelineOutputKind {
 		#[serde(rename = "attr")]
 		#[serde_as(as = "serde_with::Map<_, _>")]
 		attrs: Vec<(PipelinePortLabel, PipelineDataType)>,
+
+		class: String,
 	},
 }
 

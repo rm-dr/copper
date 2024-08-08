@@ -3,8 +3,7 @@ use futures::executor::block_on;
 use std::path::Path;
 use ufo_pipeline::{
 	input::{file::FileInput, PipelineInput, PipelineInputKind},
-	output::{storage::StorageOutput, PipelineOutput, PipelineOutputKind},
-	pipeline::Pipeline,
+	runner::PipelineRunner,
 };
 use ufo_storage::{
 	api::{AttributeOptions, Dataset},
@@ -14,7 +13,7 @@ use ufo_util::data::PipelineDataType;
 
 fn main() -> Result<()> {
 	// Make dataset
-	let mut dataset = {
+	let dataset = {
 		let mut d = SeaDataset::new("sqlite:./test.sqlite?mode=rwc", "ufo_db");
 		block_on(d.connect())?;
 		let x = block_on(d.add_class("AudioFile")).unwrap();
@@ -65,30 +64,26 @@ fn main() -> Result<()> {
 		d
 	};
 
-	// Load pipeline
-	let pipe = Pipeline::from_file(Path::new("pipeline.toml"))?;
+	// Prep runner
+	let mut runner = PipelineRunner::new(dataset, 4);
+	runner.add_pipeline(Path::new("pipelines/cover.toml"), "cover".into())?;
+	runner.add_pipeline(Path::new("pipelines/audiofile.toml"), "audio".into())?;
 
-	for p in ["data/freeze.flac", "data/png.flac"] {
-		let input = match &pipe.get_config().input {
+	for p in ["data/freeze.flac"] {
+		let input = match &runner
+			.get_pipeline("audio".into())
+			.unwrap()
+			.get_config()
+			.input
+		{
 			PipelineInputKind::File => {
 				let f = FileInput::new(p.into());
 				f.run().unwrap()
 			}
+			PipelineInputKind::Plain { .. } => unreachable!(),
 		};
 
-		let o = pipe.run(4, input)?;
-
-		match &pipe.get_config().output {
-			PipelineOutputKind::DataSet { attrs } => {
-				let c = block_on(dataset.get_class("AudioFile"))?.unwrap();
-				let mut e = StorageOutput::new(
-					&mut dataset,
-					c,
-					attrs.iter().map(|(a, b)| (a.into(), *b)).collect(),
-				);
-				e.run(o.iter().collect())?;
-			}
-		}
+		runner.run("audio".into(), input)?;
 	}
 
 	Ok(())

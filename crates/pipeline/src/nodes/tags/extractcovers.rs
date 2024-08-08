@@ -14,7 +14,7 @@ impl ExtractCovers {
 }
 
 impl PipelineNode for ExtractCovers {
-	fn run<F>(&self, send_data: F, input: Vec<PipelineData>) -> Result<(), PipelineError>
+	fn run<F>(&self, _send_data: F, input: Vec<PipelineData>) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{
@@ -29,13 +29,13 @@ impl PipelineNode for ExtractCovers {
 		};
 
 		let data_read = Cursor::new(&**data);
-		let tagger = match data_type {
+		let _tagger = match data_type {
 			MimeType::Flac => flac_read_pictures(data_read).unwrap(),
 			MimeType::Mp3 => unimplemented!(),
 			_ => return Err(PipelineError::UnsupportedDataType),
 		};
 
-		println!("{:?}", tagger);
+		//println!("{:?}", tagger);
 
 		return Ok(());
 	}
