@@ -10,7 +10,7 @@ use tracing::{debug, warn};
 
 use super::single::{PipelineSingleJob, PipelineSingleJobError, SingleJobState};
 use crate::{
-	api::{PipelineData, PipelineJobContext, NodeState},
+	api::{NodeState, PipelineData, PipelineJobContext},
 	dispatcher::NodeDispatcher,
 	labels::PipelineName,
 	pipeline::pipeline::Pipeline,
