@@ -139,7 +139,7 @@ impl Dataset for SeaDataset {
 				// TODO: use one type struct, or into().
 				match data_type {
 					PipelineDataType::Text => AttrDatatype::String,
-					PipelineDataType::Binary => unimplemented!(),
+					PipelineDataType::Binary => AttrDatatype::Binary,
 				}
 				.to_string(),
 			),
@@ -285,9 +285,32 @@ impl Dataset for SeaDataset {
 						.await
 						.map_err(SeaDatasetError::Database)?;
 				}
-				PipelineDataType::Binary => {}
+				PipelineDataType::Binary => {
+					value_binary::Entity::delete_many()
+						.filter(value_binary::Column::Attr.eq(Into::<i32>::into(attr)))
+						.filter(value_binary::Column::Attr.eq(Into::<i32>::into(item)))
+						.exec(self.conn.as_ref().ok_or(SeaDatasetError::NotConnected)?)
+						.await
+						.map_err(SeaDatasetError::Database)?;
+				}
 			},
-			PipelineData::Binary { .. } => {}
+			PipelineData::Binary { data, .. } => {
+				let new_value = value_binary::ActiveModel {
+					id: ActiveValue::NotSet,
+					attr: ActiveValue::Set(attr.into()),
+					item: ActiveValue::Set(item.into()),
+					value: ActiveValue::Set(data.clone()),
+				};
+				let _res = ValueBinary::insert(new_value)
+					.on_conflict(
+						OnConflict::columns([value_str::Column::Attr, value_str::Column::Item])
+							.update_column(value_str::Column::Value)
+							.to_owned(),
+					)
+					.exec(self.conn.as_mut().ok_or(SeaDatasetError::NotConnected)?)
+					.await
+					.map_err(SeaDatasetError::Database)?;
+			}
 			PipelineData::Text(text) => {
 				let new_value = value_str::ActiveModel {
 					id: ActiveValue::NotSet,
@@ -362,6 +385,7 @@ impl Dataset for SeaDataset {
 		// TODO: improve
 		let t = match &attr.unwrap().datatype[..] {
 			"string" => PipelineDataType::Text,
+			"binary" => PipelineDataType::Binary,
 			x => unreachable!("Bad type {x}"),
 		};
 		return Ok(t);

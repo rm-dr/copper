@@ -29,6 +29,7 @@ pub enum Attr {
 #[derive(Iden)]
 pub enum AttrDatatype {
 	String,
+	Binary,
 }
 
 #[derive(Iden)]
@@ -40,6 +41,16 @@ pub enum Item {
 
 #[derive(Iden)]
 pub enum ValueStr {
+	Table,
+	Id,
+	Attr,
+	Item,
+	Value,
+}
+
+// TODO: add subtype
+#[derive(Iden)]
+pub enum ValueBinary {
 	Table,
 	Id,
 	Attr,
@@ -94,7 +105,10 @@ impl MigrationTrait for Migration {
 					)
 					.col(
 						ColumnDef::new(Attr::Datatype)
-							.enumeration(Attr::Datatype, [AttrDatatype::String])
+							.enumeration(
+								Attr::Datatype,
+								[AttrDatatype::String, AttrDatatype::Binary],
+							)
 							.not_null(),
 					)
 					.to_owned(),
@@ -138,14 +152,14 @@ impl MigrationTrait for Migration {
 					.col(ColumnDef::new(ValueStr::Attr).integer().not_null())
 					.foreign_key(
 						ForeignKey::create()
-							.name("fk-strvalue-attr")
+							.name("fk-valuestr-attr")
 							.from(ValueStr::Table, ValueStr::Attr)
 							.to(Attr::Table, Attr::Id),
 					)
 					.col(ColumnDef::new(ValueStr::Item).integer().not_null())
 					.foreign_key(
 						ForeignKey::create()
-							.name("fk-strvalue-item")
+							.name("fk-valuestr-item")
 							.from(ValueStr::Table, ValueStr::Item)
 							.to(Item::Table, Item::Id),
 					)
@@ -161,6 +175,44 @@ impl MigrationTrait for Migration {
 			)
 			.await?;
 
+		manager
+			.create_table(
+				Table::create()
+					.table(ValueBinary::Table)
+					.col(
+						ColumnDef::new(ValueBinary::Id)
+							.integer()
+							.not_null()
+							.auto_increment()
+							.primary_key(),
+					)
+					.col(ColumnDef::new(ValueBinary::Value).binary().not_null())
+					.col(ColumnDef::new(ValueBinary::Attr).integer().not_null())
+					.foreign_key(
+						ForeignKey::create()
+							.name("fk-valuebinary-attr")
+							.from(ValueBinary::Table, ValueBinary::Attr)
+							.to(Attr::Table, Attr::Id),
+					)
+					.col(ColumnDef::new(ValueStr::Item).integer().not_null())
+					.foreign_key(
+						ForeignKey::create()
+							.name("fk-valuebinary-item")
+							.from(ValueBinary::Table, ValueBinary::Item)
+							.to(Item::Table, Item::Id),
+					)
+					.index(
+						// (item, attr) pairs must be unique
+						Index::create()
+							.name("idx-item-attr")
+							.col(ValueBinary::Item)
+							.col(ValueBinary::Attr)
+							.unique(),
+					)
+					.to_owned(),
+			)
+			.await?;
+
 		Ok(())
 	}
 
@@ -170,6 +222,9 @@ impl MigrationTrait for Migration {
 
 		manager
 			.drop_table(Table::drop().table(ValueStr::Table).to_owned())
+			.await?;
+		manager
+			.drop_table(Table::drop().table(ValueBinary::Table).to_owned())
 			.await?;
 		manager
 			.drop_table(Table::drop().table(Attr::Table).to_owned())

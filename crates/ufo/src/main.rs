@@ -23,6 +23,8 @@ fn main() -> Result<()> {
 		block_on(d.add_attr(x, "genre", PipelineDataType::Text)).unwrap();
 		block_on(d.add_attr(x, "ISRC", PipelineDataType::Text)).unwrap();
 		block_on(d.add_attr(x, "lyrics", PipelineDataType::Text)).unwrap();
+
+		block_on(d.add_attr(x, "audio_data", PipelineDataType::Binary)).unwrap();
 		d
 	};
 

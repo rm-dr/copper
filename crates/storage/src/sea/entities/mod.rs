@@ -5,4 +5,5 @@ pub mod prelude;
 pub mod attr;
 pub mod class;
 pub mod item;
+pub mod value_binary;
 pub mod value_str;

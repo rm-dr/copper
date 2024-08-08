@@ -3,4 +3,5 @@
 pub use super::attr::Entity as Attr;
 pub use super::class::Entity as Class;
 pub use super::item::Entity as Item;
+pub use super::value_binary::Entity as ValueBinary;
 pub use super::value_str::Entity as ValueStr;

@@ -11,6 +11,7 @@ attr."year" = "text"
 attr."genre" = "text"
 attr."ISRC" = "text"
 attr."lyrics" = "text"
+attr."audio_data" = "binary"
 
 [config.output_map]
 "album" = { node = "tags", output = "Album" }
@@ -21,6 +22,7 @@ attr."lyrics" = "text"
 "genre" = { node = "tags", output = "Genre" }
 "ISRC" = { node = "tags", output = "ISRC" }
 "lyrics" = { node = "if_none", output = "out" }
+"audio_data" = { pipeline = "data" }
 
 
 [node."tags"]

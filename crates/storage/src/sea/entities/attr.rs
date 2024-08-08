@@ -22,6 +22,8 @@ pub enum Relation {
 		on_delete = "NoAction"
 	)]
 	Class,
+	#[sea_orm(has_many = "super::value_binary::Entity")]
+	ValueBinary,
 	#[sea_orm(has_many = "super::value_str::Entity")]
 	ValueStr,
 }
@@ -29,6 +31,12 @@ pub enum Relation {
 impl Related<super::class::Entity> for Entity {
 	fn to() -> RelationDef {
 		Relation::Class.def()
+	}
+}
+
+impl Related<super::value_binary::Entity> for Entity {
+	fn to() -> RelationDef {
+		Relation::ValueBinary.def()
 	}
 }
 
