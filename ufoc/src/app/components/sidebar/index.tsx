@@ -19,17 +19,17 @@ const SideBar = () => {
 		{
 			name: "Upload files",
 			icon: <XIconUpload />,
-			link: "/upload",
+			link: "/u/upload",
 		},
 		{
 			name: "Manage datasets",
 			icon: <XIconDatabaseCog />,
-			link: "/datasets",
+			link: "/u/datasets",
 		},
 		{
 			name: "View items",
 			icon: <XIconItems />,
-			link: "/items",
+			link: "/u/items",
 		},
 	];
 

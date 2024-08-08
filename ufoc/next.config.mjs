@@ -44,7 +44,12 @@ const nextConfig = {
 		return [
 			{
 				source: "/",
-				destination: "/datasets",
+				destination: "/u/datasets",
+				permanent: true,
+			},
+			{
+				source: "/u",
+				destination: "/u/datasets",
 				permanent: true,
 			},
 		];

@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.scss";
-import NavBar from "./components/navbar";
-import SideBar from "./components/sidebar";
-import styles from "./layout.module.scss";
 
 // Mantine setup
 import Provider from "./provider";
@@ -27,17 +24,7 @@ export default function RootLayout({
 				<ColorSchemeScript />
 			</head>
 			<body className={inter.className}>
-				<Provider>
-					<div className={styles.navbarContainer}>
-						<NavBar />
-					</div>
-					<div className={styles.lowercontent}>
-						<div className={styles.sidebarContainer}>
-							<SideBar />
-						</div>
-						<div className={styles.contentContainer}>{children}</div>
-					</div>
-				</Provider>
+				<Provider>{children}</Provider>
 			</body>
 		</html>
 	);

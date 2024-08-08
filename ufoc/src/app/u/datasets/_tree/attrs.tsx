@@ -1,4 +1,4 @@
-import { ApiSelector } from "@/app/components/apiselect";
+import { DatasetSelector } from "@/app/components/apiselect/dataset";
 import {
 	XIconAttrBinary,
 	XIconAttrBlob,
@@ -206,24 +206,13 @@ function RefParams(params: {
 	};
 
 	return (
-		<ApiSelector
+		<DatasetSelector
 			onSelect={(v) => {
 				if (v == null) {
 					params.onChange({ class: null });
 				} else {
 					params.onChange({ class: parseInt(v) });
 				}
-			}}
-			error={params.errorMessage !== null}
-			update_params={params.dataset_name}
-			update_list={update_classes}
-			messages={{
-				nothingmsg_normal: "No classes found",
-				nothingmsg_empty: "This dataset has no classes",
-				placeholder_error: "could not fetch classes",
-				placeholder_normal: "select reference target",
-				message_null: "select a class",
-				message_loading: "fetching classes...",
 			}}
 		/>
 	);

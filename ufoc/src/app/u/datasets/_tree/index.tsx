@@ -1,5 +1,5 @@
 import styles from "./tree.module.scss";
-import { Panel, PanelSection } from "../../components/panel";
+import { Panel, PanelSection } from "@/app/components/panel";
 
 import {
 	XIconDatabase,

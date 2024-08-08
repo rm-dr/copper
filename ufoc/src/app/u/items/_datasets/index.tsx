@@ -1,5 +1,5 @@
 import styles from "./datasets.module.scss";
-import { Panel, PanelSection } from "../../components/panel";
+import { Panel, PanelSection } from "@/app/components/panel";
 
 import { XIconDatabase, XIconFolder } from "@/app/components/icons";
 import { Dispatch, SetStateAction } from "react";

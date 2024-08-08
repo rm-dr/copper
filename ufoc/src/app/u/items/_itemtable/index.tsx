@@ -1,5 +1,5 @@
 import styles from "./itemtable.module.scss";
-import { Panel, PanelSection } from "../../components/panel";
+import { Panel, PanelSection } from "@/app/components/panel";
 import clsx from "clsx";
 import {
 	XIconAddLeft,
