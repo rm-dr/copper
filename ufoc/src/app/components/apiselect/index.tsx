@@ -21,6 +21,8 @@ export function ApiSelector<T>(params: {
 	// Parameters passed to `update_list`
 	update_params: T;
 
+	error?: boolean;
+
 	// Called whenever we need to update this selector's list of options.
 	// If this returns `null`, we assume that we don't have enough information
 	// to fetch options (e.g, we need a value from another selector)
@@ -117,7 +119,7 @@ export function ApiSelector<T>(params: {
 			comboboxProps={{
 				transitionProps: { transition: "fade-down", duration: 200 },
 			}}
-			error={selectorState.error}
+			error={selectorState.error || params.error === true}
 			disabled={selectorState.error || selectorState.options === null}
 			searchable
 			clearable

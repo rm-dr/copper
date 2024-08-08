@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct ItemHandle {
 	id: u32,
 }
@@ -18,6 +19,7 @@ impl From<u32> for ItemHandle {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct ClassHandle {
 	id: u32,
 }
@@ -35,6 +37,7 @@ impl From<u32> for ClassHandle {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct AttrHandle {
 	id: u32,
 }

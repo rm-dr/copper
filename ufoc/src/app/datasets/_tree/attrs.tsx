@@ -1,3 +1,4 @@
+import { ApiSelector } from "@/app/components/apiselect";
 import {
 	XIconAttrBinary,
 	XIconAttrBlob,
@@ -9,7 +10,7 @@ import {
 	XIconAttrText,
 } from "@/app/components/icons";
 import { Select } from "@mantine/core";
-import { ReactElement, ReactNode, useState } from "react";
+import { ReactElement, ReactNode } from "react";
 
 // Server-compatible attr definitions
 
@@ -42,7 +43,10 @@ export const attrTypes: {
 
 		/// A react component that contains extra input for this attr
 		node: (params: {
+			/// Called when any input is changed
 			onChange: (state: null | any) => void;
+
+			dataset_name: string;
 
 			/// This is usually a string, but can be a table for attrs
 			/// that need multiple extra inputs.
@@ -103,6 +107,16 @@ export const attrTypes: {
 		},
 	},
 
+	{
+		pretty_name: "Reference",
+		serialize_as: "Reference",
+		icon: <XIconAttrReference />,
+		extra_params: {
+			inputs_ok: checkRef,
+			node: RefParams,
+		},
+	},
+
 	// TODO: reference type
 ];
 
@@ -150,3 +164,67 @@ function HashParams(params: {
 	);
 }
 
+function checkRef(params: {
+	state: any;
+	setErrorMessage: (message: null | any) => void;
+}): boolean {
+	if (params.state === null) {
+		params.setErrorMessage("Reference target is required");
+		return false;
+	} else if (params.state.class === null) {
+		params.setErrorMessage("Reference target is required");
+		return false;
+	}
+
+	return true;
+}
+
+function RefParams(params: {
+	onChange: (state: null | any) => void;
+	dataset_name: string;
+	setErrorMessage: (message: null | any) => void;
+	errorMessage: null | any;
+}) {
+	const update_classes = async (dataset: string) => {
+		const res = await fetch(
+			"/api/class/list?" +
+				new URLSearchParams({
+					dataset: params.dataset_name,
+				}).toString(),
+		);
+
+		const data: { handle: number; name: string; attrs: any[] }[] =
+			await res.json();
+
+		return data.map(({ name, handle }) => {
+			return {
+				label: name,
+				value: handle.toString(),
+				disabled: false,
+			};
+		});
+	};
+
+	return (
+		<ApiSelector
+			onSelect={(v) => {
+				if (v == null) {
+					params.onChange({ class: null });
+				} else {
+					params.onChange({ class: parseInt(v) });
+				}
+			}}
+			error={params.errorMessage !== null}
+			update_params={params.dataset_name}
+			update_list={update_classes}
+			messages={{
+				nothingmsg_normal: "No classes found",
+				nothingmsg_empty: "This dataset has no classes",
+				placeholder_error: "could not fetch classes",
+				placeholder_normal: "select reference target",
+				message_null: "select a class",
+				message_loading: "fetching classes...",
+			}}
+		/>
+	);
+}

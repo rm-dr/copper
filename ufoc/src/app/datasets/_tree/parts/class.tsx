@@ -532,6 +532,7 @@ export function useAddAttrModal(params: {
 				{NewAttrParamsInput === null ? null : (
 					<div style={{ marginTop: "1rem", marginBottom: "1rem" }}>
 						<NewAttrParamsInput
+							dataset_name={params.dataset_name}
 							errorMessage={errorMessage.extra_params}
 							setErrorMessage={(m: any) => {
 								setErrorMessage((e) => ({ ...e, extra_params: m }));
