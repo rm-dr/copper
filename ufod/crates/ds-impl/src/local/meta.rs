@@ -15,7 +15,7 @@ use ufo_ds_core::{
 	errors::MetastoreError,
 	handles::{AttrHandle, ClassHandle, ItemIdx},
 };
-use ufo_util::mime::MimeType;
+use ufo_util::{mime::MimeType, names::clean_name};
 
 use super::LocalDataset;
 
@@ -220,13 +220,7 @@ impl Metastore for LocalDataset {
 		data_type: MetastoreDataStub,
 		options: AttributeOptions,
 	) -> Result<AttrHandle, MetastoreError> {
-		// No empty names
-		let attr_name = attr_name.trim();
-		if attr_name.is_empty() {
-			return Err(MetastoreError::BadAttrName(
-				"Attr name cannot be empty".into(),
-			));
-		}
+		let attr_name = clean_name(attr_name).map_err(|e| MetastoreError::BadAttrName(e))?;
 
 		trace!(
 			message = "Adding an attribute",
@@ -271,7 +265,7 @@ impl Metastore for LocalDataset {
 				",
 			)
 			.bind(u32::from(class))
-			.bind(attr_name)
+			.bind(&attr_name)
 			.bind(serde_json::to_string(&data_type).unwrap())
 			.bind(options.unique)
 			.bind(false)
@@ -357,13 +351,7 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn add_class(&self, class_name: &str) -> Result<ClassHandle, MetastoreError> {
-		// No empty names
-		let class_name = class_name.trim();
-		if class_name.is_empty() {
-			return Err(MetastoreError::BadClassName(
-				"Class name cannot be empty".into(),
-			));
-		}
+		let class_name = clean_name(class_name).map_err(|e| MetastoreError::BadAttrName(e))?;
 
 		trace!(message = "Adding a class", class_name);
 
@@ -381,7 +369,7 @@ impl Metastore for LocalDataset {
 		// Add metadata
 		let new_class_id = {
 			let res = sqlx::query("INSERT INTO meta_classes (pretty_name) VALUES (?);")
-				.bind(class_name)
+				.bind(&class_name)
 				.execute(&mut *t)
 				.await;
 
@@ -841,8 +829,10 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn class_set_name(&self, class: ClassHandle, name: &str) -> Result<(), MetastoreError> {
+		let name = clean_name(name).map_err(|e| MetastoreError::BadAttrName(e))?;
+
 		// Make sure this name isn't already taken
-		let x = self.get_class_by_name(name).await?;
+		let x = self.get_class_by_name(&name).await?;
 		if x.is_some() {
 			return Err(MetastoreError::DuplicateClassName(name.into()));
 		}
@@ -933,9 +923,11 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn attr_set_name(&self, attr: AttrHandle, name: &str) -> Result<(), MetastoreError> {
+		let name = clean_name(name).map_err(|e| MetastoreError::BadAttrName(e))?;
+
 		// Make sure this name isn't already taken
 		let x = self.get_attr(attr).await?;
-		let x = self.get_attr_by_name(x.class, name).await?;
+		let x = self.get_attr_by_name(x.class, &name).await?;
 		if x.is_some() {
 			return Err(MetastoreError::DuplicateAttrName(name.into()));
 		}

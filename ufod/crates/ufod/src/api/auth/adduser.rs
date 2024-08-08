@@ -97,8 +97,8 @@ pub(super) async fn add_user(
 				.into_response();
 		}
 
-		Err(CreateUserError::BadName(msg)) => {
-			return (StatusCode::BAD_REQUEST, format!("Invalid name: {msg}")).into_response();
+		Err(CreateUserError::BadName(err)) => {
+			return (StatusCode::BAD_REQUEST, err.to_string()).into_response();
 		}
 
 		Err(CreateUserError::BadGroup) => {

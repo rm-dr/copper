@@ -2,6 +2,7 @@ use std::{error::Error, fmt::Display};
 
 use smartstring::{LazyCompact, SmartString};
 use ufo_pipeline::{api::PipelineData, pipeline::syntax::errors::PipelinePrepareError};
+use ufo_util::names::NameError;
 
 #[derive(Debug)]
 pub enum MetastoreError {
@@ -19,15 +20,13 @@ pub enum MetastoreError {
 	BadAttrHandle,
 
 	/// We tried to create an attr with an invalid name.
-	/// Comes with a helpful error message.
-	BadAttrName(String),
+	BadAttrName(NameError),
 
 	/// We were given a bad class handle
 	BadClassHandle,
 
 	/// We tried to create a class with an invalid name.
-	/// Comes with a helpful error message.
-	BadClassName(String),
+	BadClassName(NameError),
 
 	/// We were given a bad item idx
 	BadItemIdx,
@@ -85,6 +84,8 @@ impl Error for MetastoreError {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
 			Self::BlobstoreError(x) => Some(x),
+			Self::BadAttrName(x) => Some(x),
+			Self::BadClassName(x) => Some(x),
 			_ => None,
 		}
 	}

@@ -1,13 +1,14 @@
 use std::{error::Error, fmt::Display};
 
+use ufo_util::names::NameError;
+
 #[derive(Debug)]
 pub enum CreateDatasetError {
 	/// Database error
 	DbError(Box<dyn Error>),
 
 	/// We tried to create a dataset with an invalid name.
-	/// The name error is included.
-	BadName(String),
+	BadName(NameError),
 
 	/// A dataset with this name already exists
 	AlreadyExists,
@@ -39,7 +40,7 @@ pub enum RenameDatasetError {
 
 	/// We tried to give a dataset an invalid name.
 	/// An error message is included.
-	BadName(String),
+	BadName(NameError),
 
 	/// A dataset with this name already exists
 	AlreadyExists,

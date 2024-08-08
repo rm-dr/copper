@@ -5,6 +5,7 @@ use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{debug, info};
 use ufo_ds_impl::{local::LocalDataset, DatasetType};
+use ufo_util::names::clean_name;
 
 use crate::config::UfodConfig;
 
@@ -40,13 +41,7 @@ impl DatasetProvider {
 		name: &str,
 		ds_type: DatasetType,
 	) -> Result<(), CreateDatasetError> {
-		// No empty names
-		let name = name.trim();
-		if name.is_empty() {
-			return Err(CreateDatasetError::BadName(
-				"Dataset name cannot be empty".into(),
-			));
-		}
+		let name = clean_name(name).map_err(|e| CreateDatasetError::BadName(e))?;
 
 		// Make sure this name is new
 		let datasets = self
@@ -235,6 +230,8 @@ impl DatasetProvider {
 		old_name: &str,
 		new_name: &str,
 	) -> Result<(), RenameDatasetError> {
+		let new_name = clean_name(new_name).map_err(|e| RenameDatasetError::BadName(e))?;
+
 		// Make sure this name is new
 		let datasets = self
 			.get_datasets()

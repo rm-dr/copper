@@ -1,5 +1,7 @@
 use std::{error::Error, fmt::Display};
 
+use ufo_util::names::NameError;
+
 #[derive(Debug)]
 pub enum DeleteGroupError {
 	/// Database error
@@ -34,7 +36,7 @@ pub enum CreateUserError {
 
 	/// We tried to create a user with an invalid name.
 	/// The name error is included.
-	BadName(String),
+	BadName(NameError),
 
 	/// We tried to create a user with a weak password
 	BadPassword,
@@ -50,7 +52,7 @@ impl Display for CreateUserError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "Database backend error"),
-			Self::BadName(message) => write!(f, "Bad user name: {message}"),
+			Self::BadName(_) => write!(f, "Bad user name"),
 			Self::AlreadyExists => write!(f, "User already exists"),
 			Self::BadGroup => write!(f, "Invalid group"),
 			Self::BadPassword => write!(f, "Tried to make a user with a weak password"),
@@ -62,6 +64,7 @@ impl Error for CreateUserError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
+			Self::BadName(x) => Some(x),
 			_ => None,
 		}
 	}
@@ -74,7 +77,7 @@ pub enum CreateGroupError {
 
 	/// We tried to create a group with an invalid name.
 	/// The name error is included.
-	BadName(String),
+	BadName(NameError),
 
 	/// A group with this name already exists
 	AlreadyExists,
@@ -87,7 +90,7 @@ impl Display for CreateGroupError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "Database backend error"),
-			Self::BadName(message) => write!(f, "Bad group name: {message}"),
+			Self::BadName(_) => write!(f, "Bad group name"),
 			Self::AlreadyExists => write!(f, "Group already exists"),
 			Self::BadParent => write!(f, "Bad group parent"),
 		}
@@ -98,6 +101,7 @@ impl Error for CreateGroupError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
+			Self::BadName(x) => Some(x),
 			_ => None,
 		}
 	}

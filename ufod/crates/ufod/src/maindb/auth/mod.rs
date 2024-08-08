@@ -13,6 +13,7 @@ use sqlx::{Row, SqlitePool};
 use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
+use ufo_util::names::clean_name;
 
 pub mod errors;
 mod info;
@@ -249,21 +250,16 @@ impl AuthProvider {
 	}
 
 	pub async fn new_group(&self, name: &str, parent: GroupId) -> Result<(), CreateGroupError> {
+		let name = clean_name(name).map_err(|e| CreateGroupError::BadName(e))?;
+		if name == "Root Group" {
+			return Err(CreateGroupError::AlreadyExists);
+		}
+
 		let mut conn = self
 			.pool
 			.acquire()
 			.await
 			.map_err(|e| CreateGroupError::DbError(Box::new(e)))?;
-
-		// No empty names
-		let name = name.trim();
-		if name.is_empty() {
-			return Err(CreateGroupError::BadName(
-				"Group name cannot be empty".into(),
-			));
-		} else if name == "Root Group" {
-			return Err(CreateGroupError::AlreadyExists);
-		}
 
 		let res = sqlx::query(
 			"
@@ -272,7 +268,7 @@ impl AuthProvider {
 			) VALUES (?, ?, ?);
 			",
 		)
-		.bind(name)
+		.bind(&name)
 		.bind(parent.get_id())
 		.bind(serde_json::to_string(&SerializedGroupPermissions::default()).unwrap())
 		.execute(&mut *conn)
@@ -348,12 +344,7 @@ impl AuthProvider {
 		password: &str,
 		group: GroupId,
 	) -> Result<(), CreateUserError> {
-		// No empty names
-		let user_name = user_name.trim();
-		if user_name.is_empty() {
-			return Err(CreateUserError::BadName("User name cannot be empty".into()));
-		}
-
+		let user_name = clean_name(user_name).map_err(|e| CreateUserError::BadName(e))?;
 		let pw_hash = Self::hash_password(password);
 
 		let mut conn = self
@@ -368,7 +359,7 @@ impl AuthProvider {
 			) VALUES (?, ?, ?);
 			",
 		)
-		.bind(user_name)
+		.bind(&user_name)
 		.bind(group.get_id())
 		.bind(pw_hash)
 		.execute(&mut *conn)

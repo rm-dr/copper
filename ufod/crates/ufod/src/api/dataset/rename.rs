@@ -50,8 +50,8 @@ pub(super) async fn rename_dataset(
 
 	match res {
 		Ok(_) => {}
-		Err(RenameDatasetError::BadName(message)) => {
-			return (StatusCode::BAD_REQUEST, message).into_response()
+		Err(RenameDatasetError::BadName(err)) => {
+			return (StatusCode::BAD_REQUEST, err.to_string()).into_response()
 		}
 		Err(RenameDatasetError::AlreadyExists) => {
 			return (

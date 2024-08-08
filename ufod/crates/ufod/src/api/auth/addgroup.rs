@@ -91,8 +91,8 @@ pub(super) async fn add_group(
 				.into_response();
 		}
 
-		Err(CreateGroupError::BadName(msg)) => {
-			return (StatusCode::BAD_REQUEST, format!("Invalid name: {msg}")).into_response();
+		Err(CreateGroupError::BadName(err)) => {
+			return (StatusCode::BAD_REQUEST, err.to_string()).into_response();
 		}
 
 		Err(CreateGroupError::BadParent) => {

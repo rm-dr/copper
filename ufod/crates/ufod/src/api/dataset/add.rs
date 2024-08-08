@@ -67,8 +67,8 @@ pub(super) async fn add_dataset(
 
 			match res {
 				Ok(_) => {}
-				Err(CreateDatasetError::BadName(message)) => {
-					return (StatusCode::BAD_REQUEST, message).into_response()
+				Err(CreateDatasetError::BadName(err)) => {
+					return (StatusCode::BAD_REQUEST, err.to_string()).into_response()
 				}
 				Err(CreateDatasetError::AlreadyExists) => {
 					return (
