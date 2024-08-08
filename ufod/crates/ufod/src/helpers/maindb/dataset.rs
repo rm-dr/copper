@@ -97,6 +97,7 @@ impl MainDB {
 				.fetch_all(&mut *conn),
 		)?;
 
+		// TODO: one "open dataset" method
 		return Ok(res
 			.into_iter()
 			.map(|x| DatasetEntry {

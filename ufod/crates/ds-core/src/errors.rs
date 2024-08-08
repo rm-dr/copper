@@ -8,6 +8,13 @@ pub enum MetastoreError {
 	/// Database error
 	DbError(Box<dyn Error>),
 
+	/// We tried to delete a class, but another class stores
+	/// references to its items.
+	///
+	/// Includes a list of class names that reference the class we tried to delete.
+	/// This list will NOT include the class we tried to delete.
+	DeleteClassDanglingRef(Vec<SmartString<LazyCompact>>),
+
 	/// We were given a bad attribute handle
 	BadAttrHandle,
 
@@ -34,6 +41,9 @@ impl Display for MetastoreError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "Database backend error"),
+			Self::DeleteClassDanglingRef(_) => {
+				write!(f, "Cannot delete class, would create dangling references")
+			}
 			Self::BadAttrHandle => write!(f, "BadAttrHandle"),
 			Self::BadClassHandle => write!(f, "BadClassHandle"),
 			Self::TypeMismatch => write!(f, "TypeMismatch"),

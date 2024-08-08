@@ -78,6 +78,13 @@ where
 	fn class_set_name(&self, class: ClassHandle, name: &str) -> Result<(), MetastoreError>;
 	fn class_get_name(&self, class: ClassHandle) -> Result<&str, MetastoreError>;
 
+	/// Get all classes that store references to items in this class.
+	/// Returns class handles and names, and INCLUDES this class if it references itself.
+	fn class_get_backlinks(
+		&self,
+		class: ClassHandle,
+	) -> Result<Vec<(ClassHandle, SmartString<LazyCompact>)>, MetastoreError>;
+
 	/// Get all attributes in the given class.
 	/// Returns (attr handle, attr name, attr type)
 	///

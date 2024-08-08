@@ -337,8 +337,21 @@ impl Metastore for LocalDataset {
 	}
 
 	fn del_class(&self, class: ClassHandle) -> Result<(), MetastoreError> {
-		// Get this FIRST, or we'll deadlock
+		// Get these FIRST, or we'll deadlock
 		let attrs = self.class_get_attrs(class)?;
+		let backlinks = self.class_get_backlinks(class)?;
+
+		// If any other dataset has references to this class,
+		// we can't delete it. Those reference attrs must first be removed.
+		if backlinks.iter().any(|x| x.0 != class) {
+			return Err(MetastoreError::DeleteClassDanglingRef(
+				// Filter the class we tried to delete from the error vec
+				backlinks
+					.into_iter()
+					.filter_map(|(id, name)| if id == class { None } else { Some(name) })
+					.collect(),
+			));
+		}
 
 		// Start transaction
 		let mut conn_lock = self.conn.lock().unwrap();
@@ -605,6 +618,30 @@ impl Metastore for LocalDataset {
 				)
 			})
 			.collect())
+	}
+
+	fn class_get_backlinks(
+		&self,
+		class: ClassHandle,
+	) -> Result<Vec<(ClassHandle, SmartString<LazyCompact>)>, MetastoreError> {
+		let classes = self.get_all_classes()?;
+		let mut out = Vec::new();
+		for (c_handle, c_name) in classes {
+			for (_, _, a_type) in self.class_get_attrs(c_handle)? {
+				match a_type {
+					MetastoreDataStub::Reference { class: ref_class } => {
+						if class == ref_class {
+							out.push((c_handle, c_name.clone()));
+							// We must include each class exactly once
+							break;
+						}
+					}
+					_ => {}
+				}
+			}
+		}
+
+		return Ok(out);
 	}
 
 	fn attr_set_name(&self, _attr: AttrHandle, _name: &str) -> Result<(), MetastoreError> {

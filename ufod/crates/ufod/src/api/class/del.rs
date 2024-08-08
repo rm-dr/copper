@@ -4,7 +4,9 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
+use itertools::Itertools;
 use tracing::error;
+use ufo_ds_core::errors::MetastoreError;
 
 use super::ClassSelect;
 use crate::api::RouterState;
@@ -75,6 +77,27 @@ pub(super) async fn del_class(
 
 	match res {
 		Ok(_) => return StatusCode::OK.into_response(),
+		Err(MetastoreError::DeleteClassDanglingRef(data)) => {
+			let backlink_string = match data.len() {
+				0 => unreachable!(),
+				1 => format!("`{}`", data[0]),
+				2 => format!("`{}` and `{}`", data[0], data[1]),
+				x => format!(
+					"{}, and `{}`",
+					data[x..data.len() - 1]
+						.iter()
+						.map(|x| format!("`{x}`"))
+						.join(", "),
+					data.last().unwrap()
+				),
+			};
+
+			return (
+				StatusCode::BAD_REQUEST,
+				format!("We cannot delete this class because there are references to it in {backlink_string}."),
+			)
+				.into_response();
+		}
 		Err(e) => {
 			error!(
 				message = "Could not delete class",

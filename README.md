@@ -10,7 +10,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Rename set, class, attr endpoint
 - [ ] Complete class deletion
   - [ ] Delete blobs
-  - [ ] Check references (do not allow deletion if refs exist, unless to self)
   - [ ] Check pipelines
     - (or let them be invalid? Connected to pipeline CRUD)
   - [ ] How to handle running jobs?
@@ -18,9 +17,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
     - Same problem with renames. Will that break running jobs?
     - It shouldn't, jobs are tied to id.
   - [ ] Deletion could take a while. Will our request time out?
-- [ ] Polish UI: (`/datasets` page)
-  - [ ] Dataset & attribute type descriptions
-  - [ ] Enter to make new set/attr/etc
 
 ## 📦 Dataset locks
 - [ ] delete dataset while pipeline is running?
@@ -131,6 +127,11 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - Notes
   - Pipeline = one-off job. No streams!
   - Nodes take input even when not ready
+
+## 📦 Inline documenation
+- UI should be usable without a manual
+- [ ] Dataset & attribute type descriptions
+
 
 ---------------------------------------------------------------------
 
@@ -276,9 +277,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] unique
 - [ ] multi-unique
 - [ ] Make sure all these hold on CRUD
-
-## Tooltips and docs in ui
-- UI should be usable without a manual
 
 ## Pipes as transactions
 - If a pipe fails, a dataset should not have partial state

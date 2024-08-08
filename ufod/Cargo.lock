@@ -3139,6 +3139,7 @@ dependencies = [
  "axum",
  "bytes",
  "futures",
+ "itertools",
  "rand",
  "serde",
  "serde_json",
