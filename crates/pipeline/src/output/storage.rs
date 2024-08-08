@@ -1,4 +1,4 @@
-use std::io::{self};
+use std::io;
 use ufo_storage::api::Dataset;
 use ufo_util::data::PipelineData;
 

@@ -63,9 +63,9 @@ impl ExtractTags {
 impl PipelineStatelessRunner for ExtractTags {
 	fn run(
 		&self,
-		data_packet: Vec<Option<Arc<PipelineData>>>,
+		data: Vec<Option<Arc<PipelineData>>>,
 	) -> Result<Vec<Option<Arc<PipelineData>>>, PipelineError> {
-		let data = data_packet.first().unwrap();
+		let data = data.first().unwrap();
 
 		let (data_type, data) = match data.as_ref().unwrap().as_ref() {
 			PipelineData::Binary {

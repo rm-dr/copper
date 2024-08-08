@@ -36,8 +36,8 @@ pub trait Dataset {
 	fn iter_classes(&self) -> impl Iterator<Item = Self::ClassHandle>;
 	fn iter_attrs(&self) -> impl Iterator<Item = Self::AttrHandle>;
 
-	fn get_class(&mut self, class_name: &str) -> Option<Self::ClassHandle>;
-	fn get_attr(&mut self, attr_name: &str) -> Option<Self::AttrHandle>;
+	fn get_class(&self, class_name: &str) -> Option<Self::ClassHandle>;
+	fn get_attr(&self, attr_name: &str) -> Option<Self::AttrHandle>;
 
 	fn item_set_attr(
 		&mut self,
@@ -60,4 +60,6 @@ pub trait Dataset {
 	fn attr_set_name(&mut self, attr: Self::AttrHandle, name: &str) -> Result<(), ()>;
 	fn attr_get_name(&self, attr: Self::AttrHandle) -> &str;
 	fn attr_get_type(&self, attr: Self::AttrHandle) -> PipelineDataType;
+	fn attr_get_class(&self, attr: Self::AttrHandle) -> Self::ClassHandle;
+	// TODO: errors for bad attr
 }

@@ -5,6 +5,7 @@ use ufo_util::data::{PipelineData, PipelineDataType};
 pub mod storage;
 
 pub trait PipelineOutput {
+	// TODO: better errors
 	type ErrorKind: Send + Sync;
 
 	fn export(&mut self, data: Vec<Option<&PipelineData>>) -> Result<(), Self::ErrorKind>;

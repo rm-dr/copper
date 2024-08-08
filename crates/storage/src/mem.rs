@@ -149,13 +149,13 @@ impl Dataset for MemDataset {
 		Ok(())
 	}
 
-	fn get_attr(&mut self, attr_name: &str) -> Option<Self::AttrHandle> {
+	fn get_attr(&self, attr_name: &str) -> Option<Self::AttrHandle> {
 		self.attrs
 			.iter()
 			.find_map(|(x, y)| (y.name == attr_name).then_some(*x))
 	}
 
-	fn get_class(&mut self, class_name: &str) -> Option<Self::ClassHandle> {
+	fn get_class(&self, class_name: &str) -> Option<Self::ClassHandle> {
 		self.classes
 			.iter()
 			.find_map(|(x, y)| (y.name == class_name).then_some(*x))
@@ -198,13 +198,11 @@ impl Dataset for MemDataset {
 		attr: Self::AttrHandle,
 		data: Option<&PipelineData>,
 	) -> Result<(), ()> {
-		*self
-			.items
+		self.items
 			.get_mut(&item)
 			.unwrap()
 			.data
-			.get_mut(&attr)
-			.unwrap() = data.cloned();
+			.insert(attr, data.cloned());
 		Ok(())
 	}
 
@@ -241,5 +239,9 @@ impl Dataset for MemDataset {
 
 	fn attr_get_type(&self, attr: Self::AttrHandle) -> PipelineDataType {
 		self.attrs.get(&attr).unwrap().data_type
+	}
+
+	fn attr_get_class(&self, attr: Self::AttrHandle) -> Self::ClassHandle {
+		self.attrs.get(&attr).unwrap().class
 	}
 }
