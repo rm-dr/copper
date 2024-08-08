@@ -34,3 +34,4 @@ serde = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 nu-ansi-term = { workspace = true }
+walkdir = { workspace = true }

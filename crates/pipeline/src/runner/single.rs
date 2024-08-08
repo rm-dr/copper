@@ -446,7 +446,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 							node = self.node_instances[node.as_usize()].0.to_string(),
 						);
 
-						let mut x = self.node_instances[node.as_usize()].3.try_lock().unwrap();
+						let mut x = self.node_instances[node.as_usize()].3.lock().unwrap();
 						drop(x.take());
 
 						// Quick sanity check

@@ -67,5 +67,6 @@ async-broadcast = "0.7.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 nu-ansi-term = "0.50.0"
+walkdir = "2"
 
 [workspace.lints]

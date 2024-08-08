@@ -91,22 +91,25 @@ impl VorbisComment {
 			let (var, val) = comment
 				.split_once('=')
 				.ok_or(VorbisCommentError::MalformedCommentString(comment.clone()))?;
-			comments.push((
-				match &var.to_uppercase()[..] {
-					"TITLE" => TagType::TrackTitle,
-					"ALBUM" => TagType::Album,
-					"TRACKNUMBER" => TagType::TrackNumber,
-					"ARTIST" => TagType::TrackArtist,
-					"ALBUMARTIST" => TagType::AlbumArtist,
-					"GENRE" => TagType::Genre,
-					"ISRC" => TagType::Isrc,
-					"DATE" => TagType::ReleaseDate,
-					"TOTALTRACKS" => TagType::TrackTotal,
-					"LYRICS" => TagType::Lyrics,
-					x => TagType::Other(x.into()),
-				},
-				val.into(),
-			));
+			if !val.is_empty() {
+				// Make sure empty strings are saved as "None"
+				comments.push((
+					match &var.to_uppercase()[..] {
+						"TITLE" => TagType::TrackTitle,
+						"ALBUM" => TagType::Album,
+						"TRACKNUMBER" => TagType::TrackNumber,
+						"ARTIST" => TagType::TrackArtist,
+						"ALBUMARTIST" => TagType::AlbumArtist,
+						"GENRE" => TagType::Genre,
+						"ISRC" => TagType::Isrc,
+						"DATE" => TagType::ReleaseDate,
+						"TOTALTRACKS" => TagType::TrackTotal,
+						"LYRICS" => TagType::Lyrics,
+						x => TagType::Other(x.into()),
+					},
+					val.into(),
+				))
+			};
 		}
 
 		Ok(Self {
