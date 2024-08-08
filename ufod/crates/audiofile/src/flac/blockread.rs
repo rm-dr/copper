@@ -406,14 +406,10 @@ mod tests {
 	use paste::paste;
 	use rand::Rng;
 	use sha2::{Digest, Sha256};
-	use std::{
-		io::Write,
-		path::{Path, PathBuf},
-	};
-	use ufo_util::mime::MimeType;
+	use std::{io::Write, ops::Range};
 
 	use super::*;
-	use crate::{common::picturetype::PictureType, flac::blocks::FlacMetablockEncode};
+	use crate::tests::{FlacBlockOutput, MANIFEST};
 
 	/*
 	enum FlacTestFile {
@@ -452,70 +448,19 @@ mod tests {
 	}
 	*/
 
-	enum FlacBlockOutput {
-		Application {
-			application_id: u32,
-			hash: &'static str,
-		},
-		Streaminfo {
-			min_block_size: u32,
-			max_block_size: u32,
-			min_frame_size: u32,
-			max_frame_size: u32,
-			sample_rate: u32,
-			channels: u8,
-			bits_per_sample: u8,
-			total_samples: u128,
-			md5_signature: &'static str,
-		},
-		CueSheet {
-			// Hash of this block's data, without the header.
-			// This is easy to get with
-			//
-			// ```notrust
-			// metaflac \
-			//	--list \
-			//	--block-number=<n> \
-			//	--data-format=binary-headerless \
-			//	<file> \
-			//	| sha256sum
-			//```
-			hash: &'static str,
-		},
-		Seektable {
-			hash: &'static str,
-		},
-		Padding {
-			size: u32,
-		},
-		Picture {
-			picture_type: PictureType,
-			mime: MimeType,
-			description: &'static str,
-			width: u32,
-			height: u32,
-			bit_depth: u32,
-			color_count: u32,
-			img_data: &'static str,
-		},
-		VorbisComment {
-			hash: &'static str,
-		},
-	}
-
 	fn read_file(
-		test_file_path: &Path,
-		fragment_size_range: Option<std::ops::Range<usize>>,
-
+		test_name: &str,
+		fragment_size_range: Option<Range<usize>>,
 		selector: FlacBlockSelector,
-		in_hash: &str,
 	) -> Vec<FlacBlock> {
-		let file_data = std::fs::read(test_file_path).unwrap();
+		let x = MANIFEST.iter().find(|x| x.get_name() == test_name).unwrap();
+
+		let file_data = std::fs::read(x.get_path()).unwrap();
 
 		// Make sure input file is correct
 		let mut hasher = Sha256::new();
 		hasher.update(&file_data);
-		assert_eq!(in_hash, format!("{:x}", hasher.finalize()));
+		assert_eq!(x.get_in_hash(), format!("{:x}", hasher.finalize()));
 
 		let mut reader = FlacBlockReader::new(selector);
 		let mut out_blocks = Vec::new();
@@ -545,112 +490,11 @@ mod tests {
 		return out_blocks;
 	}
 
-	fn test_identical(
-		test_file_path: &Path,
-		fragment_size_range: Option<std::ops::Range<usize>>,
-		in_hash: &str,
-	) {
-		let selector = FlacBlockSelector {
-			pick_streaminfo: true,
-			pick_padding: true,
-			pick_application: true,
-			pick_seektable: true,
-			pick_vorbiscomment: true,
-			pick_cuesheet: true,
-			pick_picture: true,
-			pick_audio: true,
-		};
+	fn test_identical(test_name: &str, fragment_size_range: Option<Range<usize>>) {
+		let x = MANIFEST.iter().find(|x| x.get_name() == test_name).unwrap();
 
-		let out_blocks = read_file(test_file_path, fragment_size_range, selector, in_hash);
-
-		let mut out = Vec::new();
-		out.write_all(&[0x66, 0x4C, 0x61, 0x43]).unwrap();
-
-		for i in 0..out_blocks.len() {
-			let b = &out_blocks[i];
-			let is_last = if i == out_blocks.len() - 1 {
-				false
-			} else {
-				!matches!(b, FlacBlock::AudioFrame(_))
-					&& matches!(&out_blocks[i + 1], FlacBlock::AudioFrame(_))
-			};
-
-			match b {
-				FlacBlock::Streaminfo(i) => i.encode(is_last, &mut out).unwrap(),
-				FlacBlock::CueSheet(c) => c.encode(is_last, &mut out).unwrap(),
-				FlacBlock::SeekTable(s) => s.encode(is_last, &mut out).unwrap(),
-				FlacBlock::Application(a) => a.encode(is_last, &mut out).unwrap(),
-				FlacBlock::Padding(p) => p.encode(is_last, &mut out).unwrap(),
-				FlacBlock::Picture(p) => p.encode(is_last, &mut out).unwrap(),
-				FlacBlock::VorbisComment(v) => v.encode(is_last, &mut out).unwrap(),
-				FlacBlock::AudioFrame(a) => a.encode(&mut out).unwrap(),
-			}
-		}
-
-		let mut hasher = Sha256::new();
-		hasher.update(out);
-		let result = format!("{:x}", hasher.finalize());
-		assert_eq!(result, in_hash, "Output hash doesn't match");
-	}
-
-	fn test_strip(
-		test_file_path: &Path,
-		fragment_size_range: Option<std::ops::Range<usize>>,
-		in_hash: &str,
-		out_hash: &str,
-	) {
 		let out_blocks = read_file(
-			test_file_path,
-			fragment_size_range,
-			FlacBlockSelector {
-				pick_streaminfo: true,
-				pick_padding: false,
-				pick_application: false,
-				pick_seektable: true,
-				pick_vorbiscomment: false,
-				pick_cuesheet: true,
-				pick_picture: false,
-				pick_audio: true,
-			},
-			in_hash,
-		);
-
-		let mut out = Vec::new();
-		out.write_all(&[0x66, 0x4C, 0x61, 0x43]).unwrap();
-
-		for i in 0..out_blocks.len() {
-			let b = &out_blocks[i];
-			let is_last = if i == out_blocks.len() - 1 {
-				false
-			} else {
-				!matches!(b, FlacBlock::AudioFrame(_))
-					&& matches!(&out_blocks[i + 1], FlacBlock::AudioFrame(_))
-			};
-
-			match b {
-				FlacBlock::Streaminfo(i) => i.encode(is_last, &mut out).unwrap(),
-				FlacBlock::CueSheet(c) => c.encode(is_last, &mut out).unwrap(),
-				FlacBlock::SeekTable(s) => s.encode(is_last, &mut out).unwrap(),
-				FlacBlock::AudioFrame(a) => a.encode(&mut out).unwrap(),
-				_ => unreachable!(),
-			}
-		}
-
-		let mut hasher = Sha256::new();
-		hasher.update(out);
-		let result = format!("{:x}", hasher.finalize());
-		assert_eq!(result, out_hash, "Stripped FLAC hash doesn't match");
-	}
-
-	fn test_blockread(
-		test_file_path: &Path,
-		fragment_size_range: Option<std::ops::Range<usize>>,
-		in_hash: &str,
-		result: &[FlacBlockOutput],
-		audio_hash: &str,
-	) {
-		let out_blocks = read_file(
-			test_file_path,
+			test_name,
 			fragment_size_range,
 			FlacBlockSelector {
 				pick_streaminfo: true,
@@ -662,11 +506,49 @@ mod tests {
 				pick_picture: true,
 				pick_audio: true,
 			},
-			in_hash,
+		);
+
+		let mut out = Vec::new();
+		out.write_all(&[0x66, 0x4C, 0x61, 0x43]).unwrap();
+
+		for i in 0..out_blocks.len() {
+			let b = &out_blocks[i];
+			let is_last = if i == out_blocks.len() - 1 {
+				false
+			} else {
+				!matches!(b, FlacBlock::AudioFrame(_))
+					&& matches!(&out_blocks[i + 1], FlacBlock::AudioFrame(_))
+			};
+
+			b.encode(is_last, &mut out).unwrap();
+		}
+
+		let mut hasher = Sha256::new();
+		hasher.update(out);
+		let result = format!("{:x}", hasher.finalize());
+		assert_eq!(result, x.get_in_hash(), "Output hash doesn't match");
+	}
+
+	fn test_blockread(test_name: &str, fragment_size_range: Option<Range<usize>>) {
+		let x = MANIFEST.iter().find(|x| x.get_name() == test_name).unwrap();
+
+		let out_blocks = read_file(
+			test_name,
+			fragment_size_range,
+			FlacBlockSelector {
+				pick_streaminfo: true,
+				pick_padding: true,
+				pick_application: true,
+				pick_seektable: true,
+				pick_vorbiscomment: true,
+				pick_cuesheet: true,
+				pick_picture: true,
+				pick_audio: true,
+			},
 		);
 
 		assert_eq!(
-			result.len(),
+			x.get_blocks().len(),
 			out_blocks
 				.iter()
 				.filter(|x| !matches!(*x, FlacBlock::AudioFrame(_)))
@@ -674,14 +556,12 @@ mod tests {
 			"Number of blocks didn't match"
 		);
 
-		println!("{:?}", out_blocks.len());
-
 		let mut audio_data_hasher = Sha256::new();
 		let mut result_i = 0;
 
 		for b in out_blocks {
 			match b {
-				FlacBlock::Streaminfo(s) => match &result[result_i] {
+				FlacBlock::Streaminfo(s) => match &x.get_blocks()[result_i] {
 					FlacBlockOutput::Streaminfo {
 						min_block_size,
 						max_block_size,
@@ -709,7 +589,7 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::Application(a) => match &result[result_i] {
+				FlacBlock::Application(a) => match &x.get_blocks()[result_i] {
 					FlacBlockOutput::Application {
 						application_id,
 						hash,
@@ -731,7 +611,7 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::CueSheet(c) => match &result[result_i] {
+				FlacBlock::CueSheet(c) => match &x.get_blocks()[result_i] {
 					FlacBlockOutput::CueSheet { hash } => {
 						assert_eq!(*hash, {
 							let mut hasher = Sha256::new();
@@ -742,14 +622,14 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::Padding(p) => match &result[result_i] {
+				FlacBlock::Padding(p) => match &x.get_blocks()[result_i] {
 					FlacBlockOutput::Padding { size } => {
 						assert_eq!(*size, p.size.try_into().unwrap());
 					}
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::SeekTable(t) => match &result[result_i] {
+				FlacBlock::SeekTable(t) => match &x.get_blocks()[result_i] {
 					FlacBlockOutput::Seektable { hash } => {
 						assert_eq!(*hash, {
 							let mut hasher = Sha256::new();
@@ -760,7 +640,7 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::Picture(p) => match &result[result_i] {
+				FlacBlock::Picture(p) => match &x.get_blocks()[result_i] {
 					FlacBlockOutput::Picture {
 						picture_type,
 						mime,
@@ -792,7 +672,7 @@ mod tests {
 				FlacBlock::AudioFrame(data) => {
 					data.encode(&mut audio_data_hasher).unwrap();
 
-					if result_i != result.len() {
+					if result_i != x.get_blocks().len() {
 						panic!("There are metadata blocks betwen audio frames!")
 					}
 
@@ -805,91 +685,52 @@ mod tests {
 		}
 
 		// Check audio data hash
-		assert_eq!(audio_hash, format!("{:x}", audio_data_hasher.finalize()));
+		assert_eq!(
+			x.get_audio_hash(),
+			format!("{:x}", audio_data_hasher.finalize())
+		);
 	}
 
 	// Helper macros to generate tests
-	macro_rules! test_success {
-		(
-					// The name of this test
-					$file_name:ident,
-
-					// The path to the test file
-					$file_path:expr,
-
-					// SHA-256 hash of unmodified source file
-					$in_hash:literal,
-
-					// The blocks we expect to find
-					$result:expr,
-
-					// The expected hash of audio data
-					//
-					// Get this hash by running `metaflac --remove-all --dont-use-padding`,
-					// then by manually deleting remaining headers in a hex editor
-					// (Remember that the sync sequence is 0xFF 0xF8)
-					$audio_hash:literal,
-
-					// The hash of this file with tags stripped
-					$stripped_hash:literal
-				) => {
+	macro_rules! gen_tests {
+		( $test_name:ident ) => {
 			paste! {
 				#[test]
-				pub fn [<blockread_small_ $file_name>]() {
+				pub fn [<blockread_small_ $test_name>]() {
 					for _ in 0..5 {
 						test_blockread(
-							$file_path,
+							stringify!($test_name),
 							Some(1..256),
-							$in_hash,
-							$result,
-							$audio_hash
 						)
 					}
 				}
 
 				#[test]
-				pub fn [<blockread_large_ $file_name>]() {
+				pub fn [<blockread_large_ $test_name>]() {
 					for _ in 0..5 {
 						test_blockread(
-							$file_path,
+							stringify!($test_name),
 							Some(5_000..100_000),
-							$in_hash,
-							$result,
-							$audio_hash
 						)
 					}
 				}
 
 				#[test]
-				pub fn [<blockread_strip_ $file_name>]() {
-					for _ in 0..5 {
-						test_strip(
-							$file_path,
-							Some(5_000..100_000),
-							$in_hash,
-							$stripped_hash
-						)
-					}
-				}
-
-				#[test]
-				pub fn [<identical_small_ $file_name>]() {
+				pub fn [<identical_small_ $test_name>]() {
 					for _ in 0..5 {
 						test_identical(
-							$file_path,
+							stringify!($test_name),
 							Some(1..256),
-							$in_hash
 						)
 					}
 				}
 
 				#[test]
-				pub fn [<identical_large_ $file_name>]() {
+				pub fn [<identical_large_ $test_name>]() {
 					for _ in 0..5 {
 						test_identical(
-							$file_path,
+							stringify!($test_name),
 							Some(5_000..100_000),
-							$in_hash
 						)
 					}
 				}
@@ -897,503 +738,20 @@ mod tests {
 		};
 	}
 
-	test_success!(
-		subset_45,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/45 - no total number of samples set.flac"),
-		"336a18eb7a78f7fc0ab34980348e2895bc3f82db440a2430d9f92e996f889f9a",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 907,
-				max_frame_size: 8053,
-				sample_rate: 48000,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 0,
-				md5_signature: "c41ae3b82c35d8f5c3dab1729f948fde"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" }
-		],
-		"3fb3482ebc1724559bdd57f34de472458563d78a676029614e76e32b5d2b8816",
-		"31631ac227ebe2689bac7caa1fa964b47e71a9f1c9c583a04ea8ebd9371508d0"
-	);
-
-	test_success!(
-		subset_46,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/46 - no min-max framesize set.flac"),
-		"9dc39732ce17815832790901b768bb50cd5ff0cd21b28a123c1cabc16ed776cc",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 0,
-				max_frame_size: 0,
-				sample_rate: 48000,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 282866,
-				md5_signature: "fd131e6ebc75251ed83f8f4c07df36a4"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" }
-		],
-		"a1eed422462b386a932b9eb3dff3aea3687b41eca919624fb574aadb7eb50040",
-		"9e57cd77f285fc31f87fa4e3a31ab8395d68d5482e174c8e0d0bba9a0c20ba27"
-	);
-
-	test_success!(
-		subset_47,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/47 - only STREAMINFO.flac"),
-		"9a62c79f634849e74cb2183f9e3a9bd284f51e2591c553008d3e6449967eef85",
-		&[FlacBlockOutput::Streaminfo {
-			min_block_size: 4096,
-			max_block_size: 4096,
-			min_frame_size: 4747,
-			max_frame_size: 7034,
-			sample_rate: 48000,
-			channels: 2,
-			bits_per_sample: 16,
-			total_samples: 232608,
-			md5_signature: "bba30c5f70789910e404b7ac727c3853"
-		},],
-		"5ee1450058254087f58c91baf0f70d14bde8782cf2dc23c741272177fe0fce6e",
-		"9a62c79f634849e74cb2183f9e3a9bd284f51e2591c553008d3e6449967eef85"
-	);
-
-	test_success!(
-		subset_48,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/48 - Extremely large SEEKTABLE.flac"),
-		"4417aca6b5f90971c50c28766d2f32b3acaa7f9f9667bd313336242dae8b2531",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 2445,
-				max_frame_size: 7364,
-				sample_rate: 48000,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 259884,
-				md5_signature: "97a0574290237563fbaa788ad77d2cdf"
-			},
-			FlacBlockOutput::Seektable {
-				hash: "21ca2184ae22fe26b690fd7cbd8d25fcde1d830ff6e5796ced4107bab219d7c0"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" }
-		],
-		"c2d691f2c4c986fe3cd5fd7864d9ba9ce6dd68a4ffc670447f008434b13102c2",
-		"abc9a0c40a29c896bc6e1cc0b374db1c8e157af716a5a3c43b7db1591a74c4e8"
-	);
-
-	test_success!(
-		subset_49,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/49 - Extremely large PADDING.flac"),
-		"7bc44fa2754536279fde4f8fb31d824f43b8d0b3f93d27d055d209682914f20e",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 1353,
-				max_frame_size: 7117,
-				sample_rate: 48000,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 258939,
-				md5_signature: "6e78f221caaaa5d570a53f1714d84ded"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" },
-			FlacBlockOutput::Padding { size: 16777215 }
-		],
-		"5007be7109b28b0149d1b929d2a0e93a087381bd3e68cf2a3ef78ea265ea20c3",
-		"a2283bbacbc4905ad3df1bf9f43a0ea7aa65cf69523d84a7dd8eb54553cc437e"
-	);
-
-	test_success!(
-		subset_50,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/50 - Extremely large PICTURE.flac"),
-		"1f04f237d74836104993a8072d4223e84a5d3bd76fbc44555c221c7e69a23594",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 5099,
-				max_frame_size: 7126,
-				sample_rate: 48000,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 265617,
-				md5_signature: "82164e4da30ed43b47e6027cef050648"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" },
-			FlacBlockOutput::Picture {
-				picture_type: PictureType::FrontCover,
-				mime: MimeType::Jpg,
-				description: "",
-				width: 3200,
-				height: 2252,
-				bit_depth: 24,
-				color_count: 0,
-				img_data: "b78c3a48fde4ebbe8e4090e544caeb8f81ed10020d57cc50b3265f9b338d8563",
-			},
-		],
-		"9778b25c5d1f56cfcd418e550baed14f9d6a4baf29489a83ed450fbebb28de8c",
-		"20df129287d94f9ae5951b296d7f65fcbed92db423ba7db4f0d765f1f0a7e18c"
-	);
-
-	test_success!(
-		subset_51,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/51 - Extremely large VORBISCOMMENT.flac"),
-		"033160e8124ed287b0b5d615c94ac4139477e47d6e4059b1c19b7141566f5ef9",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 4531,
-				max_frame_size: 7528,
-				sample_rate: 48000,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 289972,
-				md5_signature: "5ff622c88f8dd9bc201a6a541f3890d3"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" }
-		],
-		"76419865d10eb22a74f020423a4e515e800f0177441676afd0418557c2d76c36",
-		"c0ca6c6099b5d9ec53d6bb370f339b2b1570055813a6cd3616fac2db83a2185e"
-	);
-
-	test_success!(
-		subset_52,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/52 - Extremely large APPLICATION.flac"),
-		"0e45a4f8dbef15cbebdd8dfe690d8ae60e0c6abb596db1270a9161b62a7a3f1c",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 3711,
-				max_frame_size: 7056,
-				sample_rate: 48000,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 317876,
-				md5_signature: "eb7140266bc194527488c21ab49bc47b"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" },
-			FlacBlockOutput::Application {
-				application_id: 0x74657374,
-				hash: "cfc0b8969e4ba6bd507999ba89dea2d274df69d94749d6ae3cf117a7780bba09"
-			}
-		],
-		"89ad1a5c86a9ef35d33189c81c8a90285a23964a13f8325bf2c02043e8c83d63",
-		"cc4a0afb95ec9bcde8ee33f13951e494dc4126a9a3a668d79c80ce3c14a3acd9"
-	);
-
-	test_success!(
-		subset_53,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/53 - CUESHEET with very many indexes.flac"),
-		"513fad18578f3225fae5de1bda8f700415be6fd8aa1e7af533b5eb796ed2d461",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 2798,
-				max_frame_size: 7408,
-				sample_rate: 48000,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 2910025,
-				md5_signature: "d11f3717d628cfe6a90a10facc478340"
-			},
-			FlacBlockOutput::Seektable {
-				hash: "18629e1b874cb27e4364da72fb3fec2141eb0618baae4a1cee6ed09562aa00a8"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" },
-			FlacBlockOutput::CueSheet {
-				hash: "70638a241ca06881a52c0a18258ea2d8946a830137a70479c49746d2a1344bdd"
-			},
-		],
-		"e993070f2080f2c598be1d61d208e9187a55ddea4be1d2ed1f8043e7c03e97a5",
-		"57c5b945e14c6fcd06916d6a57e5b036d67ff35757893c24ed872007aabbcf4b"
-	);
-
-	test_success!(
-		subset_54,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/54 - 1000x repeating VORBISCOMMENT.flac"),
-		"b68dc6644784fac35aa07581be8603a360d1697e07a2265d7eb24001936fd247",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 1694,
-				max_frame_size: 7145,
-				sample_rate: 48000,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 433151,
-				md5_signature: "1d950e92b357dedbc5290a7f2210a2ef"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" }
-		],
-		"4721b784058410c6263f73680079e9a71aee914c499afcf5580c121fce00e874",
-		"5c8b92b83c0fa17821add38263fa323d1c66cfd2ee57aca054b50bd05b9df5c2"
-	);
-
-	test_success!(
-		subset_55,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/55 - file 48-53 combined.flac"),
-		"a756b460df79b7cc492223f80cda570e4511f2024e5fa0c4d505ba51b86191f6",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 3103,
-				max_frame_size: 11306,
-				sample_rate: 44100,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 2646000,
-				md5_signature: "2c78978cbbff11daac296fee97c3e061"
-			},
-			FlacBlockOutput::Seektable {
-				hash: "58dfa7bac4974edf1956b068f5aa72d1fbd9301c36a3085a8a57b9db11a2dbf0"
-			},
-			FlacBlockOutput::VorbisComment { hash: "todo" },
-			FlacBlockOutput::CueSheet {
-				hash: "db11916c8f5f39648256f93f202e00ff8d73d7d96b62f749b4c77cf3ea744f90"
-			},
-			FlacBlockOutput::Application {
-				application_id: 0x74657374,
-				hash: "6088a557a1bad7bfa5ebf79a324669fbf4fa2f8e708f5487305dfc5b2ff2249a"
-			},
-			FlacBlockOutput::Picture {
-				picture_type: PictureType::FrontCover,
-				mime: MimeType::Jpg,
-				description: "",
-				width: 3200,
-				height: 2252,
-				bit_depth: 24,
-				color_count: 0,
-				img_data: "b78c3a48fde4ebbe8e4090e544caeb8f81ed10020d57cc50b3265f9b338d8563",
-			},
-			FlacBlockOutput::Padding { size: 16777215 }
-		],
-		"f1285b77cec7fa9a0979033244489a9d06b8515b2158e9270087a65a4007084d",
-		"401038fce06aff5ebdc7a5f2fc01fa491cbf32d5da9ec99086e414b2da3f8449"
-	);
-
-	test_success!(
-		subset_56,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/56 - JPG PICTURE.flac"),
-		"5cebe7a3710cf8924bd2913854e9ca60b4cd53cfee5a3af0c3c73fddc1888963",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 3014,
-				max_frame_size: 7219,
-				sample_rate: 44100,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 220026,
-				md5_signature: "5b0e898d9c2626d0c28684f5a586813f"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" },
-			FlacBlockOutput::Picture {
-				picture_type: PictureType::FrontCover,
-				mime: MimeType::Jpg,
-				description: "",
-				width: 1920,
-				height: 1080,
-				bit_depth: 24,
-				color_count: 0,
-				img_data: "7a3ed658f80f433eee3914fff451ea0312807de0af709e37cc6a4f3f6e8a47c6",
-			},
-		],
-		"ccfe90b0f15cd9662f7a18f40cd4c347538cf8897a08228e75351206f7804573",
-		"31a38d59db2010790b7abf65ec0cc03f2bbe1fed5952bc72bee4ca4d0c92e79f"
-	);
-
-	test_success!(
-		subset_57,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/57 - PNG PICTURE.flac"),
-		"c6abff7f8bb63c2821bd21dd9052c543f10ba0be878e83cb419c248f14f72697",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 463,
-				max_frame_size: 6770,
-				sample_rate: 44100,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 221623,
-				md5_signature: "ad16957bcf8d5a3ec8caf261e43d5ff7"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" },
-			FlacBlockOutput::Picture {
-				picture_type: PictureType::FrontCover,
-				mime: MimeType::Png,
-				description: "",
-				width: 960,
-				height: 540,
-				bit_depth: 24,
-				color_count: 0,
-				img_data: "d804e5c7b9ee5af694b5e301c6cdf64508ff85997deda49d2250a06a964f10b2",
-			},
-		],
-		"39bf9981613ac2f35d253c0c21b76a48abba7792c27da5dbf23e6021e2e6673f",
-		"3328201dd56289b6c81fa90ff26cb57fa9385cb0db197e89eaaa83efd79a58b1"
-	);
-
-	test_success!(
-		subset_58,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/58 - GIF PICTURE.flac"),
-		"7c2b1a963a665847167a7275f9924f65baeb85c21726c218f61bf3f803f301c8",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 2853,
-				max_frame_size: 6683,
-				sample_rate: 44100,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 219826,
-				md5_signature: "7c1810602a7db96d7a48022ac4aa495c"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" },
-			FlacBlockOutput::Picture {
-				picture_type: PictureType::FrontCover,
-				mime: MimeType::Unknown("image/gif".into()),
-				description: "",
-				width: 1920,
-				height: 1080,
-				bit_depth: 24,
-				color_count: 32,
-				img_data: "e33cccc1d799eb2bb618f47be7099cf02796df5519f3f0e1cc258606cf6e8bb1",
-			},
-		],
-		"30e3292e9f56cf88658eeadfdec8ad3a440690ce6d813e1b3374f60518c8e0ae",
-		"4cd771e27870e2a586000f5b369e0426183a521b61212302a2f5802b046910b2"
-	);
-
-	test_success!(
-		subset_59,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_subset/59 - AVIF PICTURE.flac"),
-		"7395d02bf8d9533dc554cce02dee9de98c77f8731a45f62d0a243bd0d6f9a45c",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 153,
-				max_frame_size: 7041,
-				sample_rate: 44100,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 221423,
-				md5_signature: "d354246011ca204159c06f52cad5f634"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" },
-			FlacBlockOutput::Picture {
-				picture_type: PictureType::FrontCover,
-				mime: MimeType::Unknown("image/avif".into()),
-				description: "",
-				width: 1920,
-				height: 1080,
-				bit_depth: 24,
-				color_count: 0,
-				img_data: "a431123040c74f75096237f20544a7fb56b4eb71ddea62efa700b0a016f5b2fc",
-			},
-		],
-		"b208c73d274e65b27232bfffbfcbcf4805ee3cbc9cfbf7d2104db8f53370273b",
-		"d5215e16c6b978fc2c3e6809e1e78981497cb8514df297c5169f3b4a28fd875c"
-	);
-
-	test_success!(
-		custom_01,
-		&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("tests/files/flac_custom/01 - many images.flac"),
-		"58ee39efe51e37f51b4dedeee8b28bed88ac1d4a70ba0e3a326ef7e94f0ebf1b",
-		&[
-			FlacBlockOutput::Streaminfo {
-				min_block_size: 4096,
-				max_block_size: 4096,
-				min_frame_size: 5099,
-				max_frame_size: 7126,
-				sample_rate: 48000,
-				channels: 2,
-				bits_per_sample: 16,
-				total_samples: 265617,
-				md5_signature: "82164e4da30ed43b47e6027cef050648"
-			},
-			FlacBlockOutput::VorbisComment { hash: "idk" },
-			FlacBlockOutput::Picture {
-				picture_type: PictureType::FrontCover,
-				mime: MimeType::Jpg,
-				description: "",
-				width: 3200,
-				height: 2252,
-				bit_depth: 24,
-				color_count: 0,
-				img_data: "b78c3a48fde4ebbe8e4090e544caeb8f81ed10020d57cc50b3265f9b338d8563",
-			},
-			FlacBlockOutput::Picture {
-				picture_type: PictureType::ABrightColoredFish,
-				mime: MimeType::Jpg,
-				description: "lorem",
-				width: 1920,
-				height: 1080,
-				bit_depth: 24,
-				color_count: 0,
-				img_data: "7a3ed658f80f433eee3914fff451ea0312807de0af709e37cc6a4f3f6e8a47c6",
-			},
-			FlacBlockOutput::Picture {
-				picture_type: PictureType::OtherFileIcon,
-				mime: MimeType::Png,
-				description: "ipsum",
-				width: 960,
-				height: 540,
-				bit_depth: 24,
-				color_count: 0,
-				img_data: "d804e5c7b9ee5af694b5e301c6cdf64508ff85997deda49d2250a06a964f10b2",
-			},
-			FlacBlockOutput::Picture {
-				picture_type: PictureType::Lyricist,
-				mime: MimeType::from("image/gif"),
-				description: "dolor",
-				width: 1920,
-				height: 1080,
-				bit_depth: 24,
-				color_count: 32,
-				img_data: "e33cccc1d799eb2bb618f47be7099cf02796df5519f3f0e1cc258606cf6e8bb1",
-			},
-			FlacBlockOutput::Picture {
-				picture_type: PictureType::BackCover,
-				mime: MimeType::from("image/avif"),
-				description: "est",
-				width: 1920,
-				height: 1080,
-				bit_depth: 24,
-				color_count: 0,
-				img_data: "a431123040c74f75096237f20544a7fb56b4eb71ddea62efa700b0a016f5b2fc",
-			}
-		],
-		"9778b25c5d1f56cfcd418e550baed14f9d6a4baf29489a83ed450fbebb28de8c",
-		"20df129287d94f9ae5951b296d7f65fcbed92db423ba7db4f0d765f1f0a7e18c"
-	);
+	gen_tests!(subset_45);
+	gen_tests!(subset_46);
+	gen_tests!(subset_47);
+	gen_tests!(subset_48);
+	gen_tests!(subset_49);
+	gen_tests!(subset_50);
+	gen_tests!(subset_51);
+	gen_tests!(subset_52);
+	gen_tests!(subset_53);
+	gen_tests!(subset_54);
+	gen_tests!(subset_55);
+	gen_tests!(subset_56);
+	gen_tests!(subset_57);
+	gen_tests!(subset_58);
+	gen_tests!(subset_59);
+	gen_tests!(custom_01);
 }
