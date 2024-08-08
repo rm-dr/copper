@@ -3,7 +3,7 @@
 use std::{error::Error, fmt::Display};
 
 use ufo_audiofile::flac::errors::FlacError;
-use ufo_metadb::errors::MetaDbError;
+use ufo_database::metadb::errors::MetaDbError;
 
 /// An error we encountered while running a pipeline
 #[derive(Debug)]

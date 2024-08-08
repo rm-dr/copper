@@ -8,13 +8,15 @@ use std::{
 	path::PathBuf,
 	sync::{Arc, Mutex},
 };
-use ufo_blobstore::fs::store::FsBlobStore;
 use walkdir::WalkDir;
 
-use ufo_metadb::{
-	api::{AttributeOptions, MetaDb, MetaDbNew},
-	data::{HashType, MetaDbDataStub},
-	sqlite::db::SQLiteMetaDB,
+use ufo_database::{
+	blobstore::fs::store::FsBlobStore,
+	metadb::{
+		api::{AttributeOptions, UFODb, UFODbNew},
+		data::{HashType, MetaDbDataStub},
+		sqlite::db::SQLiteDB,
+	},
 };
 use ufo_pipeline::{
 	api::PipelineNodeState,
@@ -87,14 +89,14 @@ fn main() -> Result<()> {
 				std::fs::create_dir(&db_root).unwrap();
 			}
 
-			SQLiteMetaDB::<FsBlobStore>::create(&db_root).unwrap();
+			SQLiteDB::<FsBlobStore>::create(&db_root).unwrap();
 
 			let pipeline_dir = db_root.join("pipelines");
 			std::fs::create_dir(&pipeline_dir).unwrap();
 
 			// Everything below this point should be done in UI
 			{
-				let mut db = SQLiteMetaDB::<FsBlobStore>::open(&db_root).unwrap();
+				let mut db = SQLiteDB::<FsBlobStore>::open(&db_root).unwrap();
 
 				let x = db.add_class("AudioFile").unwrap();
 				let cover_art = db.add_class("CoverArt").unwrap();
@@ -176,7 +178,7 @@ fn main() -> Result<()> {
 			args,
 			db_root,
 		} => {
-			let database = SQLiteMetaDB::open(&db_root).unwrap();
+			let database = SQLiteDB::open(&db_root).unwrap();
 
 			let ctx = UFOContext {
 				database: Arc::new(Mutex::new(database)),

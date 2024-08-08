@@ -36,11 +36,13 @@ impl ArcVecBuffer {
 		l
 	}
 
+	/*
 	/// Clear this buffer.
 	pub fn clear(&mut self) {
 		self.buffer.clear();
 		self.cursor = 0;
 	}
+	*/
 }
 
 impl Read for ArcVecBuffer {

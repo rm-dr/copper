@@ -1,7 +1,10 @@
 use crate::{
-	api::{AttrHandle, AttributeOptions, ClassHandle, ItemHandle, MetaDb, MetaDbNew},
-	data::{MetaDbData, MetaDbDataStub},
-	errors::MetaDbError,
+	blobstore::api::{BlobHandle, BlobStore},
+	metadb::{
+		api::{AttrHandle, AttributeOptions, ClassHandle, ItemHandle, UFODb, UFODbNew},
+		data::{MetaDbData, MetaDbDataStub},
+		errors::MetaDbError,
+	},
 };
 
 use futures::executor::block_on;
@@ -11,9 +14,8 @@ use sqlx::{
 	query::Query, sqlite::SqliteArguments, Connection, Executor, Row, Sqlite, SqliteConnection,
 };
 use std::{iter, path::Path};
-use ufo_blobstore::api::{BlobHandle, BlobStore};
 
-pub struct SQLiteMetaDB<BlobStoreType: BlobStore> {
+pub struct SQLiteDB<BlobStoreType: BlobStore> {
 	/// The "large binary storage" backend
 	blobstore: BlobStoreType,
 
@@ -26,7 +28,7 @@ pub struct SQLiteMetaDB<BlobStoreType: BlobStore> {
 }
 
 // SQL helper functions
-impl<BlobStoreType: BlobStore> SQLiteMetaDB<BlobStoreType> {
+impl<BlobStoreType: BlobStore> SQLiteDB<BlobStoreType> {
 	fn get_table_name<'e, 'c, E>(executor: E, class: ClassHandle) -> Result<String, MetaDbError>
 	where
 		E: Executor<'c, Database = Sqlite>,
@@ -73,7 +75,7 @@ impl<BlobStoreType: BlobStore> SQLiteMetaDB<BlobStoreType> {
 	}
 }
 
-impl<BlobStoreType: BlobStore> MetaDbNew<BlobStoreType> for SQLiteMetaDB<BlobStoreType> {
+impl<BlobStoreType: BlobStore> UFODbNew<BlobStoreType> for SQLiteDB<BlobStoreType> {
 	fn create(db_root: &Path) -> Result<(), MetaDbError> {
 		// `db_root` must exist and be empty
 		if db_root.is_dir() {
@@ -92,7 +94,7 @@ impl<BlobStoreType: BlobStore> MetaDbNew<BlobStoreType> for SQLiteMetaDB<BlobSto
 
 		let mut conn = block_on(SqliteConnection::connect(&db_addr))?;
 
-		block_on(sqlx::query(include_str!("./init_db.sql")).execute(&mut conn)).unwrap();
+		block_on(sqlx::query(include_str!("./init.sql")).execute(&mut conn)).unwrap();
 
 		block_on(
 			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?, ?), (?, ?);")
@@ -122,7 +124,7 @@ impl<BlobStoreType: BlobStore> MetaDbNew<BlobStoreType> for SQLiteMetaDB<BlobSto
 	}
 }
 
-impl<BlobStoreType: BlobStore> MetaDb<BlobStoreType> for SQLiteMetaDB<BlobStoreType> {
+impl<BlobStoreType: BlobStore> UFODb<BlobStoreType> for SQLiteDB<BlobStoreType> {
 	fn new_blob(
 		&mut self,
 		mime: &ufo_util::mime::MimeType,

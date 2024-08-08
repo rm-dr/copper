@@ -1,9 +1,10 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, hash::Hash, path::Path};
-use ufo_blobstore::api::BlobStore;
 use ufo_util::mime::MimeType;
 
-use crate::{
+use crate::blobstore::api::BlobStore;
+
+use super::{
 	data::{MetaDbData, MetaDbDataStub},
 	errors::MetaDbError,
 };
@@ -90,7 +91,7 @@ impl From<u32> for AttrHandle {
 	}
 }
 
-pub trait MetaDbNew<BlobStoreType: BlobStore>
+pub trait UFODbNew<BlobStoreType: BlobStore>
 where
 	Self: Send + Sized,
 {
@@ -98,7 +99,7 @@ where
 	fn open(db_dir: &Path) -> Result<Self, MetaDbError>;
 }
 
-pub trait MetaDb<BlobStoreType: BlobStore>
+pub trait UFODb<BlobStoreType: BlobStore>
 where
 	Self: Send,
 {

@@ -8,11 +8,13 @@ use std::{
 
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
-use ufo_blobstore::fs::store::{FsBlobHandle, FsBlobStore, FsBlobWriter};
-use ufo_metadb::{
-	api::{AttrHandle, ClassHandle, MetaDb},
-	data::{MetaDbData, MetaDbDataStub},
-	errors::MetaDbError,
+use ufo_database::{
+	blobstore::fs::store::{FsBlobHandle, FsBlobStore, FsBlobWriter},
+	metadb::{
+		api::{AttrHandle, ClassHandle, UFODb},
+		data::{MetaDbData, MetaDbDataStub},
+		errors::MetaDbError,
+	},
 };
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
@@ -50,7 +52,7 @@ pub struct AddItemConfig {
 }
 
 pub struct AddItem {
-	db: Arc<Mutex<dyn MetaDb<FsBlobStore>>>,
+	db: Arc<Mutex<dyn UFODb<FsBlobStore>>>,
 	class: ClassHandle,
 	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
 	config: AddItemConfig,

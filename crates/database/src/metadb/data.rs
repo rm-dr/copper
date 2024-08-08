@@ -1,11 +1,12 @@
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
-use ufo_blobstore::fs::store::FsBlobHandle;
 use ufo_pipeline::api::{PipelineData, PipelineDataStub};
 use ufo_util::mime::MimeType;
 
-use crate::api::{ClassHandle, ItemHandle};
+use crate::blobstore::fs::store::FsBlobHandle;
+
+use super::api::{ClassHandle, ItemHandle};
 
 /// Bits of data inside a metadata db.
 #[derive(Debug, Clone)]

@@ -2365,8 +2365,7 @@ dependencies = [
  "smartstring",
  "tracing",
  "tracing-subscriber",
- "ufo-blobstore",
- "ufo-metadb",
+ "ufo-database",
  "ufo-pipeline",
  "ufo-pipeline-nodes",
  "ufo-util",
@@ -2385,16 +2384,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ufo-blobstore"
-version = "0.1.0"
-dependencies = [
- "smartstring",
- "ufo-pipeline",
- "ufo-util",
-]
-
-[[package]]
-name = "ufo-metadb"
+name = "ufo-database"
 version = "0.1.0"
 dependencies = [
  "futures",
@@ -2402,7 +2392,6 @@ dependencies = [
  "serde",
  "smartstring",
  "sqlx",
- "ufo-blobstore",
  "ufo-pipeline",
  "ufo-util",
 ]
@@ -2433,8 +2422,7 @@ dependencies = [
  "sha2",
  "smartstring",
  "ufo-audiofile",
- "ufo-blobstore",
- "ufo-metadb",
+ "ufo-database",
  "ufo-pipeline",
  "ufo-util",
 ]

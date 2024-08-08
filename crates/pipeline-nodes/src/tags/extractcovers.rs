@@ -3,7 +3,7 @@ use std::{
 	sync::Arc,
 };
 use ufo_audiofile::flac::flac_read_pictures;
-use ufo_metadb::data::MetaDbDataStub;
+use ufo_database::metadb::data::MetaDbDataStub;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 
@@ -99,7 +99,7 @@ impl PipelineNode for ExtractCovers {
 }
 
 impl UFOStaticNode for ExtractCovers {
-	fn inputs() -> &'static [(&'static str, ufo_metadb::data::MetaDbDataStub)] {
+	fn inputs() -> &'static [(&'static str, MetaDbDataStub)] {
 		&[("data", MetaDbDataStub::Blob)]
 	}
 

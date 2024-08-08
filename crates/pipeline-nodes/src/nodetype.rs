@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use serde_with::serde_as;
 use ufo_audiofile::common::tagtype::TagType;
-use ufo_metadb::data::{HashType, MetaDbDataStub};
+use ufo_database::metadb::data::{HashType, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeStub},
 	labels::PipelinePortLabel,

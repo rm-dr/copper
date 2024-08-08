@@ -1,9 +1,11 @@
 use std::sync::{Arc, Mutex};
-use ufo_blobstore::fs::store::FsBlobStore;
-use ufo_metadb::{
-	api::{AttrHandle, ClassHandle, MetaDb},
-	data::MetaDbDataStub,
-	errors::MetaDbError,
+use ufo_database::{
+	blobstore::fs::store::FsBlobStore,
+	metadb::{
+		api::{AttrHandle, ClassHandle, UFODb},
+		data::MetaDbDataStub,
+		errors::MetaDbError,
+	},
 };
 use ufo_pipeline::{
 	api::{PipelineData, PipelineNode, PipelineNodeState},
@@ -15,7 +17,7 @@ use crate::{
 };
 
 pub struct FindItem {
-	db: Arc<Mutex<dyn MetaDb<FsBlobStore>>>,
+	db: Arc<Mutex<dyn UFODb<FsBlobStore>>>,
 	class: ClassHandle,
 	by_attr: AttrHandle,
 	attr_type: MetaDbDataStub,

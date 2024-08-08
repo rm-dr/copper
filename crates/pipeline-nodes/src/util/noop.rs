@@ -1,4 +1,4 @@
-use ufo_metadb::data::MetaDbDataStub;
+use ufo_database::metadb::data::MetaDbDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,

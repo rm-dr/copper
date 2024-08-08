@@ -1,5 +1,5 @@
 [package]
-name = "ufo-blobstore"
+name = "ufo-database"
 description = "TODO"
 categories = { workspace = true }
 keywords = { workspace = true }
@@ -20,4 +20,9 @@ workspace = true
 ufo-util = { workspace = true }
 ufo-pipeline = { workspace = true }
 
+serde = { workspace = true }
 smartstring = { workspace = true }
+futures = { workspace = true }
+itertools = { workspace = true }
+
+sqlx = { version = "0.7", features = ["sqlite", "runtime-async-std"] }

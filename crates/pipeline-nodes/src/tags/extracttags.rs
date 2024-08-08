@@ -4,7 +4,7 @@ use std::{
 	sync::Arc,
 };
 use ufo_audiofile::{common::tagtype::TagType, flac::flac_read_tags};
-use ufo_metadb::data::MetaDbDataStub;
+use ufo_database::metadb::data::MetaDbDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,

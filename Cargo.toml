@@ -45,9 +45,8 @@ readme = ""
 
 [workspace.dependencies]
 ufo-pipeline = { path = "crates/pipeline" }
-ufo-blobstore = { path = "crates/blobstore" }
 ufo-pipeline-nodes = { path = "crates/pipeline-nodes" }
-ufo-metadb = { path = "crates/metadb" }
+ufo-database = { path = "crates/database" }
 ufo-util = { path = "crates/util" }
 ufo = { path = "crates/ufo" }
 ufo-audiofile = { path = "crates/audiofile" }

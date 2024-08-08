@@ -1,5 +1,5 @@
 use std::{fs::File, io::Read, path::PathBuf, sync::Arc};
-use ufo_metadb::data::MetaDbDataStub;
+use ufo_database::metadb::data::MetaDbDataStub;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 

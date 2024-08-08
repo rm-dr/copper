@@ -1,6 +1,6 @@
 //! Helper traits
 
-use ufo_metadb::data::MetaDbDataStub;
+use ufo_database::metadb::data::MetaDbDataStub;
 use ufo_pipeline::labels::PipelinePortLabel;
 
 use crate::{nodetype::UFONodeType, UFOContext};

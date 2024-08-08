@@ -8,7 +8,7 @@ use std::{
 use smartstring::{LazyCompact, SmartString};
 use ufo_util::mime::MimeType;
 
-use crate::api::{BlobHandle, BlobStore};
+use super::super::api::{BlobHandle, BlobStore};
 
 #[derive(Debug, Clone)]
 pub struct FsBlobHandle {

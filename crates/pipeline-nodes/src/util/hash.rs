@@ -1,6 +1,6 @@
 use sha2::{Digest, Sha256, Sha512};
 use std::{collections::VecDeque, sync::Arc};
-use ufo_metadb::data::{HashType, MetaDbDataStub};
+use ufo_database::metadb::data::{HashType, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortLabel,
