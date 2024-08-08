@@ -25,6 +25,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { Slider } from "../_slider/slider";
 import { NewClassButton } from "./parts/new_class";
 import { NewAttrButton } from "./parts/new_attr";
+import { DeleteAttrButton } from "./parts/del_attr";
 
 const Wrapper = (params: { children: ReactNode }) => {
 	return (
@@ -326,49 +327,6 @@ function RenameAttrButton(params: { class_name: string; attr_name: string }) {
 	);
 }
 
-function DeleteAttrButton(params: { class_name: string; attr_name: string }) {
-	return (
-		<Popover position="bottom" withArrow shadow="md" trapFocus width={"20rem"}>
-			<Popover.Target>
-				<ActionIcon
-					variant="light"
-					aria-label="Delete this attribute"
-					color="red"
-				>
-					<XIconTrash style={{ width: "70%", height: "70%" }} />
-				</ActionIcon>
-			</Popover.Target>
-			<Popover.Dropdown>
-				<div
-					style={{
-						marginBottom: "1rem",
-					}}
-				>
-					<Text c="red" size="sm">
-						This action will irreversably destroy data. Enter
-						<Text c="orange" span>{` ${params.attr_name} `}</Text>
-						below to confirm.
-					</Text>
-				</div>
-
-				<TextInput placeholder="Enter attr name" size="sm" />
-
-				<div style={{ marginTop: "1rem" }}>
-					<Button
-						variant="filled"
-						color="red"
-						fullWidth
-						size="xs"
-						leftSection={<XIconTrash />}
-					>
-						Confirm
-					</Button>
-				</div>
-			</Popover.Dropdown>
-		</Popover>
-	);
-}
-
 export function ItemClassList(params: {
 	dataset_details: DatasetDetails;
 	onUpdate: () => void;
@@ -413,6 +371,7 @@ export function ItemClassList(params: {
 								<>
 									<NewAttrButton
 										dataset_name={
+											// TODO: fix this type check
 											params.dataset_details.name === null
 												? "unreachable"
 												: params.dataset_details.name
@@ -442,8 +401,15 @@ export function ItemClassList(params: {
 													attr_name={attr_name}
 												/>
 												<DeleteAttrButton
+													dataset_name={
+														// TODO: fix this type check
+														params.dataset_details.name === null
+															? "unreachable"
+															: params.dataset_details.name
+													}
 													class_name={name}
 													attr_name={attr_name}
+													onSuccess={params.onUpdate}
 												/>
 											</>
 										}

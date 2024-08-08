@@ -289,8 +289,51 @@ impl Metastore for LocalDataset {
 		Ok(u32::try_from(id).unwrap().into())
 	}
 
-	fn del_attr(&self, _attr: AttrHandle) -> Result<(), MetastoreError> {
-		unimplemented!()
+	fn del_attr(&self, attr: AttrHandle) -> Result<(), MetastoreError> {
+		// Start transaction
+		let mut conn_lock = self.conn.lock().unwrap();
+		let mut t =
+			block_on(conn_lock.begin()).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
+		// Get this attributes' class
+		let class_id: ClassHandle = {
+			let res = block_on(
+				sqlx::query("SELECT class_id FROM meta_attributes WHERE id=?;")
+					.bind(u32::from(attr))
+					.fetch_one(&mut *t),
+			);
+
+			match res {
+				Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
+				Ok(res) => res.get::<u32, _>("class_id").into(),
+			}
+		};
+
+		// Get the table we want to modify
+		let table_name = Self::get_table_name(&mut *t, class_id)?;
+		let col_name = format!("attr_{}", u32::from(attr));
+
+		// Delete attribute metadata
+		if let Err(e) = block_on(
+			sqlx::query("DELETE FROM meta_attributes WHERE id=?;")
+				.bind(u32::from(attr))
+				.execute(&mut *t),
+		) {
+			return Err(MetastoreError::DbError(Box::new(e)));
+		};
+
+		// Delete attribute column
+		let q_str = format!("ALTER TABLE \"{table_name}\" DROP COLUMN \"{col_name}\";");
+		if let Err(e) = block_on(sqlx::query(&q_str).execute(&mut *t)) {
+			return Err(MetastoreError::DbError(Box::new(e)));
+		};
+
+		// Finish
+		if let Err(e) = block_on(t.commit()) {
+			return Err(MetastoreError::DbError(Box::new(e)));
+		};
+
+		return Ok(());
 	}
 
 	fn del_class(&self, _class: ClassHandle) -> Result<(), MetastoreError> {

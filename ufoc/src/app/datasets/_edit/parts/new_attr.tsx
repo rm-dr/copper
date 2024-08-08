@@ -8,13 +8,13 @@ import {
 	TextInput,
 } from "@mantine/core";
 import { useState } from "react";
+import { ButtonPopover } from "./popover";
 
 export function NewAttrButton(params: {
 	dataset_name: string;
 	class_name: string;
 	onSuccess: () => void;
 }) {
-	const [opened, setOpened] = useState(false);
 	const [isLoading, setLoading] = useState(false);
 
 	const [errorMessage, setErrorMessage] = useState<{
@@ -23,186 +23,160 @@ export function NewAttrButton(params: {
 		response: string | null;
 	}>({ name: null, type: null, response: null });
 
+	const [opened, setOpened] = useState(false);
 	const [newAttrName, setNewAttrName] = useState("");
 	const [newAttrType, setNewAttrType] = useState<string | null>(null);
 
-	const reset = () => {
-		// Reset on change
-		setLoading(false);
-		setNewAttrName("");
-		setErrorMessage({
-			name: null,
-			type: null,
-			response: null,
-		});
-	};
-
 	return (
-		<Popover
-			position="bottom"
-			withArrow
-			shadow="md"
-			trapFocus
-			width={"20rem"}
-			opened={opened}
-			onChange={(e) => {
-				setOpened(e);
-				reset();
+		<ButtonPopover
+			color={"green"}
+			icon={<XIconPlus style={{ width: "70%", height: "70%" }} />}
+			isLoading={isLoading}
+			isOpened={opened}
+			setOpened={(opened) => {
+				setOpened(opened);
+				setLoading(false);
+				setNewAttrName("");
+				setErrorMessage({
+					name: null,
+					type: null,
+					response: null,
+				});
 			}}
 		>
-			<Popover.Target>
-				<ActionIcon
-					loading={isLoading}
-					variant="light"
-					color={opened ? "red" : "green"}
-					style={{ cursor: "default" }}
+			<TextInput
+				placeholder="New attr name"
+				size="sm"
+				disabled={isLoading}
+				error={errorMessage.name !== null}
+				onChange={(e) => {
+					setNewAttrName(e.currentTarget.value);
+					setErrorMessage((m) => {
+						return {
+							...m,
+							name: null,
+						};
+					});
+				}}
+			/>
+
+			<Select
+				size="sm"
+				required={true}
+				style={{ marginTop: "1rem" }}
+				placeholder={"select attr type"}
+				data={["Text", "Binary", "Blob", "Integer"]}
+				error={errorMessage.type !== null}
+				onChange={(val) => {
+					setNewAttrType(val);
+					setErrorMessage((m) => {
+						return {
+							...m,
+							type: null,
+						};
+					});
+				}}
+				comboboxProps={{
+					transitionProps: {
+						transition: "fade-down",
+						duration: 200,
+					},
+					withinPortal: false,
+				}}
+				clearable
+			/>
+
+			<div style={{ marginTop: "1rem" }}>
+				<Button
+					variant="filled"
+					color={errorMessage === null ? "green" : "red"}
+					fullWidth
+					size="xs"
+					leftSection={<XIconPlus />}
 					onClick={() => {
-						setOpened((o) => !o);
-						reset();
+						setLoading(true);
+						if (newAttrName == "") {
+							setLoading(false);
+							setErrorMessage((m) => {
+								return {
+									...m,
+									name: "Name cannot be empty",
+								};
+							});
+							return;
+						} else if (newAttrType === null) {
+							setLoading(false);
+							setErrorMessage((m) => {
+								return {
+									...m,
+									type: "Type cannot be empty",
+								};
+							});
+							return;
+						}
+
+						setErrorMessage({
+							name: null,
+							type: null,
+							response: null,
+						});
+						fetch("/api/attr/add", {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({
+								class: params.class_name,
+								dataset: params.dataset_name,
+								attr: newAttrName,
+								data_type: {
+									type: newAttrType,
+								},
+								options: {
+									unique: false,
+								},
+							}),
+						}).then((res) => {
+							setLoading(false);
+							if (res.status == 400) {
+								res.text().then((text) => {
+									setErrorMessage((m) => {
+										return {
+											...m,
+											response: text,
+										};
+									});
+								});
+							} else if (!res.ok) {
+								res.text().then((text) => {
+									setErrorMessage((m) => {
+										return {
+											...m,
+											response: `Error ${res.status}: ${text}`,
+										};
+									});
+								});
+							} else {
+								params.onSuccess();
+								setLoading(false);
+								setOpened(false);
+							}
+						});
 					}}
 				>
-					{opened ? (
-						<XIconX style={{ width: "70%", height: "70%" }} />
-					) : (
-						<XIconPlus style={{ width: "70%", height: "70%" }} />
-					)}
-				</ActionIcon>
-			</Popover.Target>
-			<Popover.Dropdown>
-				<TextInput
-					placeholder="New attr name"
-					size="sm"
-					disabled={isLoading}
-					error={errorMessage.name !== null}
-					onChange={(e) => {
-						setNewAttrName(e.currentTarget.value);
-						setErrorMessage((m) => {
-							return {
-								...m,
-								name: null,
-							};
-						});
-					}}
-				/>
+					Add attribute
+				</Button>
 
-				<Select
-					size="sm"
-					required={true}
-					style={{ marginTop: "1rem" }}
-					placeholder={"select attr type"}
-					data={["Text", "Binary", "Blob", "Integer"]}
-					error={errorMessage.type !== null}
-					onChange={(val) => {
-						setNewAttrType(val);
-						setErrorMessage((m) => {
-							return {
-								...m,
-								type: null,
-							};
-						});
-					}}
-					comboboxProps={{
-						transitionProps: {
-							transition: "fade-down",
-							duration: 200,
-						},
-						withinPortal: false,
-					}}
-					clearable
-				/>
-
-				<div style={{ marginTop: "1rem" }}>
-					<Button
-						variant="filled"
-						color={errorMessage === null ? "green" : "red"}
-						fullWidth
-						size="xs"
-						leftSection={<XIconPlus />}
-						onClick={() => {
-							setLoading(true);
-							if (newAttrName == "") {
-								setLoading(false);
-								setErrorMessage((m) => {
-									return {
-										...m,
-										name: "Name cannot be empty",
-									};
-								});
-								return;
-							} else if (newAttrType === null) {
-								setLoading(false);
-								setErrorMessage((m) => {
-									return {
-										...m,
-										type: "Type cannot be empty",
-									};
-								});
-								return;
-							}
-
-							setErrorMessage({
-								name: null,
-								type: null,
-								response: null,
-							});
-							fetch("/api/attr/add", {
-								method: "POST",
-								headers: {
-									"Content-Type": "application/json",
-								},
-								body: JSON.stringify({
-									class: params.class_name,
-									dataset: params.dataset_name,
-									attr: newAttrName,
-									data_type: {
-										type: newAttrType,
-									},
-									options: {
-										unique: false,
-									},
-								}),
-							}).then((res) => {
-								setLoading(false);
-								if (res.status == 400) {
-									res.text().then((text) => {
-										setErrorMessage((m) => {
-											return {
-												...m,
-												response: text,
-											};
-										});
-									});
-								} else if (!res.ok) {
-									res.text().then((text) => {
-										setErrorMessage((m) => {
-											return {
-												...m,
-												response: `Error ${res.status}: ${text}`,
-											};
-										});
-									});
-								} else {
-									params.onSuccess();
-									setLoading(false);
-									setOpened(false);
-								}
-							});
-						}}
-					>
-						Add attribute
-					</Button>
-
-					<Text c="red" ta="center">
-						{errorMessage.response
-							? errorMessage.response
-							: errorMessage.name
-							? errorMessage.name
-							: errorMessage.type
-							? errorMessage.type
-							: ""}
-					</Text>
-				</div>
-			</Popover.Dropdown>
-		</Popover>
+				<Text c="red" ta="center">
+					{errorMessage.response
+						? errorMessage.response
+						: errorMessage.name
+						? errorMessage.name
+						: errorMessage.type
+						? errorMessage.type
+						: ""}
+				</Text>
+			</div>
+		</ButtonPopover>
 	);
 }
