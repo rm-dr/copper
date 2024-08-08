@@ -1,6 +1,4 @@
 //! Traits that allow external code to defune pipeline nodes
-
-use crossbeam::channel::Receiver;
 use serde::de::DeserializeOwned;
 use std::{error::Error, fmt::Debug};
 
@@ -49,10 +47,22 @@ pub trait PipelineNode {
 	/// The kind of error this node can produce when running
 	type ErrorType: Error + Send + Sync;
 
-	/// Receive all inputs queued for this node.
-	/// Always called before run().
-	// TODO: we shouldn't need a channel for this, `take_input` should just provide data.
-	fn take_input<F>(&mut self, send_data: F) -> Result<(), Self::ErrorType>
+	/// If true, run this node in the main loop instead of starting a thread.
+	///
+	/// This should be `true` for nodes that do very little computation, and
+	/// `false` for everything else.
+	fn quick_run(&self) -> bool {
+		false
+	}
+
+	/// Collect inputs queued for this node.
+	/// Called before each call to `run()``.
+	fn take_input<F>(
+		&mut self,
+		// (target port, data)
+		input: (usize, Self::DataType),
+		send_data: F,
+	) -> Result<(), Self::ErrorType>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), Self::ErrorType>;
 
@@ -84,13 +94,6 @@ where
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		name: &str,
-
-		input_receiver: Receiver<(
-			// The port this data goes to
-			usize,
-			// The data
-			<Self::NodeType as PipelineNode>::DataType,
-		)>,
 	) -> Self::NodeType;
 
 	/// How many inputs does this node produce?

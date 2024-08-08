@@ -1,4 +1,3 @@
-use crossbeam::channel::Receiver;
 use std::{io::Read, sync::Arc};
 use ufo_audiofile::flac::metastrip::{FlacMetaStrip, FlacMetaStripSelector};
 use ufo_metadb::data::MetaDbDataStub;
@@ -21,15 +20,11 @@ pub struct StripTags {
 	is_done: bool,
 	strip: FlacMetaStrip,
 	buffer: ArcVecBuffer,
-	input_receiver: Receiver<(usize, UFOData)>,
 	sender: Option<HoldSender>,
 }
 
 impl StripTags {
-	pub fn new(
-		ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, UFOData)>,
-	) -> Self {
+	pub fn new(ctx: &<Self as PipelineNode>::NodeContext) -> Self {
 		Self {
 			blob_channel_capacity: ctx.blob_channel_capacity,
 			blob_fragment_size: ctx.blob_fragment_size,
@@ -44,7 +39,6 @@ impl StripTags {
 					.keep_cuesheet(true),
 			),
 			buffer: ArcVecBuffer::new(),
-			input_receiver,
 		}
 	}
 }
@@ -54,44 +48,41 @@ impl PipelineNode for StripTags {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
+	fn take_input<F>(
+		&mut self,
+		(port, data): (usize, UFOData),
+		send_data: F,
+	) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		loop {
-			match self.input_receiver.try_recv() {
-				Err(crossbeam::channel::TryRecvError::Disconnected)
-				| Err(crossbeam::channel::TryRecvError::Empty) => {
-					break Ok(());
-				}
-				Ok((port, data)) => match port {
-					0 => {
-						// Read latest data from receiver
-						let (data_type, data) = match data {
-							UFOData::Blob {
-								format: data_type,
-								data,
-							} => (data_type, data),
-							_ => return Err(PipelineError::UnsupportedDataType),
-						};
+		match port {
+			0 => {
+				// Read latest data from receiver
+				let (data_type, data) = match data {
+					UFOData::Blob {
+						format: data_type,
+						data,
+					} => (data_type, data),
+					_ => return Err(PipelineError::UnsupportedDataType),
+				};
 
-						self.data = Some(data);
+				self.data = Some(data);
 
-						// Prepare receiver
-						let (hs, recv) = HoldSender::new(self.blob_channel_capacity);
-						self.sender = Some(hs);
-						send_data(
-							0,
-							UFOData::Blob {
-								format: data_type,
-								data: recv,
-							},
-						)?;
-					}
-					_ => unreachable!(),
-				},
+				// Prepare receiver
+				let (hs, recv) = HoldSender::new(self.blob_channel_capacity);
+				self.sender = Some(hs);
+				send_data(
+					0,
+					UFOData::Blob {
+						format: data_type,
+						data: recv,
+					},
+				)?;
 			}
+			_ => unreachable!(),
 		}
+		return Ok(());
 	}
 
 	fn run<F>(

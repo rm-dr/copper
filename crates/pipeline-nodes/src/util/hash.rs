@@ -1,5 +1,4 @@
 use async_broadcast::TryRecvError;
-use crossbeam::channel::Receiver;
 use sha2::{Digest, Sha256, Sha512};
 use std::sync::Arc;
 use ufo_metadb::data::{HashType, MetaDbDataStub};
@@ -73,19 +72,13 @@ impl HashComputer {
 pub struct Hash {
 	data: Option<UFOData>,
 	hasher: Option<HashComputer>,
-	input_receiver: Receiver<(usize, UFOData)>,
 }
 
 impl Hash {
-	pub fn new(
-		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, UFOData)>,
-		hash_type: HashType,
-	) -> Self {
+	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext, hash_type: HashType) -> Self {
 		Self {
 			data: None,
 			hasher: Some(HashComputer::new(hash_type)),
-			input_receiver,
 		}
 	}
 }
@@ -95,24 +88,21 @@ impl PipelineNode for Hash {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
+	fn take_input<F>(
+		&mut self,
+		(port, data): (usize, UFOData),
+		_send_data: F,
+	) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		loop {
-			match self.input_receiver.try_recv() {
-				Err(crossbeam::channel::TryRecvError::Disconnected)
-				| Err(crossbeam::channel::TryRecvError::Empty) => {
-					break Ok(());
-				}
-				Ok((port, data)) => match port {
-					0 => {
-						self.data = Some(data);
-					}
-					_ => unreachable!("bad input port {port}"),
-				},
+		match port {
+			0 => {
+				self.data = Some(data);
 			}
+			_ => unreachable!("bad input port {port}"),
 		}
+		return Ok(());
 	}
 
 	fn run<F>(

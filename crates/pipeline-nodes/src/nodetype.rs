@@ -1,4 +1,3 @@
-use crossbeam::channel::Receiver;
 use serde::Deserialize;
 use serde_with::serde_as;
 use ufo_audiofile::common::tagtype::TagType;
@@ -66,59 +65,57 @@ impl PipelineNodeStub for UFONodeType {
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		name: &str,
-
-		input_receiver: Receiver<(usize, UFOData)>,
 	) -> UFONodeInstance {
 		match self {
 			// Magic
 			UFONodeType::Constant { value } => UFONodeInstance::Constant {
 				node_type: self.clone(),
-				node: Constant::new(ctx, input_receiver, value.clone()),
+				node: Constant::new(ctx, value.clone()),
 			},
 
 			// Util
 			UFONodeType::IfNone { .. } => UFONodeInstance::IfNone {
 				node_type: self.clone(),
 				name: name.into(),
-				node: IfNone::new(ctx, input_receiver),
+				node: IfNone::new(ctx),
 			},
 			UFONodeType::Noop { inputs } => UFONodeInstance::Noop {
 				node_type: self.clone(),
 				name: name.into(),
-				node: Noop::new(ctx, input_receiver, inputs.clone()),
+				node: Noop::new(ctx, inputs.clone()),
 			},
 			UFONodeType::Print => UFONodeInstance::Print {
 				node_type: self.clone(),
 				name: name.into(),
-				node: Print::new(ctx, input_receiver),
+				node: Print::new(ctx),
 			},
 
 			UFONodeType::Hash { hash_type } => UFONodeInstance::Hash {
 				node_type: self.clone(),
 				name: name.into(),
-				node: Hash::new(ctx, input_receiver, *hash_type),
+				node: Hash::new(ctx, *hash_type),
 			},
 
 			// Audio
 			UFONodeType::StripTags => UFONodeInstance::StripTags {
 				node_type: self.clone(),
 				name: name.into(),
-				node: StripTags::new(ctx, input_receiver),
+				node: StripTags::new(ctx),
 			},
 			UFONodeType::ExtractTags { tags } => UFONodeInstance::ExtractTags {
 				node_type: self.clone(),
 				name: name.into(),
-				node: ExtractTags::new(ctx, input_receiver, tags.clone()),
+				node: ExtractTags::new(ctx, tags.clone()),
 			},
 			UFONodeType::ExtractCovers => UFONodeInstance::ExtractCovers {
 				node_type: self.clone(),
 				name: name.into(),
-				node: ExtractCovers::new(ctx, input_receiver),
+				node: ExtractCovers::new(ctx),
 			},
 			UFONodeType::File => UFONodeInstance::File {
 				node_type: self.clone(),
 				name: name.into(),
-				node: FileReader::new(ctx, input_receiver),
+				node: FileReader::new(ctx),
 			},
 			UFONodeType::AddToDataset { class } => {
 				let mut d = ctx.dataset.lock().unwrap();
@@ -128,7 +125,7 @@ impl PipelineNodeStub for UFONodeType {
 				UFONodeInstance::Dataset {
 					node_type: self.clone(),
 					name: name.into(),
-					node: AddToDataset::new(ctx, input_receiver, class, attrs),
+					node: AddToDataset::new(ctx, class, attrs),
 				}
 			}
 		}

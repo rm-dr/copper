@@ -26,7 +26,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- no channel for take_input
 - Deadlock detection
 - Pipeline status
 - Rename pipeline, runner, job, db, database, dataset, metadata (well-defined)
@@ -41,7 +40,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 
 
 ### Small tweaks
-- pipeline node logging
 - Add nodes:
   - Audio metadata: bit rate, length, sample rate, etc
   - Strip spaces, regex

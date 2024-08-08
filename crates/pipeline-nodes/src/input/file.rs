@@ -1,4 +1,3 @@
-use crossbeam::channel::Receiver;
 use std::{fs::File, io::Read, path::PathBuf, sync::Arc};
 use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
@@ -13,8 +12,6 @@ pub struct FileReader {
 	blob_fragment_size: usize,
 	blob_channel_capacity: usize,
 
-	input_receiver: Receiver<(usize, UFOData)>,
-
 	path: Option<PathBuf>,
 	file: Option<File>,
 
@@ -24,12 +21,8 @@ pub struct FileReader {
 
 impl FileReader {
 	/// Make a new [`FileReader`]
-	pub fn new(
-		ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, UFOData)>,
-	) -> Self {
+	pub fn new(ctx: &<Self as PipelineNode>::NodeContext) -> Self {
 		FileReader {
-			input_receiver,
 			blob_channel_capacity: ctx.blob_channel_capacity,
 			blob_fragment_size: ctx.blob_fragment_size,
 
@@ -47,54 +40,52 @@ impl PipelineNode for FileReader {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
+	fn take_input<F>(
+		&mut self,
+		(port, data): (usize, UFOData),
+		send_data: F,
+	) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		loop {
-			match self.input_receiver.try_recv() {
-				Err(crossbeam::channel::TryRecvError::Disconnected)
-				| Err(crossbeam::channel::TryRecvError::Empty) => {
-					break Ok(());
-				}
-				Ok((port, data)) => match port {
-					0 => {
-						self.path = match data {
-							UFOData::Path(p) => Some((*p).clone()),
-							x => panic!("bad data {x:?}"),
-						};
+		match port {
+			0 => {
+				self.path = match data {
+					UFOData::Path(p) => Some((*p).clone()),
+					x => panic!("bad data {x:?}"),
+				};
 
-						self.file = Some(File::open(self.path.as_ref().unwrap()).unwrap());
-						send_data(
-							0,
-							UFOData::Path(Arc::new(self.path.as_ref().unwrap().clone())),
-						)?;
+				self.file = Some(File::open(self.path.as_ref().unwrap()).unwrap());
+				send_data(
+					0,
+					UFOData::Path(Arc::new(self.path.as_ref().unwrap().clone())),
+				)?;
 
-						// Prepare sender
-						let (hs, recv) = HoldSender::new(self.blob_channel_capacity);
-						self.sender = Some(hs);
-						send_data(
-							1,
-							UFOData::Blob {
-								format: {
-									self.path
-										.as_ref()
-										.unwrap()
-										.extension()
-										.map(|x| {
-											MimeType::from_extension(x.to_str().unwrap())
-												.unwrap_or(MimeType::Blob)
-										})
+				// Prepare sender
+				let (hs, recv) = HoldSender::new(self.blob_channel_capacity);
+				self.sender = Some(hs);
+				send_data(
+					1,
+					UFOData::Blob {
+						format: {
+							self.path
+								.as_ref()
+								.unwrap()
+								.extension()
+								.map(|x| {
+									MimeType::from_extension(x.to_str().unwrap())
 										.unwrap_or(MimeType::Blob)
-								},
-								data: recv,
-							},
-						)?;
-					}
-					_ => unreachable!("bad input port {port}"),
-				},
+								})
+								.unwrap_or(MimeType::Blob)
+						},
+						data: recv,
+					},
+				)?;
 			}
+			_ => unreachable!("bad input port {port}"),
 		}
+
+		Ok(())
 	}
 
 	fn run<F>(

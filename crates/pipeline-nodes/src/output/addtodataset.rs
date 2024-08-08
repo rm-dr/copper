@@ -4,7 +4,6 @@ use std::{
 };
 
 use async_broadcast::TryRecvError;
-use crossbeam::channel::Receiver;
 use smartstring::{LazyCompact, SmartString};
 use ufo_blobstore::fs::store::{FsBlobHandle, FsBlobStore, FsBlobWriter};
 use ufo_metadb::{
@@ -26,7 +25,6 @@ pub struct AddToDataset {
 	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
 
 	data: Vec<Option<DataHold>>,
-	input_receiver: Receiver<(usize, UFOData)>,
 }
 
 enum DataHold {
@@ -41,14 +39,12 @@ enum DataHold {
 impl AddToDataset {
 	pub fn new(
 		ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, UFOData)>,
 		class: ClassHandle,
 		attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
 	) -> Self {
 		let data = attrs.iter().map(|_| None).collect();
 		AddToDataset {
 			db: ctx.dataset.clone(),
-			input_receiver,
 			class,
 			attrs,
 			data,
@@ -61,28 +57,23 @@ impl PipelineNode for AddToDataset {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
+	fn take_input<F>(
+		&mut self,
+		(port, data): (usize, UFOData),
+		_send_data: F,
+	) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		loop {
-			match self.input_receiver.try_recv() {
-				Err(crossbeam::channel::TryRecvError::Disconnected)
-				| Err(crossbeam::channel::TryRecvError::Empty) => {
-					break Ok(());
-				}
-				Ok((port, data)) => {
-					assert!(port < self.attrs.len());
-					self.data[port] = Some(match data {
-						UFOData::Blob { format, data } => {
-							let blob = self.db.lock().unwrap().new_blob(&format);
-							DataHold::BlobWriting(data, Some(blob))
-						}
-						x => DataHold::Static(x),
-					});
-				}
+		assert!(port < self.attrs.len());
+		self.data[port] = Some(match data {
+			UFOData::Blob { format, data } => {
+				let blob = self.db.lock().unwrap().new_blob(&format);
+				DataHold::BlobWriting(data, Some(blob))
 			}
-		}
+			x => DataHold::Static(x),
+		});
+		return Ok(());
 	}
 
 	fn run<F>(

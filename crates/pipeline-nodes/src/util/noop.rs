@@ -1,4 +1,3 @@
-use crossbeam::channel::Receiver;
 use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
@@ -12,18 +11,15 @@ use crate::{
 #[derive(Clone)]
 pub struct Noop {
 	inputs: Vec<(PipelinePortLabel, MetaDbDataStub, bool)>,
-	input_receiver: Receiver<(usize, UFOData)>,
 }
 
 impl Noop {
 	pub fn new(
 		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, UFOData)>,
 		inputs: Vec<(PipelinePortLabel, MetaDbDataStub)>,
 	) -> Self {
 		Self {
 			inputs: inputs.into_iter().map(|(a, b)| (a, b, false)).collect(),
-			input_receiver,
 		}
 	}
 }
@@ -33,24 +29,23 @@ impl PipelineNode for Noop {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
+	fn quick_run(&self) -> bool {
+		true
+	}
+
+	fn take_input<F>(
+		&mut self,
+		(port, data): (usize, UFOData),
+		send_data: F,
+	) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		loop {
-			match self.input_receiver.try_recv() {
-				Err(crossbeam::channel::TryRecvError::Disconnected)
-				| Err(crossbeam::channel::TryRecvError::Empty) => {
-					break Ok(());
-				}
-				Ok((port, data)) => {
-					assert!(port < self.inputs.len());
-					assert!(!self.inputs[port].2);
-					self.inputs[port].2 = true;
-					send_data(port, data)?;
-				}
-			}
-		}
+		assert!(port < self.inputs.len());
+		assert!(!self.inputs[port].2);
+		self.inputs[port].2 = true;
+		send_data(port, data)?;
+		return Ok(());
 	}
 
 	fn run<F>(

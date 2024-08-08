@@ -99,25 +99,48 @@ impl PipelineNode for UFONodeInstance {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
+	fn quick_run(&self) -> bool {
+		match self {
+			Self::Dataset { node, .. } => node.quick_run(),
+			Self::File { node, .. } => node.quick_run(),
+
+			// Utility
+			Self::Constant { node, .. } => node.quick_run(),
+			Self::IfNone { node, .. } => node.quick_run(),
+			Self::Noop { node, .. } => node.quick_run(),
+			Self::Print { node, .. } => node.quick_run(),
+			Self::Hash { node, .. } => node.quick_run(),
+
+			// Audio
+			Self::ExtractTags { node, .. } => node.quick_run(),
+			Self::StripTags { node, .. } => node.quick_run(),
+			Self::ExtractCovers { node, .. } => node.quick_run(),
+		}
+	}
+
+	fn take_input<F>(
+		&mut self,
+		portdata: (usize, UFOData),
+		send_data: F,
+	) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		match self {
-			Self::Dataset { node, .. } => node.take_input(send_data),
-			Self::File { node, .. } => node.take_input(send_data),
+			Self::Dataset { node, .. } => node.take_input(portdata, send_data),
+			Self::File { node, .. } => node.take_input(portdata, send_data),
 
 			// Utility
-			Self::Constant { node, .. } => node.take_input(send_data),
-			Self::IfNone { node, .. } => node.take_input(send_data),
-			Self::Noop { node, .. } => node.take_input(send_data),
-			Self::Print { node, .. } => node.take_input(send_data),
-			Self::Hash { node, .. } => node.take_input(send_data),
+			Self::Constant { node, .. } => node.take_input(portdata, send_data),
+			Self::IfNone { node, .. } => node.take_input(portdata, send_data),
+			Self::Noop { node, .. } => node.take_input(portdata, send_data),
+			Self::Print { node, .. } => node.take_input(portdata, send_data),
+			Self::Hash { node, .. } => node.take_input(portdata, send_data),
 
 			// Audio
-			Self::ExtractTags { node, .. } => node.take_input(send_data),
-			Self::StripTags { node, .. } => node.take_input(send_data),
-			Self::ExtractCovers { node, .. } => node.take_input(send_data),
+			Self::ExtractTags { node, .. } => node.take_input(portdata, send_data),
+			Self::StripTags { node, .. } => node.take_input(portdata, send_data),
+			Self::ExtractCovers { node, .. } => node.take_input(portdata, send_data),
 		}
 	}
 

@@ -1,5 +1,6 @@
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::{
+	collections::VecDeque,
 	marker::PhantomData,
 	sync::{Arc, Mutex},
 };
@@ -42,8 +43,8 @@ pub struct PipelineSingleJob<StubType: PipelineNodeStub> {
 	node_instances: Vec<(
 		// The node's label
 		PipelineNodeLabel,
-		// Where to send this node's inputs
-		Sender<(usize, SDataType<StubType>)>,
+		// A queue of inputs to send to this node
+		VecDeque<(usize, SDataType<StubType>)>,
 		// This node's status
 		NodeRunState,
 		// The node
@@ -134,16 +135,11 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 			.graph
 			.iter_nodes_idx()
 			.map(|(idx, (name, x))| {
-				#[allow(clippy::type_complexity)]
-				let (send_input, receive_input): (
-					Sender<(usize, SDataType<StubType>)>,
-					Receiver<(usize, SDataType<StubType>)>,
-				) = unbounded();
-
+				let mut input_queue = VecDeque::new();
 				// Pass pipeline inputs to input node immediately
 				if idx == pipeline.input_node_idx {
 					for (i, d) in pipeline_inputs.iter().enumerate() {
-						send_input.send((i, d.clone())).unwrap();
+						input_queue.push_back((i, d.clone()));
 					}
 				} else {
 					// Send empty data to disconnected inputs
@@ -159,22 +155,16 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 					for (i, e) in port_is_empty.into_iter().enumerate() {
 						if e {
 							let t = x.input_default_type(&*context, i);
-							send_input
-								.send((i, SDataType::<StubType>::new_empty(t)))
-								.unwrap();
+							input_queue.push_back((i, SDataType::<StubType>::new_empty(t)));
 						}
 					}
 				}
 
 				(
 					name.clone(),
-					send_input,
+					input_queue,
 					NodeRunState::NotRunning(PipelineNodeState::Pending("not started")),
-					Arc::new(Mutex::new(Some(x.build(
-						&context,
-						name.into(),
-						receive_input,
-					)))),
+					Arc::new(Mutex::new(Some(x.build(&context, name.into())))),
 				)
 			})
 			.collect::<Vec<_>>();
@@ -286,7 +276,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 			.iter()
 			.any(|edge_idx| {
 				match self.edge_values.get(edge_idx.as_usize()).unwrap() {
-					// We don't care about these
+					// We don't care about theseend_input,
 					EdgeState::Data => false,
 					// If any `after` edges are waiting, we can't start.
 					// Be careful with these, they can cause a deadlock when
@@ -299,42 +289,77 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 			return Ok(());
 		}
 
-		let (n, _, _, node_instance) = &self.node_instances[node.as_usize()];
-		let node_instance = node_instance.clone();
-		let n = n.clone();
-
 		self.node_instances[node.as_usize()].2 = NodeRunState::Running;
-		let ctx = self.context.clone();
+		let (node_label, input, _, node_instance) = &mut self.node_instances[node.as_usize()];
+		let node_instance = node_instance.clone();
+		let node_label = node_label.clone();
+
+		let context = self.context.clone();
 		let send_data = self.send_data.clone();
 		let send_status = self.send_status.clone();
 
-		self.pool.execute(move || {
+		let mut locked_node = node_instance.try_lock().unwrap();
+
+		// Send new input to node
+		while !input.is_empty() {
+			let data = input.pop_front().unwrap();
+			locked_node
+				.as_mut()
+				.unwrap()
+				.take_input(data, |port, data| {
+					// This should never fail, since we never close the receiver.
+					send_data.send((node, port, data)).unwrap();
+					Ok(())
+				})?;
+		}
+		self.handle_all_messages()?;
+		drop(locked_node);
+
+		if node_instance
+			.try_lock()
+			.unwrap()
+			.as_ref()
+			.unwrap()
+			.quick_run()
+		{
 			debug!(
 				source = "pipeline",
-				summary = "Starting node",
-				node = n.to_string()
+				summary = "Quick-running node",
+				node = node_label.to_string()
 			);
 
 			// Panics if mutex is locked. This is intentional, only one thread should have this at a time.
 			// We use a mutex only for interior mutability.
 			let mut node_instance_opt = node_instance.lock().unwrap();
 			let node_instance = node_instance_opt.as_mut().unwrap();
-			let res = node_instance.take_input(|port, data| {
+
+			let res = node_instance.run(&*context, |port, data| {
 				// This should never fail, since we never close the receiver.
 				send_data.send((node, port, data)).unwrap();
 				Ok(())
 			});
 
-			if let Err(res) = res {
+			debug!(
+				source = "pipeline",
+				summary = "Node finished",
+				node = node_label.to_string(),
+				status=?res.as_ref().unwrap()
+			);
+			send_status.send((node, res)).unwrap();
+		} else {
+			self.pool.execute(move || {
 				debug!(
 					source = "pipeline",
-					summary = "Node finished with error",
-					node = n.to_string(),
-					error=?res
+					summary = "Running node",
+					node = node_label.to_string()
 				);
-				send_status.send((node, Err(res))).unwrap();
-			} else {
-				let res = node_instance.run(&*ctx, |port, data| {
+
+				// Panics if mutex is locked. This is intentional, only one thread should have this at a time.
+				// We use a mutex only for interior mutability.
+				let mut node_instance_opt = node_instance.lock().unwrap();
+				let node_instance = node_instance_opt.as_mut().unwrap();
+
+				let res = node_instance.run(&*context, |port, data| {
 					// This should never fail, since we never close the receiver.
 					send_data.send((node, port, data)).unwrap();
 					Ok(())
@@ -343,12 +368,12 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 				debug!(
 					source = "pipeline",
 					summary = "Node finished",
-					node = n.to_string(),
+					node = node_label.to_string(),
 					status=?res.as_ref().unwrap()
 				);
 				send_status.send((node, res)).unwrap();
-			}
-		});
+			});
+		}
 
 		return Ok(());
 	}
@@ -367,11 +392,10 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 
 				// Send data to target port
 				self.node_instances
-					.get(to_node.as_usize())
+					.get_mut(to_node.as_usize())
 					.unwrap()
 					.1
-					.send((edge.target_port().unwrap(), data.clone()))
-					.unwrap();
+					.push_back((edge.target_port().unwrap(), data.clone()));
 			}
 		}
 

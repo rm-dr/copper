@@ -1,4 +1,3 @@
-use crossbeam::channel::Receiver;
 use std::{io::Seek, sync::Arc};
 use ufo_audiofile::flac::flac_read_pictures;
 use ufo_metadb::data::MetaDbDataStub;
@@ -12,18 +11,13 @@ use crate::{
 pub struct ExtractCovers {
 	data: Option<UFOData>,
 	buffer: ArcVecBuffer,
-	input_receiver: Receiver<(usize, UFOData)>,
 }
 
 impl ExtractCovers {
-	pub fn new(
-		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, UFOData)>,
-	) -> Self {
+	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext) -> Self {
 		Self {
 			data: None,
 			buffer: ArcVecBuffer::new(),
-			input_receiver,
 		}
 	}
 }
@@ -33,24 +27,22 @@ impl PipelineNode for ExtractCovers {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
+	fn take_input<F>(
+		&mut self,
+		(port, data): (usize, UFOData),
+		_send_data: F,
+	) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, UFOData) -> Result<(), PipelineError>,
 	{
-		loop {
-			match self.input_receiver.try_recv() {
-				Err(crossbeam::channel::TryRecvError::Disconnected)
-				| Err(crossbeam::channel::TryRecvError::Empty) => {
-					break Ok(());
-				}
-				Ok((port, data)) => match port {
-					0 => {
-						self.data = Some(data);
-					}
-					_ => unreachable!("bad input port {port}"),
-				},
+		match port {
+			0 => {
+				self.data = Some(data);
 			}
+			_ => unreachable!("bad input port {port}"),
 		}
+
+		return Ok(());
 	}
 
 	fn run<F>(

@@ -1,4 +1,3 @@
-use crossbeam::channel::Receiver;
 use itertools::Itertools;
 use std::{io::Seek, sync::Arc};
 use ufo_audiofile::{common::tagtype::TagType, flac::flac_read_tags};
@@ -19,20 +18,14 @@ pub struct ExtractTags {
 	data: Option<UFOData>,
 	tags: Vec<TagType>,
 	buffer: ArcVecBuffer,
-	input_receiver: Receiver<(usize, UFOData)>,
 }
 
 impl ExtractTags {
-	pub fn new(
-		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, UFOData)>,
-		tags: Vec<TagType>,
-	) -> Self {
+	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext, tags: Vec<TagType>) -> Self {
 		Self {
 			data: None,
 			tags: tags.into_iter().unique().collect(),
 			buffer: ArcVecBuffer::new(),
-			input_receiver,
 		}
 	}
 }
@@ -42,24 +35,21 @@ impl PipelineNode for ExtractTags {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
+	fn take_input<F>(
+		&mut self,
+		(port, data): (usize, UFOData),
+		_send_data: F,
+	) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, UFOData) -> Result<(), PipelineError>,
 	{
-		loop {
-			match self.input_receiver.try_recv() {
-				Err(crossbeam::channel::TryRecvError::Disconnected)
-				| Err(crossbeam::channel::TryRecvError::Empty) => {
-					break Ok(());
-				}
-				Ok((port, data)) => match port {
-					0 => {
-						self.data = Some(data);
-					}
-					_ => unreachable!(),
-				},
+		match port {
+			0 => {
+				self.data = Some(data);
 			}
+			_ => unreachable!(),
 		}
+		return Ok(());
 	}
 
 	fn run<F>(

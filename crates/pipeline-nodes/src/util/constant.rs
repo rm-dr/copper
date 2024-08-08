@@ -1,4 +1,3 @@
-use crossbeam::channel::Receiver;
 use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::{
 	api::{PipelineData, PipelineNode, PipelineNodeState},
@@ -12,19 +11,11 @@ use crate::{
 #[derive(Clone)]
 pub struct Constant {
 	value: UFOData,
-	input_receiver: Receiver<(usize, UFOData)>,
 }
 
 impl Constant {
-	pub fn new(
-		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, UFOData)>,
-		value: UFOData,
-	) -> Self {
-		Self {
-			value,
-			input_receiver,
-		}
+	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext, value: UFOData) -> Self {
+		Self { value }
 	}
 }
 
@@ -33,19 +24,19 @@ impl PipelineNode for Constant {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
+	fn quick_run(&self) -> bool {
+		true
+	}
+
+	fn take_input<F>(
+		&mut self,
+		(_port, _data): (usize, UFOData),
+		_send_data: F,
+	) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		loop {
-			match self.input_receiver.try_recv() {
-				Err(crossbeam::channel::TryRecvError::Disconnected)
-				| Err(crossbeam::channel::TryRecvError::Empty) => {
-					break Ok(());
-				}
-				Ok(_) => unreachable!(),
-			}
-		}
+		unreachable!()
 	}
 
 	fn run<F>(

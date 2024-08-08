@@ -1,4 +1,3 @@
-use crossbeam::channel::Receiver;
 use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
@@ -11,17 +10,12 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Print {
-	input_receiver: Receiver<(usize, UFOData)>,
 	has_received: bool,
 }
 
 impl Print {
-	pub fn new(
-		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, UFOData)>,
-	) -> Self {
+	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext) -> Self {
 		Self {
-			input_receiver,
 			has_received: false,
 		}
 	}
@@ -32,23 +26,22 @@ impl PipelineNode for Print {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
+	fn quick_run(&self) -> bool {
+		true
+	}
+
+	fn take_input<F>(
+		&mut self,
+		(port, data): (usize, UFOData),
+		_send_data: F,
+	) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		loop {
-			match self.input_receiver.try_recv() {
-				Err(crossbeam::channel::TryRecvError::Disconnected)
-				| Err(crossbeam::channel::TryRecvError::Empty) => {
-					break Ok(());
-				}
-				Ok((port, data)) => {
-					assert!(port == 0);
-					println!("{data:?}");
-					self.has_received = true;
-				}
-			}
-		}
+		assert!(port == 0);
+		println!("{data:?}");
+		self.has_received = true;
+		return Ok(());
 	}
 
 	fn run<F>(

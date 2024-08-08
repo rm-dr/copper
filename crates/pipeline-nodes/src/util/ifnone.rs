@@ -1,4 +1,3 @@
-use crossbeam::channel::Receiver;
 use ufo_metadb::data::MetaDbDataStub;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
@@ -11,18 +10,13 @@ use crate::{
 
 #[derive(Clone)]
 pub struct IfNone {
-	input_receiver: Receiver<(usize, UFOData)>,
 	ifnone: Option<UFOData>,
 	input: Option<UFOData>,
 }
 
 impl IfNone {
-	pub fn new(
-		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, UFOData)>,
-	) -> Self {
+	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext) -> Self {
 		Self {
-			input_receiver,
 			ifnone: None,
 			input: None,
 		}
@@ -34,27 +28,28 @@ impl PipelineNode for IfNone {
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
-	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
+	fn quick_run(&self) -> bool {
+		true
+	}
+
+	fn take_input<F>(
+		&mut self,
+		(port, data): (usize, UFOData),
+		_send_data: F,
+	) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		loop {
-			match self.input_receiver.try_recv() {
-				Err(crossbeam::channel::TryRecvError::Disconnected)
-				| Err(crossbeam::channel::TryRecvError::Empty) => {
-					break Ok(());
-				}
-				Ok((port, data)) => match port {
-					0 => {
-						self.input = Some(data);
-					}
-					1 => {
-						self.ifnone = Some(data);
-					}
-					_ => unreachable!(),
-				},
+		match port {
+			0 => {
+				self.input = Some(data);
 			}
+			1 => {
+				self.ifnone = Some(data);
+			}
+			_ => unreachable!(),
 		}
+		return Ok(());
 	}
 
 	fn run<F>(
