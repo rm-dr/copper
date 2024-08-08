@@ -55,9 +55,9 @@ pub(super) fn router() -> Router<RouterState> {
 		.route("/:dataset_name", post(new_dataset))
 		// Item classes
 		.route("/:dataset_name/classes", get(list_itemclasses))
-		.route("/:dataset_name/classes/:class_id", post(new_itemclass))
+		.route("/:dataset_name/classes/:class_name", post(new_itemclass))
 		.route(
-			"/:dataset_name/classes/:class_id/new_attr",
+			"/:dataset_name/classes/:class_name/attrs/:attr_name",
 			post(new_itemclass_attr),
 		)
 		// Pipelines

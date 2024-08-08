@@ -26,7 +26,7 @@ pub(in crate::api) struct NewItemclassAttrParams {
 /// Create a new attribute in this itemclass
 #[utoipa::path(
 	post,
-	path = "/{dataset_name}/classes/{class_name}/attr/{attr_name}",
+	path = "/{dataset_name}/classes/{class_name}/attrs/{attr_name}",
 	tag = "Itemclass",
 	params(
 		("dataset_name" = String, description = "Dataset name"),
