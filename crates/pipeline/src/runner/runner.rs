@@ -89,12 +89,13 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		&self.context
 	}
 
-	/// Add a job to this runner's queue
+	/// Add a job to this runner's queue.
+	/// Returns the new job's id.
 	pub fn add_job(
 		&mut self,
 		pipeline: Arc<Pipeline<StubType>>,
 		pipeline_inputs: Vec<SDataType<StubType>>,
-	) {
+	) -> u128 {
 		debug!(
 			source = "runner",
 			summary = "Adding job",
@@ -109,6 +110,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		);
 		self.job_id_counter = self.job_id_counter.wrapping_add(1);
 		self.job_queue.push_back((self.job_id_counter, runner));
+		return self.job_id_counter;
 	}
 
 	/// Iterate over all active jobs
