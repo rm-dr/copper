@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::RouterState;
 use axum::{
-	extract::{Path, State},
+	extract::{Query, State},
 	http::StatusCode,
 	response::{IntoResponse, Response},
 	Json,
@@ -11,11 +11,17 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 use ufo_pipeline::labels::PipelineName;
 use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
+
+#[derive(Deserialize, Serialize, ToSchema, Debug, IntoParams)]
+pub(super) struct PipelineListRequest {
+	/// Which dataset's pipelines we want to list
+	pub dataset: String,
+}
 
 /// A pipeline specification
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub(in crate::api) struct PipelineInfoShort {
+pub(super) struct PipelineInfoShort {
 	/// This pipeline's name
 	#[schema(value_type = String)]
 	pub name: PipelineName,
@@ -24,7 +30,7 @@ pub(in crate::api) struct PipelineInfoShort {
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub(in crate::api) enum PipelineInfoInput {
+pub(super) enum PipelineInfoInput {
 	/// This pipeline's input may not be provided through the api
 	None,
 
@@ -33,7 +39,7 @@ pub(in crate::api) enum PipelineInfoInput {
 }
 
 impl PipelineInfoInput {
-	pub(in crate::api) fn node_to_input_type(input_node_type: &UFONodeType) -> Self {
+	pub(super) fn node_to_input_type(input_node_type: &UFONodeType) -> Self {
 		// This MUST match the decode implementation in `./run.rs`
 		match input_node_type {
 			UFONodeType::File => PipelineInfoInput::File,
@@ -45,31 +51,32 @@ impl PipelineInfoInput {
 /// Get all pipelines
 #[utoipa::path(
 	get,
-	path = "/{dataset_name}/pipelines",
-	tag = "Pipeline",
+	path = "/list",
+	params(PipelineListRequest),
 	responses(
 		(status = 200, description = "Pipeline info", body = Vec<PipelineInfoShort>),
 		(status = 404, description = "This dataset doesn't exist", body = String),
 		(status = 500, description = "Could not load pipeline", body = String),
 	),
 )]
-pub(in crate::api) async fn list_pipelines(
-	Path(dataset_name): Path<String>,
+
+pub(super) async fn list_pipelines(
 	State(state): State<RouterState>,
+	Query(query): Query<PipelineListRequest>,
 ) -> Response {
-	let dataset = match state.main_db.get_dataset(&dataset_name) {
+	let dataset = match state.main_db.get_dataset(&query.dataset) {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
 				StatusCode::NOT_FOUND,
-				format!("Dataset `{dataset_name}` does not exist"),
+				format!("Dataset `{}` does not exist", query.dataset),
 			)
 				.into_response()
 		}
 		Err(e) => {
 			error!(
 				message = "Could not get dataset by name",
-				dataset = dataset_name,
+				dataset = query.dataset,
 				error = ?e
 			);
 			return (
@@ -90,7 +97,7 @@ pub(in crate::api) async fn list_pipelines(
 		Err(e) => {
 			error!(
 				message = "Could not list pipelines",
-				dataset = dataset_name,
+				dataset = query.dataset,
 				error = ?e
 			);
 			return (

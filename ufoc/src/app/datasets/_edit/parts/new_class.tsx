@@ -74,15 +74,16 @@ export function NewClassButton(params: {
 							}
 							setErrorMessage(null);
 
-							fetch(
-								`/api/datasets/${params.dataset_name}/classes/${newClassName}`,
-								{
-									method: "POST",
-									headers: {
-										"Content-Type": "application/json",
-									},
+							fetch(`/api/class/add`, {
+								method: "POST",
+								headers: {
+									"Content-Type": "application/json",
 								},
-							).then((res) => {
+								body: JSON.stringify({
+									class: newClassName,
+									dataset: params.dataset_name,
+								}),
+							}).then((res) => {
 								setLoading(false);
 								if (res.status == 400) {
 									res.text().then((text) => {

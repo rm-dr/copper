@@ -5,12 +5,9 @@ import {
 	XIconDatabase,
 	XIconDatabaseX,
 	XIconEdit,
-	XIconFilePlus,
 	XIconFolder,
-	XIconFolderPlus,
 	XIconFolderX,
 	XIconFolders,
-	XIconPlus,
 	XIconRow,
 	XIconServer,
 	XIconSettings,
@@ -21,7 +18,6 @@ import {
 	Button,
 	Loader,
 	Popover,
-	Select,
 	Text,
 	TextInput,
 } from "@mantine/core";
@@ -102,7 +98,12 @@ export function useEdit(selected_dataset: string | null) {
 			return;
 		}
 
-		fetch(`/api/datasets/${dataset_name}/classes`)
+		fetch(
+			"/api/class/list?" +
+				new URLSearchParams({
+					dataset: dataset_name,
+				}).toString(),
+		)
 			.then((res) => res.json())
 			.then((data) => {
 				setDatasetDetails({
@@ -381,7 +382,7 @@ export function ItemClassList(params: {
 		return <></>;
 	}
 
-	if (params.dataset_details.classes.length == 0) {
+	if (params.dataset_details.classes.length === 0) {
 		return (
 			<Wrapper>
 				<XIconFolderX
@@ -411,7 +412,11 @@ export function ItemClassList(params: {
 							right={
 								<>
 									<NewAttrButton
-										dataset_name={params.dataset_details.name}
+										dataset_name={
+											params.dataset_details.name === null
+												? "unreachable"
+												: params.dataset_details.name
+										}
 										class_name={name}
 										onSuccess={params.onUpdate}
 									/>

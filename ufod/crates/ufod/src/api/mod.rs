@@ -12,9 +12,12 @@ use utoipa_swagger_ui::SwaggerUi;
 use ufo_pipeline::runner::runner::PipelineRunner;
 use ufo_pipeline_nodes::nodetype::UFONodeType;
 
+mod attr;
+mod class;
 mod dataset;
+mod pipeline;
 mod status;
-pub mod upload;
+mod upload;
 
 use crate::{
 	config::UfodConfig,
@@ -38,7 +41,10 @@ pub struct RouterState {
 	nest(
 		(path = "/status", api = status::StatusApi),
 		(path = "/upload", api = upload::UploadApi),
-		(path = "/datasets", api = dataset::DatasetApi)
+		(path = "/dataset", api = dataset::DatasetApi),
+		(path = "/pipeline", api = pipeline::PipelineApi),
+		(path = "/class", api = class::ClassApi),
+		(path = "/attr", api = attr::AttrApi)
 	),
 	tags(
 		(name = "ufod", description = "UFO backend daemon")
@@ -58,7 +64,10 @@ pub(super) fn router(state: RouterState) -> Router {
 		//
 		.nest("/upload", upload::router(state.uploader.clone()))
 		.nest("/status", status::router())
-		.nest("/datasets", dataset::router())
+		.nest("/dataset", dataset::router())
+		.nest("/pipeline", pipeline::router())
+		.nest("/class", class::router())
+		.nest("/attr", attr::router())
 		//
 		.layer(TraceLayer::new_for_http())
 		.layer(DefaultBodyLimit::max(state.config.request_body_limit))

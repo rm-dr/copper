@@ -1,6 +1,6 @@
 use crate::RouterState;
 use axum::{
-	extract::{Path, State},
+	extract::{Query, State},
 	http::StatusCode,
 	response::{IntoResponse, Response},
 	Json,
@@ -12,10 +12,15 @@ use ufo_ds_core::{
 	data::MetastoreDataStub,
 	handles::{AttrHandle, ClassHandle},
 };
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, IntoParams)]
+pub(super) struct ClassInfoRequest {
+	dataset: String,
+}
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub(in crate::api) struct ClassInfo {
+pub(super) struct ClassInfo {
 	/// This class' name
 	#[schema(value_type = String)]
 	name: SmartString<LazyCompact>,
@@ -29,7 +34,7 @@ pub(in crate::api) struct ClassInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub(in crate::api) struct AttrInfo {
+pub(super) struct AttrInfo {
 	/// This attribute's name
 	#[schema(value_type = String)]
 	name: SmartString<LazyCompact>,
@@ -45,33 +50,32 @@ pub(in crate::api) struct AttrInfo {
 /// Get this dataset's classes
 #[utoipa::path(
 	get,
-	path = "/{dataset_name}/classes",
-	tag = "Itemclass",
+	path = "/list",
 	params(
-		("dataset_name" = String, description = "Dataset name"),
+		ClassInfoRequest
 	),
 	responses(
 		(status = 200, description = "Classes", body = Vec<ClassInfo>),
 		(status = 500, description = "Internal server error", body = String),
 	),
 )]
-pub(in crate::api) async fn list_classes(
-	Path(dataset_name): Path<String>,
+pub(super) async fn list_classes(
 	State(state): State<RouterState>,
+	Query(query): Query<ClassInfoRequest>,
 ) -> Response {
-	let dataset = match state.main_db.get_dataset(&dataset_name) {
+	let dataset = match state.main_db.get_dataset(&query.dataset) {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
 				StatusCode::NOT_FOUND,
-				format!("Dataset `{dataset_name}` does not exist"),
+				format!("Dataset `{}` does not exist", query.dataset),
 			)
 				.into_response()
 		}
 		Err(e) => {
 			error!(
 				message = "Could not get dataset by name",
-				dataset = dataset_name,
+				dataset = query.dataset,
 				error = ?e
 			);
 			return (
@@ -87,7 +91,7 @@ pub(in crate::api) async fn list_classes(
 		Err(e) => {
 			error!(
 				message = "Could not get classes",
-				dataset = ?dataset_name,
+				dataset = ?query.dataset,
 				error = ?e
 			);
 			return (
@@ -105,8 +109,8 @@ pub(in crate::api) async fn list_classes(
 			Err(e) => {
 				error!(
 					message = "Could not get class attributes",
-					dataset = ?dataset_name,
-					class_handle = ?class_handle,
+					dataset = ?query.dataset,
+					class_name = ?class_name,
 					error = ?e
 				);
 				return (

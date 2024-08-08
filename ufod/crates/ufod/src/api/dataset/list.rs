@@ -22,7 +22,7 @@ pub(super) struct DatasetInfoShort {
 /// Get all datasets
 #[utoipa::path(
 	get,
-	path = "",
+	path = "/list",
 	responses(
 		(status = 200, description = "Dataset info", body = Vec<DatasetInfoShort>),
 		(status = 500, description = "Internal server error", body = String),

@@ -43,7 +43,7 @@ export function useDbList(
 		select_dataset: (dataset_name: string | null) => void,
 	) => {
 		select_dataset(null);
-		fetch("/api/datasets")
+		fetch("/api/dataset/list")
 			.then((res) => res.json())
 			.then((data) => {
 				setDatasetList({
@@ -117,6 +117,7 @@ export function useDbList(
 										text={name}
 										right={
 											<>
+												{/*
 												<ActionIcon
 													variant="light"
 													aria-label="Rename this dataset"
@@ -126,6 +127,7 @@ export function useDbList(
 												>
 													<XIconEdit style={{ width: "70%", height: "70%" }} />
 												</ActionIcon>
+												*/}
 												<ActionIcon
 													variant="light"
 													aria-label="Delete this dataset"
@@ -240,13 +242,16 @@ export function useNewDsModal(onSuccess: () => void) {
 							setErrorReason(null);
 							setErrorMessage(null);
 
-							fetch(`/api/datasets/${newDsName}`, {
+							fetch(`/api/dataset/add`, {
 								method: "POST",
 								headers: {
 									"Content-Type": "application/json",
 								},
 								body: JSON.stringify({
-									type: newDsType,
+									name: newDsName,
+									params: {
+										type: newDsType,
+									},
 								}),
 							}).then((res) => {
 								setLoading(false);

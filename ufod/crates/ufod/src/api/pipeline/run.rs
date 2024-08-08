@@ -1,5 +1,5 @@
 use axum::{
-	extract::{Path, State},
+	extract::State,
 	http::StatusCode,
 	response::{IntoResponse, Response},
 	Json,
@@ -12,61 +12,63 @@ use ufo_pipeline::labels::PipelineName;
 use ufo_pipeline_nodes::{data::UFOData, UFOContext};
 use utoipa::ToSchema;
 
+use super::PipelineSelect;
 use crate::RouterState;
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
+pub(super) struct AddJobParams {
+	#[serde(flatten)]
+	pub pipe: PipelineSelect,
+
+	pub input: AddJobInput,
+}
+
+/// Input that is passed to the pipeline we're running
+#[derive(Deserialize, Serialize, ToSchema, Debug)]
 #[serde(tag = "type")]
-pub(in crate::api) enum AddJobInput {
+pub(super) enum AddJobInput {
 	File {
+		/// The upload job we uploaded a file to
 		#[schema(value_type = String)]
 		upload_job: SmartString<LazyCompact>,
 
+		/// The file to run this pipeline with
 		#[schema(value_type = String)]
 		file_name: SmartString<LazyCompact>,
 	},
 }
 
-#[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub(in crate::api) struct AddJobParams {
-	pub input: AddJobInput,
-}
-
 /// Start a pipeline job
 #[utoipa::path(
 	post,
-	path = "/{dataset_name}/pipelines/{pipeline_name}/run",
-	params(
-		("dataset_name" = String, description = "Dataset name"),
-		("pipeline_name" = String, description = "Pipeline name"),
-	),
+	path = "/run",
 	responses(
 		(status = 200, description = "Job started successfully", body = PipelineInfo),
 		(status = 404, description = "Invalid dataset or pipeline", body = String),
 		(status = 500, description = "Internal server error", body = String)
 	),
 )]
-pub(in crate::api) async fn run_pipeline(
+pub(super) async fn run_pipeline(
 	State(state): State<RouterState>,
-	Path((dataset_name, pipeline_name)): Path<(String, String)>,
 	Json(payload): Json<AddJobParams>,
 ) -> Response {
-	let pipeline_name = PipelineName::new(&pipeline_name);
+	let pipeline_name = PipelineName::new(&payload.pipe.pipeline);
 
 	let mut runner = state.runner.lock().await;
 
-	let dataset = match state.main_db.get_dataset(&dataset_name) {
+	let dataset = match state.main_db.get_dataset(&payload.pipe.dataset) {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
 				StatusCode::NOT_FOUND,
-				format!("Dataset `{dataset_name}` does not exist"),
+				format!("Dataset `{}` does not exist", payload.pipe.dataset),
 			)
 				.into_response()
 		}
 		Err(e) => {
 			error!(
 				message = "Could not get dataset by name",
-				dataset = dataset_name,
+				dataset = payload.pipe.dataset,
 				error = ?e
 			);
 			return (
@@ -88,7 +90,8 @@ pub(in crate::api) async fn run_pipeline(
 			return (
 				StatusCode::NOT_FOUND,
 				format!(
-					"Dataset `{dataset_name}` does not have a pipeline named `{pipeline_name}`"
+					"Dataset `{}` does not have a pipeline named `{pipeline_name}`",
+					payload.pipe.dataset
 				),
 			)
 				.into_response()
@@ -96,7 +99,7 @@ pub(in crate::api) async fn run_pipeline(
 		Err(e) => {
 			error!(
 				message = "Could not get pipeline by name",
-				dataset = dataset_name,
+				dataset = payload.pipe.dataset,
 				pipeline_name = ?pipeline_name,
 				error = ?e
 			);

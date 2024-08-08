@@ -145,24 +145,23 @@ export function NewAttrButton(params: {
 								type: null,
 								response: null,
 							});
-
-							fetch(
-								`/api/datasets/${params.dataset_name}/classes/${params.class_name}/attrs/${newAttrName}`,
-								{
-									method: "POST",
-									headers: {
-										"Content-Type": "application/json",
-									},
-									body: JSON.stringify({
-										data_type: {
-											type: newAttrType,
-										},
-										options: {
-											unique: false,
-										},
-									}),
+							fetch("/api/attr/add", {
+								method: "POST",
+								headers: {
+									"Content-Type": "application/json",
 								},
-							).then((res) => {
+								body: JSON.stringify({
+									class: params.class_name,
+									dataset: params.dataset_name,
+									attr: newAttrName,
+									data_type: {
+										type: newAttrType,
+									},
+									options: {
+										unique: false,
+									},
+								}),
+							}).then((res) => {
 								setLoading(false);
 								if (res.status == 400) {
 									res.text().then((text) => {

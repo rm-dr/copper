@@ -41,6 +41,8 @@ impl FromStr for DatasetType {
 }
 
 impl MainDB {
+	// TODO: escape instead, what about other languages?
+
 	/// Check a dataset name, returning an error description
 	/// or `None` if nothing is wrong.
 	fn check_dataset_name(name: &str) -> Option<String> {
@@ -159,7 +161,38 @@ impl MainDB {
 		}))
 	}
 
-	pub fn del_dataset(&self, dataset_name: &str) -> Result<(), ()> {
-		todo!()
+	pub fn del_dataset(&self, dataset_name: &str) -> Result<(), sqlx::Error> {
+		let mut conn = self.conn.lock().unwrap();
+
+		let res = block_on(
+			sqlx::query("SELECT ds_name, ds_type, ds_path FROM datasets WHERE ds_name=?;")
+				.bind(dataset_name)
+				.fetch_one(&mut *conn),
+		);
+
+		let entry = match res {
+			Err(sqlx::Error::RowNotFound) => panic!(),
+			Err(e) => return Err(e),
+			Ok(res) => DatasetEntry {
+				name: res.get::<String, _>("ds_name").into(),
+				ds_type: DatasetType::from_str(&res.get::<String, _>("ds_type")).unwrap(),
+				path: res.get::<String, _>("ds_path").into(),
+			},
+		};
+
+		match entry.ds_type {
+			DatasetType::Local => {
+				std::fs::remove_dir_all(&self.config.dataset_dir.join(&entry.path)).unwrap();
+			}
+		};
+
+		let res = block_on(
+			sqlx::query("DELETE FROM datasets WHERE ds_name=?;")
+				.bind(dataset_name)
+				.execute(&mut *conn),
+		)
+		.unwrap();
+
+		Ok(())
 	}
 }

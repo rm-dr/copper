@@ -59,7 +59,7 @@ function usePipelineSelector(onPipelineSelect: (value: string | null) => void) {
 	// (not strictly necessary, but this helps us recover from errors)
 	useEffect(() => {
 		const update_pipeline_list = () => {
-			fetch("/api/pipelines")
+			fetch("/api/pipeline/list")
 				.then((res) => res.json())
 				.then((data) => {
 					setPlSelectorState({

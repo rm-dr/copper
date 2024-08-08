@@ -1,5 +1,5 @@
 use axum::{
-	extract::{Path, State},
+	extract::State,
 	http::StatusCode,
 	response::{IntoResponse, Response},
 	Json,
@@ -13,6 +13,12 @@ use crate::{
 	helpers::maindb::{dataset::DatasetType, errors::CreateDatasetError},
 };
 
+#[derive(Deserialize, Serialize, ToSchema, Debug)]
+pub(super) struct NewDatasetRequest {
+	name: String,
+	params: NewDatasetParams,
+}
+
 /// Types of datasets we support, with options
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 #[serde(tag = "type")]
@@ -24,26 +30,22 @@ pub(super) enum NewDatasetParams {
 /// Create a new dataset
 #[utoipa::path(
 	post,
-	path = "/{dataset_name}",
-	params(
-		("dataset_name" = String, description = "Dataset name")
-	),
+	path = "/add",
 	responses(
 		(status = 200, description = "Dataset created successfully"),
 		(status = 400, description = "Could not create dataset", body = String),
 		(status = 500, description = "Internal server error", body = String),
 	),
 )]
-pub(super) async fn new_dataset(
+pub(super) async fn add_dataset(
 	State(state): State<RouterState>,
-	Path(dataset_name): Path<String>,
-	Json(new_params): Json<NewDatasetParams>,
+	Json(payload): Json<NewDatasetRequest>,
 ) -> Response {
-	debug!(message = "Making new dataset", new_params=?new_params);
+	debug!(message = "Making new dataset", payload = ?payload);
 
-	match new_params {
+	match payload.params {
 		NewDatasetParams::LocalDataset => {
-			let res = state.main_db.new_dataset(&dataset_name, DatasetType::Local);
+			let res = state.main_db.new_dataset(&payload.name, DatasetType::Local);
 
 			match res {
 				Ok(_) => {}
@@ -53,7 +55,7 @@ pub(super) async fn new_dataset(
 				Err(CreateDatasetError::AlreadyExists(_)) => {
 					return (
 						StatusCode::BAD_REQUEST,
-						format!("A dataeset named `{dataset_name}` already exists."),
+						format!("A dataeset named `{}` already exists.", payload.name),
 					)
 						.into_response();
 				}

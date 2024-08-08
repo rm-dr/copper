@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::{
-	extract::{Path, State},
+	extract::{Query, State},
 	http::StatusCode,
 	response::{IntoResponse, Response},
 	Json,
@@ -13,11 +13,12 @@ use ufo_pipeline_nodes::UFOContext;
 use utoipa::ToSchema;
 
 use super::list::{PipelineInfoInput, PipelineInfoShort};
+use super::PipelineSelect;
 use crate::RouterState;
 
 /// A pipeline specification
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub(in crate::api) struct PipelineInfo {
+pub(super) struct PipelineInfo {
 	#[serde(flatten)]
 	pub short: PipelineInfoShort,
 
@@ -33,12 +34,8 @@ pub(in crate::api) struct PipelineInfo {
 /// Get details about a pipeline
 #[utoipa::path(
 	get,
-	path = "/{dataset_name}/pipelines/{pipeline_name}",
-	tag = "Pipeline",
-	params(
-		("dataset_name" = String, description = "Dataset name"),
-		("pipeline_name" = String, description = "Pipeline name"),
-	),
+	path = "/get",
+	params(PipelineSelect),
 	responses(
 		(status = 200, description = "Pipeline info", body = PipelineInfo),
 		(status = 404, description = "There is no such pipeline or database", body=String),
@@ -46,24 +43,24 @@ pub(in crate::api) struct PipelineInfo {
 	),
 )]
 pub(in crate::api) async fn get_pipeline(
-	Path((dataset_name, pipeline_name)): Path<(String, String)>,
 	State(state): State<RouterState>,
+	Query(query): Query<PipelineSelect>,
 ) -> Response {
-	let pipeline_name = PipelineName::new(&pipeline_name);
+	let pipeline_name = PipelineName::new(&query.pipeline);
 
-	let dataset = match state.main_db.get_dataset(&dataset_name) {
+	let dataset = match state.main_db.get_dataset(&query.dataset) {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
 				StatusCode::NOT_FOUND,
-				format!("Dataset `{dataset_name}` does not exist"),
+				format!("Dataset `{}` does not exist", query.dataset),
 			)
 				.into_response()
 		}
 		Err(e) => {
 			error!(
 				message = "Could not get dataset by name",
-				dataset = dataset_name,
+				dataset = query.dataset,
 				error = ?e
 			);
 			return (
@@ -86,7 +83,8 @@ pub(in crate::api) async fn get_pipeline(
 			return (
 				StatusCode::NOT_FOUND,
 				format!(
-					"Dataset `{dataset_name}` does not have a pipeline named `{pipeline_name}`"
+					"Dataset `{}` does not have a pipeline named `{pipeline_name}`",
+					query.dataset
 				),
 			)
 				.into_response()
@@ -94,7 +92,7 @@ pub(in crate::api) async fn get_pipeline(
 		Err(e) => {
 			error!(
 				message = "Could not get pipeline by name",
-				dataset = dataset_name,
+				dataset = query.dataset,
 				pipeline_name = ?pipeline_name,
 				error = ?e
 			);

@@ -1,22 +1,19 @@
 use axum::{
-	extract::{Path, State},
+	extract::State,
 	http::StatusCode,
 	response::{IntoResponse, Response},
+	Json,
 };
 use tracing::error;
 use ufo_ds_core::errors::MetastoreError;
 
+use super::ClassSelect;
 use crate::api::RouterState;
 
 /// Create a new class
 #[utoipa::path(
 	post,
-	path = "/{dataset_name}/classes/{class_name}",
-	tag = "Itemclass",
-	params(
-		("dataset_name" = String, description = "Dataset name"),
-		("class_name" = String, description = "New class name")
-	),
+	path = "/add",
 	responses(
 		(status = 200, description = "Successfully created new class"),
 		(status = 400, description = "Could not create new class, bad parameters", body=String),
@@ -24,23 +21,23 @@ use crate::api::RouterState;
 		(status = 500, description = "Internal server error", body=String),
 	),
 )]
-pub(in crate::api) async fn new_class(
-	Path((dataset_name, class_name)): Path<(String, String)>,
+pub(super) async fn add_class(
 	State(state): State<RouterState>,
+	Json(payload): Json<ClassSelect>,
 ) -> Response {
-	let dataset = match state.main_db.get_dataset(&dataset_name) {
+	let dataset = match state.main_db.get_dataset(&payload.dataset) {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
 				StatusCode::NOT_FOUND,
-				format!("Dataset `{dataset_name}` does not exist"),
+				format!("Dataset `{}` does not exist", payload.dataset),
 			)
 				.into_response()
 		}
 		Err(e) => {
 			error!(
 				message = "Could not get dataset by name",
-				dataset = dataset_name,
+				dataset = payload.dataset,
 				error = ?e
 			);
 			return (
@@ -51,7 +48,7 @@ pub(in crate::api) async fn new_class(
 		}
 	};
 
-	let res = dataset.add_class(&class_name);
+	let res = dataset.add_class(&payload.class);
 
 	match res {
 		Ok(_) => return StatusCode::OK.into_response(),
@@ -65,7 +62,7 @@ pub(in crate::api) async fn new_class(
 		Err(e) => {
 			error!(
 				message = "Could not create new class",
-				dataset = dataset_name,
+				dataset = payload.dataset,
 				error = ?e
 			);
 			return (

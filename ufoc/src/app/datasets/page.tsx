@@ -9,7 +9,6 @@ export default function Page() {
 	const [selectedDs, setSelectedDs] = useState<null | string>(null);
 
 	const panel_dblist = useDbList(setSelectedDs, selectedDs);
-
 	const panel_edit = useEdit(selectedDs);
 
 	return (
