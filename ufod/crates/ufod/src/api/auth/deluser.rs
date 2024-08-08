@@ -32,7 +32,7 @@ pub(super) async fn del_user(
 	State(state): State<RouterState>,
 	Json(payload): Json<DeluserRequest>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
+	let userinfo = match state.main_db.auth.auth_or_logout(&jar).await {
 		Err(x) => return x,
 		Ok(u) => {
 			if !u.group.permissions.edit_users_sub.is_allowed() {
@@ -89,7 +89,14 @@ pub(super) async fn del_user(
 			if !(is_parent || u.group.id == target_user.group.id) {
 				return StatusCode::UNAUTHORIZED.into_response();
 			}
+
+			// Return user info, we'll need it later
+			u
 		}
+	};
+
+	if payload.user == u32::from(userinfo.id) {
+		return (StatusCode::BAD_REQUEST, format!("Cannot delete self")).into_response();
 	}
 
 	info!(

@@ -119,7 +119,17 @@ impl AuthProvider {
 
 		for t in self.active_tokens.lock().await.iter() {
 			if t.token == token {
-				return Ok(Some(self.get_user(t.user).await?));
+				return match self.get_user(t.user).await {
+					Ok(user) => Ok(Some(user)),
+					Err(sqlx::Error::RowNotFound) => {
+						// Tried to authenticate with a user that doesn't exist.
+						// This probably happened because our user was deleted.
+						// Invalidate this session and return None.
+						self.terminate_session(jar).await;
+						Ok(None)
+					}
+					Err(e) => Err(e),
+				};
 			}
 		}
 
