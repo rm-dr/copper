@@ -16,7 +16,7 @@ use crate::{
 	api::{PipelineData, PipelineNode, PipelineNodeState, PipelineNodeStub},
 	graph::util::GraphNodeIdx,
 	labels::PipelineNodeLabel,
-	pipeline::{Pipeline, PipelineEdge},
+	pipeline::pipeline::{Pipeline, PipelineEdge},
 	SDataType, SErrorType, SNodeType,
 };
 

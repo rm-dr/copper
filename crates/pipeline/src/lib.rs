@@ -3,12 +3,11 @@
 #![warn(missing_docs)]
 
 mod graph;
-#[allow(clippy::module_inception)]
-mod pipeline;
-mod syntax;
 
 pub mod api;
 pub mod labels;
+#[allow(clippy::module_inception)]
+pub mod pipeline;
 pub mod runner;
 
 use api::{PipelineData, PipelineNode, PipelineNodeStub};

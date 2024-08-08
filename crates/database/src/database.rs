@@ -7,28 +7,35 @@ use crate::{
 		fs::store::FsBlobstore,
 	},
 	metastore::{api::Metastore, errors::MetastoreError, sqlite::db::SQLiteMetastore},
+	pipestore::{api::Pipestore, fs::FsPipestore},
 };
 
-pub struct Database<BlobstoreType: Blobstore, MetastoreType: Metastore> {
+pub struct Database<BlobstoreType: Blobstore, MetastoreType: Metastore, PipestoreType: Pipestore> {
 	blobstore: BlobstoreType,
 	metastore: MetastoreType,
+	pipestore: PipestoreType,
 }
 
-unsafe impl<BlobStoreType: Blobstore, MetaDbType: Metastore> Send
-	for Database<BlobStoreType, MetaDbType>
+// TODO: modular locks
+unsafe impl<BlobStoreType: Blobstore, MetaDbType: Metastore, PipestoreType: Pipestore> Send
+	for Database<BlobStoreType, MetaDbType, PipestoreType>
 {
 }
 
-unsafe impl<BlobStoreType: Blobstore, MetaDbType: Metastore> Sync
-	for Database<BlobStoreType, MetaDbType>
+unsafe impl<BlobStoreType: Blobstore, MetaDbType: Metastore, PipestoreType: Pipestore> Sync
+	for Database<BlobStoreType, MetaDbType, PipestoreType>
 {
 }
 
-impl<BlobStoreType: Blobstore, MetaDbType: Metastore> UFODatabase
-	for Database<BlobStoreType, MetaDbType>
+impl<BlobStoreType: Blobstore, MetaDbType: Metastore, PipestoreType: Pipestore> UFODatabase
+	for Database<BlobStoreType, MetaDbType, PipestoreType>
 {
 	fn get_metastore(&mut self) -> &mut dyn Metastore {
 		&mut self.metastore
+	}
+
+	fn get_pipestore(&self) -> &dyn Pipestore {
+		&self.pipestore
 	}
 
 	fn new_blob(&mut self, mime: &ufo_util::mime::MimeType) -> BlobstoreTmpWriter {
@@ -40,7 +47,7 @@ impl<BlobStoreType: Blobstore, MetaDbType: Metastore> UFODatabase
 	}
 }
 
-impl Database<FsBlobstore, SQLiteMetastore> {
+impl Database<FsBlobstore, SQLiteMetastore, FsPipestore> {
 	pub fn create(db_root: &Path) -> Result<(), MetastoreError> {
 		// `db_root` must exist and be empty
 		if db_root.is_dir() {
@@ -74,9 +81,11 @@ impl Database<FsBlobstore, SQLiteMetastore> {
 		)
 		.unwrap();
 
+		// Make metadata store
 		SQLiteMetastore::create(&db_root.join("metadata.sqlite")).unwrap();
 
-		std::fs::create_dir(db_root.join("pipelines")).unwrap();
+		// Make pipeline store
+		FsPipestore::create(&db_root.join("pipelines")).unwrap();
 
 		Ok(())
 	}
@@ -84,10 +93,12 @@ impl Database<FsBlobstore, SQLiteMetastore> {
 	pub fn open(db_root: &Path) -> Result<Self, ()> {
 		let blobstore = FsBlobstore::open(db_root, "blobstore.sqlite").unwrap();
 		let metastore = SQLiteMetastore::open(&db_root.join("metadata.sqlite")).unwrap();
+		let pipestore = FsPipestore::open(&db_root.join("pipelines")).unwrap();
 
 		Ok(Self {
 			metastore,
 			blobstore,
+			pipestore,
 		})
 	}
 }

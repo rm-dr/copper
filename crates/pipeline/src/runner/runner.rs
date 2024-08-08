@@ -1,7 +1,7 @@
 //! Top-level pipeline runner.
 //! Runs a set of jobs asyncronously and in parallel.
 
-use std::{collections::VecDeque, fs::File, io::Read, marker::PhantomData, path::Path, sync::Arc};
+use std::{collections::VecDeque, marker::PhantomData, sync::Arc};
 
 use tracing::debug;
 
@@ -9,8 +9,7 @@ use super::single::{PipelineSingleJob, SingleJobState};
 use crate::{
 	api::{PipelineNode, PipelineNodeState, PipelineNodeStub},
 	labels::PipelineLabel,
-	pipeline::Pipeline,
-	syntax::{builder::PipelineBuilder, errors::PipelinePrepareError, spec::PipelineSpec},
+	pipeline::{pipeline::Pipeline, syntax::errors::PipelinePrepareError},
 	SDataStub, SDataType, SErrorType,
 };
 
@@ -91,28 +90,12 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	/// A pipeline must be loaded before any jobs can be created.
 	pub fn add_pipeline(
 		&mut self,
-		path: &Path,
 		pipeline_name: String,
+		toml_str: String,
 	) -> Result<(), PipelinePrepareError<SDataStub<StubType>>> {
-		let mut f =
-			File::open(path).map_err(|error| PipelinePrepareError::CouldNotOpenFile { error })?;
-
-		let mut s: String = Default::default();
-
-		f.read_to_string(&mut s)
-			.map_err(|error| PipelinePrepareError::CouldNotReadFile { error })?;
-
-		let spec: PipelineSpec<StubType> = toml::from_str(&s)
-			.map_err(|error| PipelinePrepareError::CouldNotParseFile { error })?;
-
-		let built = PipelineBuilder::build(
-			self.context.clone(),
-			&self.pipelines,
-			&pipeline_name[..],
-			spec,
-		)?;
-
-		self.pipelines.push(Arc::new(built));
+		let pipeline =
+			Pipeline::from_toml_str(&pipeline_name, &toml_str[..], self.context.clone()).unwrap();
+		self.pipelines.push(Arc::new(pipeline));
 		return Ok(());
 	}
 

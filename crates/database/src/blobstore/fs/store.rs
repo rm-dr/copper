@@ -28,7 +28,7 @@ impl FsBlobstore {
 		let blob_db_absolute = root_dir.join(&blob_db_file);
 		let blob_storage_dir_absolute = root_dir.join(&blob_storage_dir);
 
-		if blob_storage_dir.exists() {
+		if blob_storage_dir_absolute.exists() {
 			return Err(());
 		}
 		std::fs::create_dir(blob_storage_dir_absolute).unwrap();

@@ -1,11 +1,14 @@
-use std::fmt::Debug;
+//! Core pipeline structs
+
+use std::{fmt::Debug, sync::Arc};
 
 use crate::{
-	api::PipelineNodeStub,
+	api::{PipelineNode, PipelineNodeStub},
 	graph::{finalized::FinalizedGraph, util::GraphNodeIdx},
 	labels::{PipelineLabel, PipelineNodeLabel},
-	syntax::internalnode::InternalNodeStub,
 };
+
+use super::syntax::{builder::PipelineBuilder, internalnode::InternalNodeStub, spec::PipelineSpec};
 
 /// An edge in a pipeline
 #[derive(Debug, Clone)]
@@ -64,10 +67,23 @@ pub struct Pipeline<StubType: PipelineNodeStub> {
 }
 
 impl<StubType: PipelineNodeStub> Pipeline<StubType> {
+	/// Load a pipeline from a TOML string
+	pub fn from_toml_str(
+		pipeline_name: &str,
+		toml_str: &str,
+		context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+	) -> Result<Self, ()> {
+		let spec: PipelineSpec<StubType> = toml::from_str(toml_str).unwrap();
+		let built = PipelineBuilder::build(context, &vec![], pipeline_name, spec).unwrap();
+		Ok(built)
+	}
+
+	/// Iterate over all nodes in this pipeline
 	pub fn iter_node_labels(&self) -> impl Iterator<Item = &PipelineNodeLabel> {
 		self.graph.iter_nodes().map(|(l, _)| l)
 	}
 
+	/// Get a node by name
 	pub fn get_name(&self) -> &PipelineLabel {
 		&self.name
 	}

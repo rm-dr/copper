@@ -35,7 +35,7 @@ pub(crate) struct PipelineNodeSpec<StubType: PipelineNodeStub> {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(bound = "StubType: DeserializeOwned")]
-pub(crate) struct PipelineSpec<StubType: PipelineNodeStub> {
+pub(in super::super) struct PipelineSpec<StubType: PipelineNodeStub> {
 	/// This pipeline's input node.
 	/// Note that this doesn't provide an `inputs` array.
 	/// That is wired up by the code that runs this pipeline.

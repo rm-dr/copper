@@ -3052,8 +3052,10 @@ dependencies = [
  "serde",
  "smartstring",
  "sqlx",
+ "toml",
  "ufo-pipeline",
  "ufo-util",
+ "walkdir",
 ]
 
 [[package]]

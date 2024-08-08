@@ -12,6 +12,7 @@ use ufo_database::{
 		data::{HashType, MetastoreDataStub},
 		sqlite::db::SQLiteMetastore,
 	},
+	pipestore::fs::FsPipestore,
 };
 use ufod::{AddJobParams, RunnerStatus, RunningNodeState};
 use url::Url;
@@ -82,7 +83,7 @@ fn main() -> Result<()> {
 				std::fs::create_dir(&db_root).unwrap();
 			}
 
-			Database::<FsBlobstore, SQLiteMetastore>::create(&db_root).unwrap();
+			Database::<FsBlobstore, SQLiteMetastore, FsPipestore>::create(&db_root).unwrap();
 
 			// Everything below this point should be done in UI
 			{
@@ -96,8 +97,13 @@ fn main() -> Result<()> {
 					.unwrap();
 				db.add_attr(x, "album", MetastoreDataStub::Text, AttributeOptions::new())
 					.unwrap();
-				db.add_attr(x, "artist", MetastoreDataStub::Text, AttributeOptions::new())
-					.unwrap();
+				db.add_attr(
+					x,
+					"artist",
+					MetastoreDataStub::Text,
+					AttributeOptions::new(),
+				)
+				.unwrap();
 				db.add_attr(
 					x,
 					"albumartist",
@@ -118,8 +124,13 @@ fn main() -> Result<()> {
 					.unwrap();
 				db.add_attr(x, "ISRC", MetastoreDataStub::Text, AttributeOptions::new())
 					.unwrap();
-				db.add_attr(x, "lyrics", MetastoreDataStub::Text, AttributeOptions::new())
-					.unwrap();
+				db.add_attr(
+					x,
+					"lyrics",
+					MetastoreDataStub::Text,
+					AttributeOptions::new(),
+				)
+				.unwrap();
 				db.add_attr(
 					x,
 					"cover_art",

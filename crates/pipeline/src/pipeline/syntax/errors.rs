@@ -13,9 +13,11 @@ use crate::{
 pub enum PipelineErrorNode {
 	/// The pipeline's output node
 	PipelineOutput,
+
+	/// The pipeline's input node
 	PipelineInput,
 
-	// An inline node
+	/// An inline node
 	Inline,
 
 	/// A named node created by the user

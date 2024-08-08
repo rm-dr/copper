@@ -14,11 +14,11 @@ use crate::{
 	api::{PipelineNode, PipelineNodeStub},
 	graph::{graph::Graph, util::GraphNodeIdx},
 	labels::{PipelineLabel, PipelineNodeLabel, PipelinePortLabel},
-	pipeline::{Pipeline, PipelineEdge},
+	pipeline::pipeline::{Pipeline, PipelineEdge},
 	SDataStub,
 };
 
-pub(crate) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
+pub(in super::super) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
 	/// The name of the pipeline we're building
 	name: PipelineLabel,
 

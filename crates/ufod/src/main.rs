@@ -1,5 +1,4 @@
 use std::{
-	ffi::OsStr,
 	path::PathBuf,
 	sync::{Arc, Mutex},
 	thread,
@@ -12,7 +11,7 @@ use axum::{
 	routing::{get, post},
 	Json, Router,
 };
-use ufo_database::database::Database;
+use ufo_database::{api::UFODatabase, database::Database};
 use ufo_pipeline::{
 	api::PipelineNodeState,
 	labels::PipelineLabel,
@@ -23,7 +22,6 @@ use ufod::{
 	AddJobParams, CompletedJobStatus, RunnerStatus, RunningJobStatus, RunningNodeState,
 	RunningNodeStatus,
 };
-use walkdir::WalkDir;
 
 #[derive(Clone)]
 struct RouterState {
@@ -46,6 +44,18 @@ async fn main() {
 
 	let database = Database::open(&PathBuf::from("./db")).unwrap();
 
+	let all = database
+		.get_pipestore()
+		.all_pipelines()
+		.iter()
+		.map(|x| {
+			(
+				x.clone(),
+				database.get_pipestore().load_pipeline(x.clone().into()),
+			)
+		})
+		.collect::<Vec<_>>();
+
 	let ctx = UFOContext {
 		database: Arc::new(Mutex::new(database)),
 		blob_fragment_size: 1_000_000,
@@ -60,27 +70,8 @@ async fn main() {
 		ctx.clone(),
 	);
 
-	for entry in WalkDir::new(PathBuf::from("./db").join("pipelines")) {
-		let entry = entry.unwrap();
-		if entry.path().is_file() {
-			if entry.path().extension() != Some(OsStr::new("toml")) {
-				panic!()
-			}
-			runner
-				.add_pipeline(
-					entry.path(),
-					entry
-						.path()
-						.file_name()
-						.unwrap()
-						.to_str()
-						.unwrap()
-						.strip_suffix(".toml")
-						.unwrap()
-						.to_string(),
-				)
-				.unwrap();
-		}
+	for (l, t) in all {
+		runner.add_pipeline(l, t).unwrap();
 	}
 
 	let state = RouterState {
