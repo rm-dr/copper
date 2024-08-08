@@ -1138,7 +1138,9 @@ export interface operations {
 				headers: {
 					[name: string]: unknown;
 				};
-				content?: never;
+				content: {
+					"text/plain": string;
+				};
 			};
 			/** @description Could not log in */
 			400: {

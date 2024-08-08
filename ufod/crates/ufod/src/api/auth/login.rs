@@ -22,7 +22,7 @@ pub(super) struct LoginRequest {
 	post,
 	path = "/login",
 	responses(
-		(status = 200, description = "Successfully logged in"),
+		(status = 200, description = "Successfully logged in", body=String),
 		(status = 400, description = "Could not log in"),
 		(status = 500, description = "Internal server error", body=String),
 	),
@@ -55,11 +55,12 @@ pub(super) async fn try_login(
 				.path("/")
 				.secure(true)
 				.http_only(true)
-				.same_site(SameSite::None);
+				.same_site(SameSite::None)
+				.expires(x.expires);
 
 			return (
 				AppendHeaders([(SET_COOKIE, cookie.to_string())]),
-				"Login successful, cookie set",
+				Json("Login successful, cookie set"),
 			)
 				.into_response();
 		}
