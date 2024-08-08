@@ -1,12 +1,10 @@
-use std::sync::Arc;
-
 use smartstring::{LazyCompact, SmartString};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
 };
 use ufo_storage::{
-	api::{ClassHandle, Dataset},
+	api::ClassHandle,
 	data::{StorageData, StorageDataStub},
 };
 
@@ -37,7 +35,7 @@ impl PipelineNode for StorageOutput {
 
 	fn init<F>(
 		&mut self,
-		_ctx: Arc<Self::NodeContext>,
+		_ctx: &Self::NodeContext,
 		input: Vec<Self::DataType>,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
@@ -51,7 +49,7 @@ impl PipelineNode for StorageOutput {
 
 	fn run<F>(
 		&mut self,
-		ctx: Arc<Self::NodeContext>,
+		ctx: &Self::NodeContext,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where

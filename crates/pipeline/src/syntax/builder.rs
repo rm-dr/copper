@@ -22,7 +22,7 @@ pub(crate) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
 	/// The name of the pipeline we're building
 	name: SmartString<LazyCompact>,
 	/// The context with which to build this pipeline
-	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+	context: <StubType::NodeType as PipelineNode>::NodeContext,
 
 	/// The pipeline spec to build
 	spec: PipelineSpec<StubType>,
@@ -63,7 +63,7 @@ type DataStub<StubType> = <<<StubType as PipelineNodeStub>::NodeType as Pipeline
 
 impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 	pub fn build(
-		context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+		context: <StubType::NodeType as PipelineNode>::NodeContext,
 		pipelines: &'a Vec<(SmartString<LazyCompact>, Arc<Pipeline<StubType>>)>,
 		name: &str,
 		spec: PipelineSpec<StubType>,
@@ -239,12 +239,10 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 				p.graph
 					.get_node(p.input_node_idx)
 					.1
-					.inputs(self.context.clone())
+					.inputs(&self.context)
 					.find_with_name(input_port_label)
 			}
-			t => t
-				.inputs(self.context.clone())
-				.find_with_name(input_port_label),
+			t => t.inputs(&self.context).find_with_name(input_port_label),
 		}
 		.ok_or(PipelinePrepareError::NoNodeInput {
 			node: PipelineErrorNode::Named(node_label.clone()),
@@ -279,12 +277,10 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 				p.graph
 					.get_node(p.output_node_idx)
 					.1
-					.outputs(self.context.clone())
+					.outputs(&self.context)
 					.find_with_name(output_port_label)
 			}
-			t => t
-				.outputs(self.context.clone())
-				.find_with_name(output_port_label),
+			t => t.outputs(&self.context).find_with_name(output_port_label),
 		}
 		.ok_or(PipelinePrepareError::NoNodeOutput {
 			output: output_port_label.clone(),
@@ -305,7 +301,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 				let out_port = self
 					.spec
 					.input
-					.outputs(self.context.clone())
+					.outputs(&self.context)
 					.iter()
 					.enumerate()
 					.find(|(_, (a, _))| a == port)
@@ -362,16 +358,16 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 		let output_type: <<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub = match output {
 			NodeOutput::Inline(node) => {
 				// Inline nodes must have exactly one output
-				if node.outputs(self.context.clone()).len() != 1 {
+				if node.outputs(&self.context).len() != 1 {
 					return Err(PipelinePrepareError::BadInlineNode { input: input.clone() })
 				}
-				node.outputs(self.context.clone()).iter().next().unwrap().1
+				node.outputs(&self.context).iter().next().unwrap().1
 			},
 
 			NodeOutput::Pipeline { port } => {
 				if let Some((_, from_type)) = self.
 					spec.input
-					.outputs(self.context.clone())
+					.outputs(&self.context)
 					.iter()
 					.find(|(a, _)| a == port)
 				{
@@ -406,7 +402,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 					.spec
 					.output
 					.node_type
-					.inputs(self.context.clone())
+					.inputs(&self.context)
 					.find_with_name(port)
 				{
 					from_type

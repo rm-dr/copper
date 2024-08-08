@@ -1,5 +1,5 @@
 use smartstring::{LazyCompact, SmartString};
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
@@ -94,7 +94,7 @@ impl PipelineNode for UFONodeInstance {
 
 	fn init<F>(
 		&mut self,
-		ctx: Arc<Self::NodeContext>,
+		ctx: &Self::NodeContext,
 		input: Vec<Self::DataType>,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
@@ -121,7 +121,7 @@ impl PipelineNode for UFONodeInstance {
 
 	fn run<F>(
 		&mut self,
-		ctx: Arc<Self::NodeContext>,
+		ctx: &Self::NodeContext,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where

@@ -86,8 +86,10 @@ impl From<u32> for AttrHandle {
 	}
 }
 
-// TODO: better db backend. EAV is slow.
-pub trait Dataset {
+pub trait Dataset
+where
+	Self: Send,
+{
 	fn add_class(&mut self, name: &str) -> Result<ClassHandle, DatasetError>;
 	fn add_item(
 		&mut self,

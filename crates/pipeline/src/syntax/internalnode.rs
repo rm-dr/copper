@@ -1,5 +1,5 @@
 use serde::{de::DeserializeOwned, Deserialize};
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
 use crate::{
 	api::{PipelineData, PipelineNode, PipelineNodeStub},
@@ -33,7 +33,7 @@ impl<StubType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<StubType>
 
 	fn build(
 		&self,
-		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		name: &str,
 	) -> Self::NodeType {
 		match self {
@@ -44,7 +44,7 @@ impl<StubType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<StubType>
 
 	fn inputs(
 		&self,
-		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
 		match self {
 			Self::Pipeline { .. } => unreachable!(),
@@ -54,7 +54,7 @@ impl<StubType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<StubType>
 
 	fn outputs(
 		&self,
-		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
 		match self {
 			Self::Pipeline { .. } => unreachable!(),

@@ -1,5 +1,5 @@
 use serde::de::DeserializeOwned;
-use std::{fmt::Debug, str::FromStr, sync::Arc};
+use std::fmt::Debug;
 
 use crate::{errors::PipelineError, portspec::PipelinePortSpec};
 
@@ -55,7 +55,7 @@ pub trait PipelineNode {
 	fn init<F>(
 		&mut self,
 
-		ctx: Arc<Self::NodeContext>,
+		ctx: &Self::NodeContext,
 
 		// TODO: provide args one at a time
 		input: Vec<Self::DataType>,
@@ -77,7 +77,7 @@ pub trait PipelineNode {
 	/// All heavy computation goes here.
 	fn run<F>(
 		&mut self,
-		_ctx: Arc<Self::NodeContext>,
+		_ctx: &Self::NodeContext,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
@@ -92,25 +92,25 @@ where
 	Self: Debug + Clone + DeserializeOwned + Sync + Send,
 {
 	/// The type of node this stub produces
-	type NodeType: PipelineNode + Sync + Send + 'static;
+	type NodeType: PipelineNode + Send + 'static;
 
 	/// Turn this stub into a proper node instance.
 	fn build(
 		&self,
-		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		name: &str,
 	) -> Self::NodeType;
 
 	/// Return the inputs the node generated from this stub will take
 	fn inputs(
 		&self,
-		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>;
 
 	/// Return the outputs the node generated from this stub will produce
 	fn outputs(
 		&self,
-		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>;
 }
 

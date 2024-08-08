@@ -79,12 +79,12 @@ fn main() -> Result<()> {
 		d
 	};
 
-	let ctx = Arc::new(UFOContext {
-		dataset: Mutex::new(dataset),
-	});
+	let ctx = UFOContext {
+		dataset: Arc::new(Mutex::new(dataset)),
+	};
 
 	// Prep runner
-	let mut runner: PipelineRunner<UFONodeType> = PipelineRunner::new(4);
+	let mut runner: PipelineRunner<UFONodeType> = PipelineRunner::new(ctx.clone(), 4);
 	runner.add_pipeline(
 		ctx.clone(),
 		Path::new("pipelines/cover.toml"),
@@ -97,11 +97,7 @@ fn main() -> Result<()> {
 	)?;
 
 	for p in ["data/freeze.flac"] {
-		runner.run(
-			ctx.clone(),
-			"audio".into(),
-			vec![StorageData::Path(Arc::new(p.into()))],
-		)?;
+		runner.run("audio".into(), vec![StorageData::Path(Arc::new(p.into()))])?;
 	}
 
 	Ok(())

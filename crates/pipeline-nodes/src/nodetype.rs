@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use serde::Deserialize;
 use serde_with::serde_as;
 use smartstring::{LazyCompact, SmartString};
@@ -10,7 +8,7 @@ use ufo_pipeline::{
 	portspec::PipelinePortSpec,
 };
 use ufo_storage::{
-	api::{ClassHandle, Dataset},
+	api::ClassHandle,
 	data::{HashType, StorageData, StorageDataStub},
 };
 
@@ -63,7 +61,7 @@ impl PipelineNodeStub for UFONodeType {
 
 	fn build(
 		&self,
-		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		name: &str,
 	) -> UFONodeInstance {
 		match self {
@@ -132,7 +130,7 @@ impl PipelineNodeStub for UFONodeType {
 
 	fn inputs(
 		&self,
-		_ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
+		_ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
 		match self {
 			// Util
@@ -170,7 +168,7 @@ impl PipelineNodeStub for UFONodeType {
 
 	fn outputs(
 		&self,
-		ctx: Arc<<Self::NodeType as PipelineNode>::NodeContext>,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
 		match self {
 			// Magic

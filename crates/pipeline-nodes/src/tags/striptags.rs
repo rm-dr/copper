@@ -35,7 +35,7 @@ impl PipelineNode for StripTags {
 
 	fn init<F>(
 		&mut self,
-		_ctx: Arc<Self::NodeContext>,
+		_ctx: &Self::NodeContext,
 		mut input: Vec<Self::DataType>,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
@@ -49,7 +49,7 @@ impl PipelineNode for StripTags {
 
 	fn run<F>(
 		&mut self,
-		_ctx: Arc<Self::NodeContext>,
+		_ctx: &Self::NodeContext,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where

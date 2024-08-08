@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
@@ -26,7 +24,7 @@ impl PipelineNode for Noop {
 
 	fn init<F>(
 		&mut self,
-		_ctx: Arc<Self::NodeContext>,
+		_ctx: &Self::NodeContext,
 		input: Vec<Self::DataType>,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>

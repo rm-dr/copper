@@ -106,7 +106,7 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 					.graph
 					.get_node(pipeline.input_node_idx)
 					.1
-					.inputs(context.clone())
+					.inputs(&context)
 					.len()
 		);
 
@@ -116,7 +116,7 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 			.map(|(name, x)| {
 				(
 					name.clone(),
-					Arc::new(Mutex::new(x.build(context.clone(), name.into()))),
+					Arc::new(Mutex::new(x.build(&context, name.into()))),
 				)
 			})
 			.collect::<Vec<_>>();
@@ -260,8 +260,8 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 			} else {
 				// Initialize all with None, in case some are disconnected.
 				let node_type = &self.pipeline.graph.get_node(node).1;
-				let mut inputs = Vec::with_capacity(node_type.inputs(self.context.clone()).len());
-				for (_, t) in node_type.inputs(self.context.clone()).iter() {
+				let mut inputs = Vec::with_capacity(node_type.inputs(&self.context).len());
+				for (_, t) in node_type.inputs(&self.context).iter() {
 					inputs.push(PipelineData::new_empty(t));
 				}
 
@@ -301,12 +301,11 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 			println!("Init {}", n);
 			let mut node_instance_locked = node_instance.lock().unwrap();
 			*self.node_status.get_mut(node.as_usize()).unwrap() = NodeRunState::Running;
-			let res =
-				node_instance_locked.init(self.context.clone(), prepare_inputs(), |port, data| {
-					// This should never fail, since we never close the receiver.
-					self.send_data.send((node, port, data)).unwrap();
-					Ok(())
-				});
+			let res = node_instance_locked.init(&self.context, prepare_inputs(), |port, data| {
+				// This should never fail, since we never close the receiver.
+				self.send_data.send((node, port, data)).unwrap();
+				Ok(())
+			});
 			let done = res
 				.as_ref()
 				.ok()
@@ -335,7 +334,7 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 		self.pool.execute(move || {
 			println!("Run  {}", n);
 			let mut node_instance = node_instance.lock().unwrap();
-			let res = node_instance.run(ctx, |port, data| {
+			let res = node_instance.run(&*ctx, |port, data| {
 				// This should never fail, since we never close the receiver.
 				send_data.send((node, port, data)).unwrap();
 				Ok(())

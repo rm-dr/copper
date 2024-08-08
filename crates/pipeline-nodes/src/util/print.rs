@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
@@ -25,7 +23,7 @@ impl PipelineNode for Print {
 
 	fn init<F>(
 		&mut self,
-		_ctx: Arc<Self::NodeContext>,
+		_ctx: &Self::NodeContext,
 		mut input: Vec<Self::DataType>,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
@@ -39,7 +37,7 @@ impl PipelineNode for Print {
 
 	fn run<F>(
 		&mut self,
-		_ctx: Arc<Self::NodeContext>,
+		_ctx: &Self::NodeContext,
 		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where

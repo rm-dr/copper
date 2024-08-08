@@ -16,20 +16,25 @@ pub struct PipelineRunner<StubType: PipelineNodeStub> {
 	_p: PhantomData<StubType>,
 	pipelines: Vec<(SmartString<LazyCompact>, Arc<Pipeline<StubType>>)>,
 	node_runners: usize,
+	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 }
 
 impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
-	pub fn new(node_runners: usize) -> Self {
+	pub fn new(
+		context: <StubType::NodeType as PipelineNode>::NodeContext,
+		node_runners: usize,
+	) -> Self {
 		Self {
 			_p: PhantomData,
 			pipelines: Vec::new(),
 			node_runners,
+			context: Arc::new(context),
 		}
 	}
 
 	pub fn add_pipeline(
 		&mut self,
-		ctx: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
+		ctx: <StubType::NodeType as PipelineNode>::NodeContext,
 		path: &Path,
 		pipeline_name: String,
 	) -> Result<(), PipelinePrepareError<<<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>>{
@@ -44,7 +49,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		let spec: PipelineSpec<StubType> = toml::from_str(&s)
 			.map_err(|error| PipelinePrepareError::CouldNotParseFile { error })?;
 
-		let built = PipelineBuilder::build(ctx.clone(), &self.pipelines, &pipeline_name[..], spec)?;
+		let built = PipelineBuilder::build(ctx, &self.pipelines, &pipeline_name[..], spec)?;
 
 		self.pipelines.push((pipeline_name.into(), Arc::new(built)));
 		return Ok(());
@@ -62,14 +67,17 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 
 	pub fn run(
 		&self,
-		context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 		pipeline_name: SmartString<LazyCompact>,
 		pipeline_inputs: Vec<<StubType::NodeType as PipelineNode>::DataType>,
 	) -> Result<(), PipelineError> {
 		let pipeline = self.get_pipeline(pipeline_name).unwrap();
 
-		let mut runner =
-			PipelineSingleRunner::new(self.node_runners, context, pipeline, pipeline_inputs);
+		let mut runner = PipelineSingleRunner::new(
+			self.node_runners,
+			self.context.clone(),
+			pipeline,
+			pipeline_inputs,
+		);
 
 		let mut s = SingleRunnerState::Running;
 		while s == SingleRunnerState::Running {

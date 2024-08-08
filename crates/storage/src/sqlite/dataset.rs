@@ -513,6 +513,12 @@ impl Dataset for SQLiteDataset {
 		unimplemented!()
 	}
 
+	/*
+	fn class_get_attrs(&self, class: ClassHandle) -> Result<impl Iterator<Item = AttrHandle>, ()> {
+		Ok([].iter().cloned())
+	}
+	*/
+
 	fn attr_set_name(&mut self, _attr: AttrHandle, _name: &str) -> Result<(), DatasetError> {
 		unimplemented!()
 	}
