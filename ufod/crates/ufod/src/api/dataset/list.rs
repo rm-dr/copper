@@ -28,7 +28,7 @@ pub(super) struct DatasetInfoShort {
 		(status = 500, description = "Internal server error", body = String),
 	),
 )]
-pub(super) async fn get_all_datasets(State(state): State<RouterState>) -> Response {
+pub(super) async fn list_datasets(State(state): State<RouterState>) -> Response {
 	let mut out = Vec::new();
 
 	let datasets = match state.main_db.get_datasets() {

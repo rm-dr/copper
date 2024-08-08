@@ -5,27 +5,30 @@ use axum::{
 };
 use utoipa::OpenApi;
 
-mod datasets;
-mod new_dataset;
+mod itemclass;
 mod pipeline;
-mod pipelines;
-mod run;
 
-use datasets::*;
-use new_dataset::*;
-use pipeline::*;
-use pipelines::*;
-use run::*;
+mod list;
+mod new;
+
+use itemclass::{list::*, new::*, new_attr::*};
+use pipeline::{get::*, list::*, run::*};
+
+use list::*;
+use new::*;
 
 #[derive(OpenApi)]
 #[openapi(
 	tags(),
 	paths(
 		new_dataset,
-		get_all_pipelines,
+		list_datasets,
+		list_pipelines,
 		get_pipeline,
 		run_pipeline,
-		get_all_datasets
+		new_itemclass,
+		list_itemclasses,
+		new_itemclass_attr
 	),
 	components(schemas(
 		NewDataset,
@@ -40,17 +43,28 @@ use run::*;
 		AddJobInput,
 		DatasetInfoShort,
 		DatasetType,
+		NewItemclassParams,
+		ItemclassInfo,
+		AttrInfo,
+		NewItemclassAttrParams
 	))
 )]
 pub(super) struct DatasetApi;
 
 pub(super) fn router() -> Router<RouterState> {
 	Router::new()
-		//
-		.route("/", get(get_all_datasets))
-		.route("/new", post(new_dataset))
-		//
-		.route("/:dataset_name/pipelines", get(get_all_pipelines))
+		// Datasets
+		.route("/", get(list_datasets))
+		.route("/", post(new_dataset))
+		// Item classes
+		.route("/:dataset_name/classes", get(list_itemclasses))
+		.route("/:dataset_name/classes", post(new_itemclass))
+		.route(
+			"/:dataset_name/classes/:class_id/new_attr",
+			post(new_itemclass_attr),
+		)
+		// Pipelines
+		.route("/:dataset_name/pipelines", get(list_pipelines))
 		.route("/:dataset_name/pipelines/:pipeline_name", get(get_pipeline))
 		.route(
 			"/:dataset_name/pipelines/:pipeline_name/run",

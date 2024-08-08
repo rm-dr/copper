@@ -15,7 +15,7 @@ use utoipa::ToSchema;
 
 /// A pipeline specification
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub(super) struct PipelineInfoShort {
+pub(in crate::api) struct PipelineInfoShort {
 	/// This pipeline's name
 	#[schema(value_type = String)]
 	pub name: PipelineName,
@@ -24,7 +24,7 @@ pub(super) struct PipelineInfoShort {
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub(super) enum PipelineInfoInput {
+pub(in crate::api) enum PipelineInfoInput {
 	/// This pipeline's input may not be provided through the api
 	None,
 
@@ -33,7 +33,7 @@ pub(super) enum PipelineInfoInput {
 }
 
 impl PipelineInfoInput {
-	pub(super) fn node_to_input_type(input_node_type: &UFONodeType) -> Self {
+	pub(in crate::api) fn node_to_input_type(input_node_type: &UFONodeType) -> Self {
 		// This MUST match the decode implementation in `./run.rs`
 		match input_node_type {
 			UFONodeType::File => PipelineInfoInput::File,
@@ -46,12 +46,13 @@ impl PipelineInfoInput {
 #[utoipa::path(
 	get,
 	path = "/{dataset_name}/pipelines",
+	tag = "Pipeline",
 	responses(
 		(status = 200, description = "Pipeline info", body = Vec<PipelineInfoShort>),
 		(status = 500, description = "Could not load pipeline", body = String),
 	),
 )]
-pub(super) async fn get_all_pipelines(
+pub(in crate::api) async fn list_pipelines(
 	Path(dataset_name): Path<String>,
 	State(state): State<RouterState>,
 ) -> Response {

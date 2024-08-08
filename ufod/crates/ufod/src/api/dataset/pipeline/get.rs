@@ -11,12 +11,12 @@ use ufo_pipeline::labels::{PipelineName, PipelineNodeID};
 use ufo_pipeline_nodes::UFOContext;
 use utoipa::ToSchema;
 
-use super::{PipelineInfoInput, PipelineInfoShort};
+use super::list::{PipelineInfoInput, PipelineInfoShort};
 use crate::RouterState;
 
 /// A pipeline specification
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub struct PipelineInfo {
+pub(in crate::api) struct PipelineInfo {
 	#[serde(flatten)]
 	pub short: PipelineInfoShort,
 
@@ -33,6 +33,7 @@ pub struct PipelineInfo {
 #[utoipa::path(
 	get,
 	path = "/{dataset_name}/pipelines/{pipeline_name}",
+	tag = "Pipeline",
 	params(
 		("dataset_name" = String, description = "Dataset name"),
 		("pipeline_name" = String, description = "Pipeline name"),
@@ -42,7 +43,7 @@ pub struct PipelineInfo {
 		(status = 404, description = "There is no pipeline with this name")
 	),
 )]
-pub(super) async fn get_pipeline(
+pub(in crate::api) async fn get_pipeline(
 	Path((dataset_name, pipeline_name)): Path<(String, String)>,
 	State(state): State<RouterState>,
 ) -> Response {

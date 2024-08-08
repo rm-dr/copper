@@ -15,7 +15,7 @@ use crate::RouterState;
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 #[serde(tag = "type")]
-pub(super) enum AddJobInput {
+pub(in crate::api) enum AddJobInput {
 	File {
 		#[schema(value_type = String)]
 		upload_job: SmartString<LazyCompact>,
@@ -26,13 +26,13 @@ pub(super) enum AddJobInput {
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub(super) struct AddJobParams {
+pub(in crate::api) struct AddJobParams {
 	pub input: AddJobInput,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 #[serde(tag = "type")]
-pub(super) enum AddJobResult {
+pub(in crate::api) enum AddJobResult {
 	Ok, // TODO: return job id
 	BadPipeline {
 		#[schema(value_type = Option<String>)]
@@ -60,7 +60,7 @@ pub(super) enum AddJobResult {
 		(status = 404, description = "There is no pipeline with this name")
 	),
 )]
-pub(super) async fn run_pipeline(
+pub(in crate::api) async fn run_pipeline(
 	State(state): State<RouterState>,
 	Path((dataset_name, pipeline_name)): Path<(String, String)>,
 	Json(payload): Json<AddJobParams>,
