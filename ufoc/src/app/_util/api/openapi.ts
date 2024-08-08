@@ -1046,8 +1046,8 @@ export interface components {
 		};
 		/** @description Parameters to start a new file */
 		UploadStartInfo: {
-			/** @description This file's extension, used to determine its mime type */
-			file_extension: string;
+			/** @description This file's name, used to determine its mime type */
+			file_name: string;
 		};
 		/** @description A freshly-started upload job's parameters */
 		UploadStartResult: {

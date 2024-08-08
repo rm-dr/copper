@@ -2,7 +2,7 @@ use std::{
 	error::Error,
 	fmt::Display,
 	fs::File,
-	io::{Read, Write},
+	io::Write,
 	path::{Path, PathBuf},
 	time::Duration,
 };

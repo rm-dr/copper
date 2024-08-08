@@ -21,11 +21,11 @@ export async function startUploadJob(ac: AbortController): Promise<string> {
 /// This is used inside `uploadBlob`.
 async function start_new_file(
 	upload_job_id: string,
-	file_extension: string,
+	file_name: string,
 ): Promise<string> {
 	const { data, error } = await APIclient.POST("/upload/{job_id}/newfile", {
 		body: {
-			file_extension,
+			file_name,
 		},
 		params: {
 			path: { job_id: upload_job_id },
@@ -44,13 +44,13 @@ export async function uploadBlob(params: {
 	abort_controller: AbortController;
 	upload_job_id: string;
 	blob: Blob;
-	file_extension: string;
+	file_name: string;
 	max_fragment_size: number;
 	onProgress: (total_uploaded_bytes: number) => void;
 }): Promise<string> {
 	const file_name = await start_new_file(
 		params.upload_job_id,
-		params.file_extension,
+		params.file_name,
 	);
 
 	var frag_count = 0;
@@ -207,13 +207,11 @@ export function startUploadingFiles(params: {
 
 			let file_name;
 			try {
-				var c = file.file.name.split(".");
-				c.shift();
 				file_name = await uploadBlob({
 					abort_controller: upload_ac,
 					upload_job_id,
 					blob: file.file,
-					file_extension: c.join("."),
+					file_name: file.file.name,
 
 					// Leave a few KB for headers & metadata
 					max_fragment_size: request_body_limit - 25_000,

@@ -21,7 +21,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Server deadlocks with two parallel clients
 - [ ] Show item idx in list
 - [ ] Fix unique constraint
-- [ ] Fix mime detection when name has dots
 
 ## 📦 API endpoints
 - [ ] Rename users & groups

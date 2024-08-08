@@ -1,3 +1,5 @@
+use std::{ffi::OsStr, path::PathBuf};
+
 use axum::{
 	extract::{Path, State},
 	http::StatusCode,
@@ -16,9 +18,9 @@ use crate::api::RouterState;
 /// Parameters to start a new file
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 pub(super) struct UploadStartInfo {
-	/// This file's extension, used to determine its mime type
+	/// This file's name, used to determine its mime type
 	#[schema(value_type = String)]
-	pub file_extension: SmartString<LazyCompact>,
+	pub file_name: SmartString<LazyCompact>,
 }
 
 /// A freshly-started upload file's parameters
@@ -59,7 +61,14 @@ pub(super) async fn start_file(
 	}
 
 	let t_job_id = job_id.clone();
-	let mime = MimeType::from_extension(&start_info.file_extension).unwrap_or(MimeType::Blob);
+	let file_name = PathBuf::from(start_info.file_name.as_str());
+	let file_ext = match file_name.extension().unwrap_or(OsStr::new("")).to_str() {
+		Some(x) => x,
+		None => {
+			return (StatusCode::BAD_REQUEST, "File name is not a valid string").into_response();
+		}
+	};
+	let mime = MimeType::from_extension(file_ext).unwrap_or(MimeType::Blob);
 	match tokio::task::spawn_blocking(move || state.uploader.new_file(&t_job_id, mime)).await {
 		Ok(Ok(file_id)) => {
 			return (StatusCode::OK, Json(UploadNewFileResult { file_id })).into_response();
