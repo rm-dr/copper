@@ -24,7 +24,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- Remove/rework print node
 - Remove other pipeline node?
 - How and when should we load databases?
   - (nice interop with ufod)

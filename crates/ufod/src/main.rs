@@ -30,6 +30,7 @@ struct RouterState {
 
 // TODO: openapi
 // TODO: guaranteed unique job id (?)
+// TODO: api response json tagging
 
 #[tokio::main]
 async fn main() {

@@ -11,7 +11,7 @@ use ufo_pipeline::{
 use super::{
 	nodeinstance::UFONodeInstance,
 	tags::extracttags::ExtractTags,
-	util::{constant::Constant, ifnone::IfNone, noop::Noop, print::Print},
+	util::{constant::Constant, ifnone::IfNone, noop::Noop},
 };
 use crate::{
 	data::UFOData,
@@ -31,7 +31,6 @@ use crate::{
 #[serde(deny_unknown_fields)]
 pub enum UFONodeType {
 	// Utility nodes
-	Print,
 	Constant {
 		value: UFOData,
 	},
@@ -94,12 +93,6 @@ impl PipelineNodeStub for UFONodeType {
 				name: name.into(),
 				node: Noop::new(ctx, inputs.clone()),
 			},
-			UFONodeType::Print => UFONodeInstance::Print {
-				node_type: self.clone(),
-				name: name.into(),
-				node: Print::new(ctx),
-			},
-
 			UFONodeType::Hash { hash_type } => UFONodeInstance::Hash {
 				node_type: self.clone(),
 				name: name.into(),
@@ -163,7 +156,6 @@ impl PipelineNodeStub for UFONodeType {
 		match self {
 			Self::Constant { .. } => Constant::n_inputs(self, ctx),
 			Self::IfNone { .. } => IfNone::n_inputs(self, ctx),
-			Self::Print => Print::n_inputs(self, ctx),
 			Self::Hash { .. } => Hash::n_inputs(self, ctx),
 			Self::Noop { .. } => Noop::n_inputs(self, ctx),
 			Self::ExtractCovers => ExtractCovers::n_inputs(self, ctx),
@@ -186,7 +178,6 @@ impl PipelineNodeStub for UFONodeType {
 				Constant::input_compatible_with(self, ctx, input_idx, input_type)
 			}
 			Self::IfNone { .. } => IfNone::input_compatible_with(self, ctx, input_idx, input_type),
-			Self::Print => Print::input_compatible_with(self, ctx, input_idx, input_type),
 			Self::Hash { .. } => Hash::input_compatible_with(self, ctx, input_idx, input_type),
 			Self::Noop { .. } => Noop::input_compatible_with(self, ctx, input_idx, input_type),
 			Self::ExtractCovers => {
@@ -214,7 +205,6 @@ impl PipelineNodeStub for UFONodeType {
 		match self {
 			Self::Constant { .. } => Constant::input_default_type(self, ctx, input_idx),
 			Self::IfNone { .. } => IfNone::input_default_type(self, ctx, input_idx),
-			Self::Print => Print::input_default_type(self, ctx, input_idx),
 			Self::Hash { .. } => Hash::input_default_type(self, ctx, input_idx),
 			Self::Noop { .. } => Noop::input_default_type(self, ctx, input_idx),
 			Self::ExtractCovers => ExtractCovers::input_default_type(self, ctx, input_idx),
@@ -234,7 +224,6 @@ impl PipelineNodeStub for UFONodeType {
 		match self {
 			Self::Constant { .. } => Constant::input_with_name(self, ctx, input_name),
 			Self::IfNone { .. } => IfNone::input_with_name(self, ctx, input_name),
-			Self::Print => Print::input_with_name(self, ctx, input_name),
 			Self::Hash { .. } => Hash::input_with_name(self, ctx, input_name),
 			Self::Noop { .. } => Noop::input_with_name(self, ctx, input_name),
 			Self::ExtractCovers => ExtractCovers::input_with_name(self, ctx, input_name),
@@ -250,7 +239,6 @@ impl PipelineNodeStub for UFONodeType {
 		match self {
 			Self::Constant { .. } => Constant::n_outputs(self, ctx),
 			Self::IfNone { .. } => IfNone::n_outputs(self, ctx),
-			Self::Print => Print::n_outputs(self, ctx),
 			Self::Hash { .. } => Hash::n_outputs(self, ctx),
 			Self::Noop { .. } => Noop::n_outputs(self, ctx),
 			Self::ExtractCovers => ExtractCovers::n_outputs(self, ctx),
@@ -270,7 +258,6 @@ impl PipelineNodeStub for UFONodeType {
 		match self {
 			Self::Constant { .. } => Constant::output_type(self, ctx, output_idx),
 			Self::IfNone { .. } => IfNone::output_type(self, ctx, output_idx),
-			Self::Print => Print::output_type(self, ctx, output_idx),
 			Self::Hash { .. } => Hash::output_type(self, ctx, output_idx),
 			Self::Noop { .. } => Noop::output_type(self, ctx, output_idx),
 			Self::ExtractCovers => ExtractCovers::output_type(self, ctx, output_idx),
@@ -290,7 +277,6 @@ impl PipelineNodeStub for UFONodeType {
 		match self {
 			Self::Constant { .. } => Constant::output_with_name(self, ctx, output_name),
 			Self::IfNone { .. } => IfNone::output_with_name(self, ctx, output_name),
-			Self::Print => Print::output_with_name(self, ctx, output_name),
 			Self::Hash { .. } => Hash::output_with_name(self, ctx, output_name),
 			Self::Noop { .. } => Noop::output_with_name(self, ctx, output_name),
 			Self::ExtractCovers => ExtractCovers::output_with_name(self, ctx, output_name),

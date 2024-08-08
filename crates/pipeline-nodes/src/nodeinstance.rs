@@ -17,7 +17,7 @@ use crate::{
 use super::{
 	nodetype::UFONodeType,
 	tags::extracttags::ExtractTags,
-	util::{constant::Constant, ifnone::IfNone, noop::Noop, print::Print},
+	util::{constant::Constant, ifnone::IfNone, noop::Noop},
 };
 
 pub enum UFONodeInstance {
@@ -35,11 +35,6 @@ pub enum UFONodeInstance {
 		node_type: UFONodeType,
 		name: PipelineNodeLabel,
 		node: Noop,
-	},
-	Print {
-		node_type: UFONodeType,
-		name: PipelineNodeLabel,
-		node: Print,
 	},
 	Hash {
 		node_type: UFONodeType,
@@ -89,7 +84,6 @@ impl Debug for UFONodeInstance {
 			Self::ExtractTags { name, .. } => write!(f, "ExtractTags({name})"),
 			Self::IfNone { name, .. } => write!(f, "IfNone({name})"),
 			Self::Noop { name, .. } => write!(f, "Noop({name})"),
-			Self::Print { name, .. } => write!(f, "Print({name})"),
 			Self::Hash { name, .. } => write!(f, "Hash({name})"),
 			Self::StripTags { name, .. } => write!(f, "StripTags({name})"),
 			Self::ExtractCovers { name, .. } => write!(f, "ExtractCovers({name})"),
@@ -115,7 +109,6 @@ impl PipelineNode for UFONodeInstance {
 			Self::Constant { node, .. } => node.quick_run(),
 			Self::IfNone { node, .. } => node.quick_run(),
 			Self::Noop { node, .. } => node.quick_run(),
-			Self::Print { node, .. } => node.quick_run(),
 			Self::Hash { node, .. } => node.quick_run(),
 
 			// Audio
@@ -135,7 +128,6 @@ impl PipelineNode for UFONodeInstance {
 			Self::Constant { node, .. } => node.take_input(portdata),
 			Self::IfNone { node, .. } => node.take_input(portdata),
 			Self::Noop { node, .. } => node.take_input(portdata),
-			Self::Print { node, .. } => node.take_input(portdata),
 			Self::Hash { node, .. } => node.take_input(portdata),
 
 			// Audio
@@ -158,7 +150,6 @@ impl PipelineNode for UFONodeInstance {
 			Self::Constant { node, .. } => node.run(send_data),
 			Self::IfNone { node, .. } => node.run(send_data),
 			Self::Noop { node, .. } => node.run(send_data),
-			Self::Print { node, .. } => node.run(send_data),
 			Self::Hash { node, .. } => node.run(send_data),
 
 			// Audio
@@ -180,7 +171,6 @@ impl UFONodeInstance {
 			| Self::IfNone { node_type, .. }
 			| Self::Noop { node_type, .. }
 			| Self::Hash { node_type, .. }
-			| Self::Print { node_type, .. }
 			| Self::Constant { node_type, .. }
 
 			// Audio
