@@ -26,9 +26,10 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- Deadlock detection
-- Pipeline status
-- Do "after"s cause deadlocks? (probably)
+- No channel for blob data
+- Nodes ask for other nodes (ifnone)
+- Remove/rework print node
+- Remove after, buffer all input (no channel)
 
 - Clean up pipeline error handling (search for unwrap, assert, and panic)
   - db errors in pipeline run & build
@@ -36,6 +37,13 @@ UFO's goal is to be "[Paperless] for everything," with...
   - elegantly handle duplicate album art (fail pipelines)
     - how about sub-pipelines?
     - none data vs error
+      - user-recoverable vs not?
+      - final node should error if output is none\
+
+- Manual threadpool
+- Deadlock detection
+- Do "after"s cause deadlocks? (probably)
+
 
 
 ### Small tweaks
@@ -55,11 +63,11 @@ UFO's goal is to be "[Paperless] for everything," with...
 - Remove petgraph
   - Write toposort algo, provide whole cycle in errors
 
-### Dataset
+### Database
 - Load and check db metadata
 - Clean up blobstore
 - Store mime with binary data
-- Dataset caching
+- Database caching
 - Async database
 - automatic attributes (computed by a pipeline, like hash of album art)
 
@@ -69,6 +77,7 @@ UFO's goal is to be "[Paperless] for everything," with...
 - Smarter pipeline scheduler
   - efficient end condition: we don't need to run ALL nodes
   - What is blocking what? (data streams)
+  - Hints? (iobound, networkbound, etc)
 - Warn on disconnected pipeline inputs
 - Detect unused nodes when building
 - Arrays & foreach (a file could have many covers)
@@ -87,10 +96,16 @@ UFO's goal is to be "[Paperless] for everything," with...
     - runner: manages many jobs
     - job: an instance of one pipeline, possibly with many threads
     - database = blobstore + metadb
+    - pipeline nodes should never panic. Return errors instead.
+      - Runner should handle panics?
+    - Pipelines are one-off runs, NOT stream processors!
+    - Multiple file readers to prevent high memory use
 - Fast search (index certain attributes)
 - Save pipelines in database
 - Web streams as pipeline input
 - Continuously-running pipelines
+  - pipelines are still one-off runs.
+  - Streams get split and `foreach`ed.
 - Plain pipeline tui
 
 
