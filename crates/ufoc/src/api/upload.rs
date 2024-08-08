@@ -82,7 +82,7 @@ impl<'a> UfoApiUploadJob<'a> {
 				.send()?;
 
 			match res.status() {
-				StatusCode::OK => return Ok(new_file_info.file_name),
+				StatusCode::OK => {}
 				StatusCode::INTERNAL_SERVER_ERROR => {
 					return Err(UfoApiError::ServerError(res.text()?))
 				}
@@ -114,6 +114,7 @@ impl<'a> UfoApiUploadJob<'a> {
 		match res.status() {
 			StatusCode::OK => return Ok(new_file_info.file_name),
 			StatusCode::INTERNAL_SERVER_ERROR => return Err(UfoApiError::ServerError(res.text()?)),
+			StatusCode::BAD_REQUEST => return Err(UfoApiError::BadRequest(res.text()?)),
 			_ => unreachable!(),
 		}
 	}
