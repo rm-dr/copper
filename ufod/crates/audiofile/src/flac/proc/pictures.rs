@@ -71,7 +71,7 @@ mod tests {
 
 	use crate::{
 		flac::proc::pictures::FlacPictureReader,
-		tests::{FlacBlockOutput, MANIFEST},
+		flac::tests::{FlacBlockOutput, MANIFEST},
 	};
 
 	fn test_pictures(test_name: &str, fragment_size_range: Option<std::ops::Range<usize>>) {
@@ -109,6 +109,7 @@ mod tests {
 
 		let out_pictures = x
 			.get_blocks()
+			.unwrap()
 			.iter()
 			.filter_map(|x| match x {
 				FlacBlockOutput::Picture { .. } => Some(x),

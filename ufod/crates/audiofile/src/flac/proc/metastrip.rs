@@ -101,7 +101,7 @@ mod tests {
 	use rand::Rng;
 	use sha2::{Digest, Sha256};
 
-	use crate::{flac::proc::metastrip::FlacMetaStrip, tests::MANIFEST};
+	use crate::{flac::proc::metastrip::FlacMetaStrip, flac::tests::MANIFEST};
 
 	fn test_strip(test_name: &str, fragment_size_range: Option<std::ops::Range<usize>>) {
 		let x = MANIFEST.iter().find(|x| x.get_name() == test_name).unwrap();
@@ -140,7 +140,7 @@ mod tests {
 		let result = format!("{:x}", hasher.finalize());
 		assert_eq!(
 			result,
-			x.get_stripped_hash(),
+			x.get_stripped_hash().unwrap(),
 			"Stripped FLAC hash doesn't match"
 		);
 	}

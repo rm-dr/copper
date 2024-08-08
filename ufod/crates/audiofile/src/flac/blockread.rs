@@ -409,44 +409,7 @@ mod tests {
 	use std::{io::Write, ops::Range};
 
 	use super::*;
-	use crate::tests::{FlacBlockOutput, MANIFEST};
-
-	/*
-	enum FlacTestFile {
-		Success {
-			/// The file to use for this test
-			file_path: PathBuf,
-
-			/// The hash of the input files
-			in_hash: &'static str,
-
-			/// The flac metablocks we expect to find in this file, in order.
-			blocks: &'static [FlacBlockOutput],
-
-			/// The hash of the audio frames in this file
-			///
-			/// Get this hash by running `metaflac --remove-all --dont-use-padding`,
-			/// then by manually deleting remaining headers in a hex editor
-			/// (Remember that the sync sequence is 0xFF 0xF8)
-			audio_hash: &'static str,
-
-			/// The hash we should get when we strip this file's tags.
-			///
-			/// A stripped flac file has unmodified STREAMINFO, SEEKTABLE,
-			/// CUESHEET, and audio data blocks; and nothing else (not even padding).
-			///
-			/// Reference implementation:
-			/// ```notrust
-			/// metaflac \
-			/// 	--remove \
-			/// 	--block-type=PADDING,APPLICATION,VORBIS_COMMENT,PICTURE \
-			/// 	--dont-use-padding \
-			/// 	<file>
-			/// ```
-			stripped_hash: &'static str,
-		},
-	}
-	*/
+	use crate::flac::tests::{FlacBlockOutput, MANIFEST};
 
 	fn read_file(
 		test_name: &str,
@@ -548,7 +511,7 @@ mod tests {
 		);
 
 		assert_eq!(
-			x.get_blocks().len(),
+			x.get_blocks().unwrap().len(),
 			out_blocks
 				.iter()
 				.filter(|x| !matches!(*x, FlacBlock::AudioFrame(_)))
@@ -561,7 +524,7 @@ mod tests {
 
 		for b in out_blocks {
 			match b {
-				FlacBlock::Streaminfo(s) => match &x.get_blocks()[result_i] {
+				FlacBlock::Streaminfo(s) => match &x.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::Streaminfo {
 						min_block_size,
 						max_block_size,
@@ -589,7 +552,7 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::Application(a) => match &x.get_blocks()[result_i] {
+				FlacBlock::Application(a) => match &x.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::Application {
 						application_id,
 						hash,
@@ -611,7 +574,7 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::CueSheet(c) => match &x.get_blocks()[result_i] {
+				FlacBlock::CueSheet(c) => match &x.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::CueSheet { hash } => {
 						assert_eq!(*hash, {
 							let mut hasher = Sha256::new();
@@ -622,14 +585,14 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::Padding(p) => match &x.get_blocks()[result_i] {
+				FlacBlock::Padding(p) => match &x.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::Padding { size } => {
 						assert_eq!(*size, p.size.try_into().unwrap());
 					}
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::SeekTable(t) => match &x.get_blocks()[result_i] {
+				FlacBlock::SeekTable(t) => match &x.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::Seektable { hash } => {
 						assert_eq!(*hash, {
 							let mut hasher = Sha256::new();
@@ -640,7 +603,7 @@ mod tests {
 					_ => panic!("Unexpected block type"),
 				},
 
-				FlacBlock::Picture(p) => match &x.get_blocks()[result_i] {
+				FlacBlock::Picture(p) => match &x.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::Picture {
 						picture_type,
 						mime,
@@ -672,7 +635,7 @@ mod tests {
 				FlacBlock::AudioFrame(data) => {
 					data.encode(&mut audio_data_hasher).unwrap();
 
-					if result_i != x.get_blocks().len() {
+					if result_i != x.get_blocks().unwrap().len() {
 						panic!("There are metadata blocks betwen audio frames!")
 					}
 
@@ -686,7 +649,7 @@ mod tests {
 
 		// Check audio data hash
 		assert_eq!(
-			x.get_audio_hash(),
+			x.get_audio_hash().unwrap(),
 			format!("{:x}", audio_data_hasher.finalize())
 		);
 	}
