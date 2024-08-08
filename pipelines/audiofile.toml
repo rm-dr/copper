@@ -4,15 +4,6 @@ type = "File"
 [output]
 node.type = "Dataset"
 node.class = "AudioFile"
-node.attr."album" = "text"
-node.attr."artist" = "text"
-node.attr."albumartist" = "text"
-node.attr."tracknumber" = "text"
-node.attr."year" = "text"
-node.attr."genre" = "text"
-node.attr."ISRC" = "text"
-node.attr."lyrics" = "text"
-node.attr."audio_data" = "binary"
 
 input."album" = { node = "tags", output = "Album" }
 input."artist" = { node = "tags", output = "Artist" }

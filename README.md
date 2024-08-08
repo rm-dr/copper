@@ -28,9 +28,10 @@ UFO's goal is to be "[Paperless] for everything," with...
 
 ### Current:
 - Options for hash, reference
-- Load "new item" pipeline inputs from db
+- Better type checking: take (m)any types as input?
 - sanely handle duplicate album art
 - Better index names
+- Store mime with binary data
 
 - async binary readers
   - args to node one by one
@@ -41,6 +42,8 @@ UFO's goal is to be "[Paperless] for everything," with...
 
 
 ### Later:
+- Dataset caching
+- Backend for big data
 - classes & attrs are immutable (cannot change once made)
 - Better name
 - tui, web ui

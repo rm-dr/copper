@@ -5,8 +5,6 @@ input."cover_data" = "binary"
 [output]
 node.type = "Dataset"
 node.class = "CoverArt"
-node.attr."image_data" = "binary"
-node.attr."content_hash" = "hash::sha256"
 
 input."content_hash" = { node = "hash", output = "hash" }
 input."image_data" = { pipeline = "cover_data" }

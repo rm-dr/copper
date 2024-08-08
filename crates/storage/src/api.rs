@@ -1,3 +1,4 @@
+use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, hash::Hash};
 
 use crate::{
@@ -130,7 +131,13 @@ where
 
 	fn class_set_name(&mut self, class: ClassHandle, name: &str) -> Result<(), DatasetError>;
 	fn class_get_name(&self, class: ClassHandle) -> Result<&str, DatasetError>;
-	//fn class_get_attrs(&self, class: ClassHandle) -> Result<impl Iterator<Item = AttrHandle>, ()>;
+
+	/// Get all attributes in the given class.
+	/// Returns (attr handle, attr name, attr type)
+	fn class_get_attrs(
+		&mut self,
+		class: ClassHandle,
+	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, StorageDataStub)>, DatasetError>;
 	fn class_num_attrs(&self, class: ClassHandle) -> Result<usize, DatasetError>;
 
 	fn attr_set_name(&mut self, attr: AttrHandle, name: &str) -> Result<(), DatasetError>;

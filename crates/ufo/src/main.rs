@@ -7,7 +7,7 @@ use ufo_pipeline::runner::runner::PipelineRunner;
 use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
 use ufo_storage::{
 	api::{AttributeOptions, Dataset},
-	data::{StorageData, StorageDataStub},
+	data::{HashType, StorageData, StorageDataStub},
 	sqlite::dataset::SQLiteDataset,
 };
 
@@ -72,7 +72,9 @@ fn main() -> Result<()> {
 		d.add_attr(
 			cover_art,
 			"content_hash",
-			StorageDataStub::Text,
+			StorageDataStub::Hash {
+				format: HashType::SHA256,
+			},
 			AttributeOptions::new().unique(true),
 		)
 		.unwrap();

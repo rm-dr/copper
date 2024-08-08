@@ -4,7 +4,7 @@ use ufo_pipeline::{
 	errors::PipelineError,
 };
 use ufo_storage::{
-	api::ClassHandle,
+	api::{AttrHandle, ClassHandle},
 	data::{StorageData, StorageDataStub},
 };
 
@@ -12,14 +12,14 @@ use crate::UFOContext;
 
 pub struct StorageOutput {
 	class: ClassHandle,
-	attrs: Vec<(SmartString<LazyCompact>, StorageDataStub)>,
+	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, StorageDataStub)>,
 	data: Vec<StorageData>,
 }
 
 impl StorageOutput {
 	pub fn new(
 		class: ClassHandle,
-		attrs: Vec<(SmartString<LazyCompact>, StorageDataStub)>,
+		attrs: Vec<(AttrHandle, SmartString<LazyCompact>, StorageDataStub)>,
 	) -> Self {
 		StorageOutput {
 			class,
@@ -57,12 +57,9 @@ impl PipelineNode for StorageOutput {
 	{
 		let mut d = ctx.dataset.lock().unwrap();
 
-		// TODO: partial add
-		// TODO: make sure attrs exist
 		let mut attrs = Vec::new();
-		for ((attr_name, _), data) in self.attrs.iter().zip(self.data.iter()) {
-			let a = d.get_attr(self.class, attr_name).unwrap().unwrap();
-			attrs.push((a, data.clone()));
+		for ((attr, _, _), data) in self.attrs.iter().zip(self.data.iter()) {
+			attrs.push((*attr, data.clone()));
 		}
 
 		let item = d.add_item(self.class, &attrs).unwrap();

@@ -513,11 +513,44 @@ impl Dataset for SQLiteDataset {
 		unimplemented!()
 	}
 
-	/*
-	fn class_get_attrs(&self, class: ClassHandle) -> Result<impl Iterator<Item = AttrHandle>, ()> {
-		Ok([].iter().cloned())
+	fn class_get_attrs(
+		&mut self,
+		class: ClassHandle,
+	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, StorageDataStub)>, DatasetError> {
+		// Start transaction
+		let conn = if let Some(ref mut conn) = self.conn {
+			conn
+		} else {
+			return Err(DatasetError::NotConnected);
+		};
+
+		let res = block_on(
+			sqlx::query("SELECT id, pretty_name, data_type FROM meta_attributes WHERE class_id=?;")
+				.bind(u32::from(class))
+				.fetch_all(conn),
+		);
+
+		let res = match res {
+			Err(sqlx::Error::RowNotFound) => return Err(DatasetError::BadClassHandle),
+			Err(e) => return Err(e.into()),
+			Ok(res) => res,
+		};
+
+		Ok(res
+			.into_iter()
+			.map(|r| {
+				let id: u32 = r.get("id");
+				let name: &str = r.get("pretty_name");
+				let data_type: &str = r.get("data_type");
+
+				(
+					id.into(),
+					name.into(),
+					StorageDataStub::from_db_str(data_type).unwrap(),
+				)
+			})
+			.collect())
 	}
-	*/
 
 	fn attr_set_name(&mut self, _attr: AttrHandle, _name: &str) -> Result<(), DatasetError> {
 		unimplemented!()

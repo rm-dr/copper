@@ -1,6 +1,5 @@
 use serde::Deserialize;
 use serde_with::serde_as;
-use smartstring::{LazyCompact, SmartString};
 use ufo_audiofile::common::tagtype::TagType;
 use ufo_pipeline::{
 	api::{PipelineData, PipelineNode, PipelineNodeStub},
@@ -50,9 +49,6 @@ pub enum UFONodeType {
 	File,
 	Dataset {
 		class: String,
-		#[serde(rename = "attr")]
-		#[serde_as(as = "serde_with::Map<_, _>")]
-		attrs: Vec<(SmartString<LazyCompact>, StorageDataStub)>,
 	},
 }
 
@@ -109,20 +105,20 @@ impl PipelineNodeStub for UFONodeType {
 				name: name.into(),
 				node: ExtractCovers::new(),
 			},
-
 			UFONodeType::File => UFONodeInstance::File {
 				node_type: self.clone(),
 				name: name.into(),
 				node: FileInput::new(),
 			},
-			UFONodeType::Dataset { class, attrs } => {
+			UFONodeType::Dataset { class } => {
 				let mut d = ctx.dataset.lock().unwrap();
 				let class = d.get_class(class).unwrap().unwrap();
+				let attrs = d.class_get_attrs(class).unwrap();
 
 				UFONodeInstance::Dataset {
 					node_type: self.clone(),
 					name: name.into(),
-					node: StorageOutput::new(class.clone(), attrs.clone()),
+					node: StorageOutput::new(class.clone(), attrs),
 				}
 			}
 		}
@@ -130,7 +126,7 @@ impl PipelineNodeStub for UFONodeType {
 
 	fn inputs(
 		&self,
-		_ctx: &<Self::NodeType as PipelineNode>::NodeContext,
+		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
 		match self {
 			// Util
@@ -157,12 +153,21 @@ impl PipelineNodeStub for UFONodeType {
 			Self::ExtractCovers => PipelinePortSpec::Static(&[("data", StorageDataStub::Binary)]),
 
 			Self::File => PipelinePortSpec::Static(&[("path", StorageDataStub::Path)]),
-			Self::Dataset { attrs, .. } => PipelinePortSpec::VecOwned(
+			Self::Dataset { class } => PipelinePortSpec::VecOwned({
+				let class = ctx
+					.dataset
+					.lock()
+					.unwrap()
+					.get_class(&class[..])
+					.unwrap()
+					.unwrap();
+				let attrs = ctx.dataset.lock().unwrap().class_get_attrs(class).unwrap();
+
 				attrs
-					.iter()
-					.map(|(x, y)| (x.clone().into(), y.clone()))
-					.collect(),
-			),
+					.into_iter()
+					.map(|(_, name, data_type)| (name.into(), data_type))
+					.collect()
+			}),
 		}
 	}
 
