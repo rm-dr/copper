@@ -107,8 +107,9 @@ pub struct FlacBlockReader {
 	// Which blocks should we return?
 	selector: FlacBlockSelector,
 
-	// The block we're currently reading
-	current_block: FlacBlockType,
+	// The block we're currently reading.
+	// If this is `None`, we've called `finish()`.
+	current_block: Option<FlacBlockType>,
 
 	// Blocks we pick go here
 	output_blocks: VecDeque<FlacBlock>,
@@ -124,10 +125,10 @@ impl FlacBlockReader {
 	pub fn new(selector: FlacBlockSelector) -> Self {
 		Self {
 			selector,
-			current_block: FlacBlockType::MagicBits {
+			current_block: Some(FlacBlockType::MagicBits {
 				data: [0; 4],
 				left_to_read: 4,
-			},
+			}),
 
 			output_blocks: VecDeque::new(),
 		}
@@ -140,8 +141,12 @@ impl FlacBlockReader {
 		let mut buf = Cursor::new(buf);
 		let mut last_read_size = 1;
 
+		if self.current_block.is_none() {
+			panic!("Tried to push data to a finished reader")
+		}
+
 		'outer: while last_read_size != 0 {
-			match &mut self.current_block {
+			match self.current_block.as_mut().unwrap() {
 				FlacBlockType::MagicBits { data, left_to_read } => {
 					last_read_size = buf.read(&mut data[4 - *left_to_read..4]).unwrap();
 					*left_to_read -= last_read_size;
@@ -151,11 +156,11 @@ impl FlacBlockReader {
 							return Err(FlacError::BadMagicBytes);
 						};
 
-						self.current_block = FlacBlockType::MetablockHeader {
+						self.current_block = Some(FlacBlockType::MetablockHeader {
 							is_first: true,
 							data: [0; 4],
 							left_to_read: 4,
-						}
+						})
 					}
 				}
 
@@ -174,10 +179,10 @@ impl FlacBlockReader {
 							return Err(FlacError::BadFirstBlock);
 						}
 
-						self.current_block = FlacBlockType::MetaBlock {
+						self.current_block = Some(FlacBlockType::MetaBlock {
 							header,
 							data: Vec::new(),
-						}
+						})
 					}
 				}
 
@@ -220,13 +225,13 @@ impl FlacBlockReader {
 
 						// Start next block
 						if header.is_last {
-							self.current_block = FlacBlockType::AudioData { data: Vec::new() }
+							self.current_block = Some(FlacBlockType::AudioData { data: Vec::new() })
 						} else {
-							self.current_block = FlacBlockType::MetablockHeader {
+							self.current_block = Some(FlacBlockType::MetablockHeader {
 								is_first: false,
 								data: [0; 4],
 								left_to_read: 4,
-							}
+							})
 						}
 					}
 				}
@@ -274,7 +279,8 @@ impl FlacBlockReader {
 									-i64::try_from(data.len() - i).unwrap(),
 								))?;
 
-								self.current_block = FlacBlockType::AudioData { data: Vec::new() };
+								self.current_block =
+									Some(FlacBlockType::AudioData { data: Vec::new() });
 								continue 'outer;
 							}
 						}
@@ -284,6 +290,38 @@ impl FlacBlockReader {
 		}
 
 		return Ok(());
+	}
+
+	/// Finish reading data.
+	/// This tells the reader that it has received the entire stream.
+	pub fn finish(&mut self) -> Result<(), FlacError> {
+		match self.current_block.take() {
+			None => {
+				panic!("Called `finish()` on a finished reader")
+			}
+
+			Some(FlacBlockType::AudioData { data }) => {
+				// We can't run checks if we don't have enough data.
+				if data.len() <= 2 {
+					return Err(FlacError::MalformedBlock);
+				}
+
+				if !(data[0] == 0b1111_1111 && data[1] & 0b1111_1100 == 0b1111_1000) {
+					return Err(FlacError::BadSyncBytes);
+				}
+
+				if self.selector.pick_audio {
+					self.output_blocks.push_back(FlacBlock::AudioFrame(data));
+				}
+
+				self.current_block = None;
+				return Ok(());
+			}
+
+			// All other blocks have a known length, and
+			// are finished automatically.
+			_ => return Err(FlacError::MalformedBlock),
+		}
 	}
 }
 
