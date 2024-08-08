@@ -4,7 +4,7 @@ type = "File"
 [output]
 node.type = "AddItem"
 node.class = "AudioFile"
-
+input."title" = { node = "tags", output = "Title" }
 input."album" = { node = "tags", output = "Album" }
 input."artist" = { node = "tags", output = "Artist" }
 input."albumartist" = { node = "tags", output = "AlbumArtist" }
@@ -12,14 +12,15 @@ input."tracknumber" = { node = "tags", output = "TrackNumber" }
 input."year" = { node = "tags", output = "Year" }
 input."genre" = { node = "tags", output = "Genre" }
 input."ISRC" = { node = "tags", output = "ISRC" }
-input."lyrics" = { node = "if_none", output = "out" }
+input."lyrics" = { node = "tags", output = "Lyrics" }
 input."audio_data" = { node = "strip", output = "out" }
-input."cover_art" = { node = "add_cover", output = "added_item" }
+input."cover_art" = { node = "find", output = "found_item" }
 
 
 [node."tags"]
 node.type = "ExtractTags"
 node.tags = [
+	"Title",
 	"Album",
 	"Artist",
 	"AlbumArtist",
@@ -31,12 +32,6 @@ node.tags = [
 ]
 input.data = { "pipeline" = "data" }
 
-[node.if_none]
-node.type = "IfNone"
-node.data_type = "text"
-input."data" = { node = "tags", output = "Lyrics" }
-input."ifnone" = { type = "Constant", value = "Unknown Lyrics" }
-
 [node.strip]
 node.type = "StripTags"
 input."data" = { pipeline = "data" }
@@ -45,17 +40,32 @@ input."data" = { pipeline = "data" }
 node.type = "ExtractCovers"
 input."data" = { pipeline = "data" }
 
+[node."hash_cover"]
+node.type = "Hash"
+node.hash_type = "SHA256"
+input."data" = { node = "extract_cover", output = "cover_data" }
+
 [node."add_cover"]
-node.type = "Pipeline"
-node.pipeline = "cover"
-input."cover_data" = { node = "extract_cover", output = "cover_data" }
+node.type = "AddItem"
+node.class = "CoverArt"
+node.allow_non_unique = true
+input."content_hash" = { node = "hash_cover", output = "hash" }
+input."image_data" = { node = "extract_cover", output = "cover_data" }
 
 [node."find"]
 node.type = "FindItem"
-node.class = "AudioFile"
-node.by_attr = "artist"
-input."attr_value" = { type = "Constant", value = "Echosmith" }
+node.class = "CoverArt"
+node.by_attr = "content_hash"
+input."attr_value" = { node = "hash_cover", output = "hash" }
+after = ["add_cover"]
 
 [node.print]
 node.type = "Print"
 input."data" = { node = "find", output = "found_item" }
+#input."data" = { node = "tags", output = "TrackTitle" }
+
+#[node."if_none"]
+#node.type = "IfNone"
+#node.data_type = "reference::2"
+#input."data" = { node = "add_cover", output = "added_item" }
+#input."ifnone" = { node = "find", output = "found_item" }

@@ -15,7 +15,10 @@ use super::{
 };
 use crate::{
 	data::UFOData,
-	database::{additem::AddItem, finditem::FindItem},
+	database::{
+		additem::{AddItem, AddItemConfig},
+		finditem::FindItem,
+	},
 	input::file::FileReader,
 	tags::{extractcovers::ExtractCovers, striptags::StripTags},
 	traits::UFONode,
@@ -55,6 +58,9 @@ pub enum UFONodeType {
 	File,
 	AddItem {
 		class: String,
+
+		#[serde(flatten)]
+		config: AddItemConfig,
 	},
 	FindItem {
 		class: String,
@@ -121,7 +127,7 @@ impl PipelineNodeStub for UFONodeType {
 				name: name.into(),
 				node: FileReader::new(ctx),
 			},
-			UFONodeType::AddItem { class } => {
+			UFONodeType::AddItem { class, config } => {
 				let mut d = ctx.database.lock().unwrap();
 				let class = d.get_class(class).unwrap().unwrap();
 				let attrs = d.class_get_attrs(class).unwrap();
@@ -129,7 +135,7 @@ impl PipelineNodeStub for UFONodeType {
 				UFONodeInstance::AddItem {
 					node_type: self.clone(),
 					name: name.into(),
-					node: AddItem::new(ctx, class, attrs),
+					node: AddItem::new(ctx, class, attrs, *config),
 				}
 			}
 

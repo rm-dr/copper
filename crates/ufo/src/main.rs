@@ -5,6 +5,7 @@ use std::{
 	thread,
 	time::Duration,
 };
+use walkdir::WalkDir;
 
 use ufo_metadb::{
 	api::{AttributeOptions, MetaDb},
@@ -38,6 +39,8 @@ fn main() -> Result<()> {
 		let x = d.add_class("AudioFile").unwrap();
 		let cover_art = d.add_class("CoverArt").unwrap();
 
+		d.add_attr(x, "title", MetaDbDataStub::Text, AttributeOptions::new())
+			.unwrap();
 		d.add_attr(x, "album", MetaDbDataStub::Text, AttributeOptions::new())
 			.unwrap();
 		d.add_attr(x, "artist", MetaDbDataStub::Text, AttributeOptions::new())
@@ -116,8 +119,14 @@ fn main() -> Result<()> {
 	runner.add_pipeline(Path::new("pipelines/cover.toml"), "cover".into())?;
 	runner.add_pipeline(Path::new("pipelines/audiofile.toml"), "audio".into())?;
 
-	for p in ["data/freeze.flac", "data/working.flac", "data/sour.flac"] {
-		runner.add_job(&"audio".into(), vec![UFOData::Path(Arc::new(p.into()))]);
+	for entry in WalkDir::new("./data") {
+		let entry = entry.unwrap();
+		if entry.path().is_file() {
+			runner.add_job(
+				&"audio".into(),
+				vec![UFOData::Path(Arc::new(entry.path().into()))],
+			);
+		}
 	}
 
 	loop {

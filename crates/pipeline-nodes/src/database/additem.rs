@@ -4,6 +4,7 @@ use std::{
 };
 
 use async_broadcast::TryRecvError;
+use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use ufo_blobstore::fs::store::{FsBlobHandle, FsBlobStore, FsBlobWriter};
 use ufo_metadb::{
@@ -20,14 +21,6 @@ use crate::{
 	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
 };
 
-pub struct AddItem {
-	db: Arc<Mutex<dyn MetaDb<FsBlobStore>>>,
-	class: ClassHandle,
-	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
-
-	data: Vec<Option<DataHold>>,
-}
-
 enum DataHold {
 	Static(UFOData),
 	BlobWriting(
@@ -37,11 +30,27 @@ enum DataHold {
 	BlobDone(FsBlobHandle),
 }
 
+#[derive(Debug, Deserialize, Copy, Clone)]
+pub struct AddItemConfig {
+	#[serde(default)]
+	allow_non_unique: bool,
+}
+
+pub struct AddItem {
+	db: Arc<Mutex<dyn MetaDb<FsBlobStore>>>,
+	class: ClassHandle,
+	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
+	config: AddItemConfig,
+
+	data: Vec<Option<DataHold>>,
+}
+
 impl AddItem {
 	pub fn new(
 		ctx: &<Self as PipelineNode>::NodeContext,
 		class: ClassHandle,
 		attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
+		config: AddItemConfig,
 	) -> Self {
 		let data = attrs.iter().map(|_| None).collect();
 		AddItem {
@@ -49,6 +58,7 @@ impl AddItem {
 			class,
 			attrs,
 			data,
+			config,
 		}
 	}
 }
@@ -143,10 +153,14 @@ impl PipelineNode for AddItem {
 			}
 			Err(err) => match err {
 				MetaDbError::UniqueViolated => {
-					send_data(
-						0,
-						UFOData::None(MetaDbDataStub::Reference { class: self.class }),
-					)?;
+					if self.config.allow_non_unique {
+						send_data(
+							0,
+							UFOData::None(MetaDbDataStub::Reference { class: self.class }),
+						)?;
+					} else {
+						return Err(err.into());
+					}
 				}
 				_ => return Err(err.into()),
 			},
@@ -159,7 +173,7 @@ impl PipelineNode for AddItem {
 impl UFONode for AddItem {
 	fn n_inputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
 		match stub {
-			UFONodeType::AddItem { class } => {
+			UFONodeType::AddItem { class, .. } => {
 				let class = ctx
 					.database
 					.lock()
@@ -195,7 +209,7 @@ impl UFONode for AddItem {
 		input_name: &PipelinePortLabel,
 	) -> Option<usize> {
 		match stub {
-			UFONodeType::AddItem { class } => {
+			UFONodeType::AddItem { class, .. } => {
 				let class = ctx
 					.database
 					.lock()
@@ -221,7 +235,7 @@ impl UFONode for AddItem {
 		input_idx: usize,
 	) -> MetaDbDataStub {
 		match stub {
-			UFONodeType::AddItem { class } => {
+			UFONodeType::AddItem { class, .. } => {
 				let class = ctx
 					.database
 					.lock()
@@ -239,7 +253,7 @@ impl UFONode for AddItem {
 
 	fn n_outputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
 		match stub {
-			UFONodeType::AddItem { class } => {
+			UFONodeType::AddItem { class, .. } => {
 				let class = ctx
 					.database
 					.lock()
@@ -256,7 +270,7 @@ impl UFONode for AddItem {
 
 	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub {
 		match stub {
-			UFONodeType::AddItem { class } => {
+			UFONodeType::AddItem { class, .. } => {
 				assert!(output_idx == 0);
 				let mut d = ctx.database.lock().unwrap();
 				let class = d.get_class(class).unwrap().unwrap();
