@@ -36,14 +36,14 @@ pub enum PipelineCheckResult {
 	/// `node` has no input named `input_name`.
 	/// This is triggered when we specify an input that doesn't exist.
 	NoNodeInput {
-		node: PipelineNodeSpec,
+		node: SmartString<LazyCompact>,
 		input_name: SmartString<LazyCompact>,
 	},
 
 	/// `node` has no output named `output_name`.
 	/// We tried to connect this output from `caused_by_input`.
 	NoNodeOutput {
-		node: PipelineNodeSpec,
+		node: SmartString<LazyCompact>,
 		output_name: SmartString<LazyCompact>,
 		caused_by_input: PipelineInput,
 	},
@@ -75,7 +75,7 @@ pub enum PipelineCheckResult {
 	},
 
 	/// This graph has a cycle containing `node`
-	HasCycle { node: PipelineNodeSpec },
+	HasCycle { node: SmartString<LazyCompact> },
 }
 
 // TODO: rename: pipeline inputs are outputs
@@ -112,8 +112,12 @@ impl Pipeline {
 						caused_by_input: input,
 					});
 				}
-				let node = get_node.unwrap();
-				let input_spec = node.node_type.get_outputs().iter().find(|x| x.0 == port);
+				let get_node = get_node.unwrap();
+				let input_spec = get_node
+					.node_type
+					.get_outputs()
+					.iter()
+					.find(|x| x.0 == port);
 
 				if input_spec.is_none() {
 					return Some(PipelineCheckResult::NoNodeOutput {
@@ -148,8 +152,8 @@ impl Pipeline {
 						caused_by_input: input,
 					});
 				}
-				let node = get_node.unwrap();
-				let input = node.node_type.get_inputs().iter().find(|x| x.0 == port);
+				let get_node = get_node.unwrap();
+				let input = get_node.node_type.get_inputs().iter().find(|x| x.0 == port);
 
 				if input.is_none() {
 					return Some(PipelineCheckResult::NoNodeInput {
@@ -240,7 +244,7 @@ impl Pipeline {
 		let topo = toposort(&deps, None);
 		if let Err(cycle) = topo {
 			return PipelineCheckResult::HasCycle {
-				node: self.nodes.get(cycle.node_id()).unwrap().clone(),
+				node: cycle.node_id().into(),
 			};
 		}
 
