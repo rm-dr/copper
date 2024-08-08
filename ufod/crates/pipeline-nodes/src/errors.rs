@@ -3,7 +3,7 @@
 use std::{error::Error, fmt::Display};
 
 use ufo_audiofile::flac::errors::FlacError;
-use ufo_ds_core::errors::MetastoreError;
+use ufo_ds_core::errors::{BlobstoreError, MetastoreError};
 
 /// An error we encountered while running a pipeline
 #[derive(Debug)]
@@ -14,8 +14,11 @@ pub enum PipelineError {
 	/// We could not understand a flac file TODO: refactor
 	FlacError(FlacError),
 
-	/// A database operation returned an error
-	DatabaseError(MetastoreError),
+	/// A metadata operation returned an error
+	MetastoreError(MetastoreError),
+
+	/// A blob operation returned an error
+	BlobstoreError(BlobstoreError),
 
 	FileSystemError(Box<dyn Error>),
 
@@ -29,7 +32,8 @@ impl Error for PipelineError {
 		Some(match self {
 			Self::IoError(e) => e,
 			Self::FlacError(e) => e,
-			Self::DatabaseError(e) => e,
+			Self::MetastoreError(e) => e,
+			Self::BlobstoreError(e) => e,
 			Self::FileSystemError(e) => e.as_ref(),
 			_ => return None,
 		})
@@ -42,7 +46,8 @@ impl Display for PipelineError {
 		match self {
 			Self::IoError(_) => write!(f, "Pipeline i/o error"),
 			Self::FlacError(_) => write!(f, "Pipeline flac error"),
-			Self::DatabaseError(_) => write!(f, "Pipeline database error"),
+			Self::MetastoreError(_) => write!(f, "Pipeline metastore error"),
+			Self::BlobstoreError(_) => write!(f, "Pipeline blobstore error"),
 			Self::FileSystemError(_) => write!(f, "Pipeline filesystem error"),
 			Self::UnsupportedDataType(m) => write!(f, "Unsupported Item data type: {m}"),
 		}
@@ -63,6 +68,12 @@ impl From<FlacError> for PipelineError {
 
 impl From<MetastoreError> for PipelineError {
 	fn from(value: MetastoreError) -> Self {
-		Self::DatabaseError(value)
+		Self::MetastoreError(value)
+	}
+}
+
+impl From<BlobstoreError> for PipelineError {
+	fn from(value: BlobstoreError) -> Self {
+		Self::BlobstoreError(value)
 	}
 }

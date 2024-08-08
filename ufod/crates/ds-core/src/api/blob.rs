@@ -1,46 +1,33 @@
-use smartstring::{LazyCompact, SmartString};
+use serde::{Deserialize, Serialize};
 use std::{fs::File, io::Write, path::PathBuf};
 use ufo_util::mime::MimeType;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+use crate::errors::BlobstoreError;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct BlobHandle {
-	name: SmartString<LazyCompact>,
-	mime: MimeType,
+	id: u32,
 }
 
-impl BlobHandle {
-	pub fn new(name: &str, mime: &MimeType) -> Self {
-		Self {
-			name: name.into(),
-			mime: mime.clone(),
-		}
+impl From<BlobHandle> for u32 {
+	fn from(value: BlobHandle) -> Self {
+		value.id
 	}
+}
 
-	pub fn to_db_str(&self) -> String {
-		self.name.to_string()
-	}
-
-	pub fn from_db_str(s: &str) -> Self {
-		Self {
-			name: s.into(),
-			mime: MimeType::Blob,
-		}
-	}
-
-	pub fn get_type(&self) -> &MimeType {
-		&self.mime
+impl From<u32> for BlobHandle {
+	fn from(value: u32) -> Self {
+		Self { id: value }
 	}
 }
 
 pub struct BlobstoreTmpWriter {
 	file: Option<File>,
 
-	pub handle: BlobHandle,
+	pub mime: MimeType,
 
-	// Absolute path to blob store
-	pub blob_store_root: PathBuf,
-
-	// Path to this file, relative to blob_store_root
+	// Path to this file
 	pub path_to_file: PathBuf,
 
 	// Used for cleanup
@@ -48,16 +35,15 @@ pub struct BlobstoreTmpWriter {
 }
 
 impl BlobstoreTmpWriter {
-	pub fn new(blob_store_root: PathBuf, path_to_file: PathBuf, handle: BlobHandle) -> Self {
-		let file = File::create(&path_to_file).unwrap();
+	pub fn new(path_to_file: PathBuf, mime: MimeType) -> Result<Self, std::io::Error> {
+		let file = File::create(&path_to_file)?;
 
-		Self {
+		Ok(Self {
 			file: Some(file),
-			blob_store_root,
-			handle,
+			mime,
 			path_to_file,
 			is_finished: false,
-		}
+		})
 	}
 }
 
@@ -77,7 +63,7 @@ impl Drop for BlobstoreTmpWriter {
 
 		// If we never finished this writer, delete the file.
 		if !self.is_finished {
-			std::fs::remove_file(self.blob_store_root.join(&self.path_to_file)).unwrap();
+			std::fs::remove_file(&self.path_to_file).unwrap();
 		}
 	}
 }
@@ -86,6 +72,7 @@ pub trait Blobstore
 where
 	Self: Send + Sync,
 {
-	fn new_blob(&self, mime: &MimeType) -> BlobstoreTmpWriter;
-	fn finish_blob(&self, blob: BlobstoreTmpWriter) -> BlobHandle;
+	fn new_blob(&self, mime: &MimeType) -> Result<BlobstoreTmpWriter, BlobstoreError>;
+	fn finish_blob(&self, blob: BlobstoreTmpWriter) -> Result<BlobHandle, BlobstoreError>;
+	fn delete_blob(&self, blob: BlobHandle) -> Result<(), BlobstoreError>;
 }

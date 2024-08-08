@@ -96,7 +96,7 @@ impl PipelineNode for AddItem {
 				None => {
 					self.data[port] = Some(DataHold::BlobWriting {
 						buffer: VecDeque::from([fragment]),
-						writer: Some(self.dataset.new_blob(&format)),
+						writer: Some(self.dataset.new_blob(&format)?),
 						is_done: is_last,
 					})
 				}
@@ -131,7 +131,7 @@ impl PipelineNode for AddItem {
 						writer.as_mut().unwrap().write(&data[..])?;
 					}
 					if *is_done {
-						let x = self.dataset.finish_blob(writer.take().unwrap());
+						let x = self.dataset.finish_blob(writer.take().unwrap())?;
 						std::mem::swap(i, &mut Some(DataHold::BlobDone(x)));
 					}
 				}

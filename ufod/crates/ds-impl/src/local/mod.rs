@@ -17,8 +17,8 @@ pub struct LocalDataset {
 	conn: Mutex<SqliteConnection>,
 
 	// Blobstore
-	root: PathBuf,
-	idx: Mutex<u32>,
+	blobstore_root: PathBuf,
+	blobstore_tmp: PathBuf,
 }
 
 impl<PipelineNodeStubType: PipelineNodeStub> Dataset<PipelineNodeStubType> for LocalDataset {}
@@ -56,9 +56,7 @@ impl LocalDataset {
 		let blob_storage_dir_absolute = db_root.join(blob_storage_dir);
 		std::fs::create_dir(blob_storage_dir_absolute).unwrap();
 		block_on(
-			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?,?), (?,?);")
-				.bind("idx_counter")
-				.bind(0)
+			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?,?);")
 				.bind("blob_dir")
 				.bind(blob_storage_dir)
 				.execute(&mut conn),
@@ -75,15 +73,6 @@ impl LocalDataset {
 
 		// TODO: check version, blobstore dir
 
-		let idx_counter: u32 = {
-			let res = block_on(
-				sqlx::query("SELECT val FROM meta_meta WHERE var=\"idx_counter\";")
-					.fetch_one(&mut conn),
-			)
-			.unwrap();
-			res.get::<String, _>("val").parse().unwrap()
-		};
-
 		let blob_dir = db_root.join({
 			let res = block_on(
 				sqlx::query("SELECT val FROM meta_meta WHERE var=\"blob_dir\";")
@@ -94,8 +83,9 @@ impl LocalDataset {
 		});
 
 		Ok(Self {
-			idx: Mutex::new(idx_counter),
-			root: blob_dir,
+			blobstore_root: blob_dir.clone(),
+			// TODO: configurable & clear
+			blobstore_tmp: blob_dir.join("tmp"),
 			conn: Mutex::new(conn),
 		})
 	}

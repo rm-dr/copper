@@ -98,3 +98,41 @@ impl<NodeStubType: PipelineNodeStub + 'static> Error for PipestoreError<NodeStub
 		}
 	}
 }
+
+#[derive(Debug)]
+pub enum BlobstoreError {
+	/// Database error
+	DbError(Box<dyn Error>),
+
+	/// Filesystem I/O error
+	IOError(std::io::Error),
+
+	/// This blob doesn't exist
+	InvalidBlobHandle,
+}
+
+impl Display for BlobstoreError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::DbError(_) => write!(f, "Database backend error"),
+			Self::IOError(_) => write!(f, "I/O error"),
+			Self::InvalidBlobHandle => write!(f, "Invalid blob handle"),
+		}
+	}
+}
+
+impl Error for BlobstoreError {
+	fn cause(&self) -> Option<&dyn Error> {
+		match self {
+			Self::DbError(x) => Some(x.as_ref()),
+			Self::IOError(x) => Some(x),
+			_ => None,
+		}
+	}
+}
+
+impl From<std::io::Error> for BlobstoreError {
+	fn from(value: std::io::Error) -> Self {
+		Self::IOError(value)
+	}
+}
