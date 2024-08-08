@@ -1,10 +1,2 @@
 /target
 /data
-
-# Test files
-/*.sqlite
-/*.flac
-/*.mp3
-/db
-/log
-/tmp
