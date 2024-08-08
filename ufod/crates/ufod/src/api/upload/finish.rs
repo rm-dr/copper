@@ -17,7 +17,7 @@ use smartstring::{LazyCompact, SmartString};
 use tracing::{info, warn};
 use utoipa::ToSchema;
 
-use crate::uploader::Uploader;
+use crate::helpers::uploader::Uploader;
 
 // TODO: send finish progress
 

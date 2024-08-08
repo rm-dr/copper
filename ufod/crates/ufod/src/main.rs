@@ -3,14 +3,15 @@ use futures::executor::block_on;
 use std::{path::PathBuf, sync::Arc, thread};
 use tokio::sync::Mutex;
 use ufo_ds_impl::local::LocalDataset;
-use uploader::Uploader;
 
 use ufo_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
 use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
 
 mod api;
 mod config;
-mod uploader;
+
+mod helpers;
+use helpers::uploader::Uploader;
 
 // TODO: guaranteed unique pipeline job id (?)
 // delete after timeout (what if uploading takes a while? Multiple big files?)

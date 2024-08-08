@@ -9,7 +9,7 @@ use std::{sync::Arc, time::Instant};
 use tracing::{error, info};
 use utoipa::ToSchema;
 
-use crate::uploader::{UploadJob, Uploader};
+use crate::helpers::uploader::{UploadJob, Uploader};
 
 /// A freshly-started upload job's parameters
 #[derive(Deserialize, Serialize, ToSchema, Debug)]

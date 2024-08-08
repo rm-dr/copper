@@ -14,7 +14,7 @@ mod pipeline;
 mod status;
 pub mod upload;
 
-use crate::{config::UfodConfig, uploader::Uploader};
+use crate::{config::UfodConfig, helpers::uploader::Uploader};
 
 #[derive(Clone)]
 pub struct RouterState {

@@ -1,11 +1,10 @@
-use std::sync::Arc;
-
 use axum::{routing::post, Router};
+use std::sync::Arc;
 use utoipa::OpenApi;
 
-use crate::uploader::Uploader;
-
+// TODO: move logic to uploader and provide methods
 use super::RouterState;
+use crate::helpers::uploader::Uploader;
 
 mod finish;
 mod new_file;
