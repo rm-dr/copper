@@ -159,11 +159,11 @@ impl FlacMetablockEncode for FlacPictureBlock {
 
 		let mime = self.mime.to_string();
 		target.write_all(&u32::try_from(mime.len()).unwrap().to_be_bytes())?;
-		target.write_all(&self.mime.to_string().as_bytes())?;
+		target.write_all(self.mime.to_string().as_bytes())?;
 		drop(mime);
 
 		target.write_all(&u32::try_from(self.description.len()).unwrap().to_be_bytes())?;
-		target.write_all(&self.description.to_string().as_bytes())?;
+		target.write_all(self.description.to_string().as_bytes())?;
 
 		target.write_all(&self.width.to_be_bytes())?;
 		target.write_all(&self.height.to_be_bytes())?;

@@ -120,19 +120,17 @@ impl FlacBlock {
 	pub fn decode(block_type: FlacMetablockType, data: &[u8]) -> Result<Self, FlacDecodeError> {
 		Ok(match block_type {
 			FlacMetablockType::Streaminfo => {
-				FlacBlock::Streaminfo(FlacStreaminfoBlock::decode(&data)?)
+				FlacBlock::Streaminfo(FlacStreaminfoBlock::decode(data)?)
 			}
 			FlacMetablockType::Application => {
-				FlacBlock::Application(FlacApplicationBlock::decode(&data)?)
+				FlacBlock::Application(FlacApplicationBlock::decode(data)?)
 			}
-			FlacMetablockType::Cuesheet => FlacBlock::CueSheet(FlacCuesheetBlock::decode(&data)?),
-			FlacMetablockType::Padding => FlacBlock::Padding(FlacPaddingBlock::decode(&data)?),
-			FlacMetablockType::Picture => FlacBlock::Picture(FlacPictureBlock::decode(&data)?),
-			FlacMetablockType::Seektable => {
-				FlacBlock::SeekTable(FlacSeektableBlock::decode(&data)?)
-			}
+			FlacMetablockType::Cuesheet => FlacBlock::CueSheet(FlacCuesheetBlock::decode(data)?),
+			FlacMetablockType::Padding => FlacBlock::Padding(FlacPaddingBlock::decode(data)?),
+			FlacMetablockType::Picture => FlacBlock::Picture(FlacPictureBlock::decode(data)?),
+			FlacMetablockType::Seektable => FlacBlock::SeekTable(FlacSeektableBlock::decode(data)?),
 			FlacMetablockType::VorbisComment => {
-				FlacBlock::VorbisComment(FlacCommentBlock::decode(&data)?)
+				FlacBlock::VorbisComment(FlacCommentBlock::decode(data)?)
 			}
 		})
 	}
@@ -282,7 +280,7 @@ impl FlacBlockReader {
 					if data.len() == header.length.try_into().unwrap() {
 						// If we picked this block type, add it to the queue
 						if self.selector.should_pick_meta(header.block_type) {
-							let b = FlacBlock::decode(header.block_type, &data)?;
+							let b = FlacBlock::decode(header.block_type, data)?;
 							self.output_blocks.push_back(b);
 						}
 
@@ -315,10 +313,10 @@ impl FlacBlockReader {
 
 					// Check frame sync header
 					// (`if` makes sure we only do this once)
-					if data.len() - last_read_size <= 2 {
-						if !(data[0] == 0b1111_1111 && data[1] & 0b1111_1100 == 0b1111_1000) {
-							return Err(FlacDecodeError::BadSyncBytes.into());
-						}
+					if data.len() - last_read_size <= 2
+						&& !(data[0] == 0b1111_1111 && data[1] & 0b1111_1100 == 0b1111_1000)
+					{
+						return Err(FlacDecodeError::BadSyncBytes.into());
 					}
 
 					if data.len() >= MIN_AUDIO_FRAME_LEN {
@@ -344,7 +342,7 @@ impl FlacBlockReader {
 						// reading is tricky.
 						for i in first_byte..data.len() {
 							if data[i - 2] == 0b1111_1111
-								&& data[i - 1] & 0b1111_11_00 == 0b1111_10_00
+								&& data[i - 1] & 0b1111_1100 == 0b1111_1000
 							{
 								// We found another frame sync header. Split at this index.
 								if self.selector.pick_audio {

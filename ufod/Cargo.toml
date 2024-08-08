@@ -28,7 +28,6 @@ members = ["crates/*"]
 default-members = ["crates/ufod"]
 resolver = "2"
 
-
 [workspace.package]
 keywords = []
 version = "0.1.0"
@@ -42,8 +41,9 @@ license = ""
 documentation = ""
 readme = ""
 
-
-[workspace.lints]
+[workspace.lints.clippy]
+needless_return = "allow"
+new_without_default = "allow"
 
 
 [workspace.dependencies]
