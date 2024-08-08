@@ -2,12 +2,6 @@ import styles from "./tree.module.scss";
 import { Panel, PanelSection } from "../../components/panel";
 
 import {
-	XIconAttrBinary,
-	XIconAttrBlob,
-	XIconAttrFloat,
-	XIconAttrInt,
-	XIconAttrPosInt,
-	XIconAttrText,
 	XIconDatabase,
 	XIconDatabasePlus,
 	XIconDatabaseX,
@@ -20,116 +14,28 @@ import { ReactNode, useCallback, useEffect, useState } from "react";
 import { DatasetList } from "./parts/dataset";
 import { useNewDsModal } from "./parts/newdsmodal";
 
-// Dataset types we support
-export const datasetTypes = [
-	{
-		// Pretty name to display to user
-		pretty_name: "Local",
-
-		// The name of this type in ufo's api
-		serialize_as: "Local",
-
-		// Icon to use for datasets of this type
-		icon: <XIconServer />,
-
-		// Extra parameter elements for this dataset
-		// (Currently unused. We'll need this later.)
-		extra_params: null,
-	},
-];
-
-// Attr types we support
-export const attrTypes = [
-	{
-		// Pretty name to display to user
-		pretty_name: "Text",
-
-		// The name of this data type in ufo's api
-		serialize_as: "Text",
-
-		// Icon to use for attrs of this type
-		icon: <XIconAttrText />,
-
-		// Extra parameter elements for this type
-		// (Currently unused. We'll need this later.)
-		extra_params: null,
-	},
-
-	{
-		pretty_name: "Binary",
-		serialize_as: "Binary",
-		icon: <XIconAttrBinary />,
-		extra_params: null,
-	},
-
-	{
-		pretty_name: "Blob",
-		serialize_as: "Blob",
-		icon: <XIconAttrBlob />,
-		extra_params: null,
-	},
-
-	{
-		pretty_name: "Integer",
-		serialize_as: "Integer",
-		icon: <XIconAttrInt />,
-		extra_params: null,
-	},
-
-	{
-		pretty_name: "Positive Integer",
-		serialize_as: "PositiveInteger",
-		icon: <XIconAttrPosInt />,
-		extra_params: null,
-	},
-
-	{
-		pretty_name: "Float",
-		serialize_as: "Float",
-		icon: <XIconAttrFloat />,
-		extra_params: null,
-	},
-
-	{
-		pretty_name: "Hash",
-		serialize_as: "Hash",
-		icon: <XIconAttrFloat />,
-		extra_params: (onChange: (a: any) => void) => {
-			return <Select
-				required={true}
-				placeholder={"select hash type"}
-				data={["SHA512", "SHA256"]}
-				clearable
-				onChange={onChange}
-			/>;
-		},
-	},
-
-	// Hash and Reference need extra params
-];
-
 export type TreeData = {
 	error: boolean;
 	loading: boolean;
 
 	datasets:
-	| null
-	| {
-		// Dataset info
-		name: string;
-		type: string;
-		open: boolean;
-		classes: {
-			// Classes in this dataset
-			name: string;
-			open: boolean;
-			attrs: {
-				// Attrs in this class
+		| null
+		| {
+				// Dataset info
 				name: string;
 				type: string;
-			}[];
-		}[];
-	}[];
+				open: boolean;
+				classes: {
+					// Classes in this dataset
+					name: string;
+					open: boolean;
+					attrs: {
+						// Attrs in this class
+						name: string;
+						type: string;
+					}[];
+				}[];
+		  }[];
 };
 
 const Wrapper = (params: { children: ReactNode }) => {
@@ -181,9 +87,9 @@ export function TreePanel(params: {}) {
 					data.map(async ({ ds_type, name: dataset }) => {
 						const res = await fetch(
 							"/api/class/list?" +
-							new URLSearchParams({
-								dataset,
-							}).toString(),
+								new URLSearchParams({
+									dataset,
+								}).toString(),
 						);
 						const data: {
 							name: string;

@@ -6,7 +6,7 @@ import {
 } from "@/app/components/icons";
 import { ActionIcon, Button, Menu, Text, TextInput, rem } from "@mantine/core";
 
-import { TreeData, datasetTypes } from "..";
+import { TreeData } from "..";
 import { Dispatch, SetStateAction, useState } from "react";
 
 import styles from "../tree.module.scss";
@@ -14,6 +14,7 @@ import { ClassList } from "./class";
 import { TreeEntry } from "../tree_entry";
 import { useDisclosure } from "@mantine/hooks";
 import { TreeModal } from "../tree_modal";
+import { datasetTypes } from "../datasets";
 
 export function DatasetList(params: {
 	update_tree: () => void;

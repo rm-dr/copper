@@ -8,18 +8,21 @@ import {
 import {
 	ActionIcon,
 	Button,
+	Group,
 	Menu,
 	Select,
+	SelectProps,
 	Text,
 	TextInput,
 	rem,
 } from "@mantine/core";
 import { Dispatch, SetStateAction, useState } from "react";
-import { TreeData, attrTypes } from "..";
+import { attrTypes } from "../attrs";
 import { AttrList } from "./attr";
 import { TreeEntry } from "../tree_entry";
 import { useDisclosure } from "@mantine/hooks";
 import { TreeModal } from "../tree_modal";
+import { TreeData } from "..";
 
 export function ClassList(params: {
 	update_tree: () => void;
@@ -291,8 +294,8 @@ export function useDeleteClassModal(params: {
 					{errorMessage.response
 						? errorMessage.response
 						: errorMessage.name
-							? errorMessage.name
-							: ""}
+						? errorMessage.name
+						: ""}
 				</Text>
 			</TreeModal>
 		),
@@ -312,18 +315,28 @@ export function useAddAttrModal(params: {
 		name: string | null;
 		type: string | null;
 		response: string | null;
-	}>({ name: null, type: null, response: null });
+		extra_params: null | any;
+	}>({ name: null, type: null, response: null, extra_params: null });
 
 	const [newAttrName, setNewAttrName] = useState("");
 	const [newAttrType, setNewAttrType] = useState<string | null>(null);
 
-	let attr_extra_params = null;
+	// This is an object set by an attributes's "extra params" node.
+	// This is expanded directly into the new attr POST, see `add_attr` below.
+	const [newAttrParams, setNewAttrParams] = useState<null | Object>(null);
+
+	// Get input ui for attr-specific parameters
+	let NewAttrParamsInput: null | any = null;
+	let newAttrExtraParams: null | any = null;
 	if (newAttrType !== null) {
 		const d = attrTypes.find((x) => {
 			return x.serialize_as === newAttrType;
 		});
 		if (d !== undefined && d.extra_params !== null) {
-			attr_extra_params = d.extra_params(console.log);
+			// This is a function, but DON'T RUN IT!
+			// It's a react component that is placed into tsx below.
+			NewAttrParamsInput = d.extra_params.node;
+			newAttrExtraParams = d.extra_params;
 		}
 	}
 
@@ -347,13 +360,32 @@ export function useAddAttrModal(params: {
 				};
 			});
 			return;
+		} else if (newAttrExtraParams !== null) {
+			if (
+				!newAttrExtraParams.inputs_ok({
+					state: newAttrParams,
+					setErrorMessage: (m: any) => {
+						setErrorMessage((e) => ({ ...e, extra_params: m }));
+					},
+				})
+			) {
+				setLoading(false);
+				return;
+			}
 		}
 
 		setErrorMessage({
 			name: null,
 			type: null,
 			response: null,
+			extra_params: null,
 		});
+
+		let extra_params = {};
+		if (newAttrParams !== null) {
+			extra_params = newAttrParams;
+		}
+
 		fetch("/api/attr/add", {
 			method: "POST",
 			headers: {
@@ -365,6 +397,7 @@ export function useAddAttrModal(params: {
 				attr: newAttrName,
 				data_type: {
 					type: newAttrType,
+					...extra_params,
 				},
 				options: {
 					unique: false,
@@ -398,6 +431,28 @@ export function useAddAttrModal(params: {
 		});
 	};
 
+	const renderSelectOption: SelectProps["renderOption"] = ({
+		option,
+		checked,
+	}) => {
+		let icon = null;
+		const d = attrTypes.find((x) => {
+			return x.serialize_as === option.value;
+		});
+		if (d !== undefined) {
+			icon = d.icon;
+		}
+		return (
+			<Group flex="1" gap="xs">
+				<div style={{ width: "1.5rem", color: "var(--mantine-color-dimmed)" }}>
+					{icon}
+				</div>
+
+				{option.label}
+			</Group>
+		);
+	};
+
 	return {
 		open,
 		modal: (
@@ -407,6 +462,7 @@ export function useAddAttrModal(params: {
 					// Reset everything on close
 					setNewAttrName("");
 					setNewAttrType(null);
+					setNewAttrParams(null);
 					setErrorMessage({
 						name: null,
 						type: null,
@@ -445,13 +501,14 @@ export function useAddAttrModal(params: {
 				/>
 
 				<Select
+					renderOption={renderSelectOption}
 					required={true}
 					style={{ marginTop: "1rem" }}
 					placeholder={"select attr type"}
 					data={attrTypes.map((x) => ({
 						label: x.pretty_name,
 						value: x.serialize_as,
-						disabled: false
+						disabled: false,
 					}))}
 					error={errorMessage.type !== null}
 					onChange={(val) => {
@@ -472,9 +529,19 @@ export function useAddAttrModal(params: {
 					clearable
 				/>
 
-				<div>
-					{attr_extra_params}
-				</div>
+				{NewAttrParamsInput === null ? null : (
+					<div style={{ marginTop: "1rem", marginBottom: "1rem" }}>
+						<NewAttrParamsInput
+							errorMessage={errorMessage.extra_params}
+							setErrorMessage={(m: any) => {
+								setErrorMessage((e) => ({ ...e, extra_params: m }));
+							}}
+							onChange={(x: any) => {
+								setNewAttrParams(x);
+							}}
+						/>
+					</div>
+				)}
 
 				<Button.Group style={{ marginTop: "1rem" }}>
 					<Button
@@ -502,13 +569,16 @@ export function useAddAttrModal(params: {
 				</Button.Group>
 
 				<Text c="red" ta="center">
+					{/* TODO: this is ugly */}
 					{errorMessage.response
 						? errorMessage.response
 						: errorMessage.name
-							? errorMessage.name
-							: errorMessage.type
-								? errorMessage.type
-								: ""}
+						? errorMessage.name
+						: errorMessage.type
+						? errorMessage.type
+						: errorMessage.extra_params
+						? errorMessage.extra_params
+						: ""}
 				</Text>
 			</TreeModal>
 		),

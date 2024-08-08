@@ -2,7 +2,7 @@ import { Button, Select, Text, TextInput } from "@mantine/core";
 import { TreeModal } from "../tree_modal";
 import { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
-import { datasetTypes } from "..";
+import { datasetTypes } from "../datasets";
 import { XIconDatabasePlus } from "@/app/components/icons";
 
 export function useNewDsModal(onSuccess: () => void) {

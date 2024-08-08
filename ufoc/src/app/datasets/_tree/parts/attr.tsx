@@ -9,7 +9,7 @@ import { TreeEntry } from "../tree_entry";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { TreeModal } from "../tree_modal";
-import { attrTypes } from "..";
+import { attrTypes } from "../attrs";
 
 export function AttrList(params: {
 	update_tree: () => void;

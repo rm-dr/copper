@@ -1,11 +1,14 @@
 # TODO
 
-Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *minimal* working version: robust, usable, but possibly slow and missing fancy features.
+Poor man's issue tracker. Good enough for now, this team isn't very big.
+
+Projects marked with a 📦 are prerequisites for `v0.1.0` release.
+The goal is a *minimal* working version: robust, usable, but possibly slow and missing fancy features.
 
 
 ## 📦 CRUD datasets
 - [ ] Rename set, class, attr endpoint
-- [ ] Create hash and reference attrs from ui (params)
+- [ ] Create reference attr
 - [ ] Complete class deletion
   - [ ] Delete blobs
   - [ ] Check references (do not allow deletion if refs exist)
@@ -18,6 +21,9 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
   - [ ] Deletion could take a while. Will our request time out?
 - [ ] Polish UI: (`/datasets` page)
   - [ ] Dataset & attribute type descriptions
+  - [ ] Enter to make new set/attr/etc
+  - [ ] Center icons in dropdown
+  - [ ] Fix modal text colors
 
 ## 📦 Dataset locks
 - [ ] delete dataset while pipeline is running?
