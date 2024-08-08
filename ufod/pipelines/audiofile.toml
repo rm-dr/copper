@@ -1,5 +1,5 @@
-[input]
-type = "File"
+[inputs]
+file = { stub_type = "Bytes" }
 
 [node."add_file"]
 node.type = "AddItem"

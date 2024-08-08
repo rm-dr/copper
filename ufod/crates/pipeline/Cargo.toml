@@ -25,3 +25,4 @@ toml = { workspace = true }
 itertools = { workspace = true }
 crossbeam = { workspace = true }
 tracing = { workspace = true }
+utoipa = { workspace = true }

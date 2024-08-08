@@ -75,7 +75,7 @@ impl HashComputer {
 		};
 
 		UFOData::Hash {
-			format,
+			hash_type: format,
 			data: Arc::new(v),
 		}
 	}

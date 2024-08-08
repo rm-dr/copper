@@ -3214,6 +3214,7 @@ dependencies = [
  "smartstring",
  "toml",
  "tracing",
+ "utoipa",
 ]
 
 [[package]]

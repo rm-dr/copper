@@ -171,9 +171,19 @@ impl PipelineNode<UFOData> for ExtractTags {
 						if let Some((_, tag_value)) =
 							comment.comment.comments.iter().find(|x| x.0 == *tag_type)
 						{
-							send_data(i, UFOData::Text(Arc::new(tag_value.clone())))?;
+							send_data(
+								i,
+								UFOData::Text {
+									value: Arc::new(tag_value.clone()),
+								},
+							)?;
 						} else {
-							send_data(i, UFOData::None(UFODataStub::Text))?;
+							send_data(
+								i,
+								UFOData::None {
+									data_type: UFODataStub::Text,
+								},
+							)?;
 						}
 					}
 				}

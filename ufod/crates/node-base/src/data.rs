@@ -6,6 +6,7 @@ use ufo_ds_core::{
 };
 use ufo_pipeline::api::{PipelineData, PipelineDataStub};
 use ufo_util::mime::MimeType;
+use utoipa::ToSchema;
 
 /// Immutable bits of data inside a pipeline.
 ///
@@ -23,32 +24,32 @@ use ufo_util::mime::MimeType;
 ///
 /// Also, some types that exist here cannot exist inside a metastore (for example, `Path`, which
 /// represents a file path that is available when the pipeline is run. This path may vanish later.)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, Deserialize, ToSchema)]
+#[serde(tag = "data_type")]
 pub enum UFOData {
 	/// Typed, unset data
 	#[serde(skip)]
-	None(UFODataStub),
+	None { data_type: UFODataStub },
 
 	/// A block of text
-	Text(Arc<String>),
+	Text {
+		#[schema(value_type = String)]
+		value: Arc<String>,
+	},
 
 	/// An integer
-	#[serde(skip)]
 	Integer { value: i64, is_non_negative: bool },
 
 	/// A boolean
-	#[serde(skip)]
-	Boolean(bool),
+	Boolean { value: bool },
 
 	/// A float
-	#[serde(skip)]
 	Float { value: f64, is_non_negative: bool },
 
 	/// A checksum
 	#[serde(skip)]
 	Hash {
-		format: HashType,
+		hash_type: HashType,
 		data: Arc<Vec<u8>>,
 	},
 
@@ -63,12 +64,13 @@ pub enum UFOData {
 		source: BytesSource,
 	},
 
-	#[serde(skip)]
 	Reference {
 		/// The item class this
+		#[schema(value_type = u32)]
 		class: ClassHandle,
 
 		/// The item
+		#[schema(value_type = u32)]
 		item: ItemIdx,
 	},
 }
@@ -89,33 +91,35 @@ impl PipelineData for UFOData {
 
 	fn as_stub(&self) -> Self::DataStubType {
 		match self {
-			Self::None(t) => *t,
-			Self::Text(_) => UFODataStub::Text,
+			Self::None { data_type } => *data_type,
+			Self::Text { .. } => UFODataStub::Text,
 			Self::Integer {
 				is_non_negative, ..
 			} => UFODataStub::Integer {
 				is_non_negative: *is_non_negative,
 			},
-			Self::Boolean(_) => UFODataStub::Boolean,
+			Self::Boolean { .. } => UFODataStub::Boolean,
 			Self::Float {
 				is_non_negative, ..
 			} => UFODataStub::Float {
 				is_non_negative: *is_non_negative,
 			},
-			Self::Hash { format, .. } => UFODataStub::Hash { hash_type: *format },
+			Self::Hash {
+				hash_type: format, ..
+			} => UFODataStub::Hash { hash_type: *format },
 			Self::Bytes { .. } => UFODataStub::Bytes,
 			Self::Reference { class, .. } => UFODataStub::Reference { class: *class },
 		}
 	}
 
 	fn disconnected(stub: Self::DataStubType) -> Self {
-		Self::None(stub)
+		Self::None { data_type: stub }
 	}
 }
 
 impl UFOData {
 	pub fn is_none(&self) -> bool {
-		matches!(self, Self::None(_))
+		matches!(self, Self::None { .. })
 	}
 
 	pub fn as_db_data(&self) -> Option<MetastoreData> {
@@ -125,17 +129,20 @@ impl UFOData {
 			// - Paths may not be stored in a metastore at all.
 			UFOData::Bytes { .. } => return None,
 
-			UFOData::Text(x) => MetastoreData::Text(x.clone()),
-			UFOData::Boolean(x) => MetastoreData::Boolean(*x),
+			UFOData::Text { value } => MetastoreData::Text(value.clone()),
+			UFOData::Boolean { value } => MetastoreData::Boolean(*value),
 
-			UFOData::None(x) => {
-				if let Some(stub) = x.as_metastore_stub() {
+			UFOData::None { data_type } => {
+				if let Some(stub) = data_type.as_metastore_stub() {
 					MetastoreData::None(stub)
 				} else {
 					return None;
 				}
 			}
-			UFOData::Hash { format, data } => MetastoreData::Hash {
+			UFOData::Hash {
+				hash_type: format,
+				data,
+			} => MetastoreData::Hash {
 				format: *format,
 				data: data.clone(),
 			},
@@ -161,8 +168,8 @@ impl UFOData {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "stub_type")]
 pub enum UFODataStub {
 	/// Plain text
 	Text,
@@ -183,7 +190,10 @@ pub enum UFODataStub {
 	Hash { hash_type: HashType },
 
 	/// A reference to an item
-	Reference { class: ClassHandle },
+	Reference {
+		#[schema(value_type = u32)]
+		class: ClassHandle,
+	},
 }
 
 impl PipelineDataStub for UFODataStub {

@@ -1,6 +1,7 @@
 use serde::{de::DeserializeOwned, Deserialize};
 use smartstring::{LazyCompact, SmartString};
 use std::collections::{BTreeMap, BTreeSet};
+use utoipa::ToSchema;
 
 use crate::api::PipelineData;
 
@@ -14,6 +15,9 @@ pub enum NodeParameterType<DataType: PipelineData> {
 
 	/// A type of pipeline data
 	DataType,
+
+	/// A yes or a no
+	Boolean,
 
 	/// A plain string
 	String,
@@ -38,9 +42,9 @@ pub enum NodeParameterType<DataType: PipelineData> {
 }
 
 /// The types of node parameters we accept
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, ToSchema)]
 #[serde(bound = "DataType: DeserializeOwned")]
-#[serde(untagged)]
+#[serde(tag = "parameter_type", content = "value")]
 pub enum NodeParameterValue<DataType: PipelineData> {
 	/// Pipeline data
 	///
@@ -48,6 +52,9 @@ pub enum NodeParameterValue<DataType: PipelineData> {
 	/// or it may be confused for other value types
 	/// (Most notable, `String`).
 	Data(DataType),
+
+	/// A yes or a no
+	Boolean(bool),
 
 	/// A type of pipeline data
 	///

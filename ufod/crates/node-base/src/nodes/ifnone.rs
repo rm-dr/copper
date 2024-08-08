@@ -102,7 +102,7 @@ impl PipelineNode<UFOData> for IfNone {
 		send_data(
 			0,
 			match self.input.take().unwrap() {
-				UFOData::None(_) => self.ifnone.take().unwrap(),
+				UFOData::None { .. } => self.ifnone.take().unwrap(),
 				x => x,
 			},
 		)?;

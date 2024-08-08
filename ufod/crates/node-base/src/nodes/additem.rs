@@ -290,7 +290,9 @@ impl PipelineNode<UFOData> for AddItem {
 					} else {
 						send_data(
 							0,
-							UFOData::None(UFODataStub::Reference { class: self.class }),
+							UFOData::None {
+								data_type: UFODataStub::Reference { class: self.class },
+							},
 						)?;
 					}
 				}

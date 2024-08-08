@@ -145,7 +145,9 @@ impl PipelineNode<UFOData> for FindItem {
 		} else {
 			send_data(
 				0,
-				UFOData::None(UFODataStub::Reference { class: self.class }),
+				UFOData::None {
+					data_type: UFODataStub::Reference { class: self.class },
+				},
 			)?;
 		}
 

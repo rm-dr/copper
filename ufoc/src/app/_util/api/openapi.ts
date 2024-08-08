@@ -951,40 +951,78 @@ export interface components {
 		 *
 		 *     Also, some types that exist here cannot exist inside a metastore (for example, `Path`, which
 		 *     represents a file path that is available when the pipeline is run. This path may vanish later.) */
-		UFOData: string;
+		UFOData:
+			| {
+					/** @enum {string} */
+					data_type: "Text";
+					value: string;
+			  }
+			| {
+					/** @enum {string} */
+					data_type: "Integer";
+					is_non_negative: boolean;
+					/** Format: int64 */
+					value: number;
+			  }
+			| {
+					/** @enum {string} */
+					data_type: "Boolean";
+					value: boolean;
+			  }
+			| {
+					/** @enum {string} */
+					data_type: "Float";
+					is_non_negative: boolean;
+					/** Format: double */
+					value: number;
+			  }
+			| {
+					/**
+					 * Format: int32
+					 * @description The item class this
+					 */
+					class: number;
+					/** @enum {string} */
+					data_type: "Reference";
+					/**
+					 * Format: int32
+					 * @description The item
+					 */
+					item: number;
+			  };
 		UFODataStub:
 			| {
 					/** @enum {string} */
-					type: "Text";
+					stub_type: "Text";
 			  }
 			| {
 					/** @enum {string} */
-					type: "Bytes";
-			  }
-			| {
-					is_non_negative: boolean;
-					/** @enum {string} */
-					type: "Integer";
+					stub_type: "Bytes";
 			  }
 			| {
 					is_non_negative: boolean;
 					/** @enum {string} */
-					type: "Float";
+					stub_type: "Integer";
+			  }
+			| {
+					is_non_negative: boolean;
+					/** @enum {string} */
+					stub_type: "Float";
 			  }
 			| {
 					/** @enum {string} */
-					type: "Boolean";
+					stub_type: "Boolean";
 			  }
 			| {
 					hash_type: components["schemas"]["HashType"];
 					/** @enum {string} */
-					type: "Hash";
+					stub_type: "Hash";
 			  }
 			| {
 					/** Format: int32 */
 					class: number;
 					/** @enum {string} */
-					type: "Reference";
+					stub_type: "Reference";
 			  };
 		/** @description Parameters to finish an uploading file */
 		UploadFinish: {

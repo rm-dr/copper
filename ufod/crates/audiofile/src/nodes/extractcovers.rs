@@ -146,7 +146,12 @@ impl PipelineNode<UFOData> for ExtractCovers {
 			)?;
 			return Ok(PipelineNodeState::Done);
 		} else if self.reader.is_done() {
-			send_data(0, UFOData::None(UFODataStub::Bytes))?;
+			send_data(
+				0,
+				UFOData::None {
+					data_type: UFODataStub::Bytes,
+				},
+			)?;
 			return Ok(PipelineNodeState::Done);
 		}
 
