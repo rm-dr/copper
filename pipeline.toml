@@ -6,6 +6,7 @@ input."data" = "binary"
 # inputs for the pipeline node
 output."album" = "text"
 output."artist" = "text"
+output."empty" = "text"
 
 # Connect pipeline node inputs
 outmap."album" = "if_none.out"

@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.83"
+itertools = "0.12.1"
 lofty = "0.19.2"
 petgraph = "0.6.5"
 serde = { version = "1.0.201", features = ["serde_derive"] }
