@@ -6,7 +6,7 @@ use std::{
 	thread::JoinHandle,
 	time::Instant,
 };
-use tracing::debug;
+use tracing::trace;
 
 use super::{
 	runner::PipelineRunConfig,
@@ -161,7 +161,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 		);
 
 		let instant_now = Instant::now();
-		debug!(source = "single", summary = "Making node instances");
+		trace!(message = "Making node instances", pipeline_name = ?pipeline.name);
 		let node_instances = pipeline
 			.graph
 			.iter_nodes_idx()
@@ -206,7 +206,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 
 		// The data inside each edge.
 		// We consume node data once it is read so that unneeded memory may be freed.
-		debug!(source = "single", summary = "Initializing edges");
+		trace!(message = "Initializing edges", pipeline_name = ?pipeline.name);
 		let edge_values = {
 			pipeline
 				.graph
@@ -361,6 +361,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 		let node_id = node_instance_container.id.clone();
 		let send_data = self.send_data.clone();
 		let send_status = self.send_status.clone();
+		let pipeline_name = self.pipeline.name.clone();
 
 		if node_instance
 			.try_lock()
@@ -369,10 +370,10 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 			.unwrap()
 			.quick_run()
 		{
-			debug!(
-				source = "pipeline",
-				summary = "Quick-running node",
-				node = node_id.to_string()
+			trace!(
+				message = "Quick-running node",
+				pipeline_name = ?pipeline_name,
+				node_id = node_id.to_string()
 			);
 
 			// Panics if mutex is locked. This is intentional, only one thread should have this at a time.
@@ -386,18 +387,18 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 				Ok(())
 			});
 
-			debug!(
-				source = "pipeline",
-				summary = "Node finished",
+			trace!(
+				message = "Node finished",
 				node = node_id.to_string(),
+				pipeline_name = ?pipeline_name,
 				status=?res.as_ref().unwrap()
 			);
 			send_status.send((node, res)).unwrap();
 		} else {
 			let mut worker = Some(std::thread::spawn(move || {
-				debug!(
-					source = "pipeline",
-					summary = "Running node",
+				trace!(
+					message = "Running node",
+					pipeline_name = ?pipeline_name,
 					node = node_id.to_string()
 				);
 
@@ -412,10 +413,10 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 					Ok(())
 				});
 
-				debug!(
-					source = "pipeline",
-					summary = "Node finished",
+				trace!(
+					message = "Node finished",
 					node = node_id.to_string(),
+					pipeline_name = ?pipeline_name,
 					status=?res.as_ref()
 				);
 				send_status.send((node, res)).unwrap();
@@ -487,9 +488,9 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 						//
 						// This intentionally panics if the mutex is already locked.
 						// That should never happen!
-						debug!(
-							source = "pipeline",
-							summary = "Dropped node",
+						trace!(
+							message = "Dropped node",
+							pipeline_name = ?self.pipeline.name,
 							node = self.node_instances[node.as_usize()].id.to_string(),
 						);
 

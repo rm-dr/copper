@@ -50,7 +50,7 @@ struct ApiDoc;
 async fn main() {
 	tracing_subscriber::fmt()
 		.with_env_filter(concat!(
-			"ufo_pipeline=error,sqlx=warn,tower_http=info,debug"
+			"ufo_pipeline=debug,sqlx=warn,tower_http=info,debug"
 		))
 		.without_time()
 		.with_ansi(true)

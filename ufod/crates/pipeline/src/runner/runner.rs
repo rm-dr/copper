@@ -116,9 +116,9 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 		pipeline_inputs: Vec<SDataType<NodeStubType>>,
 	) -> u128 {
 		debug!(
-			source = "runner",
-			summary = "Adding job",
-			pipeline = ?pipeline.get_name()
+			message = "Adding job",
+			pipeline = ?pipeline.get_name(),
+			inputs = ?pipeline_inputs
 		);
 
 		let runner = PipelineSingleJob::new(
@@ -185,6 +185,12 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 				match x.run() {
 					Ok(SingleJobState::Running) => {}
 					Ok(SingleJobState::Done) => {
+						debug!(
+							message = "Job finished",
+							job_id = id,
+							pipeline = ?x.get_pipeline().name
+						);
+
 						// Drop finished jobs
 						self.completed_jobs.push_back(CompletedJob {
 							job_id: *id,
@@ -200,6 +206,12 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 						r.take();
 					}
 					Err(err) => {
+						debug!(
+							message = "Job failed",
+							job_id = id,
+							pipeline = ?x.get_pipeline().name,
+							error = ?err
+						);
 						// Drop failed jobs
 						self.failed_jobs.push_back(FailedJob {
 							job_id: *id,
@@ -220,9 +232,15 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 		}
 
 		for r in &mut self.active_jobs {
-			if r.is_none() {
+			if r.is_none() && !self.job_queue.is_empty() {
 				// Start a new job if we have space
 				*r = self.job_queue.pop_front();
+
+				debug!(
+					message = "Starting job",
+					job_id = ?r.as_ref().unwrap().0,
+					pipeline = ?r.as_ref().unwrap().1.get_pipeline().name,
+				);
 			}
 		}
 

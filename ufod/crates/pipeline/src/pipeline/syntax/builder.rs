@@ -2,7 +2,7 @@
 
 use itertools::Itertools;
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
-use tracing::debug;
+use tracing::{debug, trace};
 
 use super::{
 	errors::{PipelineErrorNode, PipelinePrepareError},
@@ -56,11 +56,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 		name: &str,
 		spec: PipelineSpec<NodeStubType>,
 	) -> Result<Pipeline<NodeStubType>, PipelinePrepareError<SDataStub<NodeStubType>>> {
-		debug!(
-			source = "syntax",
-			summary = "Building pipeline",
-			name = name,
-		);
+		debug!(message = "Building pipeline", pipeline_name = name,);
 
 		// Initialize all variables
 		let builder = {
@@ -87,7 +83,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 
 		// Make sure every node's inputs are valid,
 		// create the corresponding edges in the graph.
-		debug!(source = "syntax", summary = "Checking inputs",);
+		trace!(message = "Checking inputs", pipeline_name = name);
 		{
 			for (node_id, node_spec) in &builder.spec.nodes {
 				for (input_name, out_link) in &node_spec.inputs {
@@ -102,7 +98,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 			}
 		}
 
-		debug!(source = "syntax", summary = "Making nodes",);
+		trace!(message = "Making nodes", pipeline_name = name);
 		// Add nodes to the graph
 		for (node_name, node_spec) in builder.spec.nodes.iter() {
 			// If this is a normal node, just add it.
@@ -128,7 +124,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 				.insert(node_name.clone(), n);
 		}
 
-		debug!(source = "syntax", summary = "Making after edges",);
+		trace!(message = "Making `after` edges", pipeline_name = name);
 		// Make sure all "after" edges are valid and create them in the graph.
 		for (node_name, node_spec) in &builder.spec.nodes {
 			for after_name in node_spec.after.iter().unique() {
@@ -152,7 +148,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 			}
 		}
 
-		debug!(source = "syntax", summary = "Making ptp edges",);
+		trace!(message = "Making `ptp` edges", pipeline_name = name);
 		// Make sure all "port to port" edges are valid and create them in the graph.
 		{
 			for (node_name, node_spec) in &builder.spec.nodes {
@@ -168,7 +164,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 			}
 		}
 
-		debug!(source = "syntax", summary = "looking for cycles",);
+		trace!(message = "Looking for cycles", pipeline_name = name);
 		// Make sure our graph doesn't have any cycles
 		if builder.graph.borrow().has_cycle() {
 			return Err(PipelinePrepareError::HasCycle);

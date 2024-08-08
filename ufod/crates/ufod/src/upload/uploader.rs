@@ -100,9 +100,7 @@ impl Uploader {
 
 				let j = jobs.swap_remove(i);
 				match std::fs::remove_dir_all(&j.dir) {
-					Ok(()) => {
-						debug!(message = "Removed job directory", job_id = ?j.id, path = ?j.dir)
-					}
+					Ok(()) => {}
 					Err(e) => {
 						error!(message = "Failed removing job directory", job_id = ?j.id, path = ?j.dir, error=?e)
 					}
