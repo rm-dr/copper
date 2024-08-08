@@ -4,15 +4,15 @@ use std::{
 	collections::VecDeque,
 	error::Error,
 	fmt::Display,
-	io::{Cursor, Read, Seek},
+	io::{Cursor, Read, Seek, Write},
 };
 
 use super::{
 	blocks::{
-		FlacAudioFrame, FlacCommentBlock, FlacMetablockDecode, FlacMetablockHeader,
-		FlacMetablockType,
+		FlacAudioFrame, FlacCommentBlock, FlacMetablockDecode, FlacMetablockEncode,
+		FlacMetablockHeader, FlacMetablockType,
 	},
-	errors::FlacDecodeError,
+	errors::{FlacDecodeError, FlacEncodeError},
 };
 use crate::flac::blocks::{
 	FlacApplicationBlock, FlacCuesheetBlock, FlacPaddingBlock, FlacPictureBlock,
@@ -86,6 +86,7 @@ enum FlacBlockType {
 	},
 }
 
+#[derive(Debug)]
 #[allow(missing_docs)]
 pub enum FlacBlock {
 	Streaminfo(FlacStreaminfoBlock),
@@ -96,6 +97,43 @@ pub enum FlacBlock {
 	VorbisComment(FlacCommentBlock),
 	CueSheet(FlacCuesheetBlock),
 	AudioFrame(FlacAudioFrame),
+}
+
+impl FlacBlock {
+	/// Encode this block
+	pub fn encode(&self, is_last: bool, target: &mut impl Write) -> Result<(), FlacEncodeError> {
+		match self {
+			Self::Streaminfo(b) => b.encode(is_last, target),
+			Self::SeekTable(b) => b.encode(is_last, target),
+			Self::Picture(b) => b.encode(is_last, target),
+			Self::Padding(b) => b.encode(is_last, target),
+			Self::Application(b) => b.encode(is_last, target),
+			Self::VorbisComment(b) => b.encode(is_last, target),
+			Self::CueSheet(b) => b.encode(is_last, target),
+			Self::AudioFrame(b) => b.encode(target),
+		}
+	}
+
+	/// Try to decode the given data as a block
+	pub fn decode(block_type: FlacMetablockType, data: &[u8]) -> Result<Self, FlacDecodeError> {
+		Ok(match block_type {
+			FlacMetablockType::Streaminfo => {
+				FlacBlock::Streaminfo(FlacStreaminfoBlock::decode(&data)?)
+			}
+			FlacMetablockType::Application => {
+				FlacBlock::Application(FlacApplicationBlock::decode(&data)?)
+			}
+			FlacMetablockType::Cuesheet => FlacBlock::CueSheet(FlacCuesheetBlock::decode(&data)?),
+			FlacMetablockType::Padding => FlacBlock::Padding(FlacPaddingBlock::decode(&data)?),
+			FlacMetablockType::Picture => FlacBlock::Picture(FlacPictureBlock::decode(&data)?),
+			FlacMetablockType::Seektable => {
+				FlacBlock::SeekTable(FlacSeektableBlock::decode(&data)?)
+			}
+			FlacMetablockType::VorbisComment => {
+				FlacBlock::VorbisComment(FlacCommentBlock::decode(&data)?)
+			}
+		})
+	}
 }
 
 /// An error produced by a [`FlacBlockReader`]
@@ -136,8 +174,8 @@ impl From<FlacDecodeError> for FlacBlockReaderError {
 /// Use `push_data` to add flac data into this struct,
 /// use `pop_block` to read flac blocks.
 ///
-/// This struct does not validate the content of the blocks it produces;
-/// it only validates their structure (e.g, is length correct?).
+/// This is the foundation of all other flac processors
+/// we offer in this crate.
 pub struct FlacBlockReader {
 	// Which blocks should we return?
 	selector: FlacBlockSelector,
@@ -154,6 +192,17 @@ impl FlacBlockReader {
 	/// Pop the next block we've read, if any.
 	pub fn pop_block(&mut self) -> Option<FlacBlock> {
 		self.output_blocks.pop_front()
+	}
+
+	/// If true, this reader has received all the data it needs.
+	pub fn is_done(&self) -> bool {
+		self.current_block.is_none()
+	}
+
+	/// If true, this reader has at least one block ready to pop.
+	/// Calling `pop_block` will return `Some(_)` if this is true.
+	pub fn has_block(&self) -> bool {
+		!self.output_blocks.is_empty()
 	}
 
 	/// Make a new [`FlacBlockReader`].
@@ -231,30 +280,7 @@ impl FlacBlockReader {
 					if data.len() == header.length.try_into().unwrap() {
 						// If we picked this block type, add it to the queue
 						if self.selector.should_pick_meta(header.block_type) {
-							let b = match header.block_type {
-								FlacMetablockType::Streaminfo => {
-									FlacBlock::Streaminfo(FlacStreaminfoBlock::decode(&data)?)
-								}
-								FlacMetablockType::Application => {
-									FlacBlock::Application(FlacApplicationBlock::decode(&data)?)
-								}
-								FlacMetablockType::Cuesheet => {
-									FlacBlock::CueSheet(FlacCuesheetBlock::decode(&data)?)
-								}
-								FlacMetablockType::Padding => {
-									FlacBlock::Padding(FlacPaddingBlock::decode(&data)?)
-								}
-								FlacMetablockType::Picture => {
-									FlacBlock::Picture(FlacPictureBlock::decode(&data)?)
-								}
-								FlacMetablockType::Seektable => {
-									FlacBlock::SeekTable(FlacSeektableBlock::decode(&data)?)
-								}
-								FlacMetablockType::VorbisComment => {
-									FlacBlock::VorbisComment(FlacCommentBlock::decode(&data)?)
-								}
-							};
-
+							let b = FlacBlock::decode(header.block_type, &data)?;
 							self.output_blocks.push_back(b);
 						}
 
@@ -299,7 +325,7 @@ impl FlacBlockReader {
 						let first_byte = if data.len() - last_read_size < 2 {
 							3
 						} else {
-							(data.len() - last_read_size) + 2
+							data.len() - last_read_size + 3
 						};
 
 						// `i` is the index of the first byte *after* the sync sequence.
