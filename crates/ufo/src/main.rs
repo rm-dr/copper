@@ -8,14 +8,14 @@ use std::{
 
 use ufo_metadb::{
 	api::{AttributeOptions, MetaDb},
-	data::{HashType, MetaDbData, MetaDbDataStub},
+	data::{HashType, MetaDbDataStub},
 	sqlite::db::SQLiteMetaDB,
 };
 use ufo_pipeline::{
 	api::PipelineNodeState,
 	runner::runner::{PipelineRunConfig, PipelineRunner},
 };
-use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
+use ufo_pipeline_nodes::{data::UFOData, nodetype::UFONodeType, UFOContext};
 
 //mod log;
 
@@ -118,7 +118,7 @@ fn main() -> Result<()> {
 	runner.add_pipeline(Path::new("pipelines/audiofile.toml"), "audio".into())?;
 
 	for p in ["data/freeze.flac"] {
-		runner.add_job(&"audio".into(), vec![MetaDbData::Path(Arc::new(p.into()))]);
+		runner.add_job(&"audio".into(), vec![UFOData::Path(Arc::new(p.into()))]);
 	}
 
 	loop {
