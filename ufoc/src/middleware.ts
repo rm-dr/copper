@@ -8,14 +8,14 @@ export function middleware(req: NextRequest) {
 		if (!req.nextUrl.pathname.startsWith("/login")) {
 			const url = req.nextUrl.clone();
 			url.pathname = "/login";
-			return NextResponse.redirect(url, req.url);
+			return NextResponse.redirect(url);
 		}
 	} else {
 		// If logged in, redirect away from /login to home page
 		if (req.nextUrl.pathname.startsWith("/login")) {
 			const url = req.nextUrl.clone();
 			url.pathname = "/";
-			return NextResponse.redirect(url, req.url);
+			return NextResponse.redirect(url);
 		}
 	}
 }
