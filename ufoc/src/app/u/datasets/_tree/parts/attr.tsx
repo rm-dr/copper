@@ -1,15 +1,8 @@
-import {
-	XIconDots,
-	XIconEdit,
-	XIconRow,
-	XIconTrash,
-} from "@/app/components/icons";
-import { ActionIcon, Button, Menu, Text, TextInput, rem } from "@mantine/core";
+import { XIconDots, XIconEdit, XIconTrash } from "@/app/components/icons";
+import { ActionIcon, Menu, rem } from "@mantine/core";
 import { TreeEntry } from "../tree_entry";
-import { useDisclosure } from "@mantine/hooks";
-import { useState } from "react";
-import { TreeModal } from "../tree_modal";
 import { attrTypes } from "../attrs";
+import { useDeleteAttrModal } from "./modals/delattr";
 
 export function AttrList(params: {
 	update_tree: () => void;
@@ -41,7 +34,7 @@ export function AttrList(params: {
 						key={`dataset-${params.dataset}-class-${params.class}-attr-${attr_type}`}
 						is_clickable={true}
 						is_selected={false}
-						onClick={() => { }}
+						onClick={() => {}}
 						icon={type_def?.icon}
 						text={attr_name}
 						icon_tooltip={type_def?.pretty_name}
@@ -117,150 +110,4 @@ function AttrMenu(params: {
 			</Menu>
 		</>
 	);
-}
-
-export function useDeleteAttrModal(params: {
-	dataset_name: string;
-	class_name: string;
-	attr_name: string;
-	onSuccess: () => void;
-}) {
-	const [opened, { open, close }] = useDisclosure(false);
-
-	const [isLoading, setLoading] = useState(false);
-	const [delAttrName, setDelAttrName] = useState("");
-
-	const [errorMessage, setErrorMessage] = useState<{
-		name: string | null;
-		response: string | null;
-	}>({ name: null, response: null });
-
-	// This is run when we submit
-	const del_attr = () => {
-		if (delAttrName != params.attr_name) {
-			setErrorMessage((e) => {
-				return {
-					...e,
-					name: "Attribute name does not match",
-				};
-			});
-			return;
-		}
-		setLoading(true);
-
-		fetch("/api/attr/del", {
-			method: "delete",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				class: params.class_name,
-				dataset: params.dataset_name,
-				attr: params.attr_name,
-			}),
-		})
-			.then((res) => {
-				setLoading(false);
-				if (!res.ok) {
-					res.text().then((text) => {
-						setErrorMessage((e) => {
-							return {
-								...e,
-								response: text,
-							};
-						});
-					});
-				} else {
-					params.onSuccess();
-					close();
-				}
-			})
-			.catch((err) => {
-				setLoading(false);
-				setErrorMessage((e) => {
-					return {
-						...e,
-						response: `Error: ${err}`,
-					};
-				});
-			});
-	};
-
-	return {
-		open,
-		modal: (
-			<TreeModal
-				opened={opened}
-				close={() => {
-					// Reset everything on close
-					setDelAttrName("");
-					setLoading(false);
-					setErrorMessage({ name: null, response: null });
-					close();
-				}}
-				title="Delete attribute"
-				keepOpen={isLoading}
-			>
-				<div
-					style={{
-						marginBottom: "1rem",
-					}}
-				>
-					<Text c="red" size="sm">
-						This action will irreversably destroy data.
-					</Text>
-					<Text c="red" size="sm">
-						Enter
-						<Text c="orange" span>{` ${params.attr_name} `}</Text>
-						below to confirm.
-					</Text>
-				</div>
-
-				<TextInput
-					data-autofocus
-					placeholder="Enter attribute name"
-					disabled={isLoading}
-					error={errorMessage.name !== null}
-					onChange={(e) => {
-						setDelAttrName(e.currentTarget.value);
-						setErrorMessage((m) => {
-							return {
-								...m,
-								name: null,
-							};
-						});
-					}}
-				/>
-
-				<Button.Group style={{ marginTop: "1rem" }}>
-					<Button
-						variant="light"
-						fullWidth
-						color="red"
-						onMouseDown={close}
-						disabled={isLoading}
-					>
-						Cancel
-					</Button>
-					<Button
-						variant="filled"
-						color="red"
-						fullWidth
-						leftSection={<XIconTrash />}
-						onClick={del_attr}
-					>
-						Confirm
-					</Button>
-				</Button.Group>
-
-				<Text c="red" ta="center">
-					{errorMessage.response
-						? errorMessage.response
-						: errorMessage.name
-							? errorMessage.name
-							: ""}
-				</Text>
-			</TreeModal>
-		),
-	};
 }

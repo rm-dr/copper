@@ -12,30 +12,30 @@ import {
 import { Button, Loader, Select, Text } from "@mantine/core";
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { DatasetList } from "./parts/dataset";
-import { useNewDsModal } from "./parts/newdsmodal";
+import { useNewDsModal } from "./parts/modals/addds";
 
 export type TreeData = {
 	error: boolean;
 	loading: boolean;
 
 	datasets:
-	| null
-	| {
-		// Dataset info
-		name: string;
-		type: string;
-		open: boolean;
-		classes: {
-			// Classes in this dataset
-			name: string;
-			open: boolean;
-			attrs: {
-				// Attrs in this class
+		| null
+		| {
+				// Dataset info
 				name: string;
 				type: string;
-			}[];
-		}[];
-	}[];
+				open: boolean;
+				classes: {
+					// Classes in this dataset
+					name: string;
+					open: boolean;
+					attrs: {
+						// Attrs in this class
+						name: string;
+						type: string;
+					}[];
+				}[];
+		  }[];
 };
 
 const Wrapper = (params: { children: ReactNode }) => {
@@ -87,9 +87,9 @@ export function TreePanel(params: {}) {
 					data.map(async ({ ds_type, name: dataset }) => {
 						const res = await fetch(
 							"/api/class/list?" +
-							new URLSearchParams({
-								dataset,
-							}).toString(),
+								new URLSearchParams({
+									dataset,
+								}).toString(),
 						);
 						const data: {
 							name: string;

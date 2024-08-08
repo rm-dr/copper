@@ -55,70 +55,70 @@ export const attrTypes: {
 		}) => ReactElement;
 	};
 }[] = [
-		{
-			pretty_name: "Text",
-			serialize_as: "Text",
-			icon: <XIconAttrText />,
-			extra_params: null,
-		},
+	{
+		pretty_name: "Text",
+		serialize_as: "Text",
+		icon: <XIconAttrText />,
+		extra_params: null,
+	},
 
-		{
-			pretty_name: "Binary",
-			serialize_as: "Binary",
-			icon: <XIconAttrBinary />,
-			extra_params: null,
-		},
+	{
+		pretty_name: "Binary",
+		serialize_as: "Binary",
+		icon: <XIconAttrBinary />,
+		extra_params: null,
+	},
 
-		{
-			pretty_name: "Blob",
-			serialize_as: "Blob",
-			icon: <XIconAttrBlob />,
-			extra_params: null,
-		},
+	{
+		pretty_name: "Blob",
+		serialize_as: "Blob",
+		icon: <XIconAttrBlob />,
+		extra_params: null,
+	},
 
-		{
-			pretty_name: "Integer",
-			serialize_as: "Integer",
-			icon: <XIconAttrInt />,
-			extra_params: null,
-		},
+	{
+		pretty_name: "Integer",
+		serialize_as: "Integer",
+		icon: <XIconAttrInt />,
+		extra_params: null,
+	},
 
-		{
-			pretty_name: "Positive Integer",
-			serialize_as: "PositiveInteger",
-			icon: <XIconAttrPosInt />,
-			extra_params: null,
-		},
+	{
+		pretty_name: "Positive Integer",
+		serialize_as: "PositiveInteger",
+		icon: <XIconAttrPosInt />,
+		extra_params: null,
+	},
 
-		{
-			pretty_name: "Float",
-			serialize_as: "Float",
-			icon: <XIconAttrFloat />,
-			extra_params: null,
-		},
+	{
+		pretty_name: "Float",
+		serialize_as: "Float",
+		icon: <XIconAttrFloat />,
+		extra_params: null,
+	},
 
-		{
-			pretty_name: "Hash",
-			serialize_as: "Hash",
-			icon: <XIconAttrHash />,
-			extra_params: {
-				inputs_ok: checkHash,
-				node: HashParams,
-			},
+	{
+		pretty_name: "Hash",
+		serialize_as: "Hash",
+		icon: <XIconAttrHash />,
+		extra_params: {
+			inputs_ok: checkHash,
+			node: HashParams,
 		},
+	},
 
-		{
-			pretty_name: "Reference",
-			serialize_as: "Reference",
-			icon: <XIconAttrReference />,
-			extra_params: {
-				inputs_ok: checkRef,
-				node: RefParams,
-			},
+	{
+		pretty_name: "Reference",
+		serialize_as: "Reference",
+		icon: <XIconAttrReference />,
+		extra_params: {
+			inputs_ok: checkRef,
+			node: RefParams,
 		},
+	},
 
-		// TODO: reference type
-	];
+	// TODO: reference type
+];
 
 function checkHash(params: {
 	state: any;
@@ -188,9 +188,9 @@ function RefParams(params: {
 	const update_classes = async (dataset: string) => {
 		const res = await fetch(
 			"/api/class/list?" +
-			new URLSearchParams({
-				dataset: params.dataset_name,
-			}).toString(),
+				new URLSearchParams({
+					dataset: params.dataset_name,
+				}).toString(),
 		);
 
 		const data: { handle: number; name: string; attrs: any[] }[] =

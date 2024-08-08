@@ -1,7 +1,7 @@
 import { Modal } from "@mantine/core";
 import { ReactNode } from "react";
 
-export function TreeModal(params: {
+export function ModalBase(params: {
 	children: ReactNode;
 	title: ReactNode;
 	keepOpen?: boolean;
