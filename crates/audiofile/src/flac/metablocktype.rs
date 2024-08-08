@@ -6,7 +6,7 @@ use super::errors::FlacError;
 
 /// See FLAC spec
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum FlacMetablockType {
 	Streaminfo,
 	Padding,
@@ -43,7 +43,10 @@ impl FlacMetablockType {
 		R: Read,
 	{
 		let mut block = [0u8; 4];
-		read.read_exact(&mut block)?;
+		let x = read.read(&mut block)?;
+		if x != 4 {
+			return Err(FlacError::BadMagicBytes);
+		}
 
 		// Last-metadata-block flag:
 		// '1' if this block is the last metadata block before the audio blocks,
