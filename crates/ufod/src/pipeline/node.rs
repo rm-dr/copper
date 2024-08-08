@@ -1,68 +1,54 @@
-use crate::RouterState;
 use axum::{
 	extract::{Path, State},
 	http::StatusCode,
 	response::{IntoResponse, Response},
-	routing::get,
-	Json, Router,
+	Json,
 };
-use ufo_api::{
-	data::ApiDataStub,
-	pipeline::{NodeInfo, PipelineInfo},
-};
+use serde::{Deserialize, Serialize};
 use ufo_database::api::UFODatabase;
 use ufo_pipeline::{
 	api::PipelineNodeStub,
 	labels::{PipelineLabel, PipelineNodeLabel},
 };
 use ufo_pipeline_nodes::data::UFODataStub;
+use utoipa::ToSchema;
 
-pub fn router() -> Router<RouterState> {
-	Router::new()
-		.route("/", get(get_all_pipelines))
-		.route("/:pipeline_name", get(get_pipeline))
-		.route("/:pipeline_name/:node_name", get(get_pipeline_node))
+use crate::RouterState;
+
+use super::apidata::ApiDataStub;
+
+/// A pipeline node specification
+#[derive(Deserialize, Serialize, ToSchema, Debug)]
+pub(super) struct NodeInfo {
+	/// This node's name
+	#[schema(value_type = String)]
+	pub name: PipelineNodeLabel,
+
+	/// A list of types each of this node's inputs accepts
+	pub inputs: Vec<Vec<ApiDataStub>>,
 }
 
-/// Get all pipeline names
-async fn get_all_pipelines(State(state): State<RouterState>) -> impl IntoResponse {
-	return Json(state.database.get_pipestore().all_pipelines().clone());
-}
-
-/// Get details about one pipeline
-async fn get_pipeline(
-	Path(pipeline_name): Path<PipelineLabel>,
+/// Get details about a node in a pipeline
+#[utoipa::path(
+	get,
+	path = "/{pipeline_name}/{node_name}",
+	params(
+		("pipeline_name", description = "Pipeline name"),
+		("node_name", description = "Node name"),
+	),
+	responses(
+		(status = 200, description = "Node info", body = NodeInfo),
+		(status = 404, description = "There is either no pipeline with the given name, or this pipeline has no such node")
+	),
+)]
+pub(super) async fn get_pipeline_node(
+	Path((pipeline_name, node_name)): Path<(String, String)>,
 	State(state): State<RouterState>,
 ) -> Response {
-	let pipe = if let Some(pipe) = state
-		.database
-		.get_pipestore()
-		.load_pipeline(&pipeline_name, state.context)
-	{
-		pipe
-	} else {
-		return StatusCode::NOT_FOUND.into_response();
-	};
+	// For some odd reason, Utoipa doesn't take the type hint with multiple parameters
+	let pipeline_name: PipelineLabel = pipeline_name.into();
+	let node_name: PipelineNodeLabel = node_name.into();
 
-	let nodes = pipe.iter_node_labels().cloned().collect::<Vec<_>>();
-
-	return (
-		StatusCode::OK,
-		Json(Some(PipelineInfo {
-			name: pipeline_name,
-			nodes,
-			input_node: pipe.input_node_label().clone(),
-			output_node: pipe.output_node_label().clone(),
-		})),
-	)
-		.into_response();
-}
-
-/// Get details about a node in one pipeline
-async fn get_pipeline_node(
-	Path((pipeline_name, node_name)): Path<(PipelineLabel, PipelineNodeLabel)>,
-	State(state): State<RouterState>,
-) -> Response {
 	let pipe = if let Some(pipe) = state
 		.database
 		.get_pipestore()
@@ -101,10 +87,10 @@ async fn get_pipeline_node(
 
 	return (
 		StatusCode::OK,
-		Json(Some(NodeInfo {
+		Json(NodeInfo {
 			name: node_name,
 			inputs,
-		})),
+		}),
 	)
 		.into_response();
 }

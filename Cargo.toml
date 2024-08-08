@@ -51,7 +51,6 @@ ufo-pipeline = { path = "crates/pipeline" }
 ufo-pipeline-nodes = { path = "crates/pipeline-nodes" }
 ufo-util = { path = "crates/util" }
 ufo-audiofile = { path = "crates/audiofile" }
-ufo-api = { path = "crates/ufo-api" }
 
 ufo-database = { path = "crates/database" }
 ufo-db-blobstore = { path = "crates/db-blobstore" }
@@ -101,3 +100,8 @@ serde_with = "3.8.1"
 # Other
 sqlx = { version = "0.7", features = ["sqlite", "runtime-async-std"] }
 #clap = { version = "4.5.4", features = ["derive"] }
+utoipa = { version = "5.0.0-alpha.0", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "7.1.1-alpha.0", features = [
+	"axum",
+	"debug-embed",
+] }

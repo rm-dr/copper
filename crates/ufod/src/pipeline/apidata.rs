@@ -2,8 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
+use utoipa::ToSchema;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub enum ApiDataStub {
 	Text,
 	Blob,
@@ -14,7 +15,7 @@ pub enum ApiDataStub {
 }
 
 /// Raw data that can be uploaded through the api
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub enum ApiData {
 	/// Typed, unset data
 	None(ApiDataStub),
@@ -24,7 +25,10 @@ pub enum ApiData {
 
 	/// A large file we've previously uploaded.
 	/// TODO: this can become a Blob, a Path, or a Binary.
-	Blob { file_name: SmartString<LazyCompact> },
+	Blob {
+		#[schema(value_type = String)]
+		file_name: SmartString<LazyCompact>,
+	},
 
 	/// An integer
 	Integer(i64),

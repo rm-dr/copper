@@ -1,52 +1,50 @@
-use axum::{
-	extract::{DefaultBodyLimit, State},
-	response::IntoResponse,
-	routing::{get, post},
-	Json, Router,
-};
-use config::UfodConfig;
+use axum::{extract::DefaultBodyLimit, routing::get, Router};
 use futures::executor::block_on;
 use std::{path::PathBuf, sync::Arc, thread};
 use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
-use ufo_api::{
-	data::{ApiData, ApiDataStub},
-	pipeline::{AddJobParams, AddJobResult},
-};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
 use ufo_database::{api::UFODatabase, database::Database};
 use ufo_db_blobstore::fs::store::FsBlobstore;
 use ufo_db_metastore::sqlite::db::SQLiteMetastore;
 use ufo_db_pipestore::fs::FsPipestore;
-use ufo_pipeline::{
-	api::PipelineNodeStub,
-	runner::runner::{PipelineRunConfig, PipelineRunner},
-};
-use ufo_pipeline_nodes::{
-	data::{UFOData, UFODataStub},
-	nodetype::UFONodeType,
-	UFOContext,
-};
+use ufo_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
+use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
 
 mod pipeline;
 mod status;
 
 mod config;
 mod upload;
-use upload::Uploader;
+use upload::uploader::Uploader;
 
 #[derive(Clone)]
 pub struct RouterState {
-	config: Arc<UfodConfig>,
+	config: Arc<config::UfodConfig>,
 	runner: Arc<Mutex<PipelineRunner<UFONodeType>>>,
 	database: Arc<Database<FsBlobstore, SQLiteMetastore, FsPipestore>>,
 	context: Arc<UFOContext>,
 	uploader: Arc<Uploader>,
 }
 
-// TODO: openapi
-// TODO: guaranteed unique job id (?)
+// TODO: guaranteed unique pipeline job id (?)
 // delete after timeout (what if uploading takes a while? Multiple big files?)
-// client checks server vserion
+
+// TODO: fix utoipa tags
+#[derive(OpenApi)]
+#[openapi(
+	nest(
+		(path = "/status", api = status::StatusApi),
+		(path = "/pipeline", api = pipeline::PipelineApi),
+		(path = "/upload", api = upload::UploadApi)
+	),
+	tags(
+		(name = "ufod", description = "UFO backend daemon")
+	),
+)]
+struct ApiDoc;
 
 #[tokio::main]
 async fn main() {
@@ -92,10 +90,11 @@ async fn main() {
 	};
 
 	let app = Router::new()
+		.merge(SwaggerUi::new("/docs").url("/docs/openapi.json", ApiDoc::openapi()))
 		.route("/", get(root))
-		.route("/add_job", post(add_job))
+		//.route("/add_job", post(add_job))
 		//
-		.nest("/upload", Uploader::get_router(state.uploader.clone()))
+		.nest("/upload", upload::router(state.uploader.clone()))
 		.nest("/pipelines", pipeline::router())
 		.nest("/status", status::router())
 		// Finish
@@ -122,6 +121,37 @@ async fn main() {
 
 async fn root() -> &'static str {
 	"Hello, World!"
+}
+
+/*
+#[derive(Deserialize, Serialize, ToSchema, Debug)]
+pub struct AddJobParams {
+	#[schema(
+		example = "pipeline-name",
+		value_type = String,
+	)]
+	pub pipeline: PipelineLabel,
+	pub input: Vec<ApiData>,
+
+	#[schema(value_type = Option<String>)]
+	pub bound_upload_job: Option<SmartString<LazyCompact>>,
+}
+
+#[derive(Deserialize, Serialize, ToSchema, Debug)]
+#[serde(tag = "type")]
+pub enum AddJobResult {
+	Ok, // TODO: return job id
+	BadPipeline {
+		#[schema(value_type = Option<String>)]
+		pipeline: PipelineLabel,
+	},
+	InvalidNumberOfArguments {
+		got: usize,
+		expected: usize,
+	},
+	InvalidInputType {
+		bad_input_idx: usize,
+	},
 }
 
 async fn add_job(
@@ -209,7 +239,7 @@ async fn add_job(
 					panic!("unfinished file!")
 				}
 
-				let p = state.uploader.get_job_file_path(j, &file_name).await;
+				//let p = state.uploader.get_job_file_path(j, &file_name).await;
 
 				if let Some(p) = p {
 					UFOData::Path(p)
@@ -238,3 +268,4 @@ async fn add_job(
 
 	return Json(AddJobResult::Ok);
 }
+*/
