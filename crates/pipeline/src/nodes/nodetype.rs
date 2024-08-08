@@ -1,14 +1,11 @@
 use serde::Deserialize;
 use serde_with::serde_as;
+use ufo_audiofile::common::tagtype::TagType;
 use ufo_util::data::PipelineDataType;
 
 use crate::portspec::PipelinePortSpec;
 
-use super::{
-	ifnone::IfNone,
-	nodeinstance::PipelineNodeInstance,
-	tags::{ExtractTags, TagType},
-};
+use super::{ifnone::IfNone, nodeinstance::PipelineNodeInstance, tags::ExtractTags};
 
 #[serde_as]
 #[derive(Debug, Deserialize, Clone)]
@@ -39,7 +36,7 @@ impl PipelineNodeType {
 		match self {
 			Self::ExtractTags { tags } => PipelinePortSpec::VecOwned(
 				tags.iter()
-					.map(|x| (x.to_string().into(), x.get_type()))
+					.map(|x| (Into::<&str>::into(x).into(), PipelineDataType::Text))
 					.collect(),
 			),
 			Self::IfNone => PipelinePortSpec::Static(&[("out", PipelineDataType::Text)]),

@@ -19,10 +19,10 @@ workspace = true
 [dependencies]
 ufo-storage = { workspace = true }
 ufo-util = { workspace = true }
+ufo-audiofile = { workspace = true }
 
 serde = { workspace = true }
 smartstring = { workspace = true }
-lofty = { workspace = true }
 petgraph = { workspace = true }
 serde_with = { workspace = true }
 toml = { workspace = true }

@@ -48,10 +48,10 @@ ufo-pipeline = { path = "crates/pipeline" }
 ufo-storage = { path = "crates/storage" }
 ufo-util = { path = "crates/util" }
 ufo = { path = "crates/ufo" }
+ufo-audiofile = { path = "crates/audiofile" }
 
 anyhow = "1.0.83"
 itertools = "0.12.1"
-lofty = "0.19.2"
 petgraph = "0.6.5"
 serde = { version = "1.0.201", features = ["serde_derive"] }
 smartstring = { version = "1.0.1", features = ["serde"] }
