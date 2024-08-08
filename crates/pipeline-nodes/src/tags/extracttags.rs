@@ -5,12 +5,14 @@ use ufo_audiofile::{common::tagtype::TagType, flac::flac_read_tags};
 use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
-	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
 use ufo_util::mime::MimeType;
 
-use crate::{helpers::ArcVecBuffer, nodetype::UFONodeType, traits::UFONode, UFOContext};
+use crate::{
+	errors::PipelineError, helpers::ArcVecBuffer, nodetype::UFONodeType, traits::UFONode,
+	UFOContext,
+};
 
 // TODO: fail after max buffer size
 pub struct ExtractTags {
@@ -38,6 +40,7 @@ impl ExtractTags {
 impl PipelineNode for ExtractTags {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
+	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where

@@ -6,11 +6,10 @@ use ufo_metadb::{
 };
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
-	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
 
-use crate::{nodetype::UFONodeType, traits::UFONode, UFOContext};
+use crate::{errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext};
 
 pub struct AddToDataset {
 	class: ClassHandle,
@@ -39,6 +38,7 @@ impl AddToDataset {
 impl PipelineNode for AddToDataset {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
+	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where

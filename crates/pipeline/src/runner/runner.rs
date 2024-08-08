@@ -6,11 +6,10 @@ use std::{fs::File, io::Read, marker::PhantomData, path::Path, sync::Arc};
 use super::single::{PipelineSingleRunner, SingleRunnerState};
 use crate::{
 	api::{PipelineNode, PipelineNodeStub},
-	errors::PipelineError,
 	labels::PipelineLabel,
 	pipeline::Pipeline,
 	syntax::{builder::PipelineBuilder, errors::PipelinePrepareError, spec::PipelineSpec},
-	SDataStub, SDataType,
+	SDataStub, SDataType, SErrorType,
 };
 
 /// Pipeline runner configuration
@@ -81,7 +80,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		&self,
 		pipeline_name: &PipelineLabel,
 		pipeline_inputs: Vec<SDataType<StubType>>,
-	) -> Result<(), PipelineError> {
+	) -> Result<(), SErrorType<StubType>> {
 		let pipeline = self.get_pipeline(pipeline_name).unwrap();
 
 		let mut runner = PipelineSingleRunner::new(

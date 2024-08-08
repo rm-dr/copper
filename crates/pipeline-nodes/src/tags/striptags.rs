@@ -1,13 +1,11 @@
 use crossbeam::channel::Receiver;
 use std::{io::Read, sync::Arc};
-use ufo_audiofile::flac::metastrip::FlacMetaStrip;
+use ufo_audiofile::flac::metastrip::{FlacMetaStrip, FlacMetaStripSelector};
 use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
-use ufo_pipeline::{
-	api::{PipelineNode, PipelineNodeState},
-	errors::PipelineError,
-};
+use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 
 use crate::{
+	errors::PipelineError,
 	helpers::{ArcVecBuffer, HoldSender},
 	traits::UFOStaticNode,
 	UFOContext,
@@ -38,7 +36,12 @@ impl StripTags {
 			is_done: false,
 			data: None,
 			sender: None,
-			strip: FlacMetaStrip::new(),
+			strip: FlacMetaStrip::new(
+				FlacMetaStripSelector::new()
+					.keep_streaminfo(true)
+					.keep_seektable(true)
+					.keep_cuesheet(true),
+			),
 			buffer: ArcVecBuffer::new(),
 			input_receiver,
 		}
@@ -48,6 +51,7 @@ impl StripTags {
 impl PipelineNode for StripTags {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
+	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
 	where
@@ -118,17 +122,31 @@ impl PipelineNode for StripTags {
 			(false, false) => return Ok(PipelineNodeState::Pending),
 			(false, true) | (true, true) | (true, false) => {}
 		}
-		std::io::copy(&mut self.buffer, &mut self.strip).unwrap();
+		match std::io::copy(&mut self.buffer, &mut self.strip) {
+			Ok(_) => {}
+			Err(e) => match self.strip.take_error() {
+				Some(x) => return Err(x.into()),
+				None => return Err(e.into()),
+			},
+		};
 		self.buffer.clear();
 
 		// Read as much as we can from `self.strip`
 		loop {
 			// Read a segment of our file
 			let mut read_buf = Vec::with_capacity(self.blob_fragment_size);
-			Read::by_ref(&mut self.strip)
+
+			match Read::by_ref(&mut self.strip)
 				.take(self.blob_fragment_size.try_into().unwrap())
 				.read_to_end(&mut read_buf)
-				.unwrap();
+			{
+				Ok(_) => {}
+				Err(e) => match self.strip.take_error() {
+					Some(x) => return Err(x.into()),
+					None => return Err(e.into()),
+				},
+			};
+
 			if !self.is_done {
 				// If we read data, send or hold the segment we read
 				if let Some(x) = self

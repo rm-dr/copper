@@ -2,14 +2,102 @@
 
 use std::{
 	collections::VecDeque,
-	io::{Cursor, Read, Write},
+	io::{Cursor, ErrorKind, Read, Write},
 };
 
-use super::metablocktype::FlacMetablockType;
+use super::{errors::FlacError, metablocktype::FlacMetablockType};
 
 // TODO: tests
 // TODO: select blocks to keep
-// TODO: implement Seek
+
+/// Select which blocks we want to keep.
+/// All values are `false` by default.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct FlacMetaStripSelector {
+	/// If true, keep `FlacMetablockType::Streaminfo` blocks.
+	keep_streaminfo: bool,
+
+	/// If true, keep `FlacMetablockType::Padding` blocks.
+	keep_padding: bool,
+
+	/// If true, keep `FlacMetablockType::Application` blocks.
+	keep_application: bool,
+
+	/// If true, keep `FlacMetablockType::SeekTable` blocks.
+	keep_seektable: bool,
+
+	/// If true, keep `FlacMetablockType::VorbisComment` blocks.
+	keep_vorbiscomment: bool,
+
+	/// If true, keep `FlacMetablockType::CueSheet` blocks.
+	keep_cuesheet: bool,
+
+	/// If true, keep `FlacMetablockType::Picture` blocks.
+	keep_picture: bool,
+}
+
+impl FlacMetaStripSelector {
+	/// Make a new [`FlacMetaStripSelector`]
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	fn select(&self, block_type: FlacMetablockType) -> bool {
+		match block_type {
+			FlacMetablockType::Streaminfo => true,
+			FlacMetablockType::Padding => false,
+			FlacMetablockType::Application => false,
+			FlacMetablockType::Seektable => true,
+			FlacMetablockType::VorbisComment => false,
+			FlacMetablockType::Cuesheet => true,
+			FlacMetablockType::Picture => false,
+		}
+	}
+
+	/// If true, keep `FlacMetablockType::StreamInfo` blocks.
+	/// This should usually be `true`, since StreamInfo is mandatory.
+	pub fn keep_streaminfo(mut self, keep_streaminfo: bool) -> Self {
+		self.keep_streaminfo = keep_streaminfo;
+		self
+	}
+
+	/// If true, keep `FlacMetablockType::Padding` blocks.
+	pub fn keep_padding(mut self, keep_padding: bool) -> Self {
+		self.keep_padding = keep_padding;
+		self
+	}
+
+	/// If true, keep `FlacMetablockType::Application` blocks.
+	pub fn keep_application(mut self, keep_application: bool) -> Self {
+		self.keep_application = keep_application;
+		self
+	}
+
+	/// If true, keep `FlacMetablockType::SeekTable` blocks.
+	/// This should usually be `true`; The seek table makes seeking flac faster.
+	pub fn keep_seektable(mut self, keep_seektable: bool) -> Self {
+		self.keep_seektable = keep_seektable;
+		self
+	}
+
+	/// If true, keep `FlacMetablockType::VorbisComment` blocks.
+	pub fn keep_vorbiscomment(mut self, keep_vorbiscomment: bool) -> Self {
+		self.keep_vorbiscomment = keep_vorbiscomment;
+		self
+	}
+
+	/// If true, keep `FlacMetablockType::CueSheet` blocks.
+	pub fn keep_cuesheet(mut self, keep_cuesheet: bool) -> Self {
+		self.keep_cuesheet = keep_cuesheet;
+		self
+	}
+
+	/// If true, keep `FlacMetablockType::Picture` blocks.
+	pub fn keep_picture(mut self, keep_picture: bool) -> Self {
+		self.keep_picture = keep_picture;
+		self
+	}
+}
 
 #[derive(Debug, Clone, Copy)]
 enum FlacMetaStripBlockType {
@@ -32,6 +120,9 @@ impl FlacMetaStripBlockType {
 /// `Write` flac data into this struct,
 /// `Read` the same flac data but with metadata removed.
 pub struct FlacMetaStrip {
+	// Which blocks should we keep?
+	selector: FlacMetaStripSelector,
+
 	// The block we're currently reading
 	current_block: Vec<u8>,
 
@@ -55,12 +146,18 @@ pub struct FlacMetaStrip {
 
 	// Flac data with removed blocks goes here.
 	output_buffer: VecDeque<u8>,
+
+	// If we encounter an error, it will be stored here.
+	// If error is not none, this whole struct is poisoned.
+	// `Read` and `Write` will do nothing.
+	error: Option<FlacError>,
 }
 
 impl FlacMetaStrip {
 	/// Make a new [`FlacMetaStrip`].
-	pub fn new() -> Self {
+	pub fn new(selector: FlacMetaStripSelector) -> Self {
 		Self {
+			selector,
 			current_block: Vec::new(),
 			current_block_total_length: 4,
 			current_block_type: FlacMetaStripBlockType::MagicBits,
@@ -68,12 +165,30 @@ impl FlacMetaStrip {
 			last_kept_block: None,
 			current_block_length: 0,
 			output_buffer: VecDeque::new(),
+			error: None,
 		}
+	}
+
+	/// If this struct has encountered an error, get it.
+	pub fn get_error(&self) -> &Option<FlacError> {
+		&self.error
+	}
+
+	/// If this struct has encountered an error, take it.
+	/// When this is called, the state of this struct is reset.
+	pub fn take_error(&mut self) -> Option<FlacError> {
+		let x = self.error.take();
+		*self = Self::new(self.selector.clone());
+		return x;
 	}
 }
 
 impl Write for FlacMetaStrip {
 	fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+		if self.error.is_some() {
+			return Err(ErrorKind::InvalidData.into());
+		}
+
 		let mut buf = Cursor::new(buf);
 		let mut written: usize = 0;
 
@@ -117,6 +232,10 @@ impl Write for FlacMetaStrip {
 							// Append last_kept_block and prepare to read audio data
 							if let Some((header, block)) = self.last_kept_block.take() {
 								let x = FlacMetablockType::parse_header(&header[..]);
+								if let Err(e) = x {
+									self.error = Some(e);
+									return Ok(0);
+								}
 								let (block_type, length, _) = x.unwrap();
 								self.output_buffer
 									.extend(block_type.make_header(true, length));
@@ -136,8 +255,8 @@ impl Write for FlacMetaStrip {
 						assert!(self.current_block.len() == 4);
 						assert!(self.current_block_length == 4);
 						if self.current_block != [0x66, 0x4C, 0x61, 0x43] {
-							panic!() //TODO: error
-							 //return Err(FlacError::BadMagicBytes);
+							self.error = Some(FlacError::BadMagicBytes);
+							return Ok(0);
 						};
 						self.output_buffer.extend(&self.current_block);
 						self.current_block_total_length = 4;
@@ -148,23 +267,17 @@ impl Write for FlacMetaStrip {
 						assert!(self.current_block.len() == 4);
 						assert!(self.current_block_length == 4);
 						let x = FlacMetablockType::parse_header(&self.current_block[..]);
-						let (block_type, length, is_last) = x.unwrap(); // TODO: handle errors
+						if let Err(e) = x {
+							self.error = Some(e);
+							return Ok(0);
+						}
+						let (block_type, length, is_last) = x.unwrap();
 						self.done_with_meta = is_last;
 						self.current_block_total_length = length.try_into().unwrap();
 
-						let keep_next_block = match block_type {
-							FlacMetablockType::Streaminfo => true,
-							FlacMetablockType::Padding => false,
-							FlacMetablockType::Application => false,
-							FlacMetablockType::Seektable => true,
-							FlacMetablockType::VorbisComment => false,
-							FlacMetablockType::Cuesheet => true,
-							FlacMetablockType::Picture => false,
-						};
-
 						self.current_block_type = FlacMetaStripBlockType::MetaBlock {
 							header: self.current_block[..].try_into().unwrap(),
-							keep_this_block: keep_next_block,
+							keep_this_block: self.selector.select(block_type),
 						};
 					}
 
@@ -208,12 +321,20 @@ impl Write for FlacMetaStrip {
 	}
 
 	fn flush(&mut self) -> std::io::Result<()> {
+		if self.error.is_some() {
+			return Err(ErrorKind::InvalidData.into());
+		}
+
 		return Ok(());
 	}
 }
 
 impl Read for FlacMetaStrip {
 	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+		if self.error.is_some() {
+			return Err(ErrorKind::InvalidData.into());
+		}
+
 		let n_to_read = buf.len().min(self.output_buffer.len());
 
 		let x = Read::by_ref(&mut self.output_buffer)

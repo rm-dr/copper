@@ -1,13 +1,10 @@
 use crossbeam::channel::Receiver;
 use std::{fs::File, io::Read, path::PathBuf, sync::Arc};
 use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
-use ufo_pipeline::{
-	api::{PipelineNode, PipelineNodeState},
-	errors::PipelineError,
-};
+use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 
-use crate::{helpers::HoldSender, traits::UFOStaticNode, UFOContext};
+use crate::{errors::PipelineError, helpers::HoldSender, traits::UFOStaticNode, UFOContext};
 
 /// A node that reads data from a file
 pub struct FileReader {
@@ -46,6 +43,7 @@ impl FileReader {
 impl PipelineNode for FileReader {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
+	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
 	where

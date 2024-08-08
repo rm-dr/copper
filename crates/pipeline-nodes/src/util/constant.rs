@@ -2,11 +2,10 @@ use crossbeam::channel::Receiver;
 use ufo_metadb::data::{MetaDbData, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineData, PipelineNode, PipelineNodeState},
-	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
 
-use crate::{nodetype::UFONodeType, traits::UFONode, UFOContext};
+use crate::{errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext};
 
 #[derive(Clone)]
 pub struct Constant {
@@ -30,6 +29,7 @@ impl Constant {
 impl PipelineNode for Constant {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
+	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where

@@ -12,11 +12,10 @@ use super::{
 };
 use crate::{
 	api::{PipelineData, PipelineNode, PipelineNodeState, PipelineNodeStub},
-	errors::PipelineError,
 	graph::util::GraphNodeIdx,
 	labels::PipelineNodeLabel,
 	pipeline::{Pipeline, PipelineEdge},
-	SDataType, SNodeType,
+	SDataType, SErrorType, SNodeType,
 };
 
 /// The state of a [`PipelineSingleRunner`]
@@ -85,7 +84,7 @@ pub(super) struct PipelineSingleRunner<StubType: PipelineNodeStub> {
 		// The node that sent this status
 		GraphNodeIdx,
 		// The status that was sent
-		Result<PipelineNodeState, PipelineError>,
+		Result<PipelineNodeState, SErrorType<StubType>>,
 	)>,
 
 	/// A receiver for node status messages
@@ -93,7 +92,7 @@ pub(super) struct PipelineSingleRunner<StubType: PipelineNodeStub> {
 		// The node that sent this status
 		GraphNodeIdx,
 		// The status that was sent
-		Result<PipelineNodeState, PipelineError>,
+		Result<PipelineNodeState, SErrorType<StubType>>,
 	)>,
 }
 
@@ -203,8 +202,14 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 		// Contents are (node index, result of `node.run()`)
 		#[allow(clippy::type_complexity)]
 		let (send_status, receive_status): (
-			Sender<(GraphNodeIdx, Result<PipelineNodeState, PipelineError>)>,
-			Receiver<(GraphNodeIdx, Result<PipelineNodeState, PipelineError>)>,
+			Sender<(
+				GraphNodeIdx,
+				Result<PipelineNodeState, SErrorType<StubType>>,
+			)>,
+			Receiver<(
+				GraphNodeIdx,
+				Result<PipelineNodeState, SErrorType<StubType>>,
+			)>,
 		) = unbounded();
 
 		Self {
@@ -226,7 +231,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 	/// since we last called `run()`, and start any nodes that can now be started.
 	///
 	/// This method should be fairly fast, since it holds up the main thread.
-	pub fn run(&mut self) -> Result<SingleRunnerState, PipelineError> {
+	pub fn run(&mut self) -> Result<SingleRunnerState, SErrorType<StubType>> {
 		// Run nodes in a better order, and maybe skip a few.
 
 		// Handle all changes that occured since we last called `run()`
@@ -253,7 +258,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 
 	/// Helper function, written here only for convenience.
 	/// If we can add the node with index `n` to the thread pool, do so.
-	fn try_start_node(&mut self, node: GraphNodeIdx) -> Result<(), PipelineError> {
+	fn try_start_node(&mut self, node: GraphNodeIdx) -> Result<(), SErrorType<StubType>> {
 		// Skip nodes we've already run and nodes that are running right now.
 		let n = self.node_status.get(node.as_usize()).unwrap();
 		if n.is_running() || n.is_done() {
@@ -338,7 +343,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 	/// Handle all messages nodes have sent up to this point.
 	/// This MUST be done between successive calls of
 	/// `run()` on any one node.
-	fn handle_all_messages(&mut self) -> Result<(), PipelineError> {
+	fn handle_all_messages(&mut self) -> Result<(), SErrorType<StubType>> {
 		for (node, port, data) in self.receive_data.try_iter() {
 			// Send data to all inputs connected to this output
 			for edge_idx in self.pipeline.graph.edges_starting_at(node) {

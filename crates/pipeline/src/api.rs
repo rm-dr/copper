@@ -2,9 +2,9 @@
 
 use crossbeam::channel::Receiver;
 use serde::de::DeserializeOwned;
-use std::fmt::Debug;
+use std::{error::Error, fmt::Debug};
 
-use crate::{errors::PipelineError, labels::PipelinePortLabel, NDataStub};
+use crate::{labels::PipelinePortLabel, NDataStub};
 
 /// The state of a [`PipelineNode`] at a point in time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,12 +43,15 @@ pub trait PipelineNode {
 	/// The kind of data this node handles
 	type DataType: PipelineData;
 
+	/// The kind of error this node can produce when running
+	type ErrorType: Error + Send + Sync;
+
 	/// Receive all inputs queued for this node.
 	/// Always called before run().
 	// TODO: we shouldn't need a channel for this, `take_input` should just provide data.
-	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
+	fn take_input<F>(&mut self, send_data: F) -> Result<(), Self::ErrorType>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>;
+		F: Fn(usize, Self::DataType) -> Result<(), Self::ErrorType>;
 
 	/// Run this node.
 	/// This is always run in a worker thread.
@@ -56,9 +59,9 @@ pub trait PipelineNode {
 		&mut self,
 		_ctx: &Self::NodeContext,
 		_send_data: F,
-	) -> Result<PipelineNodeState, PipelineError>
+	) -> Result<PipelineNodeState, Self::ErrorType>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), Self::ErrorType>,
 	{
 		Ok(PipelineNodeState::Done)
 	}

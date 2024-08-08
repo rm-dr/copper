@@ -5,11 +5,10 @@ use std::sync::Arc;
 use ufo_metadb::data::{HashType, MetaDbData, MetaDbDataStub};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
-	errors::PipelineError,
 	labels::PipelinePortLabel,
 };
 
-use crate::{nodetype::UFONodeType, traits::UFONode, UFOContext};
+use crate::{errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext};
 
 #[derive(Clone)]
 pub struct Hash {
@@ -40,6 +39,7 @@ impl Hash {
 impl PipelineNode for Hash {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
+	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where

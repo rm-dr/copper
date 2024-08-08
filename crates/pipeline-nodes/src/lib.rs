@@ -11,6 +11,7 @@ pub mod output;
 pub mod tags;
 pub mod util;
 
+pub mod errors;
 pub mod nodeinstance;
 pub mod nodetype;
 

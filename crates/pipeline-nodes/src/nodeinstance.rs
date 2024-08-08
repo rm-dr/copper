@@ -2,11 +2,11 @@ use std::fmt::Debug;
 use ufo_metadb::data::MetaDbData;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
-	errors::PipelineError,
 	labels::PipelineNodeLabel,
 };
 
 use crate::{
+	errors::PipelineError,
 	input::file::FileReader,
 	output::addtodataset::AddToDataset,
 	tags::{extractcovers::ExtractCovers, striptags::StripTags},
@@ -97,6 +97,8 @@ impl Debug for UFONodeInstance {
 impl PipelineNode for UFONodeInstance {
 	type NodeContext = UFOContext;
 	type DataType = MetaDbData;
+	type ErrorType = PipelineError;
+
 	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
