@@ -341,7 +341,9 @@ export function ItemClassList(params: {
 										class_name={name}
 										onSuccess={params.onUpdate}
 									/>
+									{/*
 									<RenameClassButton class_name={name} />
+									*/}
 									<DeleteClassButton
 										dataset_name={
 											// TODO: fix this type check
@@ -367,10 +369,12 @@ export function ItemClassList(params: {
 										is_clickable={true}
 										right={
 											<>
+												{/*
 												<RenameAttrButton
 													class_name={name}
 													attr_name={attr_name}
 												/>
+												*/}
 												<DeleteAttrButton
 													dataset_name={
 														// TODO: fix this type check
