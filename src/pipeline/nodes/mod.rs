@@ -2,15 +2,18 @@ use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::HashMap, str::FromStr};
 
-use super::{PipelineData, PipelineDataType, PipelineError};
+use super::{
+	data::{PipelineData, PipelineDataType},
+	errors::PipelineError,
+};
 
 pub mod ifnone;
 pub mod tags;
 
 pub trait PipelineNode {
 	fn run(
-		inputs: HashMap<SmartString<LazyCompact>, PipelineData>,
-	) -> Result<HashMap<SmartString<LazyCompact>, PipelineData>, PipelineError>;
+		inputs: HashMap<SmartString<LazyCompact>, Option<PipelineData>>,
+	) -> Result<HashMap<SmartString<LazyCompact>, Option<PipelineData>>, PipelineError>;
 
 	/// List this node's inputs.
 	/// This is a list of ("output name", output type)
@@ -32,8 +35,8 @@ pub enum PipelineNodes {
 impl PipelineNodes {
 	pub fn run(
 		&self,
-		inputs: HashMap<SmartString<LazyCompact>, PipelineData>,
-	) -> Result<HashMap<SmartString<LazyCompact>, PipelineData>, PipelineError> {
+		inputs: HashMap<SmartString<LazyCompact>, Option<PipelineData>>,
+	) -> Result<HashMap<SmartString<LazyCompact>, Option<PipelineData>>, PipelineError> {
 		match self {
 			Self::ExtractTag => tags::ExtractTag::run(inputs),
 			Self::IfNone => ifnone::IfNone::run(inputs),

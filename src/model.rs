@@ -49,6 +49,7 @@ pub struct ClassInstance<ClassUid: Uid, AttrUid: Uid> {
 	pub values: HashMap<AttrUid, Option<AttributeValue>>,
 }
 
+// TODO: remove, merge into pipeline
 #[derive(Debug, Copy, Clone)]
 pub enum ItemType {
 	Binary,

@@ -1,10 +1,43 @@
+use std::collections::HashMap;
+
 use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
-use std::collections::HashMap;
 
-use super::{nodes::PipelineNodes, PipelineDataType, PipelineInput, PipelineOutput};
+use super::{PipelineCheckResult, PipelineInput, PipelineOutput};
+use crate::pipeline::{data::PipelineDataType, nodes::PipelineNodes};
 
+/// Pipeline configuration
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PipelineConfig {
+	/// Names and types of pipeline inputs
+	#[serde(default)]
+	pub input: HashMap<SmartString<LazyCompact>, PipelineDataType>,
+
+	/// Names and types of pipeline outputs
+	#[serde(default)]
+	pub output: HashMap<SmartString<LazyCompact>, PipelineDataType>,
+
+	/// Map pipeline outputs to the node outputs that produce them
+	#[serde(default)]
+	pub outmap: HashMap<SmartString<LazyCompact>, PipelineOutput>,
+}
+
+/// A pipeline node specification
+#[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct PipelineNodeSpec {
+	/// What kind of node is this?
+	#[serde(rename = "type")]
+	pub node_type: PipelineNodes,
+
+	/// Where this node should read its input from.
+	#[serde(default)]
+	pub input: HashMap<SmartString<LazyCompact>, PipelineOutput>,
+}
+
+/// A data processing pipeline
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Pipeline {
@@ -17,72 +50,10 @@ pub struct Pipeline {
 	pub nodes: HashMap<SmartString<LazyCompact>, PipelineNodeSpec>,
 }
 
-#[derive(Debug)]
-pub enum PipelineCheckResult {
-	/// This pipeline is good to go.
-	Ok {
-		/// A vector of all nodes in this pipeline in topological order:
-		/// each node is ordered before its successors.
-		topo: Vec<SmartString<LazyCompact>>,
-	},
-
-	/// There is no node named `node` in this pipeline
-	/// We tried to connect this node from `caused_by_input`.
-	NoNode {
-		node: SmartString<LazyCompact>,
-		caused_by_input: PipelineInput,
-	},
-
-	/// `node` has no input named `input_name`.
-	/// This is triggered when we specify an input that doesn't exist.
-	NoNodeInput {
-		node: SmartString<LazyCompact>,
-		input_name: SmartString<LazyCompact>,
-	},
-
-	/// `node` has no output named `output_name`.
-	/// We tried to connect this output from `caused_by_input`.
-	NoNodeOutput {
-		node: SmartString<LazyCompact>,
-		output_name: SmartString<LazyCompact>,
-		caused_by_input: PipelineInput,
-	},
-
-	/// This pipeline has no input named `input_name`.
-	/// We tried to connect to this input from `caused_by_input`.
-	NoPipelineInput {
-		pipeline_input_name: SmartString<LazyCompact>,
-		caused_by_input: PipelineInput,
-	},
-
-	/// This pipeline has no output named `output_name`.
-	NoPipelineOutput {
-		pipeline_output_name: SmartString<LazyCompact>,
-	},
-
-	/// We tried to connect `input` to `output`,
-	/// but their types don't match.
-	TypeMismatch {
-		output: PipelineOutput,
-		input: PipelineInput,
-	},
-
-	/// We tried to connect an inline type to `input`,
-	/// but their types don't match.
-	InlineTypeMismatch {
-		inline_type: PipelineDataType,
-		input: PipelineInput,
-	},
-
-	/// This graph has a cycle containing `node`
-	HasCycle { node: SmartString<LazyCompact> },
-}
-
 // TODO: rename: pipeline inputs are outputs
 // TODO: pretty errors
 // TODO: warnings (disconnected input)
 // TODO: check for unused nodes
-// TODO: add name to nodespec
 impl Pipeline {
 	/// Check a link from `output` to `input`.
 	/// Returns [`None`] if everything is ok, and an error otherwise.
@@ -252,32 +223,4 @@ impl Pipeline {
 			topo: topo.unwrap().into_iter().map(|x| x.into()).collect(),
 		};
 	}
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PipelineConfig {
-	/// Names and types of pipeline inputs
-	#[serde(default)]
-	pub input: HashMap<SmartString<LazyCompact>, PipelineDataType>,
-
-	/// Names and types of pipeline outputs
-	#[serde(default)]
-	pub output: HashMap<SmartString<LazyCompact>, PipelineDataType>,
-
-	/// Map pipeline outputs to the node outputs that produce them
-	#[serde(default)]
-	pub outmap: HashMap<SmartString<LazyCompact>, PipelineOutput>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(deny_unknown_fields)]
-pub struct PipelineNodeSpec {
-	/// What kind of node is this?
-	#[serde(rename = "type")]
-	pub node_type: PipelineNodes,
-
-	/// Where this node should read its input from.
-	#[serde(default)]
-	pub input: HashMap<SmartString<LazyCompact>, PipelineOutput>,
 }

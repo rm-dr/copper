@@ -15,7 +15,11 @@ use storage::StorageBackend;
 
 use crate::{
 	model::{AudioItemType, ItemType},
-	pipeline::{nodes::PipelineNode, syntax, PipelineData},
+	pipeline::{
+		components::Pipeline,
+		data::{AudioFormat, BinaryFormat, PipelineData},
+		nodes::PipelineNode,
+	},
 };
 
 struct FileReader(File);
@@ -54,10 +58,10 @@ fn main() -> Result<()> {
 		"{:#?}",
 		pipeline::nodes::tags::ExtractTag::run(HashMap::from([(
 			"data".into(),
-			PipelineData::Binary {
-				data_type: ItemType::Audio(AudioItemType::Flac),
+			Some(PipelineData::Binary {
+				format: BinaryFormat::Audio(AudioFormat::Flac),
 				data
-			}
+			})
 		)]))?
 	);
 
@@ -75,10 +79,10 @@ fn main() -> Result<()> {
 		"{:#?}",
 		pipeline::nodes::tags::ExtractTag::run(HashMap::from([(
 			"data".into(),
-			PipelineData::Binary {
-				data_type: ItemType::Audio(AudioItemType::Mp3),
+			Some(PipelineData::Binary {
+				format: BinaryFormat::Audio(AudioFormat::Mp3),
 				data
-			}
+			})
 		)]))?
 	);
 
@@ -87,7 +91,7 @@ fn main() -> Result<()> {
 	let mut f = File::open("pipeline.toml").unwrap();
 	let mut s: String = Default::default();
 	f.read_to_string(&mut s)?;
-	let p: syntax::Pipeline = toml::from_str(&s)?;
+	let p: Pipeline = toml::from_str(&s)?;
 	println!("{:#?}", p);
 	println!("{:?}", p.check());
 

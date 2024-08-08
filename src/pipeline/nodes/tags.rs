@@ -9,9 +9,9 @@ use std::{
 	io::{Cursor, Read, Seek},
 };
 
-use crate::{
-	model::{AudioItemType, ItemType},
-	pipeline::{PipelineData, PipelineDataType, PipelineError},
+use crate::pipeline::{
+	data::{AudioFormat, BinaryFormat, PipelineData, PipelineDataType},
+	errors::PipelineError,
 };
 
 use super::PipelineNode;
@@ -79,20 +79,23 @@ impl PipelineNode for ExtractTag {
 	}
 
 	fn run(
-		inputs: HashMap<SmartString<LazyCompact>, PipelineData>,
-	) -> Result<HashMap<SmartString<LazyCompact>, PipelineData>, PipelineError> {
+		inputs: HashMap<SmartString<LazyCompact>, Option<PipelineData>>,
+	) -> Result<HashMap<SmartString<LazyCompact>, Option<PipelineData>>, PipelineError> {
 		let data = inputs.get("data").unwrap();
 
-		let (data_type, data) = match data {
-			PipelineData::Binary { data_type, data } => (data_type, data),
+		let (data_type, data) = match data.as_ref().unwrap() {
+			PipelineData::Binary {
+				format: data_type,
+				data,
+			} => (data_type, data),
 			_ => panic!(),
 		};
 
 		let mut data_read = Cursor::new(data);
 		let t = match data_type {
-			ItemType::Audio(x) => match x {
-				AudioItemType::Flac => Self::parse_flac(&mut data_read),
-				AudioItemType::Mp3 => Self::parse_mp3(&mut data_read),
+			BinaryFormat::Audio(x) => match x {
+				AudioFormat::Flac => Self::parse_flac(&mut data_read),
+				AudioFormat::Mp3 => Self::parse_mp3(&mut data_read),
 			},
 			_ => return Err(PipelineError::UnsupportedDataType),
 		};
@@ -103,42 +106,15 @@ impl PipelineNode for ExtractTag {
 		let t = t.unwrap();
 
 		let h = if let Some(t) = t {
-			let title = t
-				.title()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None);
-			let album = t
-				.album()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None);
-			let artist = t
-				.artist()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None);
-			let genre = t
-				.genre()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None);
-			let comment = t
-				.comment()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None);
-			let track = t
-				.comment()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None);
-			let disk = t
-				.disk()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None);
-			let disk_total = t
-				.disk_total()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None);
-			let year = t
-				.year()
-				.map(|x| PipelineData::Text(x.to_string()))
-				.unwrap_or(PipelineData::None);
+			let title = t.title().map(|x| PipelineData::Text(x.to_string()));
+			let album = t.album().map(|x| PipelineData::Text(x.to_string()));
+			let artist = t.artist().map(|x| PipelineData::Text(x.to_string()));
+			let genre = t.genre().map(|x| PipelineData::Text(x.to_string()));
+			let comment = t.comment().map(|x| PipelineData::Text(x.to_string()));
+			let track = t.comment().map(|x| PipelineData::Text(x.to_string()));
+			let disk = t.disk().map(|x| PipelineData::Text(x.to_string()));
+			let disk_total = t.disk_total().map(|x| PipelineData::Text(x.to_string()));
+			let year = t.year().map(|x| PipelineData::Text(x.to_string()));
 
 			HashMap::from([
 				("title".into(), title),
@@ -153,15 +129,15 @@ impl PipelineNode for ExtractTag {
 			])
 		} else {
 			HashMap::from([
-				("title".into(), PipelineData::None),
-				("album".into(), PipelineData::None),
-				("artist".into(), PipelineData::None),
-				("genre".into(), PipelineData::None),
-				("comment".into(), PipelineData::None),
-				("track".into(), PipelineData::None),
-				("disk".into(), PipelineData::None),
-				("disk_total".into(), PipelineData::None),
-				("year".into(), PipelineData::None),
+				("title".into(), None),
+				("album".into(), None),
+				("artist".into(), None),
+				("genre".into(), None),
+				("comment".into(), None),
+				("track".into(), None),
+				("disk".into(), None),
+				("disk_total".into(), None),
+				("year".into(), None),
 			])
 		};
 
