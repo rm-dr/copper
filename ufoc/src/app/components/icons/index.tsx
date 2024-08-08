@@ -2,11 +2,13 @@ import {
 	IconAdjustmentsAlt,
 	IconBinaryTree,
 	IconCheck,
+	IconChevronDown,
 	IconCpu,
 	IconDatabase,
 	IconDatabaseCog,
 	IconDatabasePlus,
 	IconDatabaseX,
+	IconDots,
 	IconEdit,
 	IconFile,
 	IconFilePlus,
@@ -43,6 +45,14 @@ const defaultStyles: CSSProperties | undefined = {
 
 // This module lets us apply default styling to tabler icons,
 // and makes it easy to replace our icon provider.
+
+export const XIconDots = ({ style }: { style?: CSSProperties }) => {
+	return <IconDots style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconListArrow = ({ style }: { style?: CSSProperties }) => {
+	return <IconChevronDown style={{ ...defaultStyles, ...style }} />;
+};
 
 export const XIconRow = ({ style }: { style?: CSSProperties }) => {
 	return <IconTableRow style={{ ...defaultStyles, ...style }} />;
