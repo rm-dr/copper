@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use smartstring::{LazyCompact, SmartString};
 use ufo_pipeline::labels::{PipelineLabel, PipelineNodeLabel};
 
 use super::data::{ApiData, ApiDataStub};
@@ -7,6 +8,7 @@ use super::data::{ApiData, ApiDataStub};
 pub struct AddJobParams {
 	pub pipeline: PipelineLabel,
 	pub input: Vec<ApiData>,
+	pub bound_upload_job: Option<SmartString<LazyCompact>>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
