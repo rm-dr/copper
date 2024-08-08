@@ -51,6 +51,7 @@ ufo-pipeline = { path = "crates/pipeline" }
 ufo-pipeline-nodes = { path = "crates/pipeline-nodes" }
 ufo-util = { path = "crates/util" }
 ufo-audiofile = { path = "crates/audiofile" }
+ufo-api = { path = "crates/ufo-api" }
 
 ufo-database = { path = "crates/database" }
 ufo-db-blobstore = { path = "crates/db-blobstore" }

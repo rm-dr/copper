@@ -23,15 +23,16 @@ workspace = true
 
 [dependencies]
 ufo-pipeline = { workspace = true }
-ufod = { workspace = true }
 ufo-pipeline-nodes = { workspace = true }
 ufo-util = { workspace = true }
+ufo-api = { workspace = true }
 
 ufo-database = { workspace = true }
 ufo-db-blobstore = { workspace = true }
 ufo-db-metastore = { workspace = true }
 ufo-db-pipestore = { workspace = true }
 
+sha2 = { workspace = true }
 url = { workspace = true }
 anyhow = { workspace = true }
 smartstring = { workspace = true }

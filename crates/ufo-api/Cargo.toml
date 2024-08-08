@@ -1,0 +1,25 @@
+[package]
+name = "ufo-api"
+description = "Data structures used by the UFO API"
+categories = { workspace = true }
+keywords = { workspace = true }
+version = { workspace = true }
+rust-version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+ufo-pipeline = { workspace = true }
+ufo-util = { workspace = true }
+
+
+smartstring = { workspace = true }
+serde = { workspace = true }

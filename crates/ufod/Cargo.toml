@@ -2,9 +2,6 @@
 name = "ufod"
 path = "src/main.rs"
 
-[lib]
-path = "src/lib.rs"
-
 [package]
 name = "ufod"
 description = "UFO daemon"
@@ -28,8 +25,15 @@ ufo-pipeline = { workspace = true }
 ufo-pipeline-nodes = { workspace = true }
 ufo-database = { workspace = true }
 ufo-util = { workspace = true }
-ufo-db-metastore = { workspace = true }
+ufo-api = { workspace = true }
 
+ufo-db-metastore = { workspace = true }
+ufo-db-pipestore = { workspace = true }
+ufo-db-blobstore = { workspace = true }
+
+sha2 = { workspace = true }
+rand = { workspace = true }
+bytes = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
