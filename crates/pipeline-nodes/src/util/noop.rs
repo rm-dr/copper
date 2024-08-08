@@ -48,11 +48,7 @@ impl PipelineNode for Noop {
 		return Ok(());
 	}
 
-	fn run<F>(
-		&mut self,
-		_ctx: &Self::NodeContext,
-		_send_data: F,
-	) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(&mut self, _send_data: F) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{

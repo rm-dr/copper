@@ -152,30 +152,26 @@ impl PipelineNode for UFONodeInstance {
 		}
 	}
 
-	fn run<F>(
-		&mut self,
-		ctx: &Self::NodeContext,
-		send_data: F,
-	) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		match self {
-			Self::AddItem { node, .. } => node.run(ctx, send_data),
-			Self::FindItem { node, .. } => node.run(ctx, send_data),
-			Self::File { node, .. } => node.run(ctx, send_data),
+			Self::AddItem { node, .. } => node.run(send_data),
+			Self::FindItem { node, .. } => node.run(send_data),
+			Self::File { node, .. } => node.run(send_data),
 
 			// Utility
-			Self::Constant { node, .. } => node.run(ctx, send_data),
-			Self::IfNone { node, .. } => node.run(ctx, send_data),
-			Self::Noop { node, .. } => node.run(ctx, send_data),
-			Self::Print { node, .. } => node.run(ctx, send_data),
-			Self::Hash { node, .. } => node.run(ctx, send_data),
+			Self::Constant { node, .. } => node.run(send_data),
+			Self::IfNone { node, .. } => node.run(send_data),
+			Self::Noop { node, .. } => node.run(send_data),
+			Self::Print { node, .. } => node.run(send_data),
+			Self::Hash { node, .. } => node.run(send_data),
 
 			// Audio
-			Self::ExtractTags { node, .. } => node.run(ctx, send_data),
-			Self::StripTags { node, .. } => node.run(ctx, send_data),
-			Self::ExtractCovers { node, .. } => node.run(ctx, send_data),
+			Self::ExtractTags { node, .. } => node.run(send_data),
+			Self::StripTags { node, .. } => node.run(send_data),
+			Self::ExtractCovers { node, .. } => node.run(send_data),
 		}
 	}
 }

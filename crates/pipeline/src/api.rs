@@ -38,7 +38,7 @@ impl PipelineNodeState {
 /// A [`PipelineNode`] is used to run exactly one pipeline instance,
 /// and is dropped when that pipeline finishes.
 pub trait PipelineNode {
-	/// Extra resources available to nodes
+	/// Extra resources available when building nodes
 	type NodeContext: Send + Sync;
 
 	/// The kind of data this node handles
@@ -68,11 +68,7 @@ pub trait PipelineNode {
 
 	/// Run this node.
 	/// This is always run in a worker thread.
-	fn run<F>(
-		&mut self,
-		_ctx: &Self::NodeContext,
-		_send_data: F,
-	) -> Result<PipelineNodeState, Self::ErrorType>
+	fn run<F>(&mut self, _send_data: F) -> Result<PipelineNodeState, Self::ErrorType>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), Self::ErrorType>,
 	{

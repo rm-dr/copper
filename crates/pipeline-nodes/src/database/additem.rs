@@ -77,11 +77,7 @@ impl PipelineNode for AddItem {
 		return Ok(());
 	}
 
-	fn run<F>(
-		&mut self,
-		_ctx: &Self::NodeContext,
-		send_data: F,
-	) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{

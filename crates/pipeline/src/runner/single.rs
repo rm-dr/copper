@@ -39,9 +39,6 @@ pub struct PipelineSingleJob<StubType: PipelineNodeStub> {
 	/// The input we ran this pipeline with
 	input: Vec<SDataType<StubType>>,
 
-	/// The context for this pipeline
-	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
-
 	/// Mutable instances of each node in this pipeline
 	node_instances: Vec<(
 		// The node's label
@@ -230,7 +227,6 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 		Self {
 			_p: PhantomData,
 			pipeline,
-			context,
 			input,
 			node_instances,
 			edge_values,
@@ -310,7 +306,6 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 		let node_instance = node_instance.clone();
 		let node_label = node_label.clone();
 
-		let context = self.context.clone();
 		let send_data = self.send_data.clone();
 		let send_status = self.send_status.clone();
 
@@ -349,7 +344,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 			let mut node_instance_opt = node_instance.try_lock().unwrap();
 			let node_instance = node_instance_opt.as_mut().unwrap();
 
-			let res = node_instance.run(&*context, |port, data| {
+			let res = node_instance.run(|port, data| {
 				// This should never fail, since we never close the receiver.
 				send_data.send((node, port, data)).unwrap();
 				Ok(())
@@ -375,7 +370,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 				let mut node_instance_opt = node_instance.try_lock().unwrap();
 				let node_instance = node_instance_opt.as_mut().unwrap();
 
-				let res = node_instance.run(&*context, |port, data| {
+				let res = node_instance.run(|port, data| {
 					// This should never fail, since we never close the receiver.
 					send_data.send((node, port, data)).unwrap();
 					Ok(())
