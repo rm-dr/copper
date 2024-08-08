@@ -32,4 +32,11 @@ impl PipelineOutputKind {
 			Self::DataSet { attrs, .. } => PipelinePortSpec::Vec(attrs),
 		}
 	}
+
+	pub fn get_outputs(&self) -> PipelinePortSpec {
+		match self {
+			// TODO: output foreign key of added item
+			Self::DataSet { .. } => PipelinePortSpec::Static(&[]),
+		}
+	}
 }

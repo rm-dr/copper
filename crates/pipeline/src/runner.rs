@@ -108,6 +108,7 @@ impl PipelineRunner {
 	) -> Result<(), PipelineError> {
 		let pipeline = self.get_pipeline(pipeline_name).unwrap();
 
+		// TODO: async-like scheduler with node state
 		let mut node_instances = pipeline
 			.graph
 			.iter_nodes()

@@ -5,7 +5,7 @@ use ufo_util::data::PipelineData;
 use super::{
 	nodetype::PipelineNodeType,
 	tags::{extractcovers::ExtractCovers, extracttags::ExtractTags, striptags::StripTags},
-	util::ifnone::IfNone,
+	util::{ifnone::IfNone, noop::Noop},
 };
 use crate::{errors::PipelineError, PipelineNode};
 
@@ -30,6 +30,11 @@ pub enum PipelineNodeInstance {
 		node_type: PipelineNodeType,
 		name: SmartString<LazyCompact>,
 		node: IfNone,
+	},
+	Noop {
+		node_type: PipelineNodeType,
+		name: SmartString<LazyCompact>,
+		node: Noop,
 	},
 
 	// Audio nodes
@@ -58,6 +63,7 @@ impl Debug for PipelineNodeInstance {
 			Self::ConstantNode { .. } => write!(f, "ConstantNode"),
 			Self::ExtractTags { name, .. } => write!(f, "ExtractTags({name})"),
 			Self::IfNone { name, .. } => write!(f, "IfNone({name})"),
+			Self::Noop { name, .. } => write!(f, "Noop({name})"),
 			Self::StripTags { name, .. } => write!(f, "StripTags({name})"),
 			Self::ExtractCovers { name, .. } => write!(f, "ExtractCovers({name})"),
 		}
@@ -82,8 +88,13 @@ impl PipelineNode for PipelineNodeInstance {
 				}
 				_ => unreachable!(),
 			},
-			Self::ExtractTags { node, .. } => node.run(send_data, input),
+
+			// Utility
 			Self::IfNone { node, .. } => node.run(send_data, input),
+			Self::Noop { node, .. } => node.run(send_data, input),
+
+			// Audio
+			Self::ExtractTags { node, .. } => node.run(send_data, input),
 			Self::StripTags { node, .. } => node.run(send_data, input),
 			Self::ExtractCovers { node, .. } => node.run(send_data, input),
 		}
@@ -93,11 +104,17 @@ impl PipelineNode for PipelineNodeInstance {
 impl PipelineNodeInstance {
 	pub fn get_type(&self) -> &PipelineNodeType {
 		match self {
+			// Magic
 			Self::PipelineInputs { node_type, .. }
 			| Self::PipelineOutputs { node_type, .. }
 			| Self::ConstantNode { node_type, .. }
-			| Self::ExtractTags { node_type, .. }
+
+			// Utility
 			| Self::IfNone { node_type, .. }
+			| Self::Noop { node_type, .. }
+
+			// Audio
+			| Self::ExtractTags { node_type, .. }
 			| Self::StripTags { node_type, .. }
 			| Self::ExtractCovers { node_type, .. } => node_type,
 		}

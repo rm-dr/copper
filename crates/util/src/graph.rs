@@ -43,6 +43,7 @@ impl GraphEdgeIdx {
 /// [`Graph`]s are designed to be created once,
 /// (possibly mutated, if creation requires multiple stages),
 /// and only read afterwards.
+#[derive(Debug, Clone)]
 pub struct Graph<NodeType, EdgeType>
 where
 	NodeType: Debug,
@@ -53,19 +54,6 @@ where
 
 	/// Array of edges in this graph
 	edges: Vec<(GraphNodeIdx, GraphNodeIdx, EdgeType)>,
-}
-
-impl<NodeType, EdgeType> Debug for Graph<NodeType, EdgeType>
-where
-	NodeType: Debug,
-	EdgeType: Debug,
-{
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("Graph")
-			.field("nodes", &self.nodes)
-			.field("edges", &self.edges)
-			.finish()
-	}
 }
 
 impl<NodeType, EdgeType> Graph<NodeType, EdgeType>

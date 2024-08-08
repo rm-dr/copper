@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// An edge in a pipeline
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) enum PipelineEdge {
 	/// A edge from an output port to an input port.
 	/// PTP edges carry data between nodes.
@@ -61,6 +61,7 @@ pub struct Pipeline {
 	/// This pipeline's configuration
 	pub(crate) config: PipelineConfig,
 
+	/// This pipeline's node graph
 	pub(crate) graph: FinalizedGraph<(PipelineNodeLabel, PipelineNodeType), PipelineEdge>,
 }
 

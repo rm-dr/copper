@@ -44,6 +44,12 @@ impl From<&str> for PipelineNodeLabel {
 	}
 }
 
+impl From<String> for PipelineNodeLabel {
+	fn from(s: String) -> Self {
+		PipelineNodeLabel(s.into())
+	}
+}
+
 impl<'a> From<&'a PipelineNodeLabel> for &'a str {
 	fn from(value: &'a PipelineNodeLabel) -> Self {
 		&value.0
