@@ -56,10 +56,16 @@ impl Blobstore for LocalDataset {
 			self.blobstore_root.join(&final_path_rel),
 		)?;
 
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| BlobstoreError::DbError(Box::new(e)))?;
+
 		let res = sqlx::query("INSERT INTO meta_blobs (data_type, file_path) VALUES (?, ?);")
 			.bind(blob.mime.to_string())
 			.bind(final_path_rel)
-			.execute(&mut *self.conn.lock().await)
+			.execute(&mut *conn)
 			.await;
 
 		let id = match res {
@@ -85,7 +91,11 @@ impl Blobstore for LocalDataset {
 			blob_handle = ?blob,
 		);
 
-		let mut conn = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| BlobstoreError::DbError(Box::new(e)))?;
 
 		// We intentionally don't use a transaction here.
 		// A blob shouldn't point to a partially-deleted file.
@@ -131,7 +141,11 @@ impl Blobstore for LocalDataset {
 	}
 
 	async fn all_blobs(&self) -> Result<Vec<BlobHandle>, BlobstoreError> {
-		let mut conn = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| BlobstoreError::DbError(Box::new(e)))?;
 
 		let res = sqlx::query("SELECT id FROM meta_blobs ORDER BY id;")
 			.fetch_all(&mut *conn)
@@ -145,7 +159,11 @@ impl Blobstore for LocalDataset {
 	}
 
 	async fn blob_size(&self, blob: BlobHandle) -> Result<u64, BlobstoreError> {
-		let mut conn = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| BlobstoreError::DbError(Box::new(e)))?;
 
 		let res = sqlx::query("SELECT file_path FROM meta_blobs WHERE id=?;")
 			.bind(u32::from(blob))
@@ -165,7 +183,11 @@ impl Blobstore for LocalDataset {
 	}
 
 	async fn get_blob(&self, blob: BlobHandle) -> Result<BlobInfo, BlobstoreError> {
-		let mut conn = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| BlobstoreError::DbError(Box::new(e)))?;
 
 		let res = sqlx::query("SELECT file_path, data_type FROM meta_blobs WHERE id=?;")
 			.bind(u32::from(blob))

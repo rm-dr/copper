@@ -1,6 +1,6 @@
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
-use sqlx::{Connection, Row, SqliteConnection};
+use sqlx::{Connection, Row, SqlitePool};
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 use ufo_ds_impl::{local::LocalDataset, DatasetType};
@@ -18,15 +18,15 @@ pub struct DatasetEntry {
 }
 
 pub struct DatasetProvider {
-	conn: Arc<Mutex<SqliteConnection>>,
+	pool: SqlitePool,
 	config: Arc<UfodConfig>,
 	open_datasets: Mutex<BTreeMap<SmartString<LazyCompact>, Arc<LocalDataset>>>,
 }
 
 impl DatasetProvider {
-	pub(super) fn new(conn: Arc<Mutex<SqliteConnection>>, config: Arc<UfodConfig>) -> Self {
+	pub(super) fn new(pool: SqlitePool, config: Arc<UfodConfig>) -> Self {
 		Self {
-			conn,
+			pool,
 			config,
 			open_datasets: Mutex::new(BTreeMap::new()),
 		}
@@ -87,8 +87,13 @@ impl DatasetProvider {
 		}
 
 		// Start transaction
-		let mut conn_lock = self.conn.lock().await;
-		let mut t = conn_lock
+
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| CreateDatasetError::DbError(Box::new(e)))?;
+		let mut t = conn
 			.begin()
 			.await
 			.map_err(|e| CreateDatasetError::DbError(Box::new(e)))?;
@@ -113,8 +118,7 @@ impl DatasetProvider {
 	}
 
 	pub async fn get_datasets(&self) -> Result<Vec<DatasetEntry>, sqlx::Error> {
-		let mut conn = self.conn.lock().await;
-
+		let mut conn = self.pool.acquire().await?;
 		let res = sqlx::query("SELECT ds_name, ds_type, ds_path FROM datasets ORDER BY id;")
 			.fetch_all(&mut *conn)
 			.await?;
@@ -145,8 +149,7 @@ impl DatasetProvider {
 			return Ok(Some(ds.1.clone()));
 		}
 
-		let mut conn = self.conn.lock().await;
-
+		let mut conn = self.pool.acquire().await?;
 		let res = sqlx::query("SELECT ds_name, ds_type, ds_path FROM datasets WHERE ds_name=?;")
 			.bind(dataset_name)
 			.fetch_one(&mut *conn)
@@ -185,8 +188,8 @@ impl DatasetProvider {
 		drop(ods_lock);
 
 		// Start transaction
-		let mut conn_lock = self.conn.lock().await;
-		let mut t = conn_lock.begin().await?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		let res = sqlx::query("SELECT ds_name, ds_type, ds_path FROM datasets WHERE ds_name=?;")
 			.bind(dataset_name)

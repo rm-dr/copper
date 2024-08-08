@@ -9,8 +9,7 @@ use axum_extra::extract::{
 };
 use errors::{CreateGroupError, CreateUserError, DeleteGroupError};
 use rand::{distributions::Alphanumeric, rngs::OsRng, Rng};
-use sqlx::{Row, SqliteConnection};
-use std::sync::Arc;
+use sqlx::{Row, SqlitePool};
 use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
 use tracing::error;
@@ -25,7 +24,7 @@ const AUTH_TOKEN_LENGTH: usize = 32;
 pub const AUTH_COOKIE_NAME: &str = "authtoken";
 
 pub struct AuthProvider {
-	conn: Arc<Mutex<SqliteConnection>>,
+	pool: SqlitePool,
 	active_tokens: Mutex<Vec<AuthToken>>,
 }
 
@@ -59,9 +58,9 @@ impl AuthProvider {
 		}
 	}
 
-	pub(super) fn new(conn: Arc<Mutex<SqliteConnection>>) -> Self {
+	pub(super) fn new(pool: SqlitePool) -> Self {
 		Self {
-			conn,
+			pool,
 			active_tokens: Mutex::new(Vec::new()),
 		}
 	}
@@ -173,10 +172,11 @@ impl AuthProvider {
 		user_name: &str,
 		password: &str,
 	) -> Result<Option<AuthToken>, sqlx::Error> {
+		let mut conn = self.pool.acquire().await?;
 		let (user_id, pw_hash): (UserId, String) = {
 			let res = sqlx::query("SELECT id, pw_hash FROM users WHERE user_name=?;")
 				.bind(user_name)
-				.fetch_one(&mut *self.conn.lock().await)
+				.fetch_one(&mut *conn)
 				.await;
 
 			match res {
@@ -202,6 +202,12 @@ impl AuthProvider {
 	}
 
 	pub async fn new_group(&self, name: &str, parent: GroupId) -> Result<(), CreateGroupError> {
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| CreateGroupError::DbError(Box::new(e)))?;
+
 		// No empty names
 		let name = name.trim();
 		if name.is_empty() {
@@ -222,7 +228,7 @@ impl AuthProvider {
 		.bind(name)
 		.bind(parent.get_id())
 		.bind(serde_json::to_string(&SerializedGroupPermissions::default()).unwrap())
-		.execute(&mut *self.conn.lock().await)
+		.execute(&mut *conn)
 		.await;
 
 		match res {
@@ -245,9 +251,14 @@ impl AuthProvider {
 			return Err(DeleteGroupError::CantDeleteRootGroup);
 		}
 
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| DeleteGroupError::DbError(Box::new(e)))?;
 		let res = sqlx::query("SELECT id FROM groups ORDER BY id;")
 			.bind(del_group.get_id())
-			.fetch_all(&mut *self.conn.lock().await)
+			.fetch_all(&mut *conn)
 			.await
 			.map_err(|e| DeleteGroupError::DbError(Box::new(e)))?;
 
@@ -262,13 +273,13 @@ impl AuthProvider {
 			{
 				sqlx::query("DELETE FROM users WHERE user_group=?;")
 					.bind(group.get_id())
-					.execute(&mut *self.conn.lock().await)
+					.execute(&mut *conn)
 					.await
 					.map_err(|e| DeleteGroupError::DbError(Box::new(e)))?;
 
 				sqlx::query("DELETE FROM groups WHERE id=?;")
 					.bind(group.get_id())
-					.execute(&mut *self.conn.lock().await)
+					.execute(&mut *conn)
 					.await
 					.map_err(|e| DeleteGroupError::DbError(Box::new(e)))?;
 			}
@@ -290,6 +301,12 @@ impl AuthProvider {
 		}
 
 		let pw_hash = Self::hash_password(password);
+
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| CreateUserError::DbError(Box::new(e)))?;
 		let res = sqlx::query(
 			"
 			INSERT INTO users (
@@ -300,7 +317,7 @@ impl AuthProvider {
 		.bind(user_name)
 		.bind(group.get_id())
 		.bind(pw_hash)
-		.execute(&mut *self.conn.lock().await)
+		.execute(&mut *conn)
 		.await;
 
 		match res {
@@ -319,9 +336,10 @@ impl AuthProvider {
 	}
 
 	pub async fn del_user(&self, user: UserId) -> Result<(), sqlx::Error> {
+		let mut conn = self.pool.acquire().await?;
 		sqlx::query("DELETE FROM users WHERE id=?;")
 			.bind(u32::from(user))
-			.execute(&mut *self.conn.lock().await)
+			.execute(&mut *conn)
 			.await?;
 
 		// Invalidate all sessions of the user we just deleted
@@ -339,9 +357,10 @@ impl AuthProvider {
 	}
 
 	pub async fn get_user(&self, user: UserId) -> Result<UserInfo, sqlx::Error> {
+		let mut conn = self.pool.acquire().await?;
 		let res = sqlx::query("SELECT id, user_name, user_group FROM users WHERE id=?;")
 			.bind(u32::from(user))
-			.fetch_one(&mut *self.conn.lock().await)
+			.fetch_one(&mut *conn)
 			.await;
 
 		match res {
@@ -374,11 +393,12 @@ impl AuthProvider {
 			});
 		}
 
+		let mut conn = self.pool.acquire().await?;
 		let res = sqlx::query(
 			"SELECT id, group_name, group_parent, group_permissions FROM groups WHERE id=?;",
 		)
 		.bind(group.get_id())
-		.fetch_one(&mut *self.conn.lock().await)
+		.fetch_one(&mut *conn)
 		.await?;
 		let first_parent: Option<GroupId> =
 			res.get::<Option<u32>, _>("group_parent").map(|x| x.into());
@@ -389,7 +409,7 @@ impl AuthProvider {
 		while let Some(p) = parent {
 			let r = sqlx::query("SELECT group_parent, group_permissions FROM groups WHERE id=?;")
 				.bind(p.get_id())
-				.fetch_one(&mut *self.conn.lock().await)
+				.fetch_one(&mut *conn)
 				.await?;
 
 			permissions.push((
@@ -418,8 +438,9 @@ impl AuthProvider {
 		// A child group cannot be created after its parent,
 		// so this method will always list parent groups before child groups.
 		// UI depends on this, as do some other `AuthProvider` methods.
+		let mut conn = self.pool.acquire().await?;
 		let res = sqlx::query("SELECT id, group_parent FROM groups ORDER BY id;")
-			.fetch_all(&mut *self.conn.lock().await)
+			.fetch_all(&mut *conn)
 			.await?;
 
 		let mut out = Vec::new();
@@ -436,14 +457,15 @@ impl AuthProvider {
 	}
 
 	pub async fn list_users(&self, in_group: GroupId) -> Result<Vec<UserInfo>, sqlx::Error> {
+		let mut conn = self.pool.acquire().await?;
 		let res = if in_group == GroupId::RootGroup {
 			sqlx::query("SELECT id FROM users WHERE user_group IS NULL ORDER BY id;")
-				.fetch_all(&mut *self.conn.lock().await)
+				.fetch_all(&mut *conn)
 				.await?
 		} else {
 			sqlx::query("SELECT id FROM users WHERE user_group=? ORDER BY id;")
 				.bind(in_group.get_id())
-				.fetch_all(&mut *self.conn.lock().await)
+				.fetch_all(&mut *conn)
 				.await?
 		};
 
@@ -467,9 +489,10 @@ impl AuthProvider {
 			return Ok(true);
 		}
 
+		let mut conn = self.pool.acquire().await?;
 		let res = sqlx::query("SELECT group_parent FROM groups WHERE id=?;")
 			.bind(child.get_id())
-			.fetch_one(&mut *self.conn.lock().await)
+			.fetch_one(&mut *conn)
 			.await;
 
 		match res {
@@ -484,7 +507,7 @@ impl AuthProvider {
 
 					let r = sqlx::query("SELECT group_parent FROM groups WHERE id=?;")
 						.bind(p.get_id())
-						.fetch_one(&mut *self.conn.lock().await)
+						.fetch_one(&mut *conn)
 						.await?;
 
 					last_parent = r.get::<Option<u32>, _>("group_parent").map(|x| x.into());

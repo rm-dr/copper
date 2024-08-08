@@ -1,6 +1,5 @@
-use sqlx::{Connection, SqliteConnection};
-use std::{path::Path, sync::Arc};
-use tokio::sync::Mutex;
+use sqlx::{sqlite::SqliteConnectOptions, Connection, SqliteConnection, SqlitePool};
+use std::{path::Path, str::FromStr, sync::Arc};
 use tracing::{error, info};
 
 use crate::config::UfodConfig;
@@ -40,7 +39,12 @@ impl MainDB {
 
 	pub async fn open(config: Arc<UfodConfig>) -> Result<Self, sqlx::Error> {
 		let db_addr = format!("sqlite:{}?mode=rw", config.paths.main_db.to_str().unwrap());
-		let conn = SqliteConnection::connect(&db_addr).await?;
+		let pool = SqlitePool::connect_with(
+			SqliteConnectOptions::from_str(&db_addr)?
+				.statement_cache_capacity(100)
+				.synchronous(sqlx::sqlite::SqliteSynchronous::Extra),
+		)
+		.await?;
 
 		// Initialize dataset dir
 		if !config.paths.dataset_dir.exists() {
@@ -60,11 +64,9 @@ impl MainDB {
 			)
 		}
 
-		let conn = Arc::new(Mutex::new(conn));
-
 		Ok(Self {
-			auth: AuthProvider::new(conn.clone()),
-			dataset: DatasetProvider::new(conn.clone(), config),
+			auth: AuthProvider::new(pool.clone()),
+			dataset: DatasetProvider::new(pool.clone(), config),
 		})
 	}
 }

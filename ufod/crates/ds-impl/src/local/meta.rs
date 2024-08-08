@@ -161,7 +161,12 @@ impl LocalDataset {
 			.map_err(MetastoreError::BlobstoreError)?;
 
 		// Do this after getting attrs to prevent deadlock
-		let mut conn = self.conn.lock().await;
+
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		// Get all used blobs
 		for attr in attrs {
@@ -223,8 +228,12 @@ impl Metastore for LocalDataset {
 		}
 
 		// Start transaction
-		let mut conn_lock = self.conn.lock().await;
-		let mut t = (conn_lock.begin().await).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+		let mut t = (conn.begin().await).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		// Get next attribute idx in this class
 		let attr_idx: u32 = {
@@ -332,8 +341,7 @@ impl Metastore for LocalDataset {
 		// We changed our schema, so we must clear the statement cache. If we don't, sqlx
 		// will panic if the cached statement query becomes out-of date.
 		// (e.g, if we create/delete a db column)
-		conn_lock
-			.clear_cached_statements()
+		conn.clear_cached_statements()
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
@@ -350,8 +358,12 @@ impl Metastore for LocalDataset {
 		}
 
 		// Start transaction
-		let mut conn_lock = self.conn.lock().await;
-		let mut t = conn_lock
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+		let mut t = conn
 			.begin()
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
@@ -393,8 +405,7 @@ impl Metastore for LocalDataset {
 		// We changed our schema, so we must clear the statement cache. If we don't, sqlx
 		// will panic if the cached statement query becomes out-of date.
 		// (e.g, if we create/delete a db column)
-		conn_lock
-			.clear_cached_statements()
+		conn.clear_cached_statements()
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
@@ -407,8 +418,12 @@ impl Metastore for LocalDataset {
 		mut attrs: Vec<(AttrHandle, MetastoreData)>,
 	) -> Result<ItemIdx, MetastoreError> {
 		// Start transaction
-		let mut conn_lock = self.conn.lock().await;
-		let mut t = conn_lock
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+		let mut t = conn
 			.begin()
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
@@ -464,8 +479,12 @@ impl Metastore for LocalDataset {
 
 	async fn del_attr(&self, attr: AttrHandle) -> Result<(), MetastoreError> {
 		// Start transaction
-		let mut conn_lock = self.conn.lock().await;
-		let mut t = conn_lock
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+		let mut t = conn
 			.begin()
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
@@ -510,14 +529,19 @@ impl Metastore for LocalDataset {
 		// We changed our schema, so we must clear the statement cache. If we don't, sqlx
 		// will panic if the cached statement query becomes out-of date.
 		// (e.g, if we create/delete a db column)
-		conn_lock
-			.clear_cached_statements()
+		conn.clear_cached_statements()
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
+		// Not strictly required(?), but dropping conn here might
+		// make it easier for `delete_dead_blobs` to acquire
+		// its connection.
+		//
+		// Omitting this might cause a deadlock inside SqlitePool?
+		// Not sure.
+		drop(conn);
+
 		// Clean up dangling blobs
-		// This locks our connection, so we must drop our existing lock first.
-		drop(conn_lock);
 		self.delete_dead_blobs().await?;
 
 		return Ok(());
@@ -547,8 +571,12 @@ impl Metastore for LocalDataset {
 		}
 
 		// Start transaction
-		let mut conn_lock = self.conn.lock().await;
-		let mut t = conn_lock
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+		let mut t = conn
 			.begin()
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
@@ -603,14 +631,11 @@ impl Metastore for LocalDataset {
 		// We changed our schema, so we must clear the statement cache. If we don't, sqlx
 		// will panic if the cached statement query becomes out-of date.
 		// (e.g, if we create/delete a db column)
-		conn_lock
-			.clear_cached_statements()
+		conn.clear_cached_statements()
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
-		// Clean up dangling blobs
-		// This locks our connection, so we must drop our existing lock first.
-		drop(conn_lock);
+		drop(conn);
 		self.delete_dead_blobs().await?;
 
 		return Ok(());
@@ -625,7 +650,11 @@ impl Metastore for LocalDataset {
 		class: ClassHandle,
 		attr_name: &str,
 	) -> Result<Option<AttrInfo>, MetastoreError> {
-		let mut conn = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		let res = sqlx::query(
 			"
@@ -653,7 +682,11 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn get_attr(&self, attr: AttrHandle) -> Result<AttrInfo, MetastoreError> {
-		let mut conn = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 		let res = sqlx::query(
 			"
 			SELECT id, idx, class_id, pretty_name, data_type
@@ -681,7 +714,11 @@ impl Metastore for LocalDataset {
 		&self,
 		class_name: &str,
 	) -> Result<Option<ClassInfo>, MetastoreError> {
-		let mut conn = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		let res = sqlx::query("SELECT id, pretty_name FROM meta_classes WHERE pretty_name=?;")
 			.bind(class_name)
@@ -699,7 +736,11 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn get_class(&self, class: ClassHandle) -> Result<ClassInfo, MetastoreError> {
-		let mut conn = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		let res = sqlx::query("SELECT id, pretty_name FROM meta_classes WHERE id=?;")
 			.bind(u32::from(class))
@@ -717,7 +758,11 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn get_all_attrs(&self) -> Result<Vec<AttrInfo>, MetastoreError> {
-		let mut conn = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		let res = sqlx::query(
 			"SELECT id, idx, class_id, pretty_name, data_type FROM meta_attributes ORDER BY idx;",
@@ -739,7 +784,11 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn get_all_classes(&self) -> Result<Vec<ClassInfo>, MetastoreError> {
-		let mut conn = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		let res = sqlx::query("SELECT pretty_name, id FROM meta_classes ORDER BY id;")
 			.fetch_all(&mut *conn)
@@ -847,6 +896,12 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn class_get_attrs(&self, class: ClassHandle) -> Result<Vec<AttrInfo>, MetastoreError> {
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
 		let res = sqlx::query(
 			"
 			SELECT id, idx, pretty_name, data_type, class_id
@@ -855,7 +910,7 @@ impl Metastore for LocalDataset {
 			",
 		)
 		.bind(u32::from(class))
-		.fetch_all(&mut *self.conn.lock().await)
+		.fetch_all(&mut *conn)
 		.await;
 
 		let res = match res {
@@ -909,7 +964,11 @@ impl Metastore for LocalDataset {
 		attr: AttrHandle,
 		mut attr_value: MetastoreData,
 	) -> Result<Option<ItemIdx>, MetastoreError> {
-		let mut conn = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		// Find table and column name to modify
 		let column_name = Self::get_column_name(attr);
@@ -958,12 +1017,16 @@ impl Metastore for LocalDataset {
 		// Do this first, prevent deadlock
 		let attrs = self.class_get_attrs(class).await?;
 		let table_name = Self::get_table_name(class);
-		let mut conn_lock = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		let res = sqlx::query(&format!(
 				"SELECT * FROM \"{table_name}\" ORDER BY id LIMIT \"{page_size}\" OFFSET \"{start_at}\" ;"
 			))
-		.fetch_all(&mut *conn_lock)
+		.fetch_all(&mut *conn)
 		.await
 		.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
@@ -989,11 +1052,15 @@ impl Metastore for LocalDataset {
 		// Do this first, prevent deadlock
 		let attrs = self.class_get_attrs(class).await?;
 		let table_name = Self::get_table_name(class);
-		let mut conn_lock = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		let res = sqlx::query(&format!("SELECT * FROM \"{table_name}\" WHERE id=?;"))
 			.bind(u32::from(item))
-			.fetch_one(&mut *conn_lock)
+			.fetch_one(&mut *conn)
 			.await
 			.map_err(|e| match e {
 				sqlx::Error::RowNotFound => MetastoreError::BadItemIdx,
@@ -1020,13 +1087,17 @@ impl Metastore for LocalDataset {
 		let attr_data = self.get_attr(attr).await?;
 		let table_name = Self::get_table_name(attr_data.class);
 		let column_name = Self::get_column_name(attr_data.handle);
-		let mut conn_lock = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
 		let res = sqlx::query(&format!(
 			"SELECT \"{column_name}\" FROM \"{table_name}\" WHERE id=?;"
 		))
 		.bind(u32::from(item))
-		.fetch_one(&mut *conn_lock)
+		.fetch_one(&mut *conn)
 		.await;
 
 		return match res {

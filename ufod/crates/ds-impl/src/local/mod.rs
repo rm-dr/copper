@@ -1,7 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::{
+	path::{Path, PathBuf},
+	str::FromStr,
+};
 
-use sqlx::{Connection, Row, SqliteConnection};
-use tokio::sync::Mutex;
+use sqlx::{sqlite::SqliteConnectOptions, Connection, Row, SqliteConnection, SqlitePool};
 use tracing::{debug, error, info};
 use ufo_ds_core::{api::Dataset, errors::MetastoreError};
 use ufo_pipeline::api::{PipelineData, PipelineJobContext};
@@ -11,8 +13,7 @@ mod meta;
 mod pipe;
 
 pub struct LocalDataset {
-	/// Database connection
-	conn: Mutex<SqliteConnection>,
+	pool: SqlitePool,
 
 	// Blobstore
 	blobstore_root: PathBuf,
@@ -84,13 +85,24 @@ impl LocalDataset {
 
 		let db_file = ds_root.join("dataset.sqlite");
 		let db_addr = format!("sqlite:{}?mode=rw", db_file.to_str().unwrap());
-		let mut conn = SqliteConnection::connect(&db_addr).await.unwrap();
+
+		let pool = SqlitePool::connect_with(
+			SqliteConnectOptions::from_str(&db_addr)
+				.unwrap()
+				// Disable statement cache. Each connection in this pool will have its own statement cache,
+				// so the cache-clearing we do in the code below won't clear all statement caches.
+				.statement_cache_capacity(0)
+				.synchronous(sqlx::sqlite::SqliteSynchronous::Extra),
+		)
+		.await
+		.unwrap();
+		let mut conn = pool.acquire().await.unwrap();
 
 		// TODO: check version, blobstore dir
 
 		let blob_storage_dir = ds_root.join({
 			let res = sqlx::query("SELECT val FROM meta_meta WHERE var=\"blob_storage_dir\";")
-				.fetch_one(&mut conn)
+				.fetch_one(&mut *conn)
 				.await
 				.unwrap();
 			res.get::<String, _>("val")
@@ -98,7 +110,7 @@ impl LocalDataset {
 
 		let blob_tmp_dir = ds_root.join({
 			let res = sqlx::query("SELECT val FROM meta_meta WHERE var=\"blob_tmp_dir\";")
-				.fetch_one(&mut conn)
+				.fetch_one(&mut *conn)
 				.await
 				.unwrap();
 			res.get::<String, _>("val")
@@ -125,7 +137,7 @@ impl LocalDataset {
 		Ok(Self {
 			blobstore_root: blob_storage_dir,
 			blobstore_tmp: blob_tmp_dir,
-			conn: Mutex::new(conn),
+			pool,
 		})
 	}
 }

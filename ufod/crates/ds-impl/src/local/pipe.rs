@@ -18,7 +18,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		context: &ContextType,
 		name: &PipelineName,
 	) -> Result<Option<Pipeline<DataType, ContextType>>, PipestoreError<DataType>> {
-		let mut conn = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| PipestoreError::DbError(Box::new(e)))?;
 
 		let res = sqlx::query("SELECT pipeline_data FROM meta_pipelines WHERE pipeline_name=?;")
 			.bind(name.to_string())
@@ -42,7 +46,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	}
 
 	async fn all_pipelines(&self) -> Result<Vec<PipelineName>, PipestoreError<DataType>> {
-		let mut conn = self.conn.lock().await;
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| PipestoreError::DbError(Box::new(e)))?;
 
 		let res = sqlx::query("SELECT pipeline_name FROM meta_pipelines ORDER BY id;")
 			.fetch_all(&mut *conn)
