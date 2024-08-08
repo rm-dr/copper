@@ -28,34 +28,40 @@ UFO's goal is to be "[Paperless] for everything," with...
 
 ### Current:
 - Options for hash, reference
-- Better type checking: take (m)any types as input?
+  - Better type checking: take (m)any types as input?
 - sanely handle duplicate album art
 - Better index names
-- Store mime with binary data
 
 - async binary readers
   - args to node one by one
   - handle channel errors (Pending when full?)
   - limit channel size
 - Clean up all error handling (search for unwrap, assert, and panic)
+  - db errors in pipeline run & build
+  - detect bad classes?
 - clean up paths (pub use)
 
 
 ### Later:
+- Store big files on fs, not in db
+  - Incremental write to storage file
+  - Configurable path
+  - Configurable backend: fs, object, etc
+  - Store mime with binary data
+  - upload large files incrementally
+- Add datatypes:
+  - enum
+  - multi-enum
+  - date
 - Dataset caching
-- Backend for big data
-- classes & attrs are immutable (cannot change once made)
-- Better name
+- Better name; branding & site
 - tui, web ui
 - async pipeline runners
 - Docker container
 - Docs
+  - classes & attrs are immutable (cannot change once made)
 - Clean up dependencies
 - Async database
-- Store big files on fs, not in db
-  - Incremental write to storage file
-  - Configurable path
-- Dynamic node definitions
 - Fast search (index certain attributes)
 - Discard node---what should we do for sub-pipelines?
   - Transactions?
@@ -64,17 +70,9 @@ UFO's goal is to be "[Paperless] for everything," with...
   - Audio metadata: bit rate, length, sample rate, etc
   - Strip spaces, regex
   - external commands
-- Add datatypes:
-  - enum
-  - multi-enum
-  - date
 - Add attribute propeties:
-  - not null
   - automatic (computed by a pipeline, like hash of album art)
-  - how to enforce?
 - Save pipelines in database
-- Store dataset spec in db?
-- Better db backend
-- Remove petgraph & move cycle detection
+- Remove petgraph
 - Web streams as pipeline input
 - Continuously-running pipelines
