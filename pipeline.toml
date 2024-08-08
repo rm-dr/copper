@@ -1,19 +1,19 @@
 [pipeline]
-# "in" is a reserved name
+# outputs for the "pipeline" node
+# (These are pipeline *inputs*, but node *outputs*)
 input."data" = "binary"
 
-# "out" is a reserved name
+# inputs for the pipeline node
 output."album" = "text"
 output."artist" = "text"
 
-# Output edges
+# Connect pipeline node inputs
 outmap."album" = "if_none.out"
 outmap."artist" = "tags.artist"
 
-
 [node."tags"]
 type = "ExtractTag"
-input.data = "in.data"
+input.data = "pipeline.data"
 
 #[node."getcover"]
 #type = "CoverExtract"

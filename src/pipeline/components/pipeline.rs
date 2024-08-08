@@ -4,7 +4,8 @@ use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
 use serde::Deserialize;
 
 use super::{
-	PipelineCheckResult, PipelineInput, PipelineNodeLabel, PipelineOutput, PipelinePortLabel,
+	labels::PIPELINE_NODE_NAME, NodeInput, NodeOutput, PipelineCheckResult, PipelineNodeLabel,
+	PipelinePortLabel,
 };
 use crate::pipeline::{
 	data::{PipelineData, PipelineDataType},
@@ -26,7 +27,7 @@ pub struct PipelineConfig {
 
 	/// Map pipeline outputs to the node outputs that produce them
 	#[serde(default)]
-	pub outmap: HashMap<PipelinePortLabel, PipelineOutput>,
+	pub outmap: HashMap<PipelinePortLabel, NodeOutput>,
 }
 
 /// A pipeline node specification
@@ -39,7 +40,7 @@ pub struct PipelineNodeSpec {
 
 	/// Where this node should read its input from.
 	#[serde(default)]
-	pub input: HashMap<PipelinePortLabel, PipelineOutput>,
+	pub input: HashMap<PipelinePortLabel, NodeOutput>,
 }
 
 #[derive(Debug)]
@@ -87,22 +88,33 @@ impl Pipeline {
 	/// - The input node exists
 	/// - The input node has the specified port
 	/// - The input and output ports have matching types
-	fn check_link(
-		&self,
-		output: &PipelineOutput,
-		input: PipelineInput,
-	) -> Option<PipelineCheckResult> {
+	fn check_link(&self, output: &NodeOutput, input: &NodeInput) -> Option<PipelineCheckResult> {
 		// Find the datatype of the output port we're connecting to.
 		// While doing this, make sure both the output node and port exist.
 		let output_type = match output {
-			PipelineOutput::InlineText { .. } => PipelineDataType::Text,
-			PipelineOutput::Node { node, port } => {
+			NodeOutput::InlineText { .. } => PipelineDataType::Text,
+
+			NodeOutput::Node {
+				node: PipelineNodeLabel::PipelineNode,
+				port,
+			} => {
+				if let Some(from_type) = self.pipeline.input.get(port) {
+					*from_type
+				} else {
+					return Some(PipelineCheckResult::NoPipelineInput {
+						pipeline_input_name: port.clone(),
+						caused_by_input: input.clone(),
+					});
+				}
+			}
+
+			NodeOutput::Node { node, port } => {
 				let get_node = self.nodes.get(node);
 
 				if get_node.is_none() {
 					return Some(PipelineCheckResult::NoNode {
 						node: node.clone(),
-						caused_by_input: input,
+						caused_by_input: input.clone(),
 					});
 				}
 				let get_node = get_node.unwrap();
@@ -112,33 +124,36 @@ impl Pipeline {
 					return Some(PipelineCheckResult::NoNodeOutput {
 						node: node.clone(),
 						output_name: port.clone(),
-						caused_by_input: input,
+						caused_by_input: input.clone(),
 					});
 				}
 				input_spec.unwrap()
-			}
-			PipelineOutput::Pinput { port } => {
-				if let Some(from_type) = self.pipeline.input.get(port) {
-					*from_type
-				} else {
-					return Some(PipelineCheckResult::NoPipelineInput {
-						pipeline_input_name: port.clone(),
-						caused_by_input: input,
-					});
-				}
 			}
 		};
 
 		// Find the datatype of the input port we're connecting to.
 		// While doing this, make sure both the input node and port exist.
 		let input_type = match &input {
-			PipelineInput::Node { node, port } => {
+			NodeInput::Node {
+				node: PipelineNodeLabel::PipelineNode,
+				port,
+			} => {
+				if let Some(from_type) = self.pipeline.output.get(port) {
+					*from_type
+				} else {
+					return Some(PipelineCheckResult::NoPipelineOutput {
+						pipeline_output_name: port.clone(),
+					});
+				}
+			}
+
+			NodeInput::Node { node, port } => {
 				let get_node = self.nodes.get(node);
 
 				if get_node.is_none() {
 					return Some(PipelineCheckResult::NoNode {
 						node: node.clone(),
-						caused_by_input: input,
+						caused_by_input: input.clone(),
 					});
 				}
 				let get_node = get_node.unwrap();
@@ -152,32 +167,23 @@ impl Pipeline {
 				}
 				input.unwrap()
 			}
-			PipelineInput::Poutput { port } => {
-				if let Some(from_type) = self.pipeline.output.get(port) {
-					*from_type
-				} else {
-					return Some(PipelineCheckResult::NoPipelineOutput {
-						pipeline_output_name: port.clone(),
-					});
-				}
-			}
 		};
 
 		// Check types
 		match output {
-			PipelineOutput::InlineText { .. } => {
+			NodeOutput::InlineText { .. } => {
 				if input_type != PipelineDataType::Text {
 					return Some(PipelineCheckResult::InlineTypeMismatch {
 						inline_type: PipelineDataType::Text,
-						input,
+						input: input.clone(),
 					});
 				}
 			}
-			PipelineOutput::Pinput { .. } | PipelineOutput::Node { .. } => {
+			NodeOutput::Node { .. } => {
 				if output_type != input_type {
 					return Some(PipelineCheckResult::TypeMismatch {
 						output: output.clone(),
-						input,
+						input: input.clone(),
 					});
 				}
 			}
@@ -186,7 +192,10 @@ impl Pipeline {
 		return None;
 	}
 
-	/// Build
+	/// Build a graph using this pipeline's specs.
+	///
+	/// This assumes that most of [`Pipeline::check()`] has passed,
+	/// except for the cycle check (because this method is used to run that check).
 	fn build_graph(&self) -> GraphMap<&str, (), Directed> {
 		// We don't need to create nodes explicitly,
 		// since `add_edge` does this automatically.
@@ -194,9 +203,9 @@ impl Pipeline {
 		for (node_name, node_spec) in &self.nodes {
 			for out_link in node_spec.input.values() {
 				match out_link {
-					PipelineOutput::InlineText { .. } => {}
-					PipelineOutput::Node { .. } | PipelineOutput::Pinput { .. } => {
-						graph.add_edge(out_link.node_str().unwrap(), node_name.into(), ());
+					NodeOutput::InlineText { .. } => {}
+					NodeOutput::Node { node, .. } => {
+						graph.add_edge(node.into(), node_name.into(), ());
 					}
 				}
 			}
@@ -208,12 +217,20 @@ impl Pipeline {
 	pub fn check(&mut self) -> PipelineCheckResult {
 		self.check_state = PipelineCheckState::Failed;
 
-		// Check each node's inputs
+		// Check each node's name and inputs
 		for (node_name, node_spec) in &self.nodes {
+			// Make sure we're not using a reserved name
+			let s: &str = node_name.into();
+			if s == PIPELINE_NODE_NAME {
+				return PipelineCheckResult::NodeHasReservedName {
+					node: node_name.into(),
+				};
+			}
+
 			for (input_name, out_link) in &node_spec.input {
 				if let Some(err) = self.check_link(
 					out_link,
-					PipelineInput::Node {
+					&NodeInput::Node {
 						node: node_name.clone(),
 						port: input_name.clone(),
 					},
@@ -227,7 +244,8 @@ impl Pipeline {
 		for (out_name, out_link) in &self.pipeline.outmap {
 			if let Some(err) = self.check_link(
 				out_link,
-				PipelineInput::Poutput {
+				&NodeInput::Node {
+					node: PipelineNodeLabel::PipelineNode,
 					port: out_name.clone(),
 				},
 			) {
@@ -235,7 +253,8 @@ impl Pipeline {
 			};
 		}
 
-		// Build graph and check for cycles
+		// Build graph and check for cycles.
+		// This must be done last.
 		let graph = self.build_graph();
 		if let Err(cycle) = toposort(&graph, None) {
 			return PipelineCheckResult::HasCycle {
@@ -253,13 +272,24 @@ impl Pipeline {
 	/// Returns `None` if this data is unavailable for any reason.
 	fn get_node_input(
 		port_data: &HashMap<PipelineNodeLabel, HashMap<PipelinePortLabel, Option<PipelineData>>>,
-		input_map: &HashMap<PipelinePortLabel, PipelineOutput>,
+		input_map: &HashMap<PipelinePortLabel, NodeOutput>,
 		input_port: &PipelinePortLabel,
 	) -> Option<PipelineData> {
 		match input_map.get(input_port) {
 			None => None,
-			Some(PipelineOutput::InlineText { text }) => Some(PipelineData::Text(text.clone())),
-			Some(PipelineOutput::Node { node, port }) => {
+			Some(NodeOutput::InlineText { text }) => Some(PipelineData::Text(text.clone())),
+
+			Some(NodeOutput::Node {
+				node: PipelineNodeLabel::PipelineNode,
+				port,
+			}) => port_data
+				.get(&PipelineNodeLabel::PipelineNode)
+				.unwrap()
+				.get(port)
+				.cloned()
+				.unwrap(),
+
+			Some(NodeOutput::Node { node, port }) => {
 				if let Some(x) = port_data.get(node) {
 					if let Some(y) = x.get(port) {
 						y.clone()
@@ -270,12 +300,6 @@ impl Pipeline {
 					None
 				}
 			}
-			Some(PipelineOutput::Pinput { port }) => port_data
-				.get(&"in".into())
-				.unwrap()
-				.get(port)
-				.cloned()
-				.unwrap(),
 		}
 	}
 
@@ -297,10 +321,10 @@ impl Pipeline {
 			.map(Into::<PipelineNodeLabel>::into);
 
 		let mut port_data: HashMap<PipelineNodeLabel, _> = HashMap::new();
-		port_data.insert("in".into(), inputs);
+		port_data.insert(PipelineNodeLabel::PipelineNode, inputs);
 
 		for n in node_order {
-			if n == "in".into() || n == "out".into() {
+			if n == PipelineNodeLabel::PipelineNode {
 				continue;
 			}
 

@@ -7,10 +7,7 @@ use super::{PipelineNodeLabel, PipelinePortLabel};
 /// An output port in the pipeline.
 /// (i.e, a port that produces data.)
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub enum PipelineOutput {
-	/// A pipeline input
-	Pinput { port: PipelinePortLabel },
-
+pub enum NodeOutput {
 	/// An output port of a node
 	Node {
 		node: PipelineNodeLabel,
@@ -21,27 +18,9 @@ pub enum PipelineOutput {
 	InlineText { text: String },
 }
 
-impl PipelineOutput {
-	pub fn node_str(&self) -> Option<&str> {
-		match self {
-			Self::Pinput { .. } => Some("in"),
-			Self::Node { node, .. } => Some(node.into()),
-			Self::InlineText { .. } => None,
-		}
-	}
-
-	pub fn port_str(&self) -> Option<&str> {
-		match self {
-			Self::Pinput { port } | Self::Node { port, .. } => Some(port.into()),
-			Self::InlineText { .. } => None,
-		}
-	}
-}
-
-impl Display for PipelineOutput {
+impl Display for NodeOutput {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Self::Pinput { port } => write!(f, "in.{}", port),
 			Self::Node { node, port } => write!(f, "{}.{}", node, port),
 			Self::InlineText { text } => write!(f, "InlineText({text})"),
 		}
@@ -49,7 +28,7 @@ impl Display for PipelineOutput {
 }
 
 // TODO: better error
-impl FromStr for PipelineOutput {
+impl FromStr for NodeOutput {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -63,19 +42,15 @@ impl FromStr for PipelineOutput {
 		let a = a.unwrap();
 		let b = b.unwrap();
 
-		Ok(match a {
-			"in" => Self::Pinput { port: b.into() },
-			//"out" => Self::Poutput { port: b.into() },
-			_ => Self::Node {
-				node: a.into(),
-				port: b.into(),
-			},
+		Ok(Self::Node {
+			node: a.into(),
+			port: b.into(),
 		})
 	}
 }
 struct PipelineOutputVisitor;
 impl<'de> Visitor<'de> for PipelineOutputVisitor {
-	type Value = PipelineOutput;
+	type Value = NodeOutput;
 
 	fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
 		formatter.write_str("an integer between -2^31 and 2^31")
@@ -85,7 +60,7 @@ impl<'de> Visitor<'de> for PipelineOutputVisitor {
 	where
 		E: serde::de::Error,
 	{
-		let s = PipelineOutput::from_str(v);
+		let s = NodeOutput::from_str(v);
 		s.map_err(|x| serde::de::Error::custom(x))
 	}
 
@@ -100,13 +75,13 @@ impl<'de> Visitor<'de> for PipelineOutputVisitor {
 		let a = a.unwrap();
 
 		match &a.0[..] {
-			"text" => Ok(PipelineOutput::InlineText { text: a.1 }),
+			"text" => Ok(NodeOutput::InlineText { text: a.1 }),
 			_ => return Err(serde::de::Error::custom("bad inline")),
 		}
 	}
 }
 
-impl<'de> Deserialize<'de> for PipelineOutput {
+impl<'de> Deserialize<'de> for NodeOutput {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
 		D: serde::Deserializer<'de>,
@@ -118,10 +93,7 @@ impl<'de> Deserialize<'de> for PipelineOutput {
 /// An input port in the pipeline.
 /// (i.e, a port that consumes data.)
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub enum PipelineInput {
-	/// A pipeline output
-	Poutput { port: PipelinePortLabel },
-
+pub enum NodeInput {
 	/// An input port of a node
 	Node {
 		node: PipelineNodeLabel,
@@ -129,32 +101,16 @@ pub enum PipelineInput {
 	},
 }
 
-impl PipelineInput {
-	pub fn node_str(&self) -> &str {
-		match self {
-			Self::Poutput { .. } => "out",
-			Self::Node { node, .. } => node.into(),
-		}
-	}
-
-	pub fn port_str(&self) -> &str {
-		match self {
-			Self::Poutput { port } | Self::Node { port, .. } => port.into(),
-		}
-	}
-}
-
-impl Display for PipelineInput {
+impl Display for NodeInput {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Self::Poutput { port } => write!(f, "in.{}", port),
 			Self::Node { node, port } => write!(f, "{}.{}", node, port),
 		}
 	}
 }
 
 // TODO: better error
-impl FromStr for PipelineInput {
+impl FromStr for NodeInput {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -168,18 +124,14 @@ impl FromStr for PipelineInput {
 		let a = a.unwrap();
 		let b = b.unwrap();
 
-		Ok(match a {
-			//"in" => Self::Pinput { port: b.into() },
-			"out" => Self::Poutput { port: b.into() },
-			_ => Self::Node {
-				node: a.into(),
-				port: b.into(),
-			},
+		Ok(Self::Node {
+			node: a.into(),
+			port: b.into(),
 		})
 	}
 }
 
-impl<'de> Deserialize<'de> for PipelineInput {
+impl<'de> Deserialize<'de> for NodeInput {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
 		D: serde::Deserializer<'de>,

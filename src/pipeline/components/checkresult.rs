@@ -1,4 +1,6 @@
-use super::{PipelineInput, PipelineNodeLabel, PipelineOutput, PipelinePortLabel};
+use smartstring::{LazyCompact, SmartString};
+
+use super::{NodeInput, NodeOutput, PipelineNodeLabel, PipelinePortLabel};
 use crate::pipeline::data::PipelineDataType;
 
 /// The result of a [`Pipeline::check()`].
@@ -7,11 +9,14 @@ pub enum PipelineCheckResult {
 	/// This pipeline is good to go.
 	Ok,
 
+	/// We tried to create a node with a reserved name
+	NodeHasReservedName { node: SmartString<LazyCompact> },
+
 	/// There is no node named `node` in this pipeline
 	/// We tried to connect this node from `caused_by_input`.
 	NoNode {
 		node: PipelineNodeLabel,
-		caused_by_input: PipelineInput,
+		caused_by_input: NodeInput,
 	},
 
 	/// `node` has no input named `input_name`.
@@ -26,14 +31,14 @@ pub enum PipelineCheckResult {
 	NoNodeOutput {
 		node: PipelineNodeLabel,
 		output_name: PipelinePortLabel,
-		caused_by_input: PipelineInput,
+		caused_by_input: NodeInput,
 	},
 
 	/// This pipeline has no input named `input_name`.
 	/// We tried to connect to this input from `caused_by_input`.
 	NoPipelineInput {
 		pipeline_input_name: PipelinePortLabel,
-		caused_by_input: PipelineInput,
+		caused_by_input: NodeInput,
 	},
 
 	/// This pipeline has no output named `output_name`.
@@ -44,15 +49,15 @@ pub enum PipelineCheckResult {
 	/// We tried to connect `input` to `output`,
 	/// but their types don't match.
 	TypeMismatch {
-		output: PipelineOutput,
-		input: PipelineInput,
+		output: NodeOutput,
+		input: NodeInput,
 	},
 
 	/// We tried to connect an inline type to `input`,
 	/// but their types don't match.
 	InlineTypeMismatch {
 		inline_type: PipelineDataType,
-		input: PipelineInput,
+		input: NodeInput,
 	},
 
 	/// This graph has a cycle containing `node`
