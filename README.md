@@ -27,9 +27,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- clean up pipeline prepare
-- Attach "after" to *output* of sub-pipeline
-
 - foreign key datatype
 - async binary readers
 - handle channel errors (Pending when full?)
