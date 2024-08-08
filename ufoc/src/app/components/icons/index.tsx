@@ -35,6 +35,7 @@ import {
 	IconLetterCase,
 	IconList,
 	IconListDetails,
+	IconLock,
 	IconMenu2,
 	IconPlus,
 	IconSchema,
@@ -47,6 +48,11 @@ import {
 	IconTableRow,
 	IconTrash,
 	IconUpload,
+	IconUser,
+	IconUserOff,
+	IconUserPlus,
+	IconUsers,
+	IconUsersGroup,
 	IconX,
 } from "@tabler/icons-react";
 import { CSSProperties } from "react";
@@ -60,6 +66,30 @@ const defaultStyles: CSSProperties | undefined = {
 
 // This module lets us apply default styling to tabler icons,
 // and makes it easy to replace our icon provider.
+
+export const XIconLock = ({ style }: { style?: CSSProperties }) => {
+	return <IconLock style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconNoUser = ({ style }: { style?: CSSProperties }) => {
+	return <IconUserOff style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconUserPlus = ({ style }: { style?: CSSProperties }) => {
+	return <IconUserPlus style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconGroup = ({ style }: { style?: CSSProperties }) => {
+	return <IconUsersGroup style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconUser = ({ style }: { style?: CSSProperties }) => {
+	return <IconUser style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconUsers = ({ style }: { style?: CSSProperties }) => {
+	return <IconUsers style={{ ...defaultStyles, ...style }} />;
+};
 
 export const XIconArrowRight = ({ style }: { style?: CSSProperties }) => {
 	return <IconArrowRight style={{ ...defaultStyles, ...style }} />;
