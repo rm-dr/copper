@@ -1,14 +1,17 @@
 #panel_itemtable {
 	grid-row: 1 / 2;
 	grid-column: 1 / 2;
+	overflow: hidden;
+	min-height: 0;
 }
 
 .itemtable {
 	width: 100%;
 	display: grid;
+	grid-template-columns: 1fr;
 	overflow: scroll;
-	height: 20rem;
-	grid-template-columns: 1fr 1fr;
+
+	height: 50vh;
 
 	.resize_handle {
 		display: block;
@@ -73,13 +76,29 @@
 		border-top: 1px solid var(--mantine-color-dark-5);
 	}
 
-	td {
-		text-align: left;
-		width: 100%;
-		padding: 0.5rem;
+	tr {
+		td {
+			text-align: left;
+			width: 100%;
+			padding: 0.5rem;
+			height: 2.5rem;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			transition: 150ms;
+		}
+
+		td:nth-child(n + 2) {
+			border-left: 1px solid var(--mantine-color-dark-5);
+		}
 	}
 
-	td:nth-child(n + 2) {
-		border-left: 1px solid var(--mantine-color-dark-5);
+	tr:hover {
+		td {
+			background-color: var(--mantine-color-dark-6);
+		}
+
+		td:nth-child(n + 2) {
+			border-left: 1px solid var(--mantine-color-dark-5);
+		}
 	}
 }

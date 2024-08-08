@@ -11,16 +11,8 @@ import {
 } from "@/app/components/icons";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActionIcon, Menu, rem } from "@mantine/core";
+import { ActionIcon, Code, Menu, Text, rem } from "@mantine/core";
 import { AttrSelector } from "@/app/components/apiselect/attr";
-
-const td = {
-	data: Array(50).fill({
-		handle: 0,
-		Artist: "a",
-		AlbumArtist: "b",
-	}),
-};
 
 export function ItemTablePanel(params: {
 	selectedDataset: string | null;
@@ -35,7 +27,6 @@ export function ItemTablePanel(params: {
 			>
 				<PanelSection>
 					<ItemTable
-						data={td.data}
 						minCellWidth={120}
 						selectedClass={params.selectedClass}
 						selectedDataset={params.selectedDataset}
@@ -50,19 +41,78 @@ const ItemTable = (params: {
 	selectedDataset: string | null;
 	selectedClass: string | null;
 
-	// Table data to show, in order
-	// each entry is one row.
-	data: {}[];
-
 	// Minimal cell width, in px
 	minCellWidth: number;
 }) => {
+	const page_size = 50;
 	const tableRootElement = useRef<any>(null);
-	const [columns, setColumns] = useState<{ attr: null | string }[]>(
-		// Start with two unset columns.
-		// Note that our grid def in .scss also defines two columns.
-		Array(2).map(() => ({ attr: null })),
+	const columnUidCounter = useRef(1);
+	const [columns, setColumns] = useState<
+		{
+			attr: null | string;
+			unique_id: number;
+		}[]
+	>(
+		// Start with one unset column.
+		// Note that our grid def in .scss also defines one column.
+		[{ unique_id: 0, attr: null }],
 	);
+
+	const [data, setData] = useState<{}[]>([]);
+	const [dataMaxPage, setDataMaxPage] = useState(0);
+
+	const reset = useEffect(() => {
+		columnUidCounter.current = 1;
+		setData([]);
+		setColumns([{ unique_id: 0, attr: null }]);
+		tableRootElement.current.style.gridTemplateColumns = "1fr";
+	}, [params]);
+
+	const updateData = useCallback(() => {
+		const e = tableRootElement.current;
+		if (e == null) {
+			return;
+		}
+
+		const isScrollable = e.scrollHeight > e.clientHeight;
+
+		const isScrolledToBottom =
+			e.scrollHeight < e.clientHeight + e.scrollTop + 1;
+
+		const isScrolledToTop = isScrolledToBottom ? false : e.scrollTop === 0;
+
+		if (isScrolledToBottom) {
+			setDataMaxPage(Math.ceil(data.length / page_size) + 1);
+		}
+	}, [tableRootElement, data]);
+
+	useEffect(() => {
+		async function fetchdata() {
+			if (params.selectedClass === null || params.selectedDataset === null) {
+				return;
+			}
+
+			for (let page = 0; page <= dataMaxPage; page++) {
+				const res = await fetch(
+					"/api/item/list?" +
+						new URLSearchParams({
+							dataset: params.selectedDataset,
+							class: params.selectedClass,
+							page_size: page_size.toString(),
+							start_at: (page * page_size).toString(),
+						}).toString(),
+				);
+				const json = await res.json();
+				setData((d) => [
+					...d.slice(0, page * page_size),
+					...json.items,
+					...d.slice(page * page_size + page_size),
+				]);
+			}
+		}
+
+		fetchdata();
+	}, [params.selectedClass, params.selectedDataset, dataMaxPage]);
 
 	const col_refs = useRef<(HTMLTableCellElement | null)[]>([null, null]);
 
@@ -80,12 +130,6 @@ const ItemTable = (params: {
 	const [activeResizeHandle, setActiveResizeHandle] = useState<null | number>(
 		null,
 	);
-
-	/*
-			tableRootElement.current.style.gridTemplateColumns = columns
-				.map((_) => "1fr")
-				.join(" ");
-	*/
 
 	//
 	// Column resize logic
@@ -300,7 +344,12 @@ const ItemTable = (params: {
 
 			// Make new column
 			setColumns((c) => {
-				return [...c.slice(0, idx), { attr: null }, ...c.slice(idx)];
+				columnUidCounter.current += 1;
+				return [
+					...c.slice(0, idx),
+					{ unique_id: columnUidCounter.current, attr: null },
+					...c.slice(idx),
+				];
 			});
 			col_refs.current = [
 				...col_refs.current.slice(0, idx),
@@ -399,16 +448,20 @@ const ItemTable = (params: {
 	//
 
 	return (
-		<>
-			<table className={styles.itemtable} ref={tableRootElement}>
+		<div>
+			<table
+				className={styles.itemtable}
+				ref={tableRootElement}
+				onScroll={updateData}
+			>
 				<thead>
 					<tr>
-						{columns.map(({ attr }: any, idx: number) => (
+						{columns.map(({ attr, unique_id }, idx: number) => (
 							<th
 								ref={(ref) => {
 									col_refs.current[idx] = ref;
 								}}
-								key={`${attr}-${idx}`}
+								key={`${params.selectedClass}-${unique_id}`}
 							>
 								{/*
 									Do not show first resize handle.
@@ -448,17 +501,15 @@ const ItemTable = (params: {
 					</tr>
 				</thead>
 				<tbody>
-					{params.data.map((data_entry: any, idx: number) => {
+					{data.map((data_entry: any) => {
 						return (
-							<tr key={idx}>
+							<tr key={data_entry.idx}>
 								{columns.map(({ attr }, c_idx) => {
 									return (
-										<td key={`${idx}-${c_idx}-${attr}`}>
-											{attr === null ? (
-												<span>Empty</span>
-											) : (
-												<span>{data_entry[attr]}</span>
-											)}
+										<td key={`${data_entry.idx}-${c_idx}-${attr}`}>
+											<ItemData
+												attr={attr === null ? null : data_entry.attrs[attr]}
+											/>
 										</td>
 									);
 								})}
@@ -467,9 +518,66 @@ const ItemTable = (params: {
 					})}
 				</tbody>
 			</table>
-		</>
+		</div>
 	);
 };
+
+function ItemData(params: { attr: any | null }) {
+	if (params.attr === null) {
+		return <Text c="dimmed">No data</Text>;
+	}
+
+	if (params.attr.type === "Text") {
+		return params.attr.value.length == 0 ? (
+			<Text c="dimmed" fs="italic">
+				empty string
+			</Text>
+		) : (
+			<Text>{params.attr.value}</Text>
+		);
+	}
+
+	if (params.attr.type === "None") {
+		return (
+			<Text c="dimmed" fs="italic">
+				Not set
+			</Text>
+		);
+	}
+
+	if (params.attr.type === "Hash") {
+		return (
+			<Text>
+				{`${params.attr.hash_type} hash: `}
+				<Code>{params.attr.value}</Code>
+			</Text>
+		);
+	}
+
+	if (params.attr.type === "Reference") {
+		return (
+			<Text c="dimmed">
+				Reference to{" "}
+				<Text c="dimmed" fs="italic" span>
+					{params.attr.class}
+				</Text>
+			</Text>
+		);
+	}
+
+	if (params.attr.type === "Blob") {
+		return <Text c="dimmed" fs="italic">{`Blob ${params.attr.handle}`}</Text>;
+	}
+
+	return (
+		<Text c="dimmed">
+			Data with type{" "}
+			<Text c="dimmed" fs="italic" span>
+				{params.attr.type}
+			</Text>
+		</Text>
+	);
+}
 
 function ColumnHeader(params: {
 	selectedDataset: string | null;
@@ -494,15 +602,11 @@ function ColumnHeader(params: {
 				<XIconSortDown />
 			</div>
 			<div>
-				{params.attr === null ? (
-					<AttrSelector
-						onSelect={params.setAttr}
-						selectedClass={params.selectedClass}
-						selectedDataset={params.selectedDataset}
-					/>
-				) : (
-					params.attr
-				)}
+				<AttrSelector
+					onSelect={params.setAttr}
+					selectedClass={params.selectedClass}
+					selectedDataset={params.selectedDataset}
+				/>
 			</div>
 
 			<div className={styles.menuicon}>
