@@ -7,7 +7,7 @@ use ufo_pipeline::{
 	pipeline::Pipeline,
 };
 use ufo_storage::{api::Dataset, sea::dataset::SeaDataset};
-use ufo_util::data::{PipelineData, PipelineDataType};
+use ufo_util::data::PipelineDataType;
 
 fn main() -> Result<()> {
 	// Make dataset
@@ -25,39 +25,38 @@ fn main() -> Result<()> {
 		block_on(d.add_attr(x, "lyrics", PipelineDataType::Text)).unwrap();
 
 		block_on(d.add_attr(x, "audio_data", PipelineDataType::Binary)).unwrap();
+
+		let x = block_on(d.add_class("CoverArt")).unwrap();
+		block_on(d.add_attr(x, "image_data", PipelineDataType::Binary)).unwrap();
+		//block_on(d.add_attr(x, "content_hash", PipelineDataType::Text)).unwrap();
 		d
 	};
 
 	// Load pipeline
 	let pipe = Pipeline::from_file(Path::new("pipeline.toml"))?;
 
-	let input = match &pipe.get_config().input {
-		PipelineInputKind::File => {
-			let f = FileInput::new("data/freeze.flac".into());
-			f.run().unwrap()
-		}
-	};
+	for p in ["data/freeze.flac", "data/png.flac"] {
+		let input = match &pipe.get_config().input {
+			PipelineInputKind::File => {
+				let f = FileInput::new(p.into());
+				f.run().unwrap()
+			}
+		};
 
-	let o = pipe.run(4, input)?;
+		let o = pipe.run(4, input)?;
 
-	match &pipe.get_config().output {
-		PipelineOutputKind::DataSet { attrs } => {
-			let c = block_on(dataset.get_class("AudioFile"))?.unwrap();
-			let mut e = StorageOutput::new(
-				&mut dataset,
-				c,
-				attrs.iter().map(|(a, b)| (a.into(), *b)).collect(),
-			);
-			e.run(o.iter().collect())?;
+		match &pipe.get_config().output {
+			PipelineOutputKind::DataSet { attrs } => {
+				let c = block_on(dataset.get_class("AudioFile"))?.unwrap();
+				let mut e = StorageOutput::new(
+					&mut dataset,
+					c,
+					attrs.iter().map(|(a, b)| (a.into(), *b)).collect(),
+				);
+				e.run(o.iter().collect())?;
+			}
 		}
 	}
-
-	block_on(dataset.item_set_attr(
-		1.into(),
-		1.into(),
-		&PipelineData::None(PipelineDataType::Text),
-	))
-	.unwrap();
 
 	Ok(())
 }

@@ -52,3 +52,7 @@ input.ifnone = { "text" = "Unknown Lyrics" }
 [node.strip]
 type.type = "StripTags"
 input.data = { pipeline = "data" }
+
+[node."covers"]
+type.type = "ExtractCovers"
+input.data = { "pipeline" = "data" }

@@ -1,11 +1,14 @@
 //! Decode FLAC picture metadata blocks
 
-use std::{fmt::Display, io::Read, string::FromUtf8Error};
-
-use crate::common::{
-	mime::MimeType,
-	picturetype::{PictureType, PictureTypeError},
+use std::{
+	fmt::{Debug, Display},
+	io::Read,
+	string::FromUtf8Error,
 };
+
+use ufo_util::mime::MimeType;
+
+use crate::common::picturetype::{PictureType, PictureTypeError};
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -73,6 +76,14 @@ pub struct FlacPicture<'a> {
 	bit_depth: u32,
 	color_count: u32,
 	img: Box<dyn Read + 'a>,
+}
+
+impl<'a> Debug for FlacPicture<'a> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("FlacPicture")
+			.field("mime", &self.mime)
+			.finish()
+	}
 }
 
 impl<'a> Read for FlacPicture<'a> {

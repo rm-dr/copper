@@ -132,7 +132,10 @@ impl Pipeline {
 			.collect::<Vec<_>>();
 
 		// Threadpool we'll use to run nodes
-		let pool = ThreadPool::new(node_threads);
+		let pool = threadpool::Builder::new()
+			.num_threads(node_threads)
+			.thread_name("Pipeline node runner".into())
+			.build();
 
 		// Channel for node data. Nodes send their outputs here once they are ready.
 		//

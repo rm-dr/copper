@@ -7,7 +7,7 @@ use crate::{portspec::PipelinePortSpec, syntax::labels::PipelinePortLabel};
 
 use super::{
 	nodeinstance::PipelineNodeInstance,
-	tags::{extracttags::ExtractTags, striptags::StripTags},
+	tags::{extractcovers::ExtractCovers, extracttags::ExtractTags, striptags::StripTags},
 	util::ifnone::IfNone,
 };
 
@@ -46,6 +46,8 @@ pub enum PipelineNodeType {
 	ExtractTags {
 		tags: Vec<TagType>,
 	},
+
+	ExtractCovers,
 	StripTags,
 	IfNone,
 }
@@ -77,11 +79,33 @@ impl PipelineNodeType {
 				name: name.into(),
 				node: ExtractTags::new(tags.clone()),
 			},
+			PipelineNodeType::ExtractCovers => PipelineNodeInstance::ExtractCovers {
+				node_type: self.clone(),
+				name: name.into(),
+				node: ExtractCovers::new(),
+			},
 		}
 	}
 }
 
 impl PipelineNodeType {
+	pub fn inputs(&self) -> PipelinePortSpec {
+		match self {
+			Self::PipelineOutputs { inputs, .. } => PipelinePortSpec::Vec(inputs),
+			Self::PipelineInputs { .. } => PipelinePortSpec::Static(&[]),
+			Self::ConstantNode { .. } => PipelinePortSpec::Static(&[]),
+			Self::ExtractTags { .. } => {
+				PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)])
+			}
+			Self::IfNone => PipelinePortSpec::Static(&[
+				("data", PipelineDataType::Text),
+				("ifnone", PipelineDataType::Text),
+			]),
+			Self::StripTags => PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)]),
+			Self::ExtractCovers => PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)]),
+		}
+	}
+
 	pub fn outputs(&self) -> PipelinePortSpec {
 		match self {
 			Self::PipelineOutputs { .. } => PipelinePortSpec::Static(&[]),
@@ -96,22 +120,7 @@ impl PipelineNodeType {
 			),
 			Self::IfNone => PipelinePortSpec::Static(&[("out", PipelineDataType::Text)]),
 			Self::StripTags => PipelinePortSpec::Static(&[("out", PipelineDataType::Binary)]),
-		}
-	}
-
-	pub fn inputs(&self) -> PipelinePortSpec {
-		match self {
-			Self::PipelineOutputs { inputs, .. } => PipelinePortSpec::Vec(inputs),
-			Self::PipelineInputs { .. } => PipelinePortSpec::Static(&[]),
-			Self::ConstantNode { .. } => PipelinePortSpec::Static(&[]),
-			Self::ExtractTags { .. } => {
-				PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)])
-			}
-			Self::IfNone => PipelinePortSpec::Static(&[
-				("data", PipelineDataType::Text),
-				("ifnone", PipelineDataType::Text),
-			]),
-			Self::StripTags => PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)]),
+			Self::ExtractCovers => PipelinePortSpec::Static(&[]),
 		}
 	}
 }

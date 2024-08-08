@@ -4,7 +4,7 @@ use ufo_util::data::PipelineData;
 
 use super::{
 	nodetype::PipelineNodeType,
-	tags::{extracttags::ExtractTags, striptags::StripTags},
+	tags::{extractcovers::ExtractCovers, extracttags::ExtractTags, striptags::StripTags},
 	util::ifnone::IfNone,
 };
 use crate::{errors::PipelineError, PipelineNode};
@@ -37,6 +37,11 @@ pub enum PipelineNodeInstance {
 		name: SmartString<LazyCompact>,
 		node: StripTags,
 	},
+	ExtractCovers {
+		node_type: PipelineNodeType,
+		name: SmartString<LazyCompact>,
+		node: ExtractCovers,
+	},
 }
 
 impl Debug for PipelineNodeInstance {
@@ -48,6 +53,7 @@ impl Debug for PipelineNodeInstance {
 			Self::ExtractTags { name, .. } => write!(f, "ExtractTags({name})"),
 			Self::IfNone { name, .. } => write!(f, "IfNone({name})"),
 			Self::StripTags { name, .. } => write!(f, "StripTags({name})"),
+			Self::ExtractCovers { name, .. } => write!(f, "ExtractCovers({name})"),
 		}
 	}
 }
@@ -72,6 +78,7 @@ impl PipelineNode for PipelineNodeInstance {
 			Self::ExtractTags { node, .. } => node.run(send_data, input),
 			Self::IfNone { node, .. } => node.run(send_data, input),
 			Self::StripTags { node, .. } => node.run(send_data, input),
+			Self::ExtractCovers { node, .. } => node.run(send_data, input),
 		}
 	}
 }
@@ -84,7 +91,8 @@ impl PipelineNodeInstance {
 			| Self::ConstantNode { node_type, .. }
 			| Self::ExtractTags { node_type, .. }
 			| Self::IfNone { node_type, .. }
-			| Self::StripTags { node_type, .. } => node_type,
+			| Self::StripTags { node_type, .. }
+			| Self::ExtractCovers { node_type, .. } => node_type,
 		}
 	}
 }
