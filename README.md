@@ -30,6 +30,7 @@ UFO's goal is to be "[Paperless] for everything," with...
   - Clean up "status" api
   - Add "add job" api
   - Redo "pipeline" api (pipeline editor ui first?)
+  - move uploader struct
 
 - Use memmap2
 - How and when should we load databases?
