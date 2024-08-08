@@ -1,19 +1,30 @@
 import { attrTypeInfo, attrTypes } from ".";
-import { Center, Loader, Text } from "@mantine/core";
+import { Loader, Text } from "@mantine/core";
 import { ClassSelector } from "@/app/components/apiselect/class";
-import { IconAmpersand, IconQuestionMark, IconX } from "@tabler/icons-react";
+import {
+	IconAmpersand,
+	IconPlus,
+	IconQuestionMark,
+	IconX,
+} from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
 import { APIclient } from "../api";
 import { components } from "../api/openapi";
 import { useEffect, useState } from "react";
+import { useForm } from "@mantine/form";
+import {
+	AttrCommonOptions,
+	AttrNameEntry,
+	AttrSubmitButtons,
+} from "./helpers/baseform";
 
 export const _refAttrType: attrTypeInfo = {
 	pretty_name: "Reference",
 	serialize_as: "Reference",
 	icon: <XIcon icon={IconAmpersand} />,
-	extra_params: {
-		inputs_ok: checkRef,
-		node: RefParams,
+
+	params: {
+		form: RefForm,
 	},
 
 	value_preview: (params) => {
@@ -492,37 +503,109 @@ function RefPanel(params: {
 	);
 }
 
-function checkRef(params: {
-	state: any;
-	setErrorMessage: (message: null | any) => void;
-}): boolean {
-	if (params.state === null) {
-		params.setErrorMessage("Reference target is required");
-		return false;
-	} else if (params.state.class === null) {
-		params.setErrorMessage("Reference target is required");
-		return false;
-	}
-
-	return true;
-}
-
-function RefParams(params: {
-	onChange: (state: null | any) => void;
+function RefForm(params: {
 	dataset_name: string;
-	setErrorMessage: (message: null | any) => void;
-	errorMessage: null | any;
+	class: components["schemas"]["ClassInfo"];
+	close: () => void;
 }) {
+	const [isLoading, setLoading] = useState(false);
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+	const form = useForm<{
+		new_attr_name: string | null;
+		reference_target_class: string | null;
+	}>({
+		mode: "uncontrolled",
+		initialValues: {
+			new_attr_name: null,
+			reference_target_class: null,
+		},
+		validate: {
+			new_attr_name: (value) =>
+				value === null
+					? "Attribute name is required"
+					: value.trim().length === 0
+					? "Attribute name cannot be empty"
+					: null,
+
+			reference_target_class: (value) =>
+				value === null ? "Reference target is required" : null,
+		},
+	});
+
+	const reset = () => {
+		form.reset();
+		setLoading(false);
+		setErrorMessage(null);
+		params.close();
+	};
+
 	return (
-		<ClassSelector
-			selectedDataset={params.dataset_name}
-			onSelect={(v) => {
-				if (v === null) {
-					params.onChange({ class: null });
-				} else {
-					params.onChange({ class: v });
+		<form
+			onSubmit={form.onSubmit((values) => {
+				setLoading(true);
+				setErrorMessage(null);
+
+				if (
+					values.reference_target_class === null ||
+					values.new_attr_name === null
+				) {
+					// This is unreachable
+					params.close();
+					return;
 				}
-			}}
-		/>
+
+				APIclient.POST("/attr/add", {
+					body: {
+						class: params.class.handle,
+						dataset: params.dataset_name,
+						new_attr_name: values.new_attr_name,
+						data_type: {
+							type: "Reference",
+							class: parseInt(values.reference_target_class),
+						},
+						options: {
+							unique: false,
+						},
+					},
+				}).then(({ data, error }) => {
+					setLoading(false);
+					if (error !== undefined) {
+						setErrorMessage(error);
+					} else {
+						setLoading(false);
+						params.close();
+					}
+				});
+			})}
+		>
+			<div
+				style={{
+					display: "flex",
+					flexDirection: "column",
+					gap: "0.5rem",
+				}}
+			>
+				<AttrNameEntry form={form} isLoading={isLoading} />
+
+				<ClassSelector
+					selectedDataset={params.dataset_name}
+					onSelect={(_) => {}}
+					form={{
+						form,
+						key: "reference_target_class",
+					}}
+				/>
+
+				<AttrCommonOptions form={form} isLoading={isLoading} />
+
+				<AttrSubmitButtons
+					form={form}
+					errorMessage={errorMessage}
+					isLoading={isLoading}
+					reset={reset}
+				/>
+			</div>
+		</form>
 	);
 }

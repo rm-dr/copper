@@ -70,29 +70,14 @@ export type attrTypeInfo = {
 	// Extra parameter elements for this type.
 	// Consumes a function is called whenever parameters change,
 	// returns html that controls this input.
-	extra_params: null | {
-		/// Check input state. This is called when the "submit"
-		/// button is pressed. If `setErrorMessage` is not `null`
-		/// the error is displayed.
-		///
-		/// If this returns `true`, the request proceeds.
-		/// If it is `false`, fail and show the error.
-		inputs_ok: (params: {
-			state: Object;
-			setErrorMessage: (message: null | Object) => void;
-		}) => boolean;
-
-		/// A react component that contains extra input for this attr
-		node: (params: {
-			/// Called when any input is changed
-			onChange: (state: null | any) => void;
-
+	params: {
+		/// The form we use to create this attr.
+		/// This should contain everything (including buttons),
+		/// except for the attribute type selector.
+		form: (params: {
 			dataset_name: string;
-
-			/// This is usually a string, but can be a table for attrs
-			/// that need multiple extra inputs.
-			setErrorMessage: (message: null | any) => void;
-			errorMessage: null | any;
+			class: components["schemas"]["ClassInfo"];
+			close: () => void;
 		}) => ReactElement;
 	};
 };

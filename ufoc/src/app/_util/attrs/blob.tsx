@@ -6,12 +6,15 @@ import { ReactNode } from "react";
 import { XIcon } from "@/app/components/icons";
 import { IconFileDigit, IconTrash, IconUpload } from "@tabler/icons-react";
 import { components } from "../api/openapi";
+import { BaseForm } from "./helpers/baseform";
 
 export const _blobAttrType: attrTypeInfo = {
 	pretty_name: "Blob",
 	serialize_as: "Blob",
 	icon: <XIcon icon={IconFileDigit} />,
-	extra_params: null,
+	params: {
+		form: (params) => BaseForm({ attr_type: { type: "Blob" }, ...params }),
+	},
 
 	value_preview: (params) => {
 		if (params.attr_value.type !== "Blob") {

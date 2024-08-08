@@ -1,5 +1,4 @@
 import { Button, Text, TextInput } from "@mantine/core";
-
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { ModalBase } from "@/app/components/modal_base";
@@ -105,7 +104,7 @@ export function useAddClassModal(params: {
 						</Button>
 					</Button.Group>
 					<Text c="red" ta="center">
-						{errorMessage ? errorMessage : ""}
+						{errorMessage ? errorMessage : null}
 					</Text>
 				</form>
 			</ModalBase>

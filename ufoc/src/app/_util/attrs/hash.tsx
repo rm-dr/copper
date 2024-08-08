@@ -1,15 +1,23 @@
-import { Select, Text, Textarea } from "@mantine/core";
+import { Button, Select, Text, Textarea, TextInput } from "@mantine/core";
 import { attrTypeInfo } from ".";
-import { IconAnalyze } from "@tabler/icons-react";
+import { IconAnalyze, IconPlus } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
+import { useForm } from "@mantine/form";
+import { ReactElement, useState } from "react";
+import { APIclient } from "../api";
+import { components } from "../api/openapi";
+import {
+	AttrCommonOptions,
+	AttrNameEntry,
+	AttrSubmitButtons,
+} from "./helpers/baseform";
 
 export const _hashAttrType: attrTypeInfo = {
 	pretty_name: "Hash",
 	serialize_as: "Hash",
 	icon: <XIcon icon={IconAnalyze} />,
-	extra_params: {
-		inputs_ok: checkHash,
-		node: HashParams,
+	params: {
+		form: HashForm,
 	},
 
 	value_preview: (params) => {
@@ -76,46 +84,115 @@ export const _hashAttrType: attrTypeInfo = {
 	},
 };
 
-function checkHash(params: {
-	state: any;
-	setErrorMessage: (message: null | any) => void;
-}): boolean {
-	if (params.state === null) {
-		params.setErrorMessage("Hash type is required");
-		return false;
-	} else if (params.state.hash_type === null) {
-		params.setErrorMessage("Hash type is required");
-		return false;
-	}
+function HashForm(params: {
+	dataset_name: string;
+	class: components["schemas"]["ClassInfo"];
+	close: () => void;
+}): ReactElement {
+	const [isLoading, setLoading] = useState(false);
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-	return true;
-}
+	const form = useForm<{
+		hash_type: components["schemas"]["HashType"] | null;
+		new_attr_name: string | null;
+	}>({
+		mode: "uncontrolled",
+		initialValues: {
+			hash_type: null,
+			new_attr_name: null,
+		},
+		validate: {
+			hash_type: (value) =>
+				value === null
+					? "Hash type is required"
+					: value.trim().length === 0
+					? "Hash type cannot be empty"
+					: null,
+			new_attr_name: (value) =>
+				value === null
+					? "Attribute name is required"
+					: value.trim().length === 0
+					? "Attribute name cannot be empty"
+					: null,
+		},
+	});
 
-function HashParams(params: {
-	onChange: (state: null | any) => void;
-	setErrorMessage: (message: null | any) => void;
-	errorMessage: null | any;
-}) {
+	const reset = () => {
+		form.reset();
+		setLoading(false);
+		setErrorMessage(null);
+		params.close();
+	};
+
 	return (
-		<Select
-			required={true}
-			placeholder={"select hash type"}
-			data={[
-				// Hash types the server supports
-				{ label: "MD5", value: "MD5", disabled: false },
-				{ label: "SHA256", value: "SHA256", disabled: false },
-				{ label: "SHA512", value: "SHA512", disabled: false },
-			]}
-			clearable
-			error={params.errorMessage !== null}
-			onChange={(v) => {
-				params.setErrorMessage(null);
-				if (v == null) {
-					params.onChange({ hash_type: null });
-				} else {
-					params.onChange({ hash_type: v });
+		<form
+			onSubmit={form.onSubmit((values) => {
+				setLoading(true);
+				setErrorMessage(null);
+
+				if (values.hash_type === null || values.new_attr_name === null) {
+					// This is unreachable
+					params.close();
+					return;
 				}
-			}}
-		/>
+
+				APIclient.POST("/attr/add", {
+					body: {
+						class: params.class.handle,
+						dataset: params.dataset_name,
+						new_attr_name: values.new_attr_name,
+						data_type: {
+							type: "Hash",
+							hash_type: values.hash_type,
+						},
+						options: {
+							unique: false,
+						},
+					},
+				}).then(({ data, error }) => {
+					setLoading(false);
+					if (error !== undefined) {
+						setErrorMessage(error);
+					} else {
+						setLoading(false);
+						params.close();
+					}
+				});
+			})}
+		>
+			<div
+				style={{
+					display: "flex",
+					flexDirection: "column",
+					gap: "0.5rem",
+				}}
+			>
+				<AttrNameEntry form={form} isLoading={isLoading} />
+
+				<Select
+					required={true}
+					placeholder={"Hash type"}
+					data={[
+						// Hash types the server supports
+						{ label: "MD5", value: "MD5", disabled: false },
+						{ label: "SHA256", value: "SHA256", disabled: false },
+						{ label: "SHA512", value: "SHA512", disabled: false },
+					]}
+					clearable
+					disabled={isLoading}
+					key={form.key("hash_type")}
+					{...form.getInputProps("hash_type")}
+				/>
+
+				<AttrCommonOptions form={form} isLoading={isLoading} />
+
+				<AttrSubmitButtons
+					form={form}
+					errorMessage={errorMessage}
+					isLoading={isLoading}
+					reset={reset}
+				/>
+			</div>
+		</form>
 	);
 }

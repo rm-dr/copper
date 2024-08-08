@@ -1,5 +1,6 @@
 import { APIclient } from "@/app/_util/api";
 import { ApiSelector } from "./api";
+import { UseFormReturnType } from "@mantine/form";
 
 async function update_classes(dataset: string | null) {
 	if (dataset === null) {
@@ -30,6 +31,10 @@ async function update_classes(dataset: string | null) {
 export function ClassSelector(params: {
 	onSelect: (value: number | null) => void;
 	selectedDataset: string | null;
+	form?: {
+		form: UseFormReturnType<any>;
+		key: string;
+	};
 }) {
 	return (
 		<ApiSelector
@@ -44,6 +49,7 @@ export function ClassSelector(params: {
 				message_null: "select a class",
 				message_loading: "fetching classes...",
 			}}
+			form={params.form}
 		/>
 	);
 }

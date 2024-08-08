@@ -2,12 +2,15 @@ import { XIcon } from "@/app/components/icons";
 import { attrTypeInfo } from ".";
 import { Text, Textarea } from "@mantine/core";
 import { IconLetterCase } from "@tabler/icons-react";
+import { BaseForm } from "./helpers/baseform";
 
 export const _textAttrType: attrTypeInfo = {
 	pretty_name: "Text",
 	serialize_as: "Text",
 	icon: <XIcon icon={IconLetterCase} />,
-	extra_params: null,
+	params: {
+		form: (params) => BaseForm({ attr_type: { type: "Text" }, ...params }),
+	},
 
 	value_preview: (params) => {
 		if (params.attr_value.type !== "Text") {

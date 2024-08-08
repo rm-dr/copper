@@ -1,4 +1,5 @@
 import { Select } from "@mantine/core";
+import { UseFormReturnType } from "@mantine/form";
 import { useEffect, useState } from "react";
 
 type SelectorOption = {
@@ -49,6 +50,11 @@ export function ApiSelector<T>(params: {
 		// Used as placeholder while data is loading
 		message_loading: string;
 	};
+
+	form?: {
+		form: UseFormReturnType<any>;
+		key: string;
+	};
 }) {
 	const [selectorState, setSelectorState] = useState<SelectorData>({
 		error: false,
@@ -92,6 +98,15 @@ export function ApiSelector<T>(params: {
 		const id = setInterval(update_options, 10_000);
 		return () => clearInterval(id);
 	}, [update_params, update_list]);
+
+	const form_extra =
+		params.form === undefined
+			? {}
+			: {
+					key: params.form.form.key(params.form.key),
+					...params.form.form.getInputProps(params.form.key),
+			  };
+
 	return (
 		<Select
 			onChange={params.onSelect}
@@ -122,6 +137,7 @@ export function ApiSelector<T>(params: {
 			disabled={selectorState.error || selectorState.options === null}
 			searchable
 			clearable
+			{...form_extra}
 		/>
 	);
 }

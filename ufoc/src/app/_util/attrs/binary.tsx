@@ -9,12 +9,15 @@ import {
 } from "./blob";
 import { XIcon } from "@/app/components/icons";
 import { IconBinary } from "@tabler/icons-react";
+import { BaseForm } from "./helpers/baseform";
 
 export const _binaryAttrType: attrTypeInfo = {
 	pretty_name: "Binary",
 	serialize_as: "Binary",
 	icon: <XIcon icon={IconBinary} />,
-	extra_params: null,
+	params: {
+		form: (params) => BaseForm({ attr_type: { type: "Binary" }, ...params }),
+	},
 
 	value_preview: (params) => {
 		if (params.attr_value.type !== "Binary") {
