@@ -1,13 +1,7 @@
 import { attrTypeInfo, attrTypes } from ".";
-import { ActionIcon, Loader, Text } from "@mantine/core";
+import { Center, Loader, Text } from "@mantine/core";
 import { ClassSelector } from "@/app/components/apiselect/class";
-import {
-	IconAmpersand,
-	IconEdit,
-	IconQuestionMark,
-	IconTrash,
-	IconX,
-} from "@tabler/icons-react";
+import { IconAmpersand, IconQuestionMark, IconX } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
 import { APIclient } from "../api";
 import { components } from "../api/openapi";
@@ -57,7 +51,6 @@ export const _refAttrType: attrTypeInfo = {
 			return (
 				<RefPanel
 					dataset={params.dataset}
-					class={params.class}
 					item_idx={params.item_idx}
 					ref_attr_value={params.attr_value}
 					inner={params.inner}
@@ -131,19 +124,28 @@ function RefPanelBody(params: {
 		}
 
 		if (d?.editor.type === "panel") {
-			return (
-				<>
-					{d.editor.panel_body({
-						dataset: params.dataset,
-						class: params.data.shown_attr.attr.class as number,
-						item_idx: params.ref_attr_value.item as number,
-						attr_value,
-						inner: true,
-					})}
-				</>
-			);
+			return d.editor.panel_body({
+				dataset: params.dataset,
+				item_idx: params.ref_attr_value.item as number,
+				attr_value,
+				inner: true,
+			});
 		} else if (d?.editor.type == "inline") {
-			return <>TODO</>;
+			return (
+				<div
+					style={{
+						overflowY: "scroll",
+						whiteSpace: "pre-line",
+						textWrap: "pretty",
+						overflowWrap: "anywhere",
+						width: "100%",
+						background: "var(--mantine-color-dark-6)",
+						padding: "0.5rem",
+					}}
+				>
+					{d.editor.old_value({ attr_value })}
+				</div>
+			);
 		}
 	}
 }
@@ -248,7 +250,6 @@ type RefPanelData =
 
 function RefPanel(params: {
 	dataset: string;
-	class: number;
 	item_idx: number;
 	ref_attr_value: Extract<
 		components["schemas"]["ItemListData"],

@@ -44,7 +44,7 @@ export const _binaryAttrType: attrTypeInfo = {
 				"/api/item/attr?" +
 				new URLSearchParams({
 					dataset: params.dataset,
-					class: params.class.toString(),
+					class: params.attr_value.attr.class.toString(),
 					item_idx: params.item_idx.toString(),
 					attr: params.attr_value.attr.handle.toString(),
 				});

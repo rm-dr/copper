@@ -274,7 +274,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Reorder attributes & classes
 - [ ] Close dataset menu when dropdown closed
 - [ ] Preview panel data on hover
-- [ ] Audio player waveform
+- [ ] Better audio player (center, fill, waveform)
 - [ ] More panel types: video, pdf
 ---------------------------------------------------------------------
 

@@ -51,7 +51,6 @@ export type attrTypeInfo = {
 
 				panel_body: (params: {
 					dataset: string;
-					class: number;
 					item_idx: number;
 					attr_value: components["schemas"]["ItemListData"];
 

@@ -255,7 +255,6 @@ function EditSubPanel(params: {
 		) : selected_attr_spec === undefined ? null : (
 			selected_attr_spec.editor.panel_body({
 				dataset: params.dataset,
-				class: params.class,
 				item_idx: params.selectedItems[0].idx,
 				attr_value: selected_attr_value,
 			})
