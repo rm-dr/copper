@@ -4,7 +4,7 @@ use utoipa::ToSchema;
 
 use super::GroupPermissions;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type")]
 pub enum GroupId {
 	RootGroup,
@@ -26,15 +26,17 @@ impl From<u32> for GroupId {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct GroupInfo {
 	pub id: GroupId,
 	pub parent: Option<GroupId>,
 	pub name: SmartString<LazyCompact>,
+
+	#[serde(skip)]
 	pub permissions: GroupPermissions,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct UserId {
 	id: u32,
 }
@@ -51,10 +53,10 @@ impl From<u32> for UserId {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct UserInfo {
 	pub id: UserId,
-	pub name: SmartString<LazyCompact>,
+	pub name: String,
 	pub group: GroupInfo,
 }
 

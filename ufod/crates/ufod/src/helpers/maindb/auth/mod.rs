@@ -382,16 +382,41 @@ impl AuthProvider {
 	}
 
 	pub async fn list_groups(&self, starting_from: GroupId) -> Result<Vec<GroupInfo>, sqlx::Error> {
+		// A child group cannot be created after its parent,
+		// so this method will always list parent groups before child groups.
+		// UI depends on this.
 		let res = sqlx::query("SELECT id, group_parent FROM groups ORDER BY id;")
 			.fetch_all(&mut *self.conn.lock().await)
 			.await?;
 
 		let mut out = Vec::new();
-		for row in res {
-			let group: GroupId = row.get::<u32, _>("id").into();
+		for group in [GroupId::RootGroup]
+			.into_iter()
+			.chain(res.into_iter().map(|row| row.get::<u32, _>("id").into()))
+		{
 			if group == starting_from || self.is_group_parent(starting_from, group).await? {
 				out.push(self.get_group(group).await?)
 			}
+		}
+
+		return Ok(out);
+	}
+
+	pub async fn list_users(&self, in_group: GroupId) -> Result<Vec<UserInfo>, sqlx::Error> {
+		let res = if in_group == GroupId::RootGroup {
+			sqlx::query("SELECT id FROM users WHERE user_group IS NULL ORDER BY id;")
+				.fetch_all(&mut *self.conn.lock().await)
+				.await?
+		} else {
+			sqlx::query("SELECT id FROM users WHERE user_group=? ORDER BY id;")
+				.bind(in_group.get_id())
+				.fetch_all(&mut *self.conn.lock().await)
+				.await?
+		};
+
+		let mut out = Vec::new();
+		for row in res {
+			out.push(self.get_user(row.get::<u32, _>("id").into()).await?);
 		}
 
 		return Ok(out);

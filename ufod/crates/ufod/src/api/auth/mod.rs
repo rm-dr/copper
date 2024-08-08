@@ -33,7 +33,6 @@ use logout::*;
 		AddgroupRequest,
 		DeluserRequest,
 		DelgroupRequest,
-		ListgroupResponse,
 		ListgroupInfo
 	))
 )]
