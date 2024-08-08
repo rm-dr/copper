@@ -52,6 +52,7 @@ export function AttrList(params: {
 								class_name={params.class}
 								attr_name={attr_name}
 								onSuccess={params.update_tree}
+								disabled={!params.open}
 							/>
 						}
 					/>
@@ -65,6 +66,7 @@ function AttrMenu(params: {
 	dataset_name: string;
 	class_name: string;
 	attr_name: string;
+	disabled: boolean;
 	onSuccess: () => void;
 }) {
 	const { open: openDelAttr, modal: modalDelAttr } = useDeleteAttrModal({
@@ -77,7 +79,13 @@ function AttrMenu(params: {
 	return (
 		<>
 			{modalDelAttr}
-			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
+			<Menu
+				shadow="md"
+				position="right-start"
+				withArrow
+				arrowPosition="center"
+				disabled={params.disabled}
+			>
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
 						<XIconDots style={{ width: "70%", height: "70%" }} />

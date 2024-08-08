@@ -8,9 +8,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 CRUD datasets
 - [ ] Rename set, class, attr endpoint
-- [ ] Close menu on tree collapse
-- [ ] Reorder attributes & classes
-- [ ] One integer type, with options
 - [ ] Clean up blobstore tmp dirs
 - [ ] Loading state for modals
 
@@ -152,6 +149,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 # Daemon cleanup v2
 - [ ] utoipa tags
 - [ ] use memmap2 for files
+- [ ] One integer type, with options
 
 
 ## Audit log
@@ -243,11 +241,12 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Time
 - [ ] Store `Binary` mime type
 
-## Ui Polish
+## Ui Polish v2
 - [ ] Better errors in modals
 - [ ] Better `ApiSelector` loading state
 - [ ] Status update shouldn't trigger `ApiSelector` update in upload page
-
+- [ ] Reorder attributes & classes
+- [ ] Close dataset menu when dropdown closed
 ---------------------------------------------------------------------
 
 ## Faster main db

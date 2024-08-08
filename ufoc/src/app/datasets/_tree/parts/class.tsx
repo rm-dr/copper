@@ -72,6 +72,7 @@ export function ClassList(params: {
 										dataset_name={params.dataset_name}
 										class_name={class_name}
 										onSuccess={params.update_tree}
+										disabled={!params.open}
 									/>
 								}
 							/>
@@ -93,6 +94,7 @@ export function ClassList(params: {
 function ClassMenu(params: {
 	dataset_name: string;
 	class_name: string;
+	disabled: boolean;
 	onSuccess: () => void;
 }) {
 	const { open: openDelete, modal: modalDelete } = useDeleteClassModal({
@@ -111,7 +113,13 @@ function ClassMenu(params: {
 		<>
 			{modalDelete}
 			{modalAddAttr}
-			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
+			<Menu
+				shadow="md"
+				position="right-start"
+				withArrow
+				arrowPosition="center"
+				disabled={params.disabled}
+			>
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
 						<XIconDots style={{ width: "70%", height: "70%" }} />
