@@ -1,7 +1,14 @@
+use std::{
+	io::Write,
+	sync::{Arc, Mutex},
+};
+
+use async_broadcast::TryRecvError;
 use crossbeam::channel::Receiver;
 use smartstring::{LazyCompact, SmartString};
+use ufo_blobstore::fs::store::{FsBlobHandle, FsBlobStore, FsBlobWriter};
 use ufo_metadb::{
-	api::{AttrHandle, ClassHandle},
+	api::{AttrHandle, ClassHandle, MetaDb},
 	data::{MetaDbData, MetaDbDataStub},
 };
 use ufo_pipeline::{
@@ -9,24 +16,38 @@ use ufo_pipeline::{
 	labels::PipelinePortLabel,
 };
 
-use crate::{errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext};
+use crate::{
+	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
+};
 
 pub struct AddToDataset {
+	db: Arc<Mutex<dyn MetaDb<FsBlobStore>>>,
 	class: ClassHandle,
 	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
-	data: Vec<Option<MetaDbData>>,
-	input_receiver: Receiver<(usize, MetaDbData)>,
+
+	data: Vec<Option<DataHold>>,
+	input_receiver: Receiver<(usize, UFOData)>,
+}
+
+enum DataHold {
+	Static(UFOData),
+	BlobWriting(
+		async_broadcast::Receiver<Arc<Vec<u8>>>,
+		Option<FsBlobWriter>,
+	),
+	BlobDone(FsBlobHandle),
 }
 
 impl AddToDataset {
 	pub fn new(
-		_ctx: &<Self as PipelineNode>::NodeContext,
-		input_receiver: Receiver<(usize, MetaDbData)>,
+		ctx: &<Self as PipelineNode>::NodeContext,
+		input_receiver: Receiver<(usize, UFOData)>,
 		class: ClassHandle,
 		attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
 	) -> Self {
 		let data = attrs.iter().map(|_| None).collect();
 		AddToDataset {
+			db: ctx.dataset.clone(),
 			input_receiver,
 			class,
 			attrs,
@@ -37,12 +58,12 @@ impl AddToDataset {
 
 impl PipelineNode for AddToDataset {
 	type NodeContext = UFOContext;
-	type DataType = MetaDbData;
+	type DataType = UFOData;
 	type ErrorType = PipelineError;
 
 	fn take_input<F>(&mut self, _send_data: F) -> Result<(), PipelineError>
 	where
-		F: Fn(usize, MetaDbData) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		loop {
 			match self.input_receiver.try_recv() {
@@ -52,7 +73,13 @@ impl PipelineNode for AddToDataset {
 				}
 				Ok((port, data)) => {
 					assert!(port < self.attrs.len());
-					self.data[port] = Some(data);
+					self.data[port] = Some(match data {
+						UFOData::Blob { format, data } => {
+							let blob = self.db.lock().unwrap().new_blob(&format);
+							DataHold::BlobWriting(data, Some(blob))
+						}
+						x => DataHold::Static(x),
+					});
 				}
 			}
 		}
@@ -60,27 +87,87 @@ impl PipelineNode for AddToDataset {
 
 	fn run<F>(
 		&mut self,
-		ctx: &Self::NodeContext,
+		_ctx: &Self::NodeContext,
 		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		if self.data.iter().any(|x| x.is_none()) {
-			return Ok(PipelineNodeState::Pending);
+		let mut exit = false;
+		for i in &mut self.data {
+			match i {
+				Some(DataHold::BlobWriting(f, buf)) => {
+					let mut finish = false;
+					loop {
+						match f.try_recv() {
+							Err(TryRecvError::Closed) => {
+								finish = true;
+								break;
+							}
+							Err(TryRecvError::Empty) => {
+								exit = true;
+								break;
+							}
+							Err(TryRecvError::Overflowed(_)) => {
+								unreachable!()
+							}
+							Ok(x) => {
+								buf.as_mut().unwrap().write(&x[..])?;
+							}
+						}
+					}
+					if finish {
+						let x = self.db.lock().unwrap().finish_blob(buf.take().unwrap());
+						std::mem::swap(i, &mut Some(DataHold::BlobDone(x)));
+					}
+				}
+				Some(_) => {}
+				None => exit = true,
+			}
 		}
 
-		let mut d = ctx.dataset.lock().unwrap();
+		if exit {
+			return Ok(PipelineNodeState::Pending("args not ready"));
+		}
+
+		let mut d = self.db.lock().unwrap();
 
 		let mut attrs = Vec::new();
 		for ((attr, _, _), data) in self.attrs.iter().zip(self.data.iter_mut()) {
-			attrs.push((*attr, data.take().unwrap()));
+			let data = match data.as_ref().unwrap() {
+				DataHold::Static(x) => match x {
+					UFOData::Blob { .. } => unreachable!(),
+					UFOData::None(x) => MetaDbData::None(*x),
+					UFOData::Text(x) => MetaDbData::Text(x.clone()),
+					UFOData::Float(x) => MetaDbData::Float(*x),
+					UFOData::Path(x) => MetaDbData::Path(x.clone()),
+					UFOData::Hash { format, data } => MetaDbData::Hash {
+						format: *format,
+						data: data.clone(),
+					},
+					UFOData::Binary { format, data } => MetaDbData::Binary {
+						format: format.clone(),
+						data: data.clone(),
+					},
+					UFOData::Integer(x) => MetaDbData::Integer(*x),
+					UFOData::PositiveInteger(x) => MetaDbData::PositiveInteger(*x),
+					UFOData::Reference { class, item } => MetaDbData::Reference {
+						class: *class,
+						item: *item,
+					},
+				},
+				DataHold::BlobDone(handle) => MetaDbData::Blob {
+					handle: handle.clone(),
+				},
+				_ => unreachable!(),
+			};
+			attrs.push((*attr, data.into()));
 		}
 		let item = d.add_item(self.class, attrs).unwrap();
 
 		send_data(
 			0,
-			MetaDbData::Reference {
+			UFOData::Reference {
 				class: self.class,
 				item,
 			},
