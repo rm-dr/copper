@@ -146,7 +146,8 @@ pub(super) async fn finish_file(
 		message = "Finished uploading file",
 		job = ?job_id,
 		file = ?file_id,
-		hash = ?our_hash
+		hash = ?our_hash,
+		file_type = ?file.file_type,
 	);
 
 	return StatusCode::OK.into_response();

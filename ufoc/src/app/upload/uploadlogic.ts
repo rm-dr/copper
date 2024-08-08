@@ -24,15 +24,17 @@ export async function startUploadJob(ac: AbortController): Promise<string> {
 /// On success, calls `then()` with the new file name.
 ///
 /// This is used inside `uploadBlob`.
-async function start_new_file(upload_job_id: string): Promise<string> {
+async function start_new_file(
+	upload_job_id: string,
+	file_extension: string,
+): Promise<string> {
 	const res = await fetch(`/api/upload/${upload_job_id}/newfile`, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
 		},
 		body: JSON.stringify({
-			// TODO: fix
-			file_type: "Blob",
+			file_extension,
 		}),
 	});
 
@@ -52,10 +54,14 @@ export async function uploadBlob(params: {
 	abort_controller: AbortController;
 	upload_job_id: string;
 	blob: Blob;
+	file_extension: string;
 	max_fragment_size: number;
 	onProgress: (total_uploaded_bytes: number) => void;
 }): Promise<string> {
-	const file_name = await start_new_file(params.upload_job_id);
+	const file_name = await start_new_file(
+		params.upload_job_id,
+		params.file_extension,
+	);
 
 	var frag_count = 0;
 	let uploaded_bytes = 0;
@@ -176,10 +182,12 @@ export function startUploadingFiles(params: {
 
 			let file_name;
 			try {
+				var c = file.file.name.split(".");
 				file_name = await uploadBlob({
 					abort_controller: upload_ac,
 					upload_job_id,
 					blob: file.file,
+					file_extension: c.join("."),
 					max_fragment_size: 1500000, // TODO: get from server
 
 					// Whenever we make progress on any file
