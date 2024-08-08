@@ -14,6 +14,7 @@ use crate::{
 	graph::{graph::Graph, util::GraphNodeIdx},
 	labels::{PipelineLabel, PipelineNodeLabel, PipelinePortLabel},
 	pipeline::{Pipeline, PipelineEdge},
+	SDataStub,
 };
 
 pub(crate) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
@@ -55,16 +56,13 @@ pub(crate) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
 	node_input_name_map_after: RefCell<HashMap<PipelineNodeLabel, GraphNodeIdx>>,
 }
 
-// Shortcut types
-type DataStub<StubType> = <<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub;
-
 impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 	pub fn build(
 		context: <StubType::NodeType as PipelineNode>::NodeContext,
 		pipelines: &'a Vec<Arc<Pipeline<StubType>>>,
 		name: &str,
 		spec: PipelineSpec<StubType>,
-	) -> Result<Pipeline<StubType>, PipelinePrepareError<DataStub<StubType>>> {
+	) -> Result<Pipeline<StubType>, PipelinePrepareError<SDataStub<StubType>>> {
 		// Initialize all variables
 		let builder = {
 			let mut graph = Graph::new();
@@ -219,7 +217,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 
 		// Only used for errors
 		node_label: &PipelineNodeLabel,
-	) -> Result<(usize, DataStub<StubType>), PipelinePrepareError<DataStub<StubType>>> {
+	) -> Result<(usize, SDataStub<StubType>), PipelinePrepareError<SDataStub<StubType>>> {
 		match node_type {
 			// `Pipeline` nodes don't know what inputs they provide,
 			// we need to find them ourselves.
@@ -257,7 +255,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 
 		// Only used for errors
 		node_label: &PipelineNodeLabel,
-	) -> Result<(usize, DataStub<StubType>), PipelinePrepareError<DataStub<StubType>>> {
+	) -> Result<(usize, SDataStub<StubType>), PipelinePrepareError<SDataStub<StubType>>> {
 		match node_type {
 			// `Pipeline` nodes don't know what inputs they provide,
 			// we need to find them ourselves.
@@ -292,7 +290,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 		in_port: usize,
 		node_idx: GraphNodeIdx,
 		out_link: &NodeOutput<StubType>,
-	) -> Result<(), PipelinePrepareError<DataStub<StubType>>> {
+	) -> Result<(), PipelinePrepareError<SDataStub<StubType>>> {
 		match out_link {
 			NodeOutput::Pipeline { port } => {
 				let out_port = self
@@ -349,21 +347,24 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 		&self,
 		output: &NodeOutput<StubType>,
 		input: &NodeInput,
-	) -> Result<(), PipelinePrepareError<DataStub<StubType>>> {
+	) -> Result<(), PipelinePrepareError<SDataStub<StubType>>> {
 		// Find the datatype of the output port we're connecting to.
 		// While doing this, make sure both the output node and port exist.
-		let output_type: <<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub = match output {
+		let output_type: SDataStub<StubType> = match output {
 			NodeOutput::Inline(node) => {
 				// Inline nodes must have exactly one output
 				if node.outputs(&self.context).len() != 1 {
-					return Err(PipelinePrepareError::BadInlineNode { input: input.clone() })
+					return Err(PipelinePrepareError::BadInlineNode {
+						input: input.clone(),
+					});
 				}
 				node.outputs(&self.context).iter().next().unwrap().1
-			},
+			}
 
 			NodeOutput::Pipeline { port } => {
-				if let Some((_, from_type)) = self.
-					spec.input
+				if let Some((_, from_type)) = self
+					.spec
+					.input
 					.outputs(&self.context)
 					.iter()
 					.find(|(a, _)| a == port)
@@ -457,7 +458,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 		&self,
 		node_name: &PipelineNodeLabel,
 		pipeline_name: &PipelineLabel,
-	) -> Result<(), PipelinePrepareError<DataStub<StubType>>> {
+	) -> Result<(), PipelinePrepareError<SDataStub<StubType>>> {
 		let p = self
 			.pipelines
 			.iter()

@@ -12,6 +12,7 @@ use crate::{
 	graph::util::GraphNodeIdx,
 	labels::PipelineNodeLabel,
 	pipeline::Pipeline,
+	SDataType, SNodeType,
 };
 
 /// The state of a [`PipelineSingleRunner`]
@@ -35,21 +36,17 @@ pub(super) struct PipelineSingleRunner<StubType: PipelineNodeStub> {
 	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 
 	/// The inputs that were provided to this pipeline
-	pipeline_inputs: Vec<<StubType::NodeType as PipelineNode>::DataType>,
+	pipeline_inputs: Vec<SDataType<StubType>>,
 
 	/// Mutable instances of each node in this pipeline
-	node_instances: Vec<(
-		PipelineNodeLabel,
-		Arc<Mutex<<StubType as PipelineNodeStub>::NodeType>>,
-	)>,
+	node_instances: Vec<(PipelineNodeLabel, Arc<Mutex<SNodeType<StubType>>>)>,
 
 	/// Each node's status
 	/// (indices match `node_instances`)
 	node_status: Vec<NodeRunState>,
 
 	/// The value each edge in this pipeline carries
-	edge_values:
-		Vec<EdgeValue<<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType>>,
+	edge_values: Vec<EdgeValue<SDataType<StubType>>>,
 
 	/// A threadpool of node runners
 	pool: ThreadPool,
@@ -62,7 +59,7 @@ pub(super) struct PipelineSingleRunner<StubType: PipelineNodeStub> {
 		// The port index of this output
 		usize,
 		// The data that output produced
-		<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType,
+		SDataType<StubType>,
 	)>,
 
 	/// A receiver for node output data
@@ -72,7 +69,7 @@ pub(super) struct PipelineSingleRunner<StubType: PipelineNodeStub> {
 		// The port index of this output
 		usize,
 		// The data that output produced
-		<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType,
+		SDataType<StubType>,
 	)>,
 
 	/// A message is sent here whenever a node finishes running.
@@ -98,7 +95,7 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 		node_runners: usize,
 		context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 		pipeline: Arc<Pipeline<StubType>>,
-		pipeline_inputs: Vec<<StubType::NodeType as PipelineNode>::DataType>,
+		pipeline_inputs: Vec<SDataType<StubType>>,
 	) -> Self {
 		assert!(
 			pipeline_inputs.len()
@@ -150,16 +147,8 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 		// Contents are (node index, port index, data)
 		#[allow(clippy::type_complexity)]
 		let (send_data, receive_data): (
-			Sender<(
-				GraphNodeIdx,
-				usize,
-				<StubType::NodeType as PipelineNode>::DataType,
-			)>,
-			Receiver<(
-				GraphNodeIdx,
-				usize,
-				<StubType::NodeType as PipelineNode>::DataType,
-			)>,
+			Sender<(GraphNodeIdx, usize, SDataType<StubType>)>,
+			Receiver<(GraphNodeIdx, usize, SDataType<StubType>)>,
 		) = unbounded();
 
 		// Channel for node status. A node's return status is sent here when it finishes.

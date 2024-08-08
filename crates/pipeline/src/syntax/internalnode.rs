@@ -2,9 +2,10 @@ use serde::{de::DeserializeOwned, Deserialize};
 use std::fmt::Debug;
 
 use crate::{
-	api::{PipelineData, PipelineNode, PipelineNodeStub},
+	api::{PipelineNode, PipelineNodeStub},
 	labels::PipelineLabel,
 	portspec::PipelinePortSpec,
+	NDataStub,
 };
 
 #[derive(Clone, Deserialize)]
@@ -46,7 +47,7 @@ impl<StubType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<StubType>
 	fn inputs(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
+	) -> PipelinePortSpec<NDataStub<Self::NodeType>> {
 		match self {
 			Self::Pipeline { .. } => unreachable!(),
 			Self::User(n) => n.inputs(ctx),
@@ -56,7 +57,7 @@ impl<StubType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<StubType>
 	fn outputs(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
+	) -> PipelinePortSpec<NDataStub<Self::NodeType>> {
 		match self {
 			Self::Pipeline { .. } => unreachable!(),
 			Self::User(n) => n.outputs(ctx),

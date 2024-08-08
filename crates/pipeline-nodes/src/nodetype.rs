@@ -5,6 +5,7 @@ use ufo_pipeline::{
 	api::{PipelineData, PipelineNode, PipelineNodeStub},
 	labels::PipelinePortLabel,
 	portspec::PipelinePortSpec,
+	NDataStub,
 };
 use ufo_storage::{
 	api::ClassHandle,
@@ -127,7 +128,7 @@ impl PipelineNodeStub for UFONodeType {
 	fn inputs(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
+	) -> PipelinePortSpec<NDataStub<Self::NodeType>> {
 		match self {
 			// Util
 			Self::Constant { .. } => PipelinePortSpec::Static(&[]),
@@ -173,7 +174,7 @@ impl PipelineNodeStub for UFONodeType {
 	fn outputs(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub> {
+	) -> PipelinePortSpec<NDataStub<Self::NodeType>> {
 		match self {
 			// Magic
 			Self::Constant { value } => {

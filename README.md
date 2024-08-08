@@ -27,7 +27,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- Shorten types with aliases
 - Hash node: select hash
 - Better db index names
 

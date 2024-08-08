@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 
-use crate::{errors::PipelineError, portspec::PipelinePortSpec};
+use crate::{errors::PipelineError, portspec::PipelinePortSpec, NDataStub};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipelineNodeState {
@@ -102,13 +102,13 @@ where
 	fn inputs(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>;
+	) -> PipelinePortSpec<NDataStub<Self::NodeType>>;
 
 	/// Return the outputs the node generated from this stub will produce
 	fn outputs(
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> PipelinePortSpec<<<Self::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>;
+	) -> PipelinePortSpec<NDataStub<Self::NodeType>>;
 }
 
 pub trait PipelineData

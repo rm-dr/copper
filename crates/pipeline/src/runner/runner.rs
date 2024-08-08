@@ -2,11 +2,12 @@ use std::{fs::File, io::Read, marker::PhantomData, path::Path, sync::Arc};
 
 use super::single::{PipelineSingleRunner, SingleRunnerState};
 use crate::{
-	api::{PipelineData, PipelineNode, PipelineNodeStub},
+	api::{PipelineNode, PipelineNodeStub},
 	errors::PipelineError,
 	labels::PipelineLabel,
 	pipeline::Pipeline,
 	syntax::{builder::PipelineBuilder, errors::PipelinePrepareError, spec::PipelineSpec},
+	SDataStub, SDataType,
 };
 
 /// A prepared data processing pipeline.
@@ -37,7 +38,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		ctx: <StubType::NodeType as PipelineNode>::NodeContext,
 		path: &Path,
 		pipeline_name: String,
-	) -> Result<(), PipelinePrepareError<<<<StubType as PipelineNodeStub>::NodeType as PipelineNode>::DataType as PipelineData>::DataStub>>{
+	) -> Result<(), PipelinePrepareError<SDataStub<StubType>>> {
 		let mut f =
 			File::open(path).map_err(|error| PipelinePrepareError::CouldNotOpenFile { error })?;
 
@@ -65,7 +66,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	pub fn run(
 		&self,
 		pipeline_name: &PipelineLabel,
-		pipeline_inputs: Vec<<StubType::NodeType as PipelineNode>::DataType>,
+		pipeline_inputs: Vec<SDataType<StubType>>,
 	) -> Result<(), PipelineError> {
 		let pipeline = self.get_pipeline(pipeline_name).unwrap();
 
