@@ -424,6 +424,18 @@ mod tests {
 	*/
 
 	#[test]
+	fn strip_all_custom_01() {
+		strip_all(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_custom/01 - many images.flac"),
+			"58ee39efe51e37f51b4dedeee8b28bed88ac1d4a70ba0e3a326ef7e94f0ebf1b",
+			"20df129287d94f9ae5951b296d7f65fcbed92db423ba7db4f0d765f1f0a7e18c",
+			None,
+		)
+		.unwrap()
+	}
+
+	#[test]
 	fn strip_all_faulty_06() {
 		let res = strip_all(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -684,6 +696,18 @@ mod tests {
 			<file>
 		```
 	*/
+
+	#[test]
+	fn strip_most_custom_01() {
+		strip_most(
+			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.join("tests/files/flac_custom/01 - many images.flac"),
+			"58ee39efe51e37f51b4dedeee8b28bed88ac1d4a70ba0e3a326ef7e94f0ebf1b",
+			"20df129287d94f9ae5951b296d7f65fcbed92db423ba7db4f0d765f1f0a7e18c",
+			None,
+		)
+		.unwrap()
+	}
 
 	#[test]
 	fn strip_most_faulty_06() {
