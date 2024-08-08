@@ -1,22 +1,33 @@
-.slider.selected {
-	.slider_left {
-		.slider_left_icon {
+.tree_entry.selected {
+	.tree_entry_left {
+		.tree_entry_left_icon {
 			background-color: var(--mantine-primary-color-8) !important;
 		}
 	}
 }
 
-.slider.clickable:hover {
-	background-color: var(--mantine-color-dark-6);
-	.slider_left {
+.tree_entry.clickable:hover {
+	.tree_entry_left {
 		background-color: var(--mantine-color-dark-5);
-		.slider_left_icon {
+		.tree_entry_left_icon {
 			background-color: var(--mantine-color-gray-6);
 		}
 	}
+	.tree_entry_text {
+		background-color: var(--mantine-color-dark-6);
+	}
+	.tree_entry_right {
+		background-color: var(--mantine-color-dark-6);
+	}
 }
 
-.slider {
+.tree_entry.expanded {
+	.tree_entry_arrow {
+		transform: rotate(0deg);
+	}
+}
+
+.tree_entry {
 	display: flex;
 
 	height: 2rem;
@@ -25,20 +36,29 @@
 	margin-bottom: 0.5rem;
 	padding: 0;
 
-	background-color: var(--mantine-color-dark-7);
 	transition: 200ms;
 
-	.slider_left {
+	.tree_entry_arrow {
 		display: flex;
 		align-items: center;
 		justify-content: left;
 		overflow: hidden;
 
-		width: 8rem;
+		width: 2rem;
+		transition: inherit;
+		transform: rotate(-90deg);
+	}
+
+	.tree_entry_left {
+		display: flex;
+		align-items: center;
+		justify-content: left;
+		overflow: hidden;
+
 		background-color: var(--mantine-color-dark-6);
 		transition: inherit;
 
-		.slider_left_icon {
+		.tree_entry_left_icon {
 			display: flex;
 			align-items: center;
 			justify-content: left;
@@ -50,7 +70,7 @@
 			transition: inherit;
 		}
 
-		.slider_left_text {
+		.tree_entry_left_text {
 			display: block;
 			text-align: left;
 			padding-left: 0.5rem;
@@ -58,18 +78,22 @@
 		}
 	}
 
-	.slider_text {
+	.tree_entry_text {
 		padding: 0.25rem;
 		padding-left: 0.5rem;
 		flex-grow: 1;
 		user-select: none;
+		transition: inherit;
+		background-color: var(--mantine-color-dark-7);
 	}
 
-	.slider_right {
+	.tree_entry_right {
 		display: flex;
 		align-items: center;
 		justify-content: right;
 		overflow: hidden;
 		column-gap: 0.5rem;
+		transition: inherit;
+		background-color: var(--mantine-color-dark-7);
 	}
 }
