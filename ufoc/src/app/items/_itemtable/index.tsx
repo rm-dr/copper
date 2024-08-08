@@ -64,6 +64,8 @@ const ItemTable = (params: {
 		Array(2).map(() => ({ attr: null })),
 	);
 
+	const col_refs = useRef<(HTMLTableCellElement | null)[]>([null, null]);
+
 	useEffect(() => {
 		setColumns((c) => {
 			const n = [...c];
@@ -105,9 +107,11 @@ const ItemTable = (params: {
 
 			// Initialize with current column widths & compute total
 			const gridColumns: number[] = columns.map((col, i) => {
-				let cref = document.getElementById(`attr-column-${i}`);
+				let cref = col_refs.current[i];
+
 				if (cref === null) {
-					console.error(`Could not find attr-column-${i}`);
+					console.error(`Col ref ${i} is null!`);
+
 					return 0;
 				}
 				if (i !== columns.length - 1) {
@@ -119,9 +123,10 @@ const ItemTable = (params: {
 			// Resize the column we're dragging.
 			// There are columns.length - 1 dragable column seperators.
 			for (let i = 0; i < columns.length - 1; i++) {
-				let cref = document.getElementById(`attr-column-${i}`);
+				let cref = col_refs.current[i];
+
 				if (cref === null) {
-					console.error(`Could not find attr-column-${i}`);
+					console.error(`Col ref ${i} is null!`);
 					continue;
 				}
 
@@ -214,9 +219,10 @@ const ItemTable = (params: {
 			);
 
 			const gridColumns: number[] = columns.map((col, i) => {
-				let cref = document.getElementById(`attr-column-${i}`);
+				let cref = col_refs.current[i];
+
 				if (cref === null) {
-					console.error(`Could not find attr-column-${i}`);
+					console.error(`Col ref ${i} is null!`);
 					return 0;
 				}
 				return cref.offsetWidth;
@@ -225,9 +231,10 @@ const ItemTable = (params: {
 			// TODO: make this prettier
 			// Trim space from columns, starting from the leftmost one
 			for (let i = 0; i < columns.length - 1; i++) {
-				let cref = document.getElementById(`attr-column-${i}`);
+				let cref = col_refs.current[i];
+
 				if (cref === null) {
-					console.error(`Could not find attr-column-${i}`);
+					console.error(`Col ref ${i} is null!`);
 					continue;
 				}
 
@@ -281,9 +288,10 @@ const ItemTable = (params: {
 		(idx: number) => {
 			// Get old column widths
 			const oldGridColumns: number[] = columns.map((_, i) => {
-				let cref = document.getElementById(`attr-column-${i}`);
+				let cref = col_refs.current[i];
+
 				if (cref === null) {
-					console.error(`Could not find attr-column-${i}`);
+					console.error(`Col ref ${i} is null!`);
 					return 0;
 				}
 
@@ -294,6 +302,11 @@ const ItemTable = (params: {
 			setColumns((c) => {
 				return [...c.slice(0, idx), { attr: null }, ...c.slice(idx)];
 			});
+			col_refs.current = [
+				...col_refs.current.slice(0, idx),
+				null,
+				...col_refs.current.slice(idx),
+			];
 
 			// Make space for new column
 			let to_shed = params.minCellWidth + 50;
@@ -340,9 +353,9 @@ const ItemTable = (params: {
 
 			// Get old column widths
 			const oldGridColumns: number[] = columns.map((_, i) => {
-				let cref = document.getElementById(`attr-column-${i}`);
+				let cref = col_refs.current[i];
 				if (cref === null) {
-					console.error(`Could not find attr-column-${i}`);
+					console.error(`Col ref ${i} is null!`);
 					return 0;
 				}
 
@@ -353,6 +366,10 @@ const ItemTable = (params: {
 			setColumns((c) => {
 				return [...c.slice(0, idx), ...c.slice(idx + 1)];
 			});
+			col_refs.current = [
+				...col_refs.current.slice(0, idx),
+				...col_refs.current.slice(idx + 1),
+			];
 
 			// Fix grid layout
 			const gridColumns: number[] = [];
@@ -387,7 +404,12 @@ const ItemTable = (params: {
 				<thead>
 					<tr>
 						{columns.map(({ attr }: any, idx: number) => (
-							<th id={`attr-column-${idx}`} key={`${attr}-${idx}`}>
+							<th
+								ref={(ref) => {
+									col_refs.current[idx] = ref;
+								}}
+								key={`${attr}-${idx}`}
+							>
 								{/*
 									Do not show first resize handle.
 									Note that each header contains the *previous*
