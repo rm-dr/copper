@@ -32,15 +32,9 @@ export function AttrList(params: {
 		>
 			{params.attrs.map(({ name: attr_name, type: attr_type }) => {
 				// Find attr icon
-				let d = attrTypes.find((x) => {
+				let type_def = attrTypes.find((x) => {
 					return x.serialize_as === attr_type;
 				});
-				let icon;
-				if (d === undefined) {
-					icon = null;
-				} else {
-					icon = d.icon;
-				}
 
 				return (
 					<TreeEntry
@@ -48,10 +42,10 @@ export function AttrList(params: {
 						is_clickable={true}
 						is_selected={false}
 						onClick={() => {}}
-						icon={icon}
-						icon_text={attr_name}
-						text={""}
-						left_width={"6rem"}
+						icon={type_def?.icon}
+						text={attr_name}
+						icon_tooltip={type_def?.pretty_name}
+						icon_tooltip_position={"left"}
 						right={
 							<AttrMenu
 								dataset_name={params.dataset}

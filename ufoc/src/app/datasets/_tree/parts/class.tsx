@@ -65,9 +65,7 @@ export function ClassList(params: {
 									});
 								}}
 								icon={<XIconFolder />}
-								icon_text={class_name}
-								left_width={"6rem"}
-								text={""}
+								text={class_name}
 								expanded={class_open}
 								right={
 									<ClassMenu

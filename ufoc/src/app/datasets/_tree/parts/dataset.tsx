@@ -46,22 +46,15 @@ export function DatasetList(params: {
 					idx,
 				) => {
 					// Find dataset icon
-					let d = datasetTypes.find((x) => {
+					let ds_type_def = datasetTypes.find((x) => {
 						return x.serialize_as === dataset_type;
 					});
-					let icon;
-					if (d === undefined) {
-						icon = <></>;
-					} else {
-						icon = d.icon;
-					}
 
 					return (
 						<div
 							key={`dataset-${dataset_name}`}
 							style={{
 								paddingLeft: "0",
-								transition: "200ms",
 							}}
 						>
 							<TreeEntry
@@ -76,10 +69,10 @@ export function DatasetList(params: {
 										return t;
 									});
 								}}
-								icon={icon}
-								icon_text={dataset_name}
-								left_width={"6rem"}
-								text={""}
+								icon={ds_type_def?.icon}
+								text={dataset_name}
+								icon_tooltip={ds_type_def?.pretty_name}
+								icon_tooltip_position={"top"}
 								expanded={dataset_open}
 								right={
 									<DatasetMenu

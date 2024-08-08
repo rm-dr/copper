@@ -10,16 +10,10 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Rename set, class, attr endpoint
 - [ ] Complete class deletion
   - [ ] Delete blobs
-  - [ ] Check pipelines
-    - (or let them be invalid? Connected to pipeline CRUD)
-  - [ ] How to handle running jobs?
-    - cancel, or let them fail?
-    - Same problem with renames. Will that break running jobs?
-    - It shouldn't, jobs are tied to id.
-  - [ ] Deletion could take a while. Will our request time out?
 
 ## 📦 Dataset locks
 - [ ] delete dataset while pipeline is running?
+  - Jobs should automatically fail (dataset id?)
 - [ ] async dataset api?
 
 ## 📦 Server.toml
@@ -74,6 +68,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Next cache config
 - [ ] Font
 - [ ] Panel width. Center, or change page background?
+- [ ] Prettier errors from server (markdown? might be overkill.)
 
 ## 📦 Better uploads
 - [ ] Upload in parallel
@@ -84,6 +79,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 Pipeline editor
 - redo serialize/deserialize pipeline spec
+- show error when class ref is invalid (if class was deleted)
 
 ## 📦 Pipeline argument nodes
 - already in upload ui, just need node implementation
@@ -105,10 +101,12 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Force nonempty set, attr, class names
 - [ ] Error if full db path doesn't exist (no panic)
 - [ ] Text vs long text datatypes
+- [ ] Deletion could take a while. Will our request time out?
 
 ## 📦 UI Cleanup
  - Rename `upload` page
  - Find all console.log
+ - Better dataset tree (open/close spacing, background, etc)
 
 ## 📦 Distribution
 - [ ] Docker file & compose
@@ -206,6 +204,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 
 ## More nodes:
+- [ ] node tests
 - [ ] hash additional types
 - [ ] external command (for user plugins)
   - ollama, whisper
