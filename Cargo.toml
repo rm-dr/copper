@@ -50,6 +50,8 @@ ufo-util = { path = "crates/util" }
 ufo = { path = "crates/ufo" }
 ufo-audiofile = { path = "crates/audiofile" }
 
+crossbeam = "0.8.4"
+threadpool = "1.8.1"
 anyhow = "1.0.83"
 itertools = "0.12.1"
 petgraph = "0.6.5"

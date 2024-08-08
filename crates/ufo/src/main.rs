@@ -38,7 +38,7 @@ fn main() -> Result<()> {
 		}
 	};
 
-	let o = pipe.run(input)?;
+	let o = pipe.run(4, input)?;
 
 	match &pipe.get_config().output {
 		PipelineOutputKind::DataSet { attrs } => {

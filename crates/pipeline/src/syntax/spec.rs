@@ -1,3 +1,5 @@
+//! A user-provided pipeline specification
+
 use std::{collections::HashMap, sync::Arc};
 
 use petgraph::{algo::toposort, graphmap::GraphMap, Directed};
@@ -7,7 +9,7 @@ use ufo_util::data::{PipelineData, PipelineDataType};
 
 use crate::{
 	input::PipelineInputKind,
-	nodes::{PipelineNodeInstance, PipelineNodeType},
+	nodes::nodetype::PipelineNodeType,
 	output::PipelineOutputKind,
 	pipeline::{NodePort, Pipeline},
 };
@@ -23,9 +25,13 @@ use super::{
 #[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PipelineConfig {
+	/// The kind of input this pipeline takes
 	pub input: PipelineInputKind,
+
+	/// The kind of output this pipeline produces
 	pub output: PipelineOutputKind,
 
+	/// Connect node outputs to this pipeline's outputs
 	#[serde(default)]
 	#[serde_as(as = "serde_with::Map<_, _>")]
 	pub output_map: Vec<(PipelinePortLabel, NodeOutput)>,
@@ -35,15 +41,15 @@ pub struct PipelineConfig {
 #[serde_as]
 #[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
-struct PipelineNodeSpec {
+pub struct PipelineNodeSpec {
 	/// What kind of node is this?
 	#[serde(rename = "type")]
-	node_type: PipelineNodeType,
+	pub node_type: PipelineNodeType,
 
 	/// Where this node should read its input from.
 	#[serde(default)]
 	#[serde_as(as = "serde_with::Map<_, _>")]
-	input: Vec<(PipelinePortLabel, NodeOutput)>,
+	pub input: Vec<(PipelinePortLabel, NodeOutput)>,
 }
 
 /// A description of a data processing pipeline
@@ -187,7 +193,7 @@ impl PipelineSpec {
 	fn add_to_graph(
 		&self,
 		// Current build state
-		nodes: &mut Vec<PipelineNodeInstance>,
+		nodes: &mut Vec<(PipelineNodeLabel, PipelineNodeType)>,
 		edges: &mut Vec<(NodePort, NodePort)>,
 		node_name_map: &HashMap<PipelineNodeLabel, usize>,
 		external_node_idx: usize,
@@ -210,9 +216,12 @@ impl PipelineSpec {
 						port: in_port,
 					},
 				));
-				nodes.push(PipelineNodeInstance::ConstantNode(Arc::new(
-					PipelineData::Text(text.clone()),
-				)));
+				nodes.push((
+					"".into(),
+					PipelineNodeType::ConstantNode {
+						data: Arc::new(PipelineData::Text(text.clone())),
+					},
+				));
 			}
 			NodeOutput::Pipeline { port } => {
 				let out_port = self
@@ -265,10 +274,10 @@ impl PipelineSpec {
 		// Check each node's name and inputs;
 		// Build node array and initialize external node;
 		// Initialize nodes in graph
-		let mut nodes = Vec::new();
+		let mut nodes: Vec<(PipelineNodeLabel, PipelineNodeType)> = Vec::new();
 		let mut edges = Vec::new();
 		let mut node_name_map: HashMap<PipelineNodeLabel, usize> = HashMap::new();
-		nodes.push(PipelineNodeInstance::ExternalNode);
+		nodes.push(("".into(), PipelineNodeType::ExternalNode));
 		let external_node_idx = 0;
 		for (node_name, node_spec) in &self.nodes {
 			for (input_name, out_link) in &node_spec.input {
@@ -282,7 +291,7 @@ impl PipelineSpec {
 			}
 
 			node_name_map.insert(node_name.clone(), nodes.len());
-			nodes.push(node_spec.node_type.build(node_name.into()));
+			nodes.push((node_name.clone(), node_spec.node_type.clone()));
 		}
 
 		// Check final pipeline outputs
