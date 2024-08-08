@@ -106,6 +106,7 @@ impl LocalDataset {
 		let attrs = self.get_all_attrs().await?;
 		let mut all_blobs = self
 			.all_blobs()
+			.await
 			.map_err(|e| MetastoreError::BlobstoreError(e))?;
 
 		// Do this after getting attrs to prevent deadlock
@@ -146,6 +147,7 @@ impl LocalDataset {
 				blob_handle = ?b
 			);
 			self.delete_blob(b)
+				.await
 				.map_err(|e| MetastoreError::BlobstoreError(e))?;
 		}
 
@@ -832,11 +834,8 @@ impl Metastore for LocalDataset {
 	) -> Result<Vec<ItemData>, MetastoreError> {
 		// Do this first, prevent deadlock
 		let attrs = self.class_get_attrs(class).await?;
-
-		// Start transaction
-		let mut conn_lock = self.conn.lock().await;
-
 		let table_name = Self::get_table_name(class);
+		let mut conn_lock = self.conn.lock().await;
 
 		let res = sqlx::query(&format!(
 				"SELECT * FROM \"{table_name}\" ORDER BY id LIMIT \"{page_size}\" OFFSET \"{start_at}\" ;"

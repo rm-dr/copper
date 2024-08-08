@@ -11,7 +11,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use ufo_ds_core::{
-	api::{blob::BlobHandle, meta::Metastore},
+	api::{blob::BlobHandle, blob::Blobstore, meta::Metastore},
 	data::{HashType, MetastoreData},
 	handles::ItemIdx,
 };
@@ -50,13 +50,13 @@ pub(super) enum ItemListData {
 	None,
 	PositiveInteger { value: u64 },
 	Integer { value: i64 },
-	Binary { format: MimeType },
 	Float { value: f64 },
 	Boolean { value: bool },
 	Text { value: String },
 	Reference { class: String, item: ItemIdx },
 	Hash { hash_type: HashType, value: String },
-	Blob { handle: BlobHandle },
+	Binary { format: MimeType, size: u64 },
+	Blob { handle: BlobHandle, size: u64 },
 }
 
 /// Create a new attribute
@@ -179,19 +179,42 @@ pub(super) async fn list_item(
 	};
 
 	let mut out = Vec::new();
-	for r in itemdata.into_iter() {
+	for item in itemdata.into_iter() {
 		let mut itemlistdata = HashMap::new();
-		for (attr, val) in attrs.iter().zip(r.attrs.iter()) {
+		for (attr, val) in attrs.iter().zip(item.attrs.iter()) {
 			// TODO: move to method (after making generic dataset type)
 			let d = match val {
 				MetastoreData::None(_) => ItemListData::None,
 				MetastoreData::PositiveInteger(x) => ItemListData::PositiveInteger { value: *x },
-				MetastoreData::Blob { handle } => ItemListData::Blob { handle: *handle },
+				MetastoreData::Blob { handle } => {
+					let size = match dataset.blob_size(*handle).await {
+						Ok(x) => x,
+						Err(e) => {
+							error!(
+								message = "Could not get blob length",
+								dataset = query.dataset,
+								blob = ?handle,
+								error = ?e
+							);
+							return (
+								StatusCode::INTERNAL_SERVER_ERROR,
+								format!("Could not get blob length"),
+							)
+								.into_response();
+						}
+					};
+
+					ItemListData::Blob {
+						handle: *handle,
+						size,
+					}
+				}
 				MetastoreData::Integer(x) => ItemListData::Integer { value: *x },
 				MetastoreData::Boolean(x) => ItemListData::Boolean { value: *x },
 				MetastoreData::Float(x) => ItemListData::Float { value: *x },
-				MetastoreData::Binary { format, .. } => ItemListData::Binary {
+				MetastoreData::Binary { format, data } => ItemListData::Binary {
 					format: format.clone(),
+					size: data.len().try_into().unwrap(),
 				},
 				MetastoreData::Text(t) => ItemListData::Text {
 					value: t.to_string(),
@@ -201,7 +224,6 @@ pub(super) async fn list_item(
 					value: data.iter().map(|x| format!("{:X?}", x)).join(""),
 				},
 				MetastoreData::Reference { class, item } => {
-					// TODO: make this async
 					let class = match dataset.get_class(*class).await {
 						Ok(x) => x,
 						Err(e) => {
@@ -213,7 +235,7 @@ pub(super) async fn list_item(
 							);
 							return (
 								StatusCode::INTERNAL_SERVER_ERROR,
-								format!("Could not get class by name {e}"),
+								format!("Could not get class by name"),
 							)
 								.into_response();
 						}
@@ -230,7 +252,7 @@ pub(super) async fn list_item(
 		}
 
 		out.push(ItemListItem {
-			idx: r.handle.into(),
+			idx: item.handle.into(),
 			attrs: itemlistdata,
 		})
 	}

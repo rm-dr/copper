@@ -68,12 +68,14 @@ impl Drop for BlobstoreTmpWriter {
 	}
 }
 
+#[allow(async_fn_in_trait)]
 pub trait Blobstore
 where
 	Self: Send + Sync,
 {
-	fn new_blob(&self, mime: &MimeType) -> Result<BlobstoreTmpWriter, BlobstoreError>;
-	fn finish_blob(&self, blob: BlobstoreTmpWriter) -> Result<BlobHandle, BlobstoreError>;
-	fn delete_blob(&self, blob: BlobHandle) -> Result<(), BlobstoreError>;
-	fn all_blobs(&self) -> Result<Vec<BlobHandle>, BlobstoreError>;
+	async fn new_blob(&self, mime: &MimeType) -> Result<BlobstoreTmpWriter, BlobstoreError>;
+	async fn finish_blob(&self, blob: BlobstoreTmpWriter) -> Result<BlobHandle, BlobstoreError>;
+	async fn delete_blob(&self, blob: BlobHandle) -> Result<(), BlobstoreError>;
+	async fn all_blobs(&self) -> Result<Vec<BlobHandle>, BlobstoreError>;
+	async fn blob_size(&self, blob: BlobHandle) -> Result<u64, BlobstoreError>;
 }

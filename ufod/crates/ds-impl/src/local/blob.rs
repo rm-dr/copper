@@ -1,4 +1,3 @@
-use futures::executor::block_on;
 use rand::{distributions::Alphanumeric, Rng};
 use sqlx::Row;
 use std::path::PathBuf;
@@ -12,7 +11,7 @@ use ufo_util::mime::MimeType;
 use super::LocalDataset;
 
 impl Blobstore for LocalDataset {
-	fn new_blob(&self, mime: &MimeType) -> Result<BlobstoreTmpWriter, BlobstoreError> {
+	async fn new_blob(&self, mime: &MimeType) -> Result<BlobstoreTmpWriter, BlobstoreError> {
 		let tmp_path = loop {
 			let name: String = rand::thread_rng()
 				.sample_iter(&Alphanumeric)
@@ -29,7 +28,10 @@ impl Blobstore for LocalDataset {
 		Ok(BlobstoreTmpWriter::new(tmp_path, mime.clone())?)
 	}
 
-	fn finish_blob(&self, mut blob: BlobstoreTmpWriter) -> Result<BlobHandle, BlobstoreError> {
+	async fn finish_blob(
+		&self,
+		mut blob: BlobstoreTmpWriter,
+	) -> Result<BlobHandle, BlobstoreError> {
 		trace!(
 			message = "Finishing blob",
 			path_to_tmp_blob = ?blob.path_to_file,
@@ -54,12 +56,11 @@ impl Blobstore for LocalDataset {
 			self.blobstore_root.join(&final_path_rel),
 		)?;
 
-		let res = block_on(
-			sqlx::query("INSERT INTO meta_blobs (data_type, file_path) VALUES (?, ?);")
-				.bind(blob.mime.to_string())
-				.bind(final_path_rel)
-				.execute(&mut *block_on(self.conn.lock())),
-		);
+		let res = sqlx::query("INSERT INTO meta_blobs (data_type, file_path) VALUES (?, ?);")
+			.bind(blob.mime.to_string())
+			.bind(final_path_rel)
+			.execute(&mut *self.conn.lock().await)
+			.await;
 
 		let id = match res {
 			Err(e) => return Err(BlobstoreError::DbError(Box::new(e))),
@@ -78,22 +79,21 @@ impl Blobstore for LocalDataset {
 		return Ok(BlobHandle::from(u32::try_from(id).unwrap()));
 	}
 
-	fn delete_blob(&self, blob: BlobHandle) -> Result<(), BlobstoreError> {
+	async fn delete_blob(&self, blob: BlobHandle) -> Result<(), BlobstoreError> {
 		trace!(
 			message = "Deleting blob",
 			blob_handle = ?blob,
 		);
 
-		let mut conn = block_on(self.conn.lock());
+		let mut conn = self.conn.lock().await;
 
-		// We intentionally don't use a connection here.
+		// We intentionally don't use a transaction here.
 		// A blob shouldn't point to a partially-deleted file.
 
-		let res = block_on(
-			sqlx::query("SELECT file_path FROM meta_blobs WHERE id=?;")
-				.bind(u32::from(blob))
-				.fetch_one(&mut *conn),
-		);
+		let res = sqlx::query("SELECT file_path FROM meta_blobs WHERE id=?;")
+			.bind(u32::from(blob))
+			.fetch_one(&mut *conn)
+			.await;
 
 		let rel_file_path = match res {
 			Err(sqlx::Error::RowNotFound) => return Err(BlobstoreError::InvalidBlobHandle),
@@ -103,11 +103,11 @@ impl Blobstore for LocalDataset {
 		let file_path = self.blobstore_root.join(&rel_file_path);
 
 		// Delete blob metadata
-		if let Err(e) = block_on(
-			sqlx::query("DELETE FROM meta_blobs WHERE id=?;")
-				.bind(u32::from(blob))
-				.execute(&mut *conn),
-		) {
+		if let Err(e) = sqlx::query("DELETE FROM meta_blobs WHERE id=?;")
+			.bind(u32::from(blob))
+			.execute(&mut *conn)
+			.await
+		{
 			return Err(BlobstoreError::DbError(Box::new(e)));
 		};
 
@@ -130,16 +130,37 @@ impl Blobstore for LocalDataset {
 		return Ok(());
 	}
 
-	fn all_blobs(&self) -> Result<Vec<BlobHandle>, BlobstoreError> {
-		let mut conn = block_on(self.conn.lock());
+	async fn all_blobs(&self) -> Result<Vec<BlobHandle>, BlobstoreError> {
+		let mut conn = self.conn.lock().await;
 
-		let res =
-			block_on(sqlx::query("SELECT id FROM meta_blobs ORDER BY id;").fetch_all(&mut *conn))
-				.map_err(|e| BlobstoreError::DbError(Box::new(e)))?;
+		let res = sqlx::query("SELECT id FROM meta_blobs ORDER BY id;")
+			.fetch_all(&mut *conn)
+			.await
+			.map_err(|e| BlobstoreError::DbError(Box::new(e)))?;
 
 		Ok(res
 			.into_iter()
 			.map(|x| x.get::<u32, _>("id").into())
 			.collect())
+	}
+
+	async fn blob_size(&self, blob: BlobHandle) -> Result<u64, BlobstoreError> {
+		let mut conn = self.conn.lock().await;
+
+		let res = sqlx::query("SELECT file_path FROM meta_blobs WHERE id=?;")
+			.bind(u32::from(blob))
+			.fetch_one(&mut *conn)
+			.await;
+
+		let rel_file_path = match res {
+			Err(sqlx::Error::RowNotFound) => return Err(BlobstoreError::InvalidBlobHandle),
+			Err(e) => return Err(BlobstoreError::DbError(Box::new(e))),
+			Ok(res) => PathBuf::from(res.get::<&str, _>("file_path")),
+		};
+		let file_path = self.blobstore_root.join(&rel_file_path);
+
+		let meta = std::fs::metadata(file_path)?;
+
+		return Ok(meta.len());
 	}
 }
