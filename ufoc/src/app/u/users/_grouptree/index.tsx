@@ -127,7 +127,7 @@ export function useGroupTreePanel() {
 			.catch(() => {
 				setTreeState((td) => {
 					return {
-						error: false,
+						error: true,
 						loading: false,
 					};
 				});
@@ -186,7 +186,7 @@ export function useGroupTreePanel() {
 	);
 
 	// TODO: return tree state
-	return { node, selected, treeData };
+	return { node, selected, treeData, reloadTree: update_tree };
 }
 
 function GroupMenu(params: { group_id: GroupId }) {

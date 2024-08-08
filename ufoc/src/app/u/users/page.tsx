@@ -9,12 +9,17 @@ export default function Page() {
 		node: groupTree,
 		selected: selectedGroup,
 		treeData,
+		reloadTree,
 	} = useGroupTreePanel();
 
 	return (
 		<main className={styles.main}>
 			{groupTree}
-			<UsersPanel data={treeData} selected={selectedGroup} />
+			<UsersPanel
+				data={treeData}
+				selected={selectedGroup}
+				onChange={reloadTree}
+			/>
 		</main>
 	);
 }

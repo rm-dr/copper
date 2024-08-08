@@ -1,6 +1,5 @@
 import styles from "./users.module.scss";
 import { Panel, PanelTitle } from "@/app/components/panel";
-
 import {
 	XIconDots,
 	XIconEdit,
@@ -15,18 +14,12 @@ import {
 	XIconUserPlus,
 	XIconUsers,
 } from "@/app/components/icons";
-import {
-	ActionIcon,
-	Button,
-	HoverCard,
-	Menu,
-	Switch,
-	Text,
-	rem,
-} from "@mantine/core";
+import { ActionIcon, Button, Menu, Switch, Text, rem } from "@mantine/core";
 import { TreeNode } from "@/app/components/tree";
-import { GroupData } from "../_grouptree";
+import { GroupData, UserInfo } from "../_grouptree";
 import { ReactNode } from "react";
+import { useAddUserModal } from "./modals/adduser";
+import { useDeleteUserModal } from "./modals/deluser";
 
 const Wrapper = (params: { children: ReactNode }) => {
 	return (
@@ -55,11 +48,19 @@ const Wrapper = (params: { children: ReactNode }) => {
 export function UsersPanel(params: {
 	data: TreeNode<GroupData>[];
 	selected: string | null;
+	onChange: () => void;
 }) {
+	// No loading state needed here, since we re-use the data the tree component fetches
+
 	let g =
 		params.selected === null
 			? null
 			: params.data.find((x) => x.uid === params.selected);
+
+	const { open: openModal, modal: addUserModal } = useAddUserModal({
+		group: g?.data.group_info,
+		onChange: params.onChange,
+	});
 
 	// This should never happen
 	if (g === undefined) {
@@ -98,13 +99,13 @@ export function UsersPanel(params: {
 	} else {
 		userlist = g?.data.users.map((x) => {
 			return (
-				<div key={x.id} className={styles.user_entry}>
+				<div key={`${x.id}`} className={styles.user_entry}>
 					<div className={styles.user_entry_icon}>
 						<XIconUser />
 					</div>
 					<div className={styles.user_entry_text}>{x.name}</div>
 					<div className={styles.user_entry_right}>
-						<UserMenu user_id={x.id} />
+						<UserMenu user={x} onChange={params.onChange} />
 					</div>
 				</div>
 			);
@@ -113,6 +114,7 @@ export function UsersPanel(params: {
 
 	return (
 		<>
+			{addUserModal}
 			<Panel
 				panel_id={styles.panel_users}
 				icon={<XIconUsers />}
@@ -144,24 +146,39 @@ export function UsersPanel(params: {
 						<div className={styles.perm_entry_switch}>
 							<Switch defaultChecked size="xs" />
 						</div>
+						<div className={styles.perm_entry_text}>Edit datasets</div>
+					</div>
+					<div className={styles.perm_entry}>
+						<div className={styles.perm_entry_switch}>
+							<Switch defaultChecked size="xs" />
+						</div>
+						<div className={styles.perm_entry_text}>Edit groups</div>
+					</div>
+					<div className={styles.perm_entry}>
+						<div className={styles.perm_entry_switch}>
+							<Switch defaultChecked size="xs" />
+						</div>
 						<div className={styles.perm_entry_text}>Edit users</div>
 					</div>
 					<div className={styles.perm_entry} style={{ marginLeft: "2rem" }}>
 						<div className={styles.perm_entry_switch}>
 							<Switch defaultChecked size="xs" />
 						</div>
-						<div className={styles.perm_entry_text}>Edit users</div>
+						<div className={styles.perm_entry_text}>
+							Edit users parent group
+						</div>
 					</div>
 				</div>
 
 				<PanelTitle icon={<XIconList />} title={"Manage users"} />
 				<Button
 					radius="0"
-					onClick={() => {}}
+					onClick={openModal}
 					variant="light"
 					color="green"
 					size="xs"
 					fullWidth
+					disabled={g === null}
 					leftSection={<XIconUserPlus />}
 					style={{ cursor: "default" }}
 				>
@@ -174,9 +191,15 @@ export function UsersPanel(params: {
 	);
 }
 
-function UserMenu(params: { user_id: number }) {
+function UserMenu(params: { user: UserInfo; onChange: () => void }) {
+	const { open: openDelUserModal, modal: delUserModal } = useDeleteUserModal({
+		user: params.user,
+		onChange: params.onChange,
+	});
+
 	return (
 		<>
+			{delUserModal}
 			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
@@ -209,6 +232,7 @@ function UserMenu(params: { user_id: number }) {
 						leftSection={
 							<XIconTrash style={{ width: rem(14), height: rem(14) }} />
 						}
+						onClick={openDelUserModal}
 					>
 						Delete this user
 					</Menu.Item>
