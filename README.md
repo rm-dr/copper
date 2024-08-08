@@ -8,7 +8,7 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
 - [ ] Create hash and reference attrs from ui (params)
 - [ ] Complete class deletion
   - [ ] Delete blobs
-  - [ ] Check references
+  - [ ] Check references (do not allow deletion if refs exist)
   - [ ] Check pipelines
     - (or let them be invalid? Connected to pipeline CRUD)
   - [ ] How to handle running jobs?

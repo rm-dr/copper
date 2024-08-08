@@ -288,8 +288,8 @@ export function useDeleteClassModal(params: {
 					{errorMessage.response
 						? errorMessage.response
 						: errorMessage.name
-						? errorMessage.name
-						: ""}
+							? errorMessage.name
+							: ""}
 				</Text>
 			</TreeModal>
 		),
@@ -313,6 +313,16 @@ export function useAddAttrModal(params: {
 
 	const [newAttrName, setNewAttrName] = useState("");
 	const [newAttrType, setNewAttrType] = useState<string | null>(null);
+
+	let attr_extra_params = null;
+	if (newAttrType !== null) {
+		const d = attrTypes.find((x) => {
+			return x.serialize_as === newAttrType;
+		});
+		if (d !== undefined && d.extra_params !== null) {
+			attr_extra_params = d.extra_params(console.log);
+		}
+	}
 
 	const add_attr = () => {
 		setLoading(true);
@@ -424,7 +434,11 @@ export function useAddAttrModal(params: {
 					required={true}
 					style={{ marginTop: "1rem" }}
 					placeholder={"select attr type"}
-					data={attrTypes.map((x) => x.pretty_name)}
+					data={attrTypes.map((x) => ({
+						label: x.pretty_name,
+						value: x.serialize_as,
+						disabled: false
+					}))}
 					error={errorMessage.type !== null}
 					onChange={(val) => {
 						setNewAttrType(val);
@@ -443,6 +457,10 @@ export function useAddAttrModal(params: {
 					}}
 					clearable
 				/>
+
+				<div>
+					{attr_extra_params}
+				</div>
 
 				<Button.Group style={{ marginTop: "1rem" }}>
 					<Button
@@ -473,10 +491,10 @@ export function useAddAttrModal(params: {
 					{errorMessage.response
 						? errorMessage.response
 						: errorMessage.name
-						? errorMessage.name
-						: errorMessage.type
-						? errorMessage.type
-						: ""}
+							? errorMessage.name
+							: errorMessage.type
+								? errorMessage.type
+								: ""}
 				</Text>
 			</TreeModal>
 		),

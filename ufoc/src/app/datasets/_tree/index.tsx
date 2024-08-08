@@ -15,7 +15,7 @@ import {
 	XIconSettings,
 	XIconX,
 } from "@/app/components/icons";
-import { Button, Loader, Text } from "@mantine/core";
+import { Button, Loader, Select, Text } from "@mantine/core";
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { DatasetList } from "./parts/dataset";
 import { useNewDsModal } from "./parts/newdsmodal";
@@ -90,6 +90,21 @@ export const attrTypes = [
 		extra_params: null,
 	},
 
+	{
+		pretty_name: "Hash",
+		serialize_as: "Hash",
+		icon: <XIconAttrFloat />,
+		extra_params: (onChange: (a: any) => void) => {
+			return <Select
+				required={true}
+				placeholder={"select hash type"}
+				data={["SHA512", "SHA256"]}
+				clearable
+				onChange={onChange}
+			/>;
+		},
+	},
+
 	// Hash and Reference need extra params
 ];
 
@@ -98,23 +113,23 @@ export type TreeData = {
 	loading: boolean;
 
 	datasets:
-		| null
-		| {
-				// Dataset info
+	| null
+	| {
+		// Dataset info
+		name: string;
+		type: string;
+		open: boolean;
+		classes: {
+			// Classes in this dataset
+			name: string;
+			open: boolean;
+			attrs: {
+				// Attrs in this class
 				name: string;
 				type: string;
-				open: boolean;
-				classes: {
-					// Classes in this dataset
-					name: string;
-					open: boolean;
-					attrs: {
-						// Attrs in this class
-						name: string;
-						type: string;
-					}[];
-				}[];
-		  }[];
+			}[];
+		}[];
+	}[];
 };
 
 const Wrapper = (params: { children: ReactNode }) => {
@@ -166,9 +181,9 @@ export function TreePanel(params: {}) {
 					data.map(async ({ ds_type, name: dataset }) => {
 						const res = await fetch(
 							"/api/class/list?" +
-								new URLSearchParams({
-									dataset,
-								}).toString(),
+							new URLSearchParams({
+								dataset,
+							}).toString(),
 						);
 						const data: {
 							name: string;
