@@ -184,7 +184,17 @@ impl PipelineRunner {
 		// Check every node.
 		// TODO: write a smarter scheduler.
 		loop {
-			for (node, _) in pipeline.graph.iter_nodes_idx() {
+			let mut finished_all_outputs = true;
+			for (node, (_, t)) in pipeline.graph.iter_nodes_idx() {
+				match &t {
+					PipelineNodeType::PipelineOutputs { .. } => {
+						if !node_has_been_run[node.as_usize()] {
+							finished_all_outputs = false;
+						}
+					}
+					_ => {}
+				}
+
 				if let Some((name, outputs)) = self.try_run_node(
 					node,
 					&mut node_instances,
@@ -197,12 +207,14 @@ impl PipelineRunner {
 				) {
 					let p = self.get_pipeline(name.into()).unwrap();
 					self.finish_pipeline(p.clone(), outputs)?;
-					if p.name == pipeline.name {
-						return Ok(());
-					}
 				}
 			}
 
+			// TODO: end condition.
+			// TODO: after moves to END of pipeline node
+			// TODO: handle all messages?
+			// TODO: clean up threads?
+			// TODO: quick node run, no thread
 			select! {
 				recv(receive_data) -> msg => {
 					let (node, port, data) = msg.unwrap();
@@ -247,6 +259,10 @@ impl PipelineRunner {
 						}
 					}
 				}
+			}
+
+			if finished_all_outputs {
+				return Ok(());
 			}
 		}
 	}

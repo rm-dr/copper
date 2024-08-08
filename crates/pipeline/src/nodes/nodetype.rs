@@ -11,7 +11,7 @@ use crate::{
 use super::{
 	nodeinstance::PipelineNodeInstance,
 	tags::{extractcovers::ExtractCovers, extracttags::ExtractTags, striptags::StripTags},
-	util::{ifnone::IfNone, noop::Noop},
+	util::{hash::Hash, ifnone::IfNone, noop::Noop},
 };
 
 #[serde_as]
@@ -59,6 +59,7 @@ pub enum PipelineNodeType {
 
 	// Utility nodes
 	IfNone,
+	Hash,
 	Noop {
 		inputs: Vec<(PipelinePortLabel, PipelineDataType)>,
 	},
@@ -74,6 +75,7 @@ pub enum PipelineNodeType {
 impl PipelineNodeType {
 	pub fn build(&self, name: &str) -> PipelineNodeInstance {
 		match self {
+			// Magic
 			PipelineNodeType::Pipeline { .. } => unreachable!(),
 			PipelineNodeType::ConstantNode { .. } => PipelineNodeInstance::ConstantNode {
 				node_type: self.clone(),
@@ -84,6 +86,8 @@ impl PipelineNodeType {
 			PipelineNodeType::PipelineInputs { .. } => PipelineNodeInstance::PipelineInputs {
 				node_type: self.clone(),
 			},
+
+			// Util
 			PipelineNodeType::IfNone => PipelineNodeInstance::IfNone {
 				node_type: self.clone(),
 				name: name.into(),
@@ -94,6 +98,13 @@ impl PipelineNodeType {
 				name: name.into(),
 				node: Noop::new(inputs.clone()),
 			},
+			PipelineNodeType::Hash => PipelineNodeInstance::Hash {
+				node_type: self.clone(),
+				name: name.into(),
+				node: Hash::new(),
+			},
+
+			// Audio
 			PipelineNodeType::StripTags => PipelineNodeInstance::StripTags {
 				node_type: self.clone(),
 				name: name.into(),
@@ -116,18 +127,24 @@ impl PipelineNodeType {
 impl PipelineNodeType {
 	pub fn inputs(&self) -> PipelinePortSpec {
 		match self {
+			// Magic
 			Self::Pipeline { .. } => unreachable!(),
 			Self::PipelineOutputs { inputs, .. } => PipelinePortSpec::Vec(inputs),
 			Self::PipelineInputs { input_type, .. } => input_type.get_inputs(),
 			Self::ConstantNode { .. } => PipelinePortSpec::Static(&[]),
-			Self::ExtractTags { .. } => {
-				PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)])
-			}
+
+			// Util
 			Self::IfNone => PipelinePortSpec::Static(&[
 				("data", PipelineDataType::Text),
 				("ifnone", PipelineDataType::Text),
 			]),
 			Self::Noop { inputs } => PipelinePortSpec::Vec(inputs),
+			Self::Hash => PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)]),
+
+			// Audio
+			Self::ExtractTags { .. } => {
+				PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)])
+			}
 			Self::StripTags => PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)]),
 			Self::ExtractCovers => PipelinePortSpec::Static(&[("data", PipelineDataType::Binary)]),
 		}
@@ -135,21 +152,29 @@ impl PipelineNodeType {
 
 	pub fn outputs(&self) -> PipelinePortSpec {
 		match self {
+			// Magic
 			Self::Pipeline { .. } => unreachable!(),
 			Self::PipelineOutputs { output_type, .. } => output_type.get_outputs(),
 			Self::PipelineInputs { outputs, .. } => PipelinePortSpec::Vec(outputs),
 			Self::ConstantNode { value } => {
 				PipelinePortSpec::VecOwned(vec![("out".into(), value.get_type())])
 			}
+
+			// Util
+			Self::IfNone => PipelinePortSpec::Static(&[("out", PipelineDataType::Text)]),
+			Self::Hash => PipelinePortSpec::Static(&[("hash", PipelineDataType::Text)]),
+			Self::Noop { inputs } => PipelinePortSpec::Vec(inputs),
+
+			// Audio
 			Self::ExtractTags { tags } => PipelinePortSpec::VecOwned(
 				tags.iter()
 					.map(|x| (Into::<&str>::into(x).into(), PipelineDataType::Text))
 					.collect(),
 			),
-			Self::IfNone => PipelinePortSpec::Static(&[("out", PipelineDataType::Text)]),
-			Self::Noop { inputs } => PipelinePortSpec::Vec(inputs),
 			Self::StripTags => PipelinePortSpec::Static(&[("out", PipelineDataType::Binary)]),
-			Self::ExtractCovers => PipelinePortSpec::Static(&[]),
+			Self::ExtractCovers => {
+				PipelinePortSpec::Static(&[("cover_data", PipelineDataType::Binary)])
+			}
 		}
 	}
 

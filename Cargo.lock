@@ -2908,6 +2908,7 @@ dependencies = [
  "petgraph",
  "serde",
  "serde_with",
+ "sha2",
  "smartstring",
  "threadpool",
  "toml",

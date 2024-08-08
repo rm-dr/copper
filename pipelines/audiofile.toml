@@ -40,26 +40,21 @@ node.tags = [
 ]
 input.data = { "pipeline" = "data" }
 
-#[node."getcover"]
-#type = "CoverExtract"
-#input.data = "fs.data"
-
 [node.if_none]
 node.type = "IfNone"
-input.data = { node = "tags", output = "Lyrics" }
-#input.data = "if_none.out"
-input.ifnone = { "text" = "Unknown Lyrics" }
+input."data" = { node = "tags", output = "Lyrics" }
+input."ifnone" = { "text" = "Unknown Lyrics" }
 
 [node.strip]
 node.type = "StripTags"
-input.data = { pipeline = "data" }
-after = ["if_none"]
+input."data" = { pipeline = "data" }
+#after = ["add_cover"]
 
-[node."covers"]
+[node."extract_cover"]
 node.type = "ExtractCovers"
-input.data = { "pipeline" = "data" }
+input."data" = { pipeline = "data" }
 
 [node."add_cover"]
 node.type = "Pipeline"
 node.pipeline = "cover"
-input.data = { "pipeline" = "data" }
+input."cover_data" = { node = "extract_cover", output = "cover_data" }

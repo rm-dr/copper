@@ -1,4 +1,7 @@
-use std::io::Cursor;
+use std::{
+	io::{Cursor, Read},
+	sync::Arc,
+};
 use ufo_audiofile::flac::flac_read_pictures;
 use ufo_util::{data::PipelineData, mime::MimeType};
 
@@ -14,7 +17,7 @@ impl ExtractCovers {
 }
 
 impl PipelineNode for ExtractCovers {
-	fn run<F>(&self, _send_data: F, input: Vec<PipelineData>) -> Result<(), PipelineError>
+	fn run<F>(&self, send_data: F, input: Vec<PipelineData>) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{
@@ -29,13 +32,24 @@ impl PipelineNode for ExtractCovers {
 		};
 
 		let data_read = Cursor::new(&**data);
-		let _tagger = match data_type {
-			MimeType::Flac => flac_read_pictures(data_read).unwrap(),
+		let (cover_data, cover_format): (Vec<u8>, MimeType) = match data_type {
+			MimeType::Flac => {
+				let mut r = flac_read_pictures(data_read).unwrap().unwrap();
+				let mut x = Vec::new();
+				r.read_to_end(&mut x).unwrap();
+				(x, r.get_mime().clone())
+			}
 			MimeType::Mp3 => unimplemented!(),
 			_ => return Err(PipelineError::UnsupportedDataType),
 		};
 
-		//println!("{:?}", tagger);
+		send_data(
+			0,
+			PipelineData::Binary {
+				format: cover_format,
+				data: Arc::new(cover_data),
+			},
+		)?;
 
 		return Ok(());
 	}

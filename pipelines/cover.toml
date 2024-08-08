@@ -1,6 +1,6 @@
 [config.input]
 type = "Plain"
-input."data" = "binary"
+input."cover_data" = "binary"
 
 [config.output]
 type = "DataSet"
@@ -9,5 +9,10 @@ attr."image_data" = "binary"
 attr."content_hash" = "text"
 
 [config.output_map]
-"content_hash" = { "text" = "todo" }
-"image_data" = { pipeline = "data" }
+"content_hash" = { node = "hash", output = "hash" }
+"image_data" = { pipeline = "cover_data" }
+
+
+[node."hash"]
+node.type = "Hash"
+input."data" = { pipeline = "cover_data" }
