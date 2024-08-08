@@ -3138,6 +3138,8 @@ name = "ufo-audiofile"
 version = "0.1.0"
 dependencies = [
  "itertools",
+ "paste",
+ "rand",
  "serde",
  "serde_with",
  "sha2",
