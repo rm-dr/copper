@@ -2,20 +2,19 @@ import { Select } from "@mantine/core";
 import styles from "../page.module.scss";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { Panel, PanelSection } from "../../components/panel";
-import { useArgBoolean, useArgText } from "./args";
 import {
 	XIconAdjustments,
 	XIconCpu,
 	XIconHex,
 	XIconPipeline,
 } from "@/app/components/icons";
+import { PanelSwitch } from "@/app/components/panel/parts/switch";
+import { PanelText } from "@/app/components/panel/parts/text";
 
 export function usePipelinePanel(params: {
 	setSelectedPipeline: Dispatch<SetStateAction<string | null>>;
 }) {
 	const PipelineSelector = usePipelineSelector(params.setSelectedPipeline);
-	const AlbumArt = useArgBoolean("Save album art?", console.log);
-	const Genre = useArgText("Genre", console.log);
 
 	return (
 		<>
@@ -29,8 +28,12 @@ export function usePipelinePanel(params: {
 				</PanelSection>
 
 				<PanelSection icon={<XIconAdjustments />} title={"Configure arguments"}>
-					{AlbumArt}
-					{Genre}
+					<PanelSwitch name={"Save album art?"} onChange={console.log} />
+					<PanelText
+						name={"Genre"}
+						placeholder={"Genre..."}
+						onChange={console.log}
+					/>
 				</PanelSection>
 			</Panel>
 		</>
@@ -80,7 +83,7 @@ function usePipelineSelector(onPipelineSelect: (value: string | null) => void) {
 
 	return (
 		<Select
-			nothingFoundMessage="No pipeline foud..."
+			nothingFoundMessage="No pipeline found..."
 			placeholder={
 				plSelectorState.error
 					? "Error: could not fetch pipelines from server"
