@@ -1,11 +1,11 @@
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, sync::Arc};
 use ufo_util::mime::MimeType;
 use utoipa::ToSchema;
 
-use crate::api::blob::BlobHandle;
-
 use super::handles::{ClassHandle, ItemIdx};
+use crate::api::blob::BlobHandle;
 
 /// Bits of data inside a metadata db.
 #[derive(Debug, Clone)]
@@ -60,6 +60,11 @@ impl MetastoreData {
 
 	pub fn is_blob(&self) -> bool {
 		matches!(self, Self::Blob { .. })
+	}
+
+	/// Convert a hash to a hex string
+	pub fn hash_to_string(data: &Vec<u8>) -> String {
+		data.iter().map(|x| format!("{:02X}", x)).join("")
 	}
 }
 

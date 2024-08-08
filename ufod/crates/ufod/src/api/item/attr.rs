@@ -6,7 +6,6 @@ use axum::{
 	response::{AppendHeaders, IntoResponse, Response},
 };
 use axum_extra::extract::CookieJar;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tokio_util::io::ReaderStream;
 use tracing::error;
@@ -115,11 +114,7 @@ pub(super) async fn get_item_attr(
 		MetastoreData::Integer { value, .. } => format!("{value}").into_response(),
 		MetastoreData::Float { value, .. } => format!("{value}").into_response(),
 		MetastoreData::Boolean(x) => format!("{x}").into_response(),
-		MetastoreData::Hash { data, .. } => data
-			.iter()
-			.map(|x| format!("{:X?}", x))
-			.join("")
-			.into_response(),
+		MetastoreData::Hash { data, .. } => MetastoreData::hash_to_string(&data).into_response(),
 		MetastoreData::Binary { mime, data } => {
 			let body = Body::from((*data).clone());
 			let headers = AppendHeaders([(header::CONTENT_TYPE, mime.to_string())]);

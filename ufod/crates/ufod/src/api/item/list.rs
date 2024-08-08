@@ -8,7 +8,6 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use ufo_ds_core::{
@@ -204,7 +203,7 @@ impl ItemListData {
 			MetastoreData::Hash { format, data } => ItemListData::Hash {
 				attr: attr.clone(),
 				hash_type: *format,
-				value: Some(data.iter().map(|x| format!("{:X?}", x)).join("")),
+				value: Some(MetastoreData::hash_to_string(data)),
 			},
 			MetastoreData::Reference { class, item } => ItemListData::Reference {
 				attr: attr.clone(),
