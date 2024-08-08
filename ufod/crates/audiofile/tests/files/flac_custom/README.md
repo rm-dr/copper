@@ -12,5 +12,6 @@ Most of these are modified copies of files in `flac_subset`, `flac_faulty`, or `
   - Image 2: from file `57`, type is `2`, description is `ipsum`.
   - Image 3: from file `58`, type is `12`, description is `dolor`.
   - Image 4: from file `59`, type is `4`, description is `est`.
+  - Image `57` is also stored in the vorbis comment as a `METADATA_BLOCK_PICTURE`.
 - `02 - picture in vorbis comment.flac`: This is `flac_subset/57`, but with the image stored inside a vorbis `METADATA_BLOCK_PICTURE` comment instead of a proper flac picture metablock.
 - `03 - faulty picture in vorbis comment.flac`: This is `02`, but with a corrupt picture.
