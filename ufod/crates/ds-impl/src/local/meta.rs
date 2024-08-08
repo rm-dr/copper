@@ -55,7 +55,7 @@ impl LocalDataset {
 			MetastoreData::Hash { data, .. } => q.bind(&**data),
 			MetastoreData::Binary { data, .. } => q.bind(&**data),
 			MetastoreData::Reference { item, .. } => q.bind(u32::from(*item)),
-			MetastoreData::Blob { handle } => q.bind(serde_json::to_string(handle).unwrap()),
+			MetastoreData::Blob { handle } => q.bind(u32::from(*handle)),
 		}
 	}
 }
@@ -118,7 +118,7 @@ impl Metastore for LocalDataset {
 			MetastoreDataStub::Boolean => "INTEGER",
 			MetastoreDataStub::Float => "REAL",
 			MetastoreDataStub::Binary => "BLOB",
-			MetastoreDataStub::Blob => "TEXT",
+			MetastoreDataStub::Blob => "INTEGER",
 			MetastoreDataStub::Reference { .. } => "INTEGER",
 			MetastoreDataStub::Hash { .. } => "BLOB",
 		};
@@ -139,6 +139,10 @@ impl Metastore for LocalDataset {
 					res.get("id")
 				};
 				format!(" REFERENCES \"class_{id}\"(id)")
+			}
+
+			MetastoreDataStub::Blob => {
+				format!(" REFERENCES meta_blobs(id)")
 			}
 			_ => "".into(),
 		};
