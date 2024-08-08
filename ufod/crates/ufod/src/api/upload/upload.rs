@@ -13,6 +13,7 @@ use crate::api::RouterState;
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 pub(super) struct UploadFragmentMetadata {
 	pub part_idx: u32,
+	pub part_hash: String,
 }
 
 /// Upload a fragment of a file
@@ -118,9 +119,10 @@ pub(super) async fn upload(
 					}
 				};
 
+				let m = meta.as_ref().unwrap();
 				match state
 					.uploader
-					.consume_fragment(&job_id, &file_id, &data, meta.as_ref().unwrap().part_idx)
+					.consume_fragment(&job_id, &file_id, &data, m.part_idx, &m.part_hash)
 					.await
 				{
 					Ok(()) => {}

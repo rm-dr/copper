@@ -7,7 +7,7 @@ use axum::{
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
-use tracing::{error, info};
+use tracing::error;
 use utoipa::ToSchema;
 
 use crate::api::RouterState;

@@ -19,11 +19,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 
 ## 📦 CRUD items
-- [ ] Hash files when uploading (incremental)
-  - make sure uploads don't expire
-  - [ ] clean up upload api
-  - [ ] move upload logic to `Uploader`
-  - [ ] get fragment size from server config
+- [ ] get fragment size from server config
 - [ ] UI item CRUD
   - [ ] Delete items
   - [ ] Bottom panel (edit items)

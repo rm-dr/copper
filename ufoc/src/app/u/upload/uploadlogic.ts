@@ -56,6 +56,8 @@ export async function uploadBlob(params: {
 	var frag_count = 0;
 	let uploaded_bytes = 0;
 
+	const frag_hashes: string[] = [];
+
 	for (
 		let frag_idx = 0;
 		frag_idx * params.max_fragment_size < params.blob.size;
@@ -72,11 +74,24 @@ export async function uploadBlob(params: {
 
 		const fragment = params.blob.slice(byte_idx, last_byte);
 
+		const hash = await crypto.subtle
+			.digest("SHA-256", await fragment.arrayBuffer())
+			.then((h) => {
+				let hex = [],
+					view = new DataView(h);
+				for (let i = 0; i < view.byteLength; i += 4)
+					hex.push(("00000000" + view.getUint32(i).toString(16)).slice(-8));
+				return hex.join("").toUpperCase();
+			});
+
+		frag_hashes.push(hash);
+
 		const formData = new FormData();
 		formData.append(
 			"metadata",
 			JSON.stringify({
 				part_idx: frag_idx,
+				part_hash: hash,
 			}),
 		);
 		formData.append("fragment", fragment);
@@ -98,23 +113,35 @@ export async function uploadBlob(params: {
 		params.onProgress(uploaded_bytes);
 	}
 
-	let res = await fetch(
-		`/api/upload/${params.upload_job_id}/${file_name}/finish`,
+	const final_hash = await crypto.subtle
+		.digest("SHA-256", new TextEncoder().encode(frag_hashes.join("")))
+		.then((h) => {
+			let hex = [],
+				view = new DataView(h);
+			for (let i = 0; i < view.byteLength; i += 4)
+				hex.push(("00000000" + view.getUint32(i).toString(16)).slice(-8));
+			return hex.join("").toUpperCase();
+		});
+
+	let { data, error } = await APIclient.POST(
+		"/upload/{job_id}/{file_id}/finish",
 		{
 			signal: params.abort_controller.signal,
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
+			body: {
 				frag_count,
-				hash: "TODO",
-			}),
+				hash: final_hash,
+			},
+			params: {
+				path: {
+					job_id: params.upload_job_id,
+					file_id: file_name,
+				},
+			},
 		},
 	);
 
-	if (!res.ok) {
-		throw Error(`Bad response from server: ${res.status}`);
+	if (error !== undefined) {
+		throw Error(error);
 	}
 
 	return file_name;
