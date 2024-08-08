@@ -291,6 +291,43 @@ impl AuthProvider {
 		}
 	}
 
+	pub async fn rename_group(&self, group: GroupId, name: &str) -> Result<(), CreateGroupError> {
+		let name = clean_name(name).map_err(|e| CreateGroupError::BadName(e))?;
+		if name == "Root Group" {
+			return Err(CreateGroupError::AlreadyExists);
+		}
+		if group == GroupId::RootGroup {
+			return Err(CreateGroupError::AlreadyExists);
+		}
+
+		info!(message = "Renaming group", ?group, name);
+
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| CreateGroupError::DbError(Box::new(e)))?;
+
+		let res = sqlx::query("UPDATE groups SET group_name=? WHERE id=?;")
+			.bind(&name)
+			.bind(group.get_id().unwrap())
+			.bind(serde_json::to_string(&SerializedGroupPermissions::default()).unwrap())
+			.execute(&mut *conn)
+			.await;
+
+		match res {
+			Ok(_) => return Ok(()),
+			Err(e) => {
+				if let Some(e) = e.as_database_error() {
+					if e.is_unique_violation() {
+						return Err(CreateGroupError::AlreadyExists);
+					}
+				}
+				return Err(CreateGroupError::DbError(Box::new(e)));
+			}
+		}
+	}
+
 	pub async fn del_group(&self, del_group: GroupId) -> Result<(), DeleteGroupError> {
 		if del_group == GroupId::RootGroup {
 			return Err(DeleteGroupError::CantDeleteRootGroup);
@@ -379,6 +416,37 @@ impl AuthProvider {
 					if e.is_foreign_key_violation() {
 						return Err(CreateUserError::BadGroup);
 					} else if e.is_unique_violation() {
+						return Err(CreateUserError::AlreadyExists);
+					}
+				}
+				return Err(CreateUserError::DbError(Box::new(e)));
+			}
+		}
+	}
+
+	pub async fn rename_user(&self, user: UserId, name: &str) -> Result<(), CreateUserError> {
+		let name = clean_name(name).map_err(|e| CreateUserError::BadName(e))?;
+
+		info!(message = "Renaming user", ?user, name);
+
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| CreateUserError::DbError(Box::new(e)))?;
+
+		let res = sqlx::query("UPDATE users SET user_name=? WHERE id=?;")
+			.bind(&name)
+			.bind(u32::from(user))
+			.bind(serde_json::to_string(&SerializedGroupPermissions::default()).unwrap())
+			.execute(&mut *conn)
+			.await;
+
+		match res {
+			Ok(_) => return Ok(()),
+			Err(e) => {
+				if let Some(e) = e.as_database_error() {
+					if e.is_unique_violation() {
 						return Err(CreateUserError::AlreadyExists);
 					}
 				}

@@ -140,6 +140,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/auth/group/rename": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Create a new user */
+		post: operations["rename_group"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/auth/login": {
 		parameters: {
 			query?: never;
@@ -220,6 +237,23 @@ export interface paths {
 		post?: never;
 		/** Delete a user */
 		delete: operations["del_user"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/auth/user/rename": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Create a new user */
+		post: operations["rename_user"];
+		delete?: never;
 		options?: never;
 		head?: never;
 		patch?: never;
@@ -944,6 +978,14 @@ export interface components {
 			new_name: string;
 			old_name: string;
 		};
+		RenameGroupRequest: {
+			group: components["schemas"]["GroupId"];
+			new_name: string;
+		};
+		RenameUserRequest: {
+			new_name: string;
+			user: components["schemas"]["UserId"];
+		};
 		/** @description This server's pipeline runner status */
 		RunnerStatus: {
 			/** @description How many jobs have failed */
@@ -1537,6 +1579,51 @@ export interface operations {
 			};
 		};
 	};
+	rename_group: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["RenameGroupRequest"];
+			};
+		};
+		responses: {
+			/** @description Successfully renamed group */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Could not rename group */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+		};
+	};
 	try_login: {
 		parameters: {
 			query?: never;
@@ -1713,6 +1800,51 @@ export interface operations {
 				content?: never;
 			};
 			/** @description Could not delete user */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+		};
+	};
+	rename_user: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["RenameUserRequest"];
+			};
+		};
+		responses: {
+			/** @description Successfully renamed user */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Could not rename user */
 			400: {
 				headers: {
 					[name: string]: unknown;

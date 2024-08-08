@@ -16,6 +16,7 @@ import {
 } from "@tabler/icons-react";
 import { APIclient } from "@/app/_util/api";
 import { components } from "@/app/_util/api/openapi";
+import { useRenameGroupModal } from "../_modals/renamegroup";
 
 type TreeState = {
 	error: boolean;
@@ -210,10 +211,16 @@ function GroupMenu(params: {
 		},
 	);
 
+	const { open: openRenameModal, modal: renameModal } = useRenameGroupModal({
+		group: params.group,
+		onChange: params.onChange,
+	});
+
 	return (
 		<>
 			{addGroupModal}
 			{delGroupModal}
+			{renameModal}
 			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
@@ -231,6 +238,7 @@ function GroupMenu(params: {
 								style={{ width: rem(14), height: rem(14) }}
 							/>
 						}
+						onClick={openRenameModal}
 					>
 						Rename
 					</Menu.Item>
