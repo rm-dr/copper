@@ -2,7 +2,7 @@
 
 use std::{
 	collections::VecDeque,
-	io::{Cursor, ErrorKind, Read, Write},
+	io::{Cursor, ErrorKind, Read, Seek, Write},
 };
 
 use super::{errors::FlacError, metablocktype::FlacMetablockType};
@@ -297,18 +297,21 @@ impl Write for FlacMetaStrip {
 				};
 
 				// Otherwise, keep reading.
-				let read = usize::try_from(if really_read {
-					std::io::copy(
+				let read = if really_read {
+					usize::try_from(std::io::copy(
 						&mut buf.by_ref().take(current_block_left.try_into().unwrap()),
 						&mut self.current_block,
-					)
+					)?)
+					.unwrap()
 				} else {
-					std::io::copy(
-						&mut buf.by_ref().take(current_block_left.try_into().unwrap()),
-						&mut std::io::empty(),
-					)
-				}?)
-				.unwrap();
+					buf.seek(std::io::SeekFrom::Current(
+						current_block_left
+							.min(buf.get_ref().len() - written)
+							.try_into()
+							.unwrap(),
+					))?;
+					current_block_left.min(buf.get_ref().len() - written)
+				};
 				self.current_block_length += read;
 
 				if read == 0 {
