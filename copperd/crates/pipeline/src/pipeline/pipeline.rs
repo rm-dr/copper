@@ -120,7 +120,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				(
 					n.id.clone(),
 					match n.node_params.get("data_type") {
-						Some(NodeParameterValue::DataType(x)) => x.clone(),
+						Some(NodeParameterValue::DataType(x)) => *x,
 						_ => unreachable!(),
 					},
 				)

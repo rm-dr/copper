@@ -1,11 +1,3 @@
-use itertools::Itertools;
-use sqlx::{
-	query::Query,
-	sqlite::{SqliteArguments, SqliteRow},
-	Connection, Row, Sqlite,
-};
-use std::{io::Read, iter, str::FromStr, sync::Arc};
-use tracing::{info, trace};
 use copper_ds_core::{
 	api::{
 		blob::{BlobHandle, Blobstore},
@@ -16,6 +8,14 @@ use copper_ds_core::{
 	handles::{AttrHandle, ClassHandle, ItemIdx},
 };
 use copper_util::{mime::MimeType, names::clean_name};
+use itertools::Itertools;
+use sqlx::{
+	query::Query,
+	sqlite::{SqliteArguments, SqliteRow},
+	Connection, Row, Sqlite,
+};
+use std::{io::Read, iter, str::FromStr, sync::Arc};
+use tracing::{info, trace};
 
 use super::LocalDataset;
 
@@ -220,7 +220,7 @@ impl Metastore for LocalDataset {
 		data_type: MetastoreDataStub,
 		options: AttributeOptions,
 	) -> Result<AttrHandle, MetastoreError> {
-		let attr_name = clean_name(attr_name).map_err(|e| MetastoreError::BadAttrName(e))?;
+		let attr_name = clean_name(attr_name).map_err(MetastoreError::BadAttrName)?;
 
 		trace!(
 			message = "Adding an attribute",
@@ -351,7 +351,7 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn add_class(&self, class_name: &str) -> Result<ClassHandle, MetastoreError> {
-		let class_name = clean_name(class_name).map_err(|e| MetastoreError::BadAttrName(e))?;
+		let class_name = clean_name(class_name).map_err(MetastoreError::BadAttrName)?;
 
 		trace!(message = "Adding a class", class_name);
 
@@ -506,7 +506,7 @@ impl Metastore for LocalDataset {
 				Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
 				Ok(res) => (
 					res.get::<u32, _>("class_id").into(),
-					res.get::<bool, _>("is_unique").into(),
+					res.get::<bool, _>("is_unique"),
 				),
 			}
 		};
@@ -829,7 +829,7 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn class_set_name(&self, class: ClassHandle, name: &str) -> Result<(), MetastoreError> {
-		let name = clean_name(name).map_err(|e| MetastoreError::BadAttrName(e))?;
+		let name = clean_name(name).map_err(MetastoreError::BadAttrName)?;
 
 		// Make sure this name isn't already taken
 		let x = self.get_class_by_name(&name).await?;
@@ -923,7 +923,7 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn attr_set_name(&self, attr: AttrHandle, name: &str) -> Result<(), MetastoreError> {
-		let name = clean_name(name).map_err(|e| MetastoreError::BadAttrName(e))?;
+		let name = clean_name(name).map_err(MetastoreError::BadAttrName)?;
 
 		// Make sure this name isn't already taken
 		let x = self.get_attr(attr).await?;

@@ -1,11 +1,11 @@
+use copper_ds_impl::{local::LocalDataset, DatasetType};
+use copper_util::names::clean_name;
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{Connection, Row, SqlitePool};
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{debug, info};
-use copper_ds_impl::{local::LocalDataset, DatasetType};
-use copper_util::names::clean_name;
 
 use crate::config::CopperConfig;
 
@@ -41,7 +41,7 @@ impl DatasetProvider {
 		name: &str,
 		ds_type: DatasetType,
 	) -> Result<(), CreateDatasetError> {
-		let name = clean_name(name).map_err(|e| CreateDatasetError::BadName(e))?;
+		let name = clean_name(name).map_err(CreateDatasetError::BadName)?;
 
 		// Make sure this name is new
 		let datasets = self
@@ -230,7 +230,7 @@ impl DatasetProvider {
 		old_name: &str,
 		new_name: &str,
 	) -> Result<(), RenameDatasetError> {
-		let new_name = clean_name(new_name).map_err(|e| RenameDatasetError::BadName(e))?;
+		let new_name = clean_name(new_name).map_err(RenameDatasetError::BadName)?;
 
 		// Make sure this name is new
 		let datasets = self

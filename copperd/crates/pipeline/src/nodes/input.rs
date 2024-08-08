@@ -28,7 +28,7 @@ impl<DataType: PipelineData> InputInfo<DataType> {
 
 		let data_type = if let Some(value) = params.get("data_type") {
 			match value {
-				NodeParameterValue::DataType(data_type) => data_type.clone(),
+				NodeParameterValue::DataType(data_type) => *data_type,
 				_ => {
 					return Err(InitNodeError::BadParameterType {
 						param_name: "data_type".into(),

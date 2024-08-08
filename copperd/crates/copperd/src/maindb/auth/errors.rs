@@ -30,6 +30,7 @@ impl Error for DeleteGroupError {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum CreateUserError {
 	/// Database error
 	DbError(Box<dyn Error>),

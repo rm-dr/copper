@@ -1,10 +1,3 @@
-use futures::executor::block_on;
-use smartstring::{LazyCompact, SmartString};
-use std::{
-	collections::BTreeMap,
-	io::{Read, Write},
-	sync::Arc,
-};
 use copper_ds_core::{
 	api::{
 		blob::{BlobHandle, Blobstore, BlobstoreTmpWriter},
@@ -19,6 +12,13 @@ use copper_pipeline::{
 	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
+};
+use futures::executor::block_on;
+use smartstring::{LazyCompact, SmartString};
+use std::{
+	collections::BTreeMap,
+	io::{Read, Write},
+	sync::Arc,
 };
 
 use crate::{
@@ -106,7 +106,7 @@ impl AddItemInfo {
 				.map(|x| (PipelinePortID::new(&x.name), x))
 				.collect();
 
-		let data = attrs.iter().map(|(k, _)| (k.clone(), None)).collect();
+		let data = attrs.keys().map(|k| (k.clone(), None)).collect();
 
 		Ok(Self {
 			outputs: BTreeMap::from([(
@@ -221,7 +221,7 @@ impl Node<CopperData> for AddItem {
 		&mut self,
 		send_data: &dyn Fn(PipelinePortID, CopperData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
-		for (_, hold) in &mut self.info.data {
+		for hold in self.info.data.values_mut() {
 			match hold {
 				Some(DataHold::BlobWriting { reader, writer }) => match reader {
 					DataSource::Uninitialized => {

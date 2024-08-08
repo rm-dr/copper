@@ -48,7 +48,11 @@ pub(super) struct SerializedGroupPermissions {
 #[derive(Debug, Clone)]
 pub enum GroupPermissionState {
 	Allowed,
-	Disallowed { by: GroupId },
+
+	#[allow(dead_code)]
+	Disallowed {
+		by: GroupId,
+	},
 }
 
 impl GroupPermissionState {

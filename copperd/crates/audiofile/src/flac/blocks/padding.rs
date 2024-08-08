@@ -25,7 +25,7 @@ impl FlacMetablockDecode for FlacPaddingBlock {
 
 impl FlacMetablockEncode for FlacPaddingBlock {
 	fn get_len(&self) -> u32 {
-		self.size.try_into().unwrap()
+		self.size
 	}
 
 	fn encode(
@@ -43,10 +43,7 @@ impl FlacMetablockEncode for FlacPaddingBlock {
 			header.encode(target)?;
 		}
 
-		std::io::copy(
-			&mut std::io::repeat(0u8).take(self.size.try_into().unwrap()),
-			target,
-		)?;
+		std::io::copy(&mut std::io::repeat(0u8).take(self.size.into()), target)?;
 
 		return Ok(());
 	}

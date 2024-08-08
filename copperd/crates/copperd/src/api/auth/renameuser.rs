@@ -43,7 +43,7 @@ pub(super) async fn rename_user(
 				return StatusCode::UNAUTHORIZED.into_response();
 			}
 
-			let target_user = match state.main_db.auth.get_user(payload.user.into()).await {
+			let target_user = match state.main_db.auth.get_user(payload.user).await {
 				Ok(x) => x,
 				Err(e) => {
 					error!(

@@ -23,6 +23,7 @@ use crate::{
 };
 
 #[derive(Debug)]
+#[allow(clippy::manual_non_exhaustive)]
 pub struct PipelineSingleJobError {
 	// Prevent creation of this error outside this module
 	_private: (),
@@ -163,7 +164,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	}
 
 	pub fn get_input(&self) -> &BTreeMap<SmartString<LazyCompact>, DataType> {
-		&self.context.get_input()
+		self.context.get_input()
 	}
 }
 
@@ -188,7 +189,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 						&context,
 						&node_data.node_type,
 						&node_data.node_params,
-						&node_data.id.id(),
+						node_data.id.id(),
 					)
 					// We already checked node type in `Builder`
 					.unwrap()

@@ -5,9 +5,9 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
+use copper_ds_core::{api::meta::Metastore, errors::MetastoreError, handles::AttrHandle};
 use serde::Deserialize;
 use tracing::error;
-use copper_ds_core::{api::meta::Metastore, errors::MetastoreError, handles::AttrHandle};
 use utoipa::ToSchema;
 
 use crate::api::RouterState;
@@ -81,7 +81,7 @@ pub(super) async fn rename_attr(
 				.into_response()
 		}
 		Err(MetastoreError::BadAttrHandle) => {
-			return (StatusCode::BAD_REQUEST, format!("Invalid attribute handle")).into_response()
+			return (StatusCode::BAD_REQUEST, "Invalid attribute handle").into_response()
 		}
 		Err(MetastoreError::BadAttrName(x)) => {
 			return (

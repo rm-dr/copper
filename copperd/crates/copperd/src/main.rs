@@ -1,10 +1,10 @@
 use api::RouterState;
 use config::CopperConfig;
+use copper_node_base::{data::CopperData, CopperContext};
 use futures::TryFutureExt;
 use std::{error::Error, future::IntoFuture, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::info;
-use copper_node_base::{data::CopperData, CopperContext};
 
 use copper_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
 
@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	}
 
 	let main_db = maindb::MainDB::open(config.clone()).await.unwrap();
-	let uploader = uploader::Uploader::open(config.clone());
+	let uploader = uploader::Uploader::open(config.clone()).unwrap();
 
 	// Prep runner
 	let mut runner: PipelineRunner<CopperData, CopperContext> =

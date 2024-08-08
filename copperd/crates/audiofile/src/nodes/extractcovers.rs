@@ -24,7 +24,7 @@ impl ExtractCoversInfo {
 	pub fn new(
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
 	) -> Result<Self, InitNodeError> {
-		if params.len() != 0 {
+		if params.is_empty() {
 			return Err(InitNodeError::BadParameterCount { expected: 0 });
 		}
 

@@ -39,6 +39,7 @@ impl IntoResponse for UploadNewFileError {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum UploadFinishFileError {
 	/// We tried to finish a file in a job that doesn't exist
 	BadUploadJob,

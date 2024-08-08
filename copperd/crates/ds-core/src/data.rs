@@ -1,7 +1,7 @@
+use copper_util::mime::MimeType;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, sync::Arc};
-use copper_util::mime::MimeType;
 use utoipa::ToSchema;
 
 use super::handles::{ClassHandle, ItemIdx};
@@ -63,7 +63,7 @@ impl MetastoreData {
 	}
 
 	/// Convert a hash to a hex string
-	pub fn hash_to_string(data: &Vec<u8>) -> String {
+	pub fn hash_to_string(data: &[u8]) -> String {
 		data.iter().map(|x| format!("{:02X}", x)).join("")
 	}
 }

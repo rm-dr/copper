@@ -5,9 +5,9 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
+use copper_ds_core::{api::meta::Metastore, errors::MetastoreError, handles::ClassHandle};
 use serde::Deserialize;
 use tracing::error;
-use copper_ds_core::{api::meta::Metastore, errors::MetastoreError, handles::ClassHandle};
 use utoipa::ToSchema;
 
 use crate::api::RouterState;
@@ -83,7 +83,7 @@ pub(super) async fn rename_class(
 				.into_response()
 		}
 		Err(MetastoreError::BadClassHandle) => {
-			return (StatusCode::BAD_REQUEST, format!("Invalid class handle")).into_response()
+			return (StatusCode::BAD_REQUEST, "Invalid class handle").into_response()
 		}
 		Err(MetastoreError::BadClassName(x)) => {
 			return (StatusCode::BAD_REQUEST, format!("Invalid class name: {x}")).into_response()

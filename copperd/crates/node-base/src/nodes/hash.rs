@@ -116,9 +116,7 @@ impl Hash {
 
 			outputs: BTreeMap::from([(
 				PipelinePortID::new("hash"),
-				CopperDataStub::Hash {
-					hash_type: hash_type,
-				},
+				CopperDataStub::Hash { hash_type },
 			)]),
 
 			data: DataSource::Uninitialized,

@@ -3,6 +3,7 @@
 mod param;
 pub use param::*;
 
+#[allow(clippy::module_inception)]
 mod dispatcher;
 pub use dispatcher::*;
 

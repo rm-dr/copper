@@ -7,13 +7,13 @@ use axum_extra::extract::{
 	cookie::{Cookie, Expiration, SameSite},
 	CookieJar,
 };
+use copper_util::names::clean_name;
 use errors::{CreateGroupError, CreateUserError, DeleteGroupError};
 use rand::{distributions::Alphanumeric, rngs::OsRng, Rng};
 use sqlx::{Row, SqlitePool};
 use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
-use copper_util::names::clean_name;
 
 pub mod errors;
 mod info;
@@ -250,7 +250,7 @@ impl AuthProvider {
 	}
 
 	pub async fn new_group(&self, name: &str, parent: GroupId) -> Result<(), CreateGroupError> {
-		let name = clean_name(name).map_err(|e| CreateGroupError::BadName(e))?;
+		let name = clean_name(name).map_err(CreateGroupError::BadName)?;
 		if name == "Root Group" {
 			return Err(CreateGroupError::AlreadyExists);
 		}
@@ -292,7 +292,7 @@ impl AuthProvider {
 	}
 
 	pub async fn rename_group(&self, group: GroupId, name: &str) -> Result<(), CreateGroupError> {
-		let name = clean_name(name).map_err(|e| CreateGroupError::BadName(e))?;
+		let name = clean_name(name).map_err(CreateGroupError::BadName)?;
 		if name == "Root Group" {
 			return Err(CreateGroupError::AlreadyExists);
 		}
@@ -381,7 +381,7 @@ impl AuthProvider {
 		password: &str,
 		group: GroupId,
 	) -> Result<(), CreateUserError> {
-		let user_name = clean_name(user_name).map_err(|e| CreateUserError::BadName(e))?;
+		let user_name = clean_name(user_name).map_err(CreateUserError::BadName)?;
 		let pw_hash = Self::hash_password(password);
 
 		let mut conn = self
@@ -425,7 +425,7 @@ impl AuthProvider {
 	}
 
 	pub async fn rename_user(&self, user: UserId, name: &str) -> Result<(), CreateUserError> {
-		let name = clean_name(name).map_err(|e| CreateUserError::BadName(e))?;
+		let name = clean_name(name).map_err(CreateUserError::BadName)?;
 
 		info!(message = "Renaming user", ?user, name);
 
