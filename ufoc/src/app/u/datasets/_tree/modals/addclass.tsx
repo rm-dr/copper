@@ -16,15 +16,25 @@ export function useAddClassModal(params: {
 	const [isLoading, setLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-	const form = useForm({
+	const form = useForm<{
+		name: null | string;
+	}>({
 		mode: "uncontrolled",
 		initialValues: {
-			new_class_name: "",
-			dataset: params.dataset_name,
+			name: null,
 		},
 		validate: {
-			new_class_name: (value) =>
-				value.trim().length === 0 ? "Name cannot be empty" : null,
+			name: (value) => {
+				if (value === null) {
+					return "This field is required";
+				}
+
+				if (value.trim().length === 0) {
+					return "Name must not be empty";
+				}
+
+				return null;
+			},
 		},
 	});
 
@@ -63,7 +73,18 @@ export function useAddClassModal(params: {
 						setLoading(true);
 						setErrorMessage(null);
 
-						APIclient.POST("/class/add", { body: values })
+						if (values.name === null) {
+							throw Error(
+								"Entered unreachable code: name is null, this should've been caught by `validate`",
+							);
+						}
+
+						APIclient.POST("/class/add", {
+							body: {
+								new_class_name: values.name,
+								dataset: params.dataset_name,
+							},
+						})
 							.then(({ data, error }) => {
 								if (error !== undefined) {
 									throw error;
@@ -83,8 +104,8 @@ export function useAddClassModal(params: {
 						data-autofocus
 						placeholder="New class name"
 						disabled={isLoading}
-						key={form.key("new_class_name")}
-						{...form.getInputProps("new_class_name")}
+						key={form.key("name")}
+						{...form.getInputProps("name")}
 					/>
 					<Button.Group style={{ marginTop: "1rem" }}>
 						<Button

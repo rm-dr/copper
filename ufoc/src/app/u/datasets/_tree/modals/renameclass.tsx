@@ -17,15 +17,21 @@ export function useRenameClassModal(params: {
 	const [isLoading, setLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-	const form = useForm({
+	const form = useForm<{
+		new_name: null | string;
+	}>({
 		mode: "uncontrolled",
 		initialValues: {
-			new_name: "",
+			new_name: null,
 		},
 		validate: {
 			new_name: (value) => {
-				if (value.trim().length === 0) {
+				if (value === null) {
 					return "This field is required";
+				}
+
+				if (value.trim().length === 0) {
+					return "Class name must not be empty";
 				}
 
 				return null;
@@ -67,6 +73,12 @@ export function useRenameClassModal(params: {
 					onSubmit={form.onSubmit((values) => {
 						setLoading(true);
 						setErrorMessage(null);
+
+						if (values.new_name === null) {
+							throw Error(
+								"Entered unreachable code: new_name is null, this should've been caught by `validate`",
+							);
+						}
 
 						APIclient.POST("/class/rename", {
 							body: {

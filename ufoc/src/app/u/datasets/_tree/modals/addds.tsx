@@ -13,7 +13,12 @@ export function useNewDsModal(onSuccess: () => void) {
 	const [isLoading, setLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-	const form = useForm({
+	const form = useForm<{
+		name: null | string;
+		params: {
+			type: any;
+		};
+	}>({
 		mode: "uncontrolled",
 		initialValues: {
 			name: "",
@@ -22,8 +27,18 @@ export function useNewDsModal(onSuccess: () => void) {
 			},
 		},
 		validate: {
-			name: (value) =>
-				value.trim().length === 0 ? "Name cannot be empty" : null,
+			name: (value) => {
+				if (value === null) {
+					return "This field is required";
+				}
+
+				if (value.trim().length === 0) {
+					return "Name must not be empty";
+				}
+
+				return null;
+			},
+
 			params: {
 				type: (value) => (value === null ? "Type cannot be empty" : null),
 			},
@@ -51,10 +66,17 @@ export function useNewDsModal(onSuccess: () => void) {
 						setLoading(true);
 						setErrorMessage(null);
 
+						if (values.name === null) {
+							throw Error(
+								"Entered unreachable code: name is null, this should've been caught by `validate`",
+							);
+						}
+
 						APIclient.POST("/dataset/add", {
 							body: {
 								name: values.name,
 								params: {
+									// TODO: clean up when we have more than one dataset type
 									type: values.params.type as unknown as "Local",
 								},
 							},
