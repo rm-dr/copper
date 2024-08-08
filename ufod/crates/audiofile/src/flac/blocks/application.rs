@@ -13,7 +13,6 @@ pub struct FlacApplicationBlock {
 }
 
 impl FlacMetablockDecode for FlacApplicationBlock {
-	/// Decode a flac "Application" block. Do not provide the metablock header.
 	fn decode(data: &[u8]) -> Result<Self, FlacDecodeError> {
 		let mut d = Cursor::new(data);
 

@@ -2,8 +2,6 @@ use crate::flac::errors::{FlacDecodeError, FlacEncodeError};
 
 use super::{FlacMetablockDecode, FlacMetablockEncode, FlacMetablockHeader, FlacMetablockType};
 
-// TODO: parse
-
 /// A seektable block in a flac file
 pub struct FlacSeektableBlock {
 	/// The seek table
