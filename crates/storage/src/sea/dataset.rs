@@ -10,7 +10,7 @@ use super::{
 	errors::SeaDatasetError,
 	migrator::Migrator,
 };
-use crate::api::{Dataset, DatasetHandle};
+use crate::api::{AttributeOptions, Dataset, DatasetHandle};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SeaItemHandle(i32);
@@ -130,6 +130,7 @@ impl Dataset for SeaDataset {
 		class: Self::ClassHandle,
 		name: &str,
 		data_type: ufo_util::data::PipelineDataType,
+		options: AttributeOptions,
 	) -> Result<Self::AttrHandle, Self::ErrorType> {
 		let new_attr = attr::ActiveModel {
 			id: ActiveValue::NotSet,
@@ -142,6 +143,7 @@ impl Dataset for SeaDataset {
 				}
 				.into(),
 			),
+			is_unique: ActiveValue::Set(options.unique),
 		};
 
 		let res = Attr::insert(new_attr)
@@ -286,8 +288,8 @@ impl Dataset for SeaDataset {
 				}
 				PipelineDataType::Binary => {
 					value_binary::Entity::delete_many()
-						.filter(value_binary::Column::Attr.eq(Into::<i32>::into(attr)))
-						.filter(value_binary::Column::Attr.eq(Into::<i32>::into(item)))
+						.filter(value_binary::Column::Attr.eq(i32::from(attr)))
+						.filter(value_binary::Column::Attr.eq(i32::from(item)))
 						.exec(self.conn.as_ref().ok_or(SeaDatasetError::NotConnected)?)
 						.await
 						.map_err(SeaDatasetError::Database)?;
@@ -312,6 +314,27 @@ impl Dataset for SeaDataset {
 					.map_err(SeaDatasetError::Database)?;
 			}
 			PipelineData::Text(text) => {
+				let found_attr: Option<attr::Model> = Attr::find_by_id(Into::<i32>::into(attr))
+					.one(self.conn.as_ref().ok_or(SeaDatasetError::NotConnected)?)
+					.await
+					.map_err(SeaDatasetError::Database)?;
+
+				if found_attr.is_none() {
+					return Err(SeaDatasetError::BadAttrHandle);
+				}
+
+				if found_attr.unwrap().is_unique {
+					let found_val: Option<value_str::Model> = ValueStr::find()
+						.filter(value_str::Column::Attr.eq(i32::from(attr)))
+						.filter(value_str::Column::Value.eq((**text).clone()))
+						.one(self.conn.as_ref().ok_or(SeaDatasetError::NotConnected)?)
+						.await
+						.map_err(SeaDatasetError::Database)?;
+					if found_val.is_some() {
+						return Err(SeaDatasetError::UniqueViolated);
+					}
+				}
+
 				let new_value = value_str::ActiveModel {
 					id: ActiveValue::NotSet,
 					attr: ActiveValue::Set(attr.into()),

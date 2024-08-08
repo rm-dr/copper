@@ -10,6 +10,7 @@ pub struct Model {
 	pub name: String,
 	pub class: i32,
 	pub datatype: String,
+	pub is_unique: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

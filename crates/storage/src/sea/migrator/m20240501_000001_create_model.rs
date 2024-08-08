@@ -24,6 +24,7 @@ pub enum Attr {
 	Name,
 	Class,
 	Datatype,
+	IsUnique,
 }
 
 #[derive(Iden)]
@@ -98,6 +99,7 @@ impl MigrationTrait for Migration {
 							.to(Class::Table, Class::Id),
 					)
 					.col(ColumnDef::new(Attr::Datatype).string().not_null())
+					.col(ColumnDef::new(Attr::IsUnique).boolean().not_null())
 					.to_owned(),
 			)
 			.await?;
@@ -173,7 +175,7 @@ impl MigrationTrait for Migration {
 							.auto_increment()
 							.primary_key(),
 					)
-					.col(ColumnDef::new(ValueBinary::Format).binary().not_null())
+					.col(ColumnDef::new(ValueBinary::Format).string().not_null())
 					.col(ColumnDef::new(ValueBinary::Value).binary().not_null())
 					.col(ColumnDef::new(ValueBinary::Attr).integer().not_null())
 					.foreign_key(

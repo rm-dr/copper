@@ -1,11 +1,33 @@
 use std::{fmt::Debug, hash::Hash};
 use ufo_util::data::{PipelineData, PipelineDataType};
 
+pub struct AttributeOptions {
+	pub(crate) unique: bool,
+}
+
+impl Default for AttributeOptions {
+	fn default() -> Self {
+		Self { unique: false }
+	}
+}
+
+impl AttributeOptions {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	pub fn unique(mut self, is_unique: bool) -> Self {
+		self.unique = is_unique;
+		self
+	}
+}
+
 pub trait DatasetHandle:
 	Clone + Copy + Eq + Hash + Debug + Send + Sync + PartialEq + PartialOrd + Ord
 {
 }
 
+// TODO: better db backend. EAV is slow.
 // TODO: count attrs
 // TODO: why do we need `async_fn_in_trait`?
 #[allow(async_fn_in_trait)]
@@ -30,6 +52,7 @@ pub trait Dataset {
 		class: Self::ClassHandle,
 		name: &str,
 		data_type: PipelineDataType,
+		options: AttributeOptions,
 	) -> Result<Self::AttrHandle, Self::ErrorType>;
 
 	async fn del_class(&mut self, class: Self::ClassHandle) -> Result<(), Self::ErrorType>;

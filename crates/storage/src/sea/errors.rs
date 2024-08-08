@@ -14,6 +14,9 @@ pub enum SeaDatasetError {
 
 	/// We tried to set an attribute with data of a different type
 	TypeMismatch,
+
+	/// A `unique` constraint was violated
+	UniqueViolated,
 }
 
 impl Display for SeaDatasetError {
@@ -23,6 +26,7 @@ impl Display for SeaDatasetError {
 			Self::Database(dberr) => write!(f, "DB Error: {}", dberr),
 			Self::BadAttrHandle => write!(f, "BadAttrHandle"),
 			Self::TypeMismatch => write!(f, "TypeMismatch"),
+			Self::UniqueViolated => write!(f, "UniqueViolated"),
 		}
 	}
 }
