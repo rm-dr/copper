@@ -144,6 +144,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 					.n_inputs(&context)
 		);
 
+		debug!(source = "single", summary = "Making node instances");
 		let node_instances = pipeline
 			.graph
 			.iter_nodes_idx()
@@ -184,6 +185,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 
 		// The data inside each edge.
 		// We consume node data once it is read so that unneeded memory may be freed.
+		debug!(source = "single", summary = "Initializing edges");
 		let edge_values = {
 			pipeline
 				.graph

@@ -2,6 +2,7 @@
 
 use itertools::Itertools;
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
+use tracing::debug;
 
 use super::{
 	errors::{PipelineErrorNode, PipelinePrepareError},
@@ -63,6 +64,12 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 		name: &str,
 		spec: PipelineSpec<StubType>,
 	) -> Result<Pipeline<StubType>, PipelinePrepareError<SDataStub<StubType>>> {
+		debug!(
+			source = "syntax",
+			summary = "Building pipeline",
+			name = name,
+		);
+
 		// Initialize all variables
 		let builder = {
 			let mut graph = Graph::new();
@@ -88,6 +95,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 
 		// Make sure every node's inputs are valid,
 		// create the corresponding edges in the graph.
+		debug!(source = "syntax", summary = "Checking inputs",);
 		{
 			for (node_label, node_spec) in &builder.spec.nodes {
 				for (input_name, out_link) in &node_spec.inputs {
@@ -112,6 +120,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 			}
 		}
 
+		debug!(source = "syntax", summary = "Making nodes",);
 		// Add nodes to the graph
 		for (node_name, node_spec) in builder.spec.nodes.iter() {
 			match &node_spec.node_type {
@@ -146,6 +155,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 			}
 		}
 
+		debug!(source = "syntax", summary = "Making after edges",);
 		// Make sure all "after" edges are valid and create them in the graph.
 		for (node_name, node_spec) in &builder.spec.nodes {
 			for after_name in node_spec.after.iter().unique() {
@@ -169,6 +179,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 			}
 		}
 
+		debug!(source = "syntax", summary = "Making ptp edges",);
 		// Make sure all "port to port" edges are valid and create them in the graph.
 		{
 			for (node_name, node_spec) in &builder.spec.nodes {
@@ -194,6 +205,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 			}
 		}
 
+		debug!(source = "syntax", summary = "looking for cycles",);
 		// Make sure our graph doesn't have any cycles
 		if builder.graph.borrow().has_cycle() {
 			return Err(PipelinePrepareError::HasCycle);

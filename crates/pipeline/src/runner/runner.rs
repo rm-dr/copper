@@ -3,6 +3,8 @@
 
 use std::{collections::VecDeque, fs::File, io::Read, marker::PhantomData, path::Path, sync::Arc};
 
+use tracing::debug;
+
 use super::single::{PipelineSingleJob, SingleJobState};
 use crate::{
 	api::{PipelineNode, PipelineNodeState, PipelineNodeStub},
@@ -122,6 +124,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		pipeline_name: &PipelineLabel,
 		pipeline_inputs: Vec<SDataType<StubType>>,
 	) {
+		debug!(source = "runner", summary = "Adding job", ?pipeline_name);
 		let pipeline = self
 			.pipelines
 			.iter()
