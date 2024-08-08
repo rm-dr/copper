@@ -308,9 +308,19 @@ export function useAddAttrModal(params: {
 			<TreeModal
 				opened={opened}
 				close={close}
-				title="Add attribute"
+				title="Add an attribute"
 				keepOpen={isLoading}
 			>
+				<div
+					style={{
+						marginBottom: "1rem",
+					}}
+				>
+					<Text c="teal" size="sm">
+						Add an attribute to the class
+						<Text c="green" span>{` ${params.class_name}`}</Text>:
+					</Text>
+				</div>
 				<TextInput
 					data-autofocus
 					placeholder="New attr name"

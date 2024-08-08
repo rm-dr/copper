@@ -21,10 +21,11 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
   - [ ] Deletion could take a while. Will our request time out?
     - loading state
 - [ ] Polish UI: (`/datasets` page)
-  - [ ] Message in each modal
   - [ ] Modal errors
   - [ ] Loading indicators
   - [ ] Error indicators (in `ApiSelector` too!)
+  - [ ] Cancel button in modals
+  - [ ] Dataset & attribute type descriptions
 
 ## 📦 Dataset locks
 - [ ] delete dataset while pipeline is running?

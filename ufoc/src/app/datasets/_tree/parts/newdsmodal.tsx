@@ -23,7 +23,7 @@ export function useNewDsModal(onSuccess: () => void) {
 			<TreeModal
 				opened={opened}
 				close={close}
-				title="Create new dataset"
+				title="Create a new dataset"
 				keepOpen={isLoading}
 			>
 				<TextInput

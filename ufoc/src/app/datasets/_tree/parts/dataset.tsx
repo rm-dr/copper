@@ -302,9 +302,20 @@ export function useAddClassModal(params: {
 			<TreeModal
 				opened={opened}
 				close={close}
-				title="Add class"
+				title="Add a class"
 				keepOpen={isLoading}
 			>
+				<div
+					style={{
+						marginBottom: "1rem",
+					}}
+				>
+					<Text c="teal" size="sm">
+						Add a class to the dataset
+						<Text c="lime" span>{` ${params.dataset_name}`}</Text>:
+					</Text>
+				</div>
+
 				<TextInput
 					data-autofocus
 					placeholder="New class name"
