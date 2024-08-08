@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use sqlx::{query::Query, sqlite::SqliteArguments, Connection, Row, Sqlite};
-use std::{iter, sync::Arc};
+use std::{io::Read, iter, str::FromStr, sync::Arc};
 use tracing::debug;
 use ufo_ds_core::{
 	api::{
@@ -40,7 +40,19 @@ impl LocalDataset {
 			MetastoreData::Boolean(x) => q.bind(*x),
 			MetastoreData::Float(x) => q.bind(&*x),
 			MetastoreData::Hash { data, .. } => q.bind(&**data),
-			MetastoreData::Binary { data, .. } => q.bind(&**data),
+			MetastoreData::Binary { data, format } => {
+				let s = format.to_string();
+				let l = u32::try_from(s.len()).unwrap();
+
+				let mut d = Vec::new();
+				// Save as [type length][type bytes][data...]
+				l.to_be_bytes()
+					.chain(s.as_bytes())
+					.chain(&data[..])
+					.read_to_end(&mut d)
+					.unwrap();
+				q.bind(d)
+			}
 			MetastoreData::Reference { item, .. } => q.bind(u32::from(*item)),
 			MetastoreData::Blob { handle } => q.bind(u32::from(*handle)),
 		}
@@ -833,10 +845,19 @@ impl Metastore for LocalDataset {
 							MetastoreDataStub::Blob => MetastoreData::Blob {
 								handle: r.get::<u32, _>(&col_name[..]).into(),
 							},
-							MetastoreDataStub::Binary => MetastoreData::Binary {
-								format: MimeType::Blob, // TODO:save
-								data: Arc::new(r.get(&col_name[..])),
-							},
+							MetastoreDataStub::Binary => {
+								// TODO: don't panic on malformed db
+								let data: Vec<u8> = r.get(&col_name[..]);
+								let len = u32::from_be_bytes(data[0..4].try_into().unwrap());
+								let len = usize::try_from(len).unwrap();
+								let mime = String::from_utf8(data[4..len + 4].into()).unwrap();
+								let data = Arc::new(data[len + 4..].into());
+
+								MetastoreData::Binary {
+									format: MimeType::from_str(&mime).unwrap(),
+									data,
+								}
+							}
 						};
 					})
 					.collect(),
