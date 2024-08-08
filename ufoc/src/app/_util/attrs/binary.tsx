@@ -1,7 +1,12 @@
 import { attrTypeInfo } from ".";
 import { Text } from "@mantine/core";
 import { ppBytes } from "../ppbytes";
-import { BlobPanelAudio, BlobPanelImage, BlobPanelUnknown } from "./blob";
+import {
+	_PanelBodyAudio,
+	_PanelBodyImage,
+	_PanelBodyUnknown,
+	_PanelBottom,
+} from "./blob";
 import { XIcon } from "@/app/components/icons";
 import { IconBinary } from "@tabler/icons-react";
 
@@ -52,21 +57,33 @@ export const _binaryAttrType: attrTypeInfo = {
 				params.attr_value.mime != null &&
 				params.attr_value.mime.startsWith("image/")
 			) {
-				return <BlobPanelImage src={data_url} attr_value={params.attr_value} />;
+				return (
+					<_PanelBodyImage src={data_url} attr_value={params.attr_value} />
+				);
 			} else if (
 				params.attr_value.mime != null &&
 				params.attr_value.mime.startsWith("audio/")
 			) {
-				return <BlobPanelAudio src={data_url} attr_value={params.attr_value} />;
+				return (
+					<_PanelBodyAudio src={data_url} attr_value={params.attr_value} />
+				);
 			} else {
 				return (
-					<BlobPanelUnknown
+					<_PanelBodyUnknown
 						src={data_url}
 						icon={<XIcon icon={IconBinary} style={{ height: "5rem" }} />}
 						attr_value={params.attr_value}
 					/>
 				);
 			}
+		},
+
+		panel_bottom: (params) => {
+			if (params.attr_value.type !== "Binary") {
+				return <>Unreachable!</>;
+			}
+
+			return <_PanelBottom attr_value={params.attr_value} />;
 		},
 	},
 };

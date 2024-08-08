@@ -69,6 +69,10 @@ export const _refAttrType: attrTypeInfo = {
 				</>
 			);
 		},
+
+		panel_bottom: (params) => {
+			return <></>;
+		},
 	},
 };
 

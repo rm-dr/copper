@@ -37,11 +37,19 @@ export type attrTypeInfo = {
 				// in the editor. `attr` param is the object
 				// returned by the api.
 				old_value: (params: {
+					// Key for the react node this returns.
+					// This is NECESSARY, data won't always update
+					// when we select a new item if this is omitted.
+					key: string;
 					attr_value: components["schemas"]["ItemListData"];
 				}) => ReactElement;
 
 				// Inline value editor
 				new_value: (params: {
+					// Key for the react node this returns.
+					// This is NECESSARY, data won't always update
+					// when we select a new item if this is omitted.
+					key: string;
 					attr_value: components["schemas"]["ItemListData"];
 					onChange: (value: any) => void;
 				}) => ReactElement;
@@ -50,6 +58,13 @@ export type attrTypeInfo = {
 				type: "panel";
 
 				panel_body: (params: {
+					dataset: string;
+					class: string;
+					item_idx: number;
+					attr_value: components["schemas"]["ItemListData"];
+				}) => ReactElement;
+
+				panel_bottom: (params: {
 					dataset: string;
 					class: string;
 					item_idx: number;

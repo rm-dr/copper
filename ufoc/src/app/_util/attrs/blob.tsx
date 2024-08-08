@@ -1,10 +1,10 @@
 import { attrTypeInfo } from ".";
-import { Text } from "@mantine/core";
+import { ActionIcon, Text } from "@mantine/core";
 import { ppBytes } from "../ppbytes";
 import Image from "next/image";
 import { ReactNode } from "react";
 import { XIcon } from "@/app/components/icons";
-import { IconFileDigit } from "@tabler/icons-react";
+import { IconFileDigit, IconTrash, IconUpload } from "@tabler/icons-react";
 import { components } from "../api/openapi";
 
 export const _blobAttrType: attrTypeInfo = {
@@ -54,15 +54,19 @@ export const _blobAttrType: attrTypeInfo = {
 				params.attr_value.mime != null &&
 				params.attr_value.mime.startsWith("image/")
 			) {
-				return <BlobPanelImage src={data_url} attr_value={params.attr_value} />;
+				return (
+					<_PanelBodyImage src={data_url} attr_value={params.attr_value} />
+				);
 			} else if (
 				params.attr_value.mime != null &&
 				params.attr_value.mime.startsWith("audio/")
 			) {
-				return <BlobPanelAudio src={data_url} attr_value={params.attr_value} />;
+				return (
+					<_PanelBodyAudio src={data_url} attr_value={params.attr_value} />
+				);
 			} else {
 				return (
-					<BlobPanelUnknown
+					<_PanelBodyUnknown
 						src={data_url}
 						icon={<XIcon icon={IconFileDigit} style={{ height: "5rem" }} />}
 						attr_value={params.attr_value}
@@ -70,12 +74,23 @@ export const _blobAttrType: attrTypeInfo = {
 				);
 			}
 		},
+
+		panel_bottom: (params) => {
+			if (params.attr_value.type !== "Blob") {
+				return <>Unreachable!</>;
+			}
+
+			return <_PanelBottom attr_value={params.attr_value} />;
+		},
 	},
 };
 
-export function BlobPanelImage(params: {
+export function _PanelBodyImage(params: {
 	src: string;
-	attr_value: components["schemas"]["ItemListData"];
+	attr_value: Extract<
+		components["schemas"]["ItemListData"],
+		{ type: "Blob" } | { type: "Binary" }
+	>;
 }) {
 	return (
 		<Image
@@ -89,7 +104,44 @@ export function BlobPanelImage(params: {
 	);
 }
 
-export function BlobPanelAudio(params: {
+export function _PanelBottom(params: {
+	attr_value: Extract<
+		components["schemas"]["ItemListData"],
+		{ type: "Blob" } | { type: "Binary" }
+	>;
+}) {
+	return (
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "row",
+				alignItems: "center",
+				width: "100%",
+				height: "100%",
+				gap: "0.5rem",
+			}}
+		>
+			<div>
+				<Text>{ppBytes(params.attr_value.size || 0)}</Text>
+			</div>
+			<div style={{ flexGrow: 1 }}>
+				<Text ff="monospace">{params.attr_value.mime}</Text>
+			</div>
+			<div>
+				<ActionIcon variant="filled" color="red">
+					<XIcon icon={IconTrash} style={{ width: "70%", height: "70%" }} />
+				</ActionIcon>
+			</div>
+			<div>
+				<ActionIcon variant="filled">
+					<XIcon icon={IconUpload} style={{ width: "70%", height: "70%" }} />
+				</ActionIcon>
+			</div>
+		</div>
+	);
+}
+
+export function _PanelBodyAudio(params: {
 	src: string;
 	attr_value: Extract<
 		components["schemas"]["ItemListData"],
@@ -103,7 +155,7 @@ export function BlobPanelAudio(params: {
 	);
 }
 
-export function BlobPanelUnknown(params: {
+export function _PanelBodyUnknown(params: {
 	src: string;
 	icon: ReactNode;
 	attr_value: Extract<

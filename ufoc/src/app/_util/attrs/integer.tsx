@@ -34,12 +34,12 @@ export const _intAttrType: attrTypeInfo = {
 
 			if (params.attr_value.value === null) {
 				return (
-					<Text c="dimmed" fs="italic">
+					<Text key={params.key} c="dimmed" fs="italic">
 						no value
 					</Text>
 				);
 			} else {
-				return <Text>{params.attr_value.value}</Text>;
+				return <Text key={params.key}>{params.attr_value.value}</Text>;
 			}
 		},
 
@@ -50,6 +50,7 @@ export const _intAttrType: attrTypeInfo = {
 
 			return (
 				<NumberInput
+					key={params.key}
 					placeholder="empty value"
 					allowDecimal={false}
 					allowNegative={true}
