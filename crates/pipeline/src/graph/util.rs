@@ -13,6 +13,11 @@ impl GraphNodeIdx {
 	pub fn as_usize(&self) -> usize {
 		self.0
 	}
+
+	/// Make this index from a `usize`
+	pub fn from_usize(value: usize) -> Self {
+		GraphNodeIdx(value)
+	}
 }
 
 /// The index of an edge in a [`Graph`]

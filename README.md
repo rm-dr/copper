@@ -21,8 +21,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 [Picard]: https://picard.musicbrainz.org/
 [EasyTag]: https://wiki.gnome.org/Apps/EasyTAG
 
-
-
 ## TODO:
 
 ### Current:
@@ -39,7 +37,6 @@ UFO's goal is to be "[Paperless] for everything," with...
       - user-recoverable vs not?
       - final node should error if output is none\
 
-- Manual threadpool
 - Deadlock detection
 - Do "after"s cause deadlocks? (probably)
 
@@ -77,6 +74,7 @@ UFO's goal is to be "[Paperless] for everything," with...
   - efficient end condition: we don't need to run ALL nodes
   - What is blocking what? (data streams)
   - Hints? (iobound, networkbound, etc)
+  - Nodes ask for other nodes (ifnone)
 - Warn on disconnected pipeline inputs
 - Detect unused nodes when building
 - Arrays & foreach (a file could have many covers)

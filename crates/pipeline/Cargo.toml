@@ -23,6 +23,5 @@ petgraph = { workspace = true }
 serde_with = { workspace = true }
 toml = { workspace = true }
 itertools = { workspace = true }
-threadpool = { workspace = true }
 crossbeam = { workspace = true }
 tracing = { workspace = true }
