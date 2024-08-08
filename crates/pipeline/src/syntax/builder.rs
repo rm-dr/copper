@@ -22,7 +22,7 @@ pub(crate) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
 	name: PipelineLabel,
 
 	/// The context with which to build this pipeline
-	context: <StubType::NodeType as PipelineNode>::NodeContext,
+	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 
 	/// The pipeline spec to build
 	spec: PipelineSpec<StubType>,
@@ -58,7 +58,7 @@ pub(crate) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
 
 impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 	pub fn build(
-		context: <StubType::NodeType as PipelineNode>::NodeContext,
+		context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 		pipelines: &'a Vec<Arc<Pipeline<StubType>>>,
 		name: &str,
 		spec: PipelineSpec<StubType>,

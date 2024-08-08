@@ -102,17 +102,9 @@ fn main() -> Result<()> {
 
 	// Prep runner
 	let mut runner: PipelineRunner<UFONodeType> =
-		PipelineRunner::new(PipelineRunConfig { node_threads: 4 }, ctx.clone());
-	runner.add_pipeline(
-		ctx.clone(),
-		Path::new("pipelines/cover.toml"),
-		"cover".into(),
-	)?;
-	runner.add_pipeline(
-		ctx.clone(),
-		Path::new("pipelines/audiofile.toml"),
-		"audio".into(),
-	)?;
+		PipelineRunner::new(PipelineRunConfig { node_threads: 1 }, ctx.clone());
+	runner.add_pipeline(Path::new("pipelines/cover.toml"), "cover".into())?;
+	runner.add_pipeline(Path::new("pipelines/audiofile.toml"), "audio".into())?;
 
 	for p in ["data/freeze.flac"] {
 		runner.run(&"audio".into(), vec![MetaDbData::Path(Arc::new(p.into()))])?;

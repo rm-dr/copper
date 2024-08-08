@@ -47,7 +47,6 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 	/// A pipeline must be loaded before any instances of it are run.
 	pub fn add_pipeline(
 		&mut self,
-		ctx: <StubType::NodeType as PipelineNode>::NodeContext,
 		path: &Path,
 		pipeline_name: String,
 	) -> Result<(), PipelinePrepareError<SDataStub<StubType>>> {
@@ -62,7 +61,12 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		let spec: PipelineSpec<StubType> = toml::from_str(&s)
 			.map_err(|error| PipelinePrepareError::CouldNotParseFile { error })?;
 
-		let built = PipelineBuilder::build(ctx, &self.pipelines, &pipeline_name[..], spec)?;
+		let built = PipelineBuilder::build(
+			self.context.clone(),
+			&self.pipelines,
+			&pipeline_name[..],
+			spec,
+		)?;
 
 		self.pipelines.push(Arc::new(built));
 		return Ok(());
