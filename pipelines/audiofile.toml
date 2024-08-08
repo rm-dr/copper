@@ -32,6 +32,7 @@ input.data = { "pipeline" = "data" }
 
 [node.if_none]
 node.type = "IfNone"
+node.data_type = "text"
 input."data" = { node = "tags", output = "Lyrics" }
 input."ifnone" = { type = "Constant", value = "Unknown Lyrics" }
 

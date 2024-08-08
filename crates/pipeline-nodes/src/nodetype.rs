@@ -20,19 +20,17 @@ use crate::{helpers::UFONode, input::file::FileReader, output::addtodataset::Add
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
 pub enum UFONodeType {
-	/// A node that provides a constant value.
+	// Utility nodes
+	Print,
 	Constant {
 		value: StorageData,
 	},
-
-	// Utility nodes
-	IfNone,
-	Print,
-
+	IfNone {
+		data_type: StorageDataStub,
+	},
 	Hash {
 		hash_type: HashType,
 	},
-
 	Noop {
 		#[serde(rename = "input")]
 		#[serde_as(as = "serde_with::Map<_, _>")]
@@ -69,7 +67,7 @@ impl PipelineNodeStub for UFONodeType {
 			},
 
 			// Util
-			UFONodeType::IfNone => UFONodeInstance::IfNone {
+			UFONodeType::IfNone { .. } => UFONodeInstance::IfNone {
 				node_type: self.clone(),
 				name: name.into(),
 				node: IfNone::new(),
@@ -128,7 +126,7 @@ impl PipelineNodeStub for UFONodeType {
 	fn n_inputs(&self, ctx: &<Self::NodeType as PipelineNode>::NodeContext) -> usize {
 		match self {
 			Self::Constant { .. } => Constant::n_inputs(self, ctx),
-			Self::IfNone => IfNone::n_inputs(self, ctx),
+			Self::IfNone { .. } => IfNone::n_inputs(self, ctx),
 			Self::Print => Print::n_inputs(self, ctx),
 			Self::Hash { .. } => Hash::n_inputs(self, ctx),
 			Self::Noop { .. } => Noop::n_inputs(self, ctx),
@@ -150,7 +148,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::Constant { .. } => {
 				Constant::input_compatible_with(self, ctx, input_idx, input_type)
 			}
-			Self::IfNone => IfNone::input_compatible_with(self, ctx, input_idx, input_type),
+			Self::IfNone { .. } => IfNone::input_compatible_with(self, ctx, input_idx, input_type),
 			Self::Print => Print::input_compatible_with(self, ctx, input_idx, input_type),
 			Self::Hash { .. } => Hash::input_compatible_with(self, ctx, input_idx, input_type),
 			Self::Noop { .. } => Noop::input_compatible_with(self, ctx, input_idx, input_type),
@@ -175,7 +173,7 @@ impl PipelineNodeStub for UFONodeType {
 	) -> NDataStub<Self::NodeType> {
 		match self {
 			Self::Constant { .. } => Constant::input_default_type(self, ctx, input_idx),
-			Self::IfNone => IfNone::input_default_type(self, ctx, input_idx),
+			Self::IfNone { .. } => IfNone::input_default_type(self, ctx, input_idx),
 			Self::Print => Print::input_default_type(self, ctx, input_idx),
 			Self::Hash { .. } => Hash::input_default_type(self, ctx, input_idx),
 			Self::Noop { .. } => Noop::input_default_type(self, ctx, input_idx),
@@ -194,7 +192,7 @@ impl PipelineNodeStub for UFONodeType {
 	) -> Option<usize> {
 		match self {
 			Self::Constant { .. } => Constant::input_with_name(self, ctx, input_name),
-			Self::IfNone => IfNone::input_with_name(self, ctx, input_name),
+			Self::IfNone { .. } => IfNone::input_with_name(self, ctx, input_name),
 			Self::Print => Print::input_with_name(self, ctx, input_name),
 			Self::Hash { .. } => Hash::input_with_name(self, ctx, input_name),
 			Self::Noop { .. } => Noop::input_with_name(self, ctx, input_name),
@@ -209,7 +207,7 @@ impl PipelineNodeStub for UFONodeType {
 	fn n_outputs(&self, ctx: &<Self::NodeType as PipelineNode>::NodeContext) -> usize {
 		match self {
 			Self::Constant { .. } => Constant::n_outputs(self, ctx),
-			Self::IfNone => IfNone::n_outputs(self, ctx),
+			Self::IfNone { .. } => IfNone::n_outputs(self, ctx),
 			Self::Print => Print::n_outputs(self, ctx),
 			Self::Hash { .. } => Hash::n_outputs(self, ctx),
 			Self::Noop { .. } => Noop::n_outputs(self, ctx),
@@ -228,7 +226,7 @@ impl PipelineNodeStub for UFONodeType {
 	) -> NDataStub<Self::NodeType> {
 		match self {
 			Self::Constant { .. } => Constant::output_type(self, ctx, output_idx),
-			Self::IfNone => IfNone::output_type(self, ctx, output_idx),
+			Self::IfNone { .. } => IfNone::output_type(self, ctx, output_idx),
 			Self::Print => Print::output_type(self, ctx, output_idx),
 			Self::Hash { .. } => Hash::output_type(self, ctx, output_idx),
 			Self::Noop { .. } => Noop::output_type(self, ctx, output_idx),
@@ -247,7 +245,7 @@ impl PipelineNodeStub for UFONodeType {
 	) -> Option<usize> {
 		match self {
 			Self::Constant { .. } => Constant::output_with_name(self, ctx, output_name),
-			Self::IfNone => IfNone::output_with_name(self, ctx, output_name),
+			Self::IfNone { .. } => IfNone::output_with_name(self, ctx, output_name),
 			Self::Print => Print::output_with_name(self, ctx, output_name),
 			Self::Hash { .. } => Hash::output_with_name(self, ctx, output_name),
 			Self::Noop { .. } => Noop::output_with_name(self, ctx, output_name),

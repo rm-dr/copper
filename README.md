@@ -26,7 +26,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- Ifnone general type
 - Load and check db metadata
 - elegantly handle duplicate album art
 
@@ -34,6 +33,7 @@ UFO's goal is to be "[Paperless] for everything," with...
   - args to node one by one
   - handle channel errors (Pending when full?)
   - limit channel size
+
 - Clean up all error handling (search for unwrap, assert, and panic)
   - db errors in pipeline run & build
   - detect bad classes when building AddToDataset node
@@ -49,6 +49,8 @@ UFO's goal is to be "[Paperless] for everything," with...
   - enum
   - multi-enum
   - date
+- Helpful pipeline parse errors:
+  - deserialize reference from name
 - Faster node inputs() and outputs()
   - Fewer db hits (solve by caching?)
 - Clean up dependencies
@@ -80,7 +82,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 
 
 ### Later
-- Helpful pipeline parse errors
 - Better name; branding & site
 - tui, web ui, server with auth, api
 - Docs

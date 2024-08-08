@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
-use std::{fmt::Debug, path::PathBuf, str::FromStr, sync::Arc};
+use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use ufo_pipeline::api::{PipelineData, PipelineDataStub};
 use ufo_util::mime::MimeType;
 
@@ -146,32 +146,17 @@ pub enum StorageDataStub {
 	Reference { class: ClassHandle },
 }
 
-// TODO: better error
-impl FromStr for StorageDataStub {
-	type Err = &'static str;
-
-	fn from_str(s: &str) -> Result<Self, &'static str> {
-		match s {
-			"text" => Ok(Self::Text),
-			"binary" => Ok(Self::Binary),
-			"path" => Ok(Self::Path),
-			"reference" => todo!(),
-			"hash::sha256" => Ok(Self::Hash {
-				hash_type: HashType::SHA256,
-			}),
-			_ => Err("bad data type"),
-		}
-	}
-}
-
 impl<'de> Deserialize<'de> for StorageDataStub {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
 		D: serde::Deserializer<'de>,
 	{
 		let addr_str = SmartString::<LazyCompact>::deserialize(deserializer)?;
-		let s = Self::from_str(&addr_str);
-		s.map_err(serde::de::Error::custom)
+		let s = Self::from_db_str(&addr_str);
+		s.ok_or(serde::de::Error::custom(format!(
+			"bad type string {}",
+			addr_str
+		)))
 	}
 }
 
@@ -185,12 +170,12 @@ impl StorageDataStub {
 			Self::Binary => "binary".into(),
 			Self::Path => "path".into(),
 			Self::Integer => "integer".into(),
-			Self::PositiveInteger => "postiveinteger".into(),
+			Self::PositiveInteger => "positiveinteger".into(),
 			Self::Float => "float".into(),
 			Self::Hash { hash_type: format } => match format {
-				HashType::MD5 => "hash::md5".into(),
-				HashType::SHA256 => "hash::sha256".into(),
-				HashType::SHA512 => "hash::sha512".into(),
+				HashType::MD5 => "hash::MD5".into(),
+				HashType::SHA256 => "hash::SHA256".into(),
+				HashType::SHA512 => "hash::SHA512".into(),
 			},
 			Self::Reference { class } => format!("reference::{}", u32::from(*class)),
 		}
@@ -206,13 +191,13 @@ impl StorageDataStub {
 			"integer" => Some(Self::Integer),
 			"positiveinteger" => Some(Self::PositiveInteger),
 			"float" => Some(Self::Float),
-			"hash::md5" => Some(Self::Hash {
+			"hash::MD5" => Some(Self::Hash {
 				hash_type: HashType::MD5,
 			}),
-			"hash::sha256" => Some(Self::Hash {
+			"hash::SHA256" => Some(Self::Hash {
 				hash_type: HashType::SHA256,
 			}),
-			"hash::sha512" => Some(Self::Hash {
+			"hash::SHA512" => Some(Self::Hash {
 				hash_type: HashType::SHA512,
 			}),
 			_ => None,

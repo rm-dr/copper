@@ -16,12 +16,6 @@ impl IfNone {
 	}
 }
 
-impl Default for IfNone {
-	fn default() -> Self {
-		Self::new()
-	}
-}
-
 impl PipelineNode for IfNone {
 	type NodeContext = UFOContext;
 	type DataType = StorageData;
@@ -66,9 +60,9 @@ impl UFONode for IfNone {
 		input_type: StorageDataStub,
 	) -> bool {
 		match stub {
-			UFONodeType::IfNone { .. } => {
+			UFONodeType::IfNone { data_type } => {
 				assert!(input_idx < 2);
-				input_type == StorageDataStub::Text
+				input_type == *data_type
 			}
 			_ => unreachable!(),
 		}
@@ -95,9 +89,9 @@ impl UFONode for IfNone {
 		input_idx: usize,
 	) -> StorageDataStub {
 		match stub {
-			UFONodeType::IfNone { .. } => {
+			UFONodeType::IfNone { data_type } => {
 				assert!(input_idx < 2);
-				StorageDataStub::Text
+				*data_type
 			}
 			_ => unreachable!(),
 		}
@@ -112,9 +106,9 @@ impl UFONode for IfNone {
 
 	fn output_type(stub: &UFONodeType, _ctx: &UFOContext, output_idx: usize) -> StorageDataStub {
 		match stub {
-			UFONodeType::IfNone { .. } => {
+			UFONodeType::IfNone { data_type } => {
 				assert!(output_idx == 0);
-				StorageDataStub::Text
+				*data_type
 			}
 			_ => unreachable!(),
 		}
