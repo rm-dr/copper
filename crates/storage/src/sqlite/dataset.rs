@@ -47,11 +47,19 @@ impl SQLiteDataset {
 	}
 
 	pub fn connect(&mut self) -> Result<(), DatasetError> {
-		let conn = block_on(SqliteConnection::connect(&self.database))?;
-		self.conn = Some(conn);
+		let mut conn = block_on(SqliteConnection::connect(&self.database))?;
 
-		block_on(sqlx::query(include_str!("./init_db.sql")).execute(self.conn.as_mut().unwrap()))
-			.unwrap();
+		block_on(sqlx::query(include_str!("./init_db.sql")).execute(&mut conn)).unwrap();
+
+		block_on(
+			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?, ?);")
+				.bind("created_version")
+				.bind(env!("CARGO_PKG_VERSION"))
+				.execute(&mut conn),
+		)
+		.unwrap();
+
+		self.conn = Some(conn);
 
 		// TODO: load & check metadata, don't destroy db
 		Ok(())
