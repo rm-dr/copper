@@ -110,6 +110,7 @@ where
 		item: ItemIdx,
 	) -> Result<MetastoreData, MetastoreError>;
 
+	/// Rename the given class
 	async fn class_set_name(&self, class: ClassHandle, name: &str) -> Result<(), MetastoreError>;
 
 	/// Get all classes that store references to items in this class.
@@ -126,6 +127,7 @@ where
 	async fn class_get_attrs(&self, class: ClassHandle) -> Result<Vec<AttrInfo>, MetastoreError>;
 	async fn class_num_attrs(&self, class: ClassHandle) -> Result<usize, MetastoreError>;
 
+	/// Rename the given attribute
 	async fn attr_set_name(&self, attr: AttrHandle, name: &str) -> Result<(), MetastoreError>;
 
 	// TODO: clean this up. What does this method do?

@@ -18,14 +18,16 @@ pub enum MetastoreError {
 	/// We were given a bad attribute handle
 	BadAttrHandle,
 
-	/// We tried to create an attr with an invalid name
-	BadAttrName(SmartString<LazyCompact>),
+	/// We tried to create an attr with an invalid name.
+	/// Comes with a helpful error message.
+	BadAttrName(String),
 
 	/// We were given a bad class handle
 	BadClassHandle,
 
-	/// We tried to create a class with an invalid name
-	BadClassName(SmartString<LazyCompact>),
+	/// We tried to create a class with an invalid name.
+	/// Comes with a helpful error message.
+	BadClassName(String),
 
 	/// We were given a bad item idx
 	BadItemIdx,

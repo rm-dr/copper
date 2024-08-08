@@ -72,6 +72,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/attr/rename": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Create a new class */
+		post: operations["rename_attr"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/auth/group/add": {
 		parameters: {
 			query?: never;
@@ -270,6 +287,23 @@ export interface paths {
 		get: operations["list_classes"];
 		put?: never;
 		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/class/rename": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Create a new class */
+		post: operations["rename_class"];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -877,6 +911,18 @@ export interface components {
 			dataset: string;
 			pipeline: string;
 		};
+		RenameAttrRequest: {
+			/** Format: int32 */
+			attr: number;
+			dataset: string;
+			new_name: string;
+		};
+		RenameClassRequest: {
+			/** Format: int32 */
+			class: number;
+			dataset: string;
+			new_name: string;
+		};
 		/** @description This server's pipeline runner status */
 		RunnerStatus: {
 			/** @description How many jobs have failed */
@@ -1262,6 +1308,62 @@ export interface operations {
 				content?: never;
 			};
 			/** @description Bad dataset or attribute */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+		};
+	};
+	rename_attr: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["RenameAttrRequest"];
+			};
+		};
+		responses: {
+			/** @description Successfully renamed this attr */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Could not rename attr, bad parameters */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Bad dataset */
 			404: {
 				headers: {
 					[name: string]: unknown;
@@ -1800,6 +1902,62 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+		};
+	};
+	rename_class: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["RenameClassRequest"];
+			};
+		};
+		responses: {
+			/** @description Successfully renamed this class */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Could not rename class, bad parameters */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Bad dataset */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
 			};
 			/** @description Internal server error */
 			500: {

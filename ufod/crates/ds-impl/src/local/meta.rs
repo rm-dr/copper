@@ -840,91 +840,32 @@ impl Metastore for LocalDataset {
 			.collect());
 	}
 
-	/*
-		async fn item_set_attr(
-			&self,
-			attr: AttrHandle,
-			mut data: MetastoreData,
-		) -> Result<(), MetastoreError> {
-			// Start transaction
-			let mut conn_lock = self.conn.lock().await;
-			let mut t = conn_lock
-				.begin()
-				.await
-				.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
-
-			// Find table and column name to modify
-			let (table_name, column_name, is_not_null): (String, String, bool) = {
-				let res = sqlx::query(
-					"
-					SELECT meta_classes.id, meta_attributes.id, is_not_null
-					FROM meta_attributes
-					INNER JOIN meta_classes ON meta_classes.id = meta_attributes.class_id
-					WHERE meta_attributes.id=?;
-					",
-				)
-				.bind(u32::from(attr))
-				.fetch_one(&mut *t)
-				.await;
-
-				match res {
-					Err(sqlx::Error::RowNotFound) => Err(MetastoreError::BadAttrHandle),
-					Err(e) => Err(MetastoreError::DbError(Box::new(e))),
-					Ok(res) => {
-						let class_id: u32 = res.get("meta_classes.id");
-						let attr_id: u32 = res.get("meta_attributes.id");
-
-						Ok((
-							Self::get_table_name(class_id.into()),
-							Self::get_column_name(attr_id.into()),
-							res.get::<bool, _>("is_not_null"),
-						))
-					}
-				}
-			}?;
-
-			// Check "not none" constraint
-			// Unique constraint is checked later.
-			if is_not_null && data.is_none() {
-				return Err(MetastoreError::NotNoneViolated);
-			}
-
-			// Update data
-			{
-				let q_str = match data {
-					MetastoreData::None(_) => {
-						format!("UPDATE \"{table_name}\" SET \"{column_name}\" = NULL;")
-					}
-					_ => format!("UPDATE \"{table_name}\" SET \"{column_name}\" = ?;"),
-				};
-				let q = sqlx::query(&q_str);
-				let q = Self::bind_storage(q, &mut data);
-
-				// Handle errors
-				match q.execute(&mut *t).await {
-					Err(sqlx::Error::Database(e)) => {
-						if e.is_unique_violation() {
-							return Err(MetastoreError::UniqueViolated);
-						} else {
-							return Err(MetastoreError::DbError(Box::new(sqlx::Error::Database(e))));
-						}
-					}
-					Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
-					Ok(_) => {}
-				};
-			};
-
-			// Commit transaction
-			t.commit()
-				.await
-				.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
-
-			Ok(())
+	async fn class_set_name(&self, class: ClassHandle, name: &str) -> Result<(), MetastoreError> {
+		// Make sure this name isn't already taken
+		let x = self.get_class_by_name(name).await?;
+		if x.is_some() {
+			return Err(MetastoreError::DuplicateClassName(name.into()));
 		}
-	*/
 
-	async fn class_set_name(&self, _class: ClassHandle, _name: &str) -> Result<(), MetastoreError> {
-		unimplemented!()
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
+		let res = sqlx::query("UPDATE meta_classes SET pretty_name=? WHERE id=?;")
+			.bind(name)
+			.bind(u32::from(class))
+			.execute(&mut *conn)
+			.await;
+
+		match res {
+			Err(sqlx::Error::RowNotFound) => return Err(MetastoreError::BadClassHandle),
+			Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
+			_ => {}
+		};
+
+		return Ok(());
 	}
 
 	async fn class_num_attrs(&self, _class: ClassHandle) -> Result<usize, MetastoreError> {
@@ -991,8 +932,33 @@ impl Metastore for LocalDataset {
 		return Ok(out);
 	}
 
-	async fn attr_set_name(&self, _attr: AttrHandle, _name: &str) -> Result<(), MetastoreError> {
-		unimplemented!()
+	async fn attr_set_name(&self, attr: AttrHandle, name: &str) -> Result<(), MetastoreError> {
+		// Make sure this name isn't already taken
+		let x = self.get_attr(attr).await?;
+		let x = self.get_attr_by_name(x.class, name).await?;
+		if x.is_some() {
+			return Err(MetastoreError::DuplicateAttrName(name.into()));
+		}
+
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
+		let res = sqlx::query("UPDATE meta_attributes SET pretty_name=? WHERE id=?;")
+			.bind(name)
+			.bind(u32::from(attr))
+			.execute(&mut *conn)
+			.await;
+
+		match res {
+			Err(sqlx::Error::RowNotFound) => return Err(MetastoreError::BadAttrHandle),
+			Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
+			_ => {}
+		};
+
+		return Ok(());
 	}
 
 	async fn find_item_with_attr(
