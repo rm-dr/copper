@@ -2,7 +2,7 @@ use futures::lock::Mutex;
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use std::{path::PathBuf, time::Instant};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 use ufo_pipeline::runner::runner::PipelineRunner;
 use ufo_pipeline_nodes::nodetype::UFONodeType;
 use ufo_util::mime::MimeType;
@@ -116,7 +116,6 @@ impl Uploader {
 	}
 }
 
-/*
 impl Uploader {
 	/// Get a path to the given file
 	pub async fn get_job_file_path(
@@ -192,4 +191,3 @@ impl Uploader {
 		return Ok(());
 	}
 }
-*/
