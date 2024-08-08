@@ -1,25 +1,36 @@
-$maincolor: #2b50cc;
-
 .navbar {
 	width: 100%;
 	height: 100%;
 
 	display: flex;
-	padding-left: 1rem;
-	padding-right: 1rem;
+	padding: 0rem;
 	align-items: center;
 	justify-content: space-between;
-	background-color: $maincolor;
+	background-color: var(--mantine-color-gray-9);
+
+	border-color: color-mix(
+		in srgb,
+		var(--mantine-color-red-9),
+		var(--mantine-color-gray-9) 30%
+	);
+	border-style: solid;
+	border-width: 0px 0px 4px 0px;
 }
 
-.item {
-	position: relative;
+.banner {
+	display: block;
+	height: 100%;
+	padding: 0.5rem;
+
+	// svgs are odd. If this doesn't look right,
+	// delete the "width" and "height" parameters in the svg.
+	svg {
+		width: 100%;
+		height: 100%;
+	}
+}
+
+.usermenu {
 	padding: 1rem;
-	display: inline-block;
-	transition-duration: 200ms;
 	cursor: pointer;
-}
-
-.item .username {
-	display: inline;
 }
