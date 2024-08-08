@@ -22,3 +22,4 @@ ufo-pipeline = { workspace = true }
 
 serde = { workspace = true }
 smartstring = { workspace = true }
+utoipa = { workspace = true }

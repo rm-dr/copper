@@ -1,4 +1,6 @@
+use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
+use utoipa::ToSchema;
 
 use crate::{
 	data::{MetastoreData, MetastoreDataStub},
@@ -6,18 +8,15 @@ use crate::{
 	handles::{AttrHandle, ClassHandle, ItemHandle},
 };
 
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct AttributeOptions {
 	pub unique: bool,
-	pub not_null: bool,
 }
 
 #[allow(clippy::derivable_impls)]
 impl Default for AttributeOptions {
 	fn default() -> Self {
-		Self {
-			unique: false,
-			not_null: false,
-		}
+		Self { unique: false }
 	}
 }
 
@@ -28,11 +27,6 @@ impl AttributeOptions {
 
 	pub fn unique(mut self, is_unique: bool) -> Self {
 		self.unique = is_unique;
-		self
-	}
-
-	pub fn not_null(mut self, not_null: bool) -> Self {
-		self.not_null = not_null;
 		self
 	}
 }
@@ -59,9 +53,11 @@ where
 	fn del_item(&self, item: ItemHandle) -> Result<(), MetastoreError>;
 	fn del_attr(&self, attr: AttrHandle) -> Result<(), MetastoreError>;
 
-	//fn iter_items(&self) -> Result<impl Iterator<Item = ItemHandle>, MetastoreError>;
-	//fn iter_classes(&self) -> Result<impl Iterator<Item = ClassHandle>, MetastoreError>;
-	//fn iter_attrs(&self) -> Result<impl Iterator<Item = AttrHandle>, MetastoreError>;
+	fn get_all_items(&self) -> Result<Vec<(ItemHandle, SmartString<LazyCompact>)>, MetastoreError>;
+	fn get_all_classes(
+		&self,
+	) -> Result<Vec<(ClassHandle, SmartString<LazyCompact>)>, MetastoreError>;
+	fn get_all_attrs(&self) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>)>, MetastoreError>;
 
 	fn get_class(&self, class_name: &str) -> Result<Option<ClassHandle>, MetastoreError>;
 	fn get_attr(

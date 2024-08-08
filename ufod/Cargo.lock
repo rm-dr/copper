@@ -3073,6 +3073,7 @@ dependencies = [
  "smartstring",
  "ufo-pipeline",
  "ufo-util",
+ "utoipa",
 ]
 
 [[package]]
@@ -3081,6 +3082,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "itertools",
+ "serde_json",
  "smartstring",
  "sqlx",
  "ufo-ds-core",

@@ -86,9 +86,10 @@ impl Metastore for LocalDataset {
 				)
 				.bind(u32::from(class))
 				.bind(attr_name)
-				.bind(data_type.to_db_str())
+				.bind(serde_json::to_string(&data_type).unwrap())
 				.bind(options.unique)
-				.bind(options.not_null)
+				.bind(false)
+				//.bind(options.not_null)
 				.execute(&mut *t),
 			);
 
@@ -122,7 +123,8 @@ impl Metastore for LocalDataset {
 			MetastoreDataStub::Hash { .. } => "BLOB",
 		};
 
-		let not_null = if options.not_null { " NOT NULL" } else { "" };
+		//let not_null = if options.not_null { " NOT NULL" } else { "" };
+		let not_null = "";
 
 		// Add foreign key if necessary
 		let references = match data_type {
@@ -335,6 +337,35 @@ impl Metastore for LocalDataset {
 		};
 	}
 
+	fn get_all_attrs(&self) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>)>, MetastoreError> {
+		unimplemented!()
+	}
+	fn get_all_classes(
+		&self,
+	) -> Result<Vec<(ClassHandle, SmartString<LazyCompact>)>, MetastoreError> {
+		let mut conn = self.conn.lock().unwrap();
+
+		let res = block_on(
+			sqlx::query("SELECT pretty_name, id FROM meta_classes ORDER BY id;")
+				.fetch_all(&mut *conn),
+		)
+		.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
+		return Ok(res
+			.into_iter()
+			.map(|x| {
+				(
+					x.get::<u32, _>("id").into(),
+					x.get::<String, _>("pretty_name").into(),
+				)
+			})
+			.collect());
+	}
+
+	fn get_all_items(&self) -> Result<Vec<(ItemHandle, SmartString<LazyCompact>)>, MetastoreError> {
+		unimplemented!()
+	}
+
 	fn item_get_attr(
 		&self,
 		_item: ItemHandle,
@@ -471,7 +502,7 @@ impl Metastore for LocalDataset {
 				(
 					id.into(),
 					name.into(),
-					MetastoreDataStub::from_db_str(data_type).unwrap(),
+					serde_json::from_str(data_type).unwrap(),
 				)
 			})
 			.collect())
@@ -498,7 +529,7 @@ impl Metastore for LocalDataset {
 			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
 			Ok(res) => {
 				let type_string = res.get::<String, _>("data_type");
-				Ok(MetastoreDataStub::from_db_str(&type_string).unwrap())
+				Ok(serde_json::from_str(&type_string).unwrap())
 			}
 		};
 	}

@@ -2,6 +2,10 @@ use axum::{extract::DefaultBodyLimit, routing::get, Router};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
+use ufo_ds_core::{
+	api::meta::AttributeOptions,
+	data::{HashType, MetastoreDataStub},
+};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -39,6 +43,11 @@ pub struct RouterState {
 	tags(
 		(name = "ufod", description = "UFO backend daemon")
 	),
+	components(schemas(
+		MetastoreDataStub,
+		HashType,
+		AttributeOptions
+	))
 )]
 struct ApiDoc;
 
