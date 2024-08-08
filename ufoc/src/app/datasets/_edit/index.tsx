@@ -26,6 +26,7 @@ import { Slider } from "../_util/slider";
 import { NewClassButton } from "./parts/new_class";
 import { NewAttrButton } from "./parts/new_attr";
 import { DeleteAttrButton } from "./parts/del_attr";
+import { DeleteClassButton } from "./parts/del_class";
 
 const Wrapper = (params: { children: ReactNode }) => {
 	return (
@@ -250,45 +251,6 @@ function RenameClassButton(params: { class_name: string }) {
 	);
 }
 
-function DeleteClassButton(params: { class_name: string }) {
-	return (
-		<Popover position="bottom" withArrow shadow="md" trapFocus width={"20rem"}>
-			<Popover.Target>
-				<ActionIcon variant="light" aria-label="Delete this class" color="red">
-					<XIconTrash style={{ width: "70%", height: "70%" }} />
-				</ActionIcon>
-			</Popover.Target>
-			<Popover.Dropdown>
-				<div
-					style={{
-						marginBottom: "1rem",
-					}}
-				>
-					<Text c="red" size="sm">
-						This action will irreversably destroy data. Enter
-						<Text c="orange" span>{` ${params.class_name} `}</Text> below to
-						confirm.
-					</Text>
-				</div>
-
-				<TextInput placeholder="Enter class name" size="sm" />
-
-				<div style={{ marginTop: "1rem" }}>
-					<Button
-						variant="filled"
-						color="red"
-						fullWidth
-						size="xs"
-						leftSection={<XIconTrash />}
-					>
-						Confirm
-					</Button>
-				</div>
-			</Popover.Dropdown>
-		</Popover>
-	);
-}
-
 function RenameAttrButton(params: { class_name: string; attr_name: string }) {
 	return (
 		<Popover position="bottom" withArrow shadow="md" trapFocus width={"20rem"}>
@@ -380,7 +342,16 @@ export function ItemClassList(params: {
 										onSuccess={params.onUpdate}
 									/>
 									<RenameClassButton class_name={name} />
-									<DeleteClassButton class_name={name} />
+									<DeleteClassButton
+										dataset_name={
+											// TODO: fix this type check
+											params.dataset_details.name === null
+												? "unreachable"
+												: params.dataset_details.name
+										}
+										class_name={name}
+										onSuccess={params.onUpdate}
+									/>
 								</>
 							}
 						/>

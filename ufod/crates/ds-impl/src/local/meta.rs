@@ -336,9 +336,65 @@ impl Metastore for LocalDataset {
 		return Ok(());
 	}
 
-	fn del_class(&self, _class: ClassHandle) -> Result<(), MetastoreError> {
-		unimplemented!()
+	fn del_class(&self, class: ClassHandle) -> Result<(), MetastoreError> {
+		// Get this FIRST, or we'll deadlock
+		let attrs = self.class_get_attrs(class)?;
+
+		// Start transaction
+		let mut conn_lock = self.conn.lock().unwrap();
+		let mut t =
+			block_on(conn_lock.begin()).map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
+		// TODO: check references
+		// TODO: check pipelines (or don't, just mark as invalid)
+		// TODO: delete blobs (here, del attr, and del item)
+
+		// Get the table we want to modify
+		let table_name = Self::get_table_name(&mut *t, class)?;
+
+		// Delete all attribute metadata
+		{
+			// Generate query
+			let q_str = format!(
+				"DELETE FROM meta_attributes WHERE id IN ({});",
+				iter::repeat('?').take(attrs.len()).join(", ")
+			);
+
+			// Bind each attr id
+			let mut q = sqlx::query(&q_str);
+			for (attr, _, _) in attrs {
+				q = q.bind(u32::from(attr));
+			}
+
+			// Execute query
+			if let Err(e) = block_on(q.execute(&mut *t)) {
+				return Err(MetastoreError::DbError(Box::new(e)));
+			};
+		}
+
+		// Delete class metadata
+		if let Err(e) = block_on(
+			sqlx::query("DELETE FROM meta_classes WHERE id=?;")
+				.bind(u32::from(class))
+				.execute(&mut *t),
+		) {
+			return Err(MetastoreError::DbError(Box::new(e)));
+		};
+
+		// Drop class table
+		let q_str = format!("DROP TABLE \"{table_name}\";",);
+		if let Err(e) = block_on(sqlx::query(&q_str).execute(&mut *t)) {
+			return Err(MetastoreError::DbError(Box::new(e)));
+		};
+
+		// Finish
+		if let Err(e) = block_on(t.commit()) {
+			return Err(MetastoreError::DbError(Box::new(e)));
+		};
+
+		return Ok(());
 	}
+
 	fn del_item(&self, _item: ItemHandle) -> Result<(), MetastoreError> {
 		unimplemented!()
 	}
