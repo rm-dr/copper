@@ -7,10 +7,7 @@ use ufo_ds_core::{
 	data::{HashType, MetastoreDataStub},
 };
 use ufo_ds_impl::DatasetType;
-use utoipa::{
-	openapi::security::{Http, HttpAuthScheme, SecurityScheme},
-	Modify, OpenApi,
-};
+use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use ufo_pipeline::runner::runner::PipelineRunner;

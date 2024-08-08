@@ -11,8 +11,11 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use ufo_ds_core::{
-	api::{blob::BlobHandle, blob::Blobstore, meta::Metastore},
-	data::{HashType, MetastoreData},
+	api::{
+		blob::{BlobHandle, Blobstore},
+		meta::Metastore,
+	},
+	data::{HashType, MetastoreData, MetastoreDataStub},
 	handles::ItemIdx,
 };
 use ufo_util::mime::MimeType;
@@ -47,16 +50,37 @@ pub(super) struct ItemListResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type")]
 pub(super) enum ItemListData {
-	None,
-	PositiveInteger { value: u64 },
-	Integer { value: i64 },
-	Float { value: f64 },
-	Boolean { value: bool },
-	Text { value: String },
-	Reference { class: String, item: ItemIdx },
-	Hash { hash_type: HashType, value: String },
-	Binary { format: MimeType, size: u64 },
-	Blob { handle: BlobHandle, size: u64 },
+	PositiveInteger {
+		value: Option<u64>,
+	},
+	Integer {
+		value: Option<i64>,
+	},
+	Float {
+		value: Option<f64>,
+	},
+	Boolean {
+		value: Option<bool>,
+	},
+	Text {
+		value: Option<String>,
+	},
+	Reference {
+		class: String,
+		item: Option<ItemIdx>,
+	},
+	Hash {
+		hash_type: HashType,
+		value: Option<String>,
+	},
+	Binary {
+		format: Option<MimeType>,
+		size: Option<u64>,
+	},
+	Blob {
+		handle: Option<BlobHandle>,
+		size: Option<u64>,
+	},
 }
 
 /// Create a new attribute
@@ -184,8 +208,54 @@ pub(super) async fn list_item(
 		for (attr, val) in attrs.iter().zip(item.attrs.iter()) {
 			// TODO: move to method (after making generic dataset type)
 			let d = match val {
-				MetastoreData::None(_) => ItemListData::None,
-				MetastoreData::PositiveInteger(x) => ItemListData::PositiveInteger { value: *x },
+				MetastoreData::None(t) => match t {
+					// These must match the serialized tags of `ItemListData`
+					MetastoreDataStub::Text => ItemListData::Text { value: None },
+					MetastoreDataStub::Binary => ItemListData::Binary {
+						format: None,
+						size: None,
+					},
+					MetastoreDataStub::Blob => ItemListData::Blob {
+						handle: None,
+						size: None,
+					},
+					MetastoreDataStub::Integer => ItemListData::Integer { value: None },
+					MetastoreDataStub::PositiveInteger => {
+						ItemListData::PositiveInteger { value: None }
+					}
+					MetastoreDataStub::Boolean => ItemListData::Boolean { value: None },
+					MetastoreDataStub::Float => ItemListData::Float { value: None },
+					MetastoreDataStub::Hash { hash_type } => ItemListData::Hash {
+						hash_type: *hash_type,
+						value: None,
+					},
+					MetastoreDataStub::Reference { class } => {
+						let class = match dataset.get_class(*class).await {
+							Ok(x) => x,
+							Err(e) => {
+								error!(
+									message = "Could not get class by name",
+									dataset = query.dataset,
+									class_name = ?query.class,
+									error = ?e
+								);
+								return (
+									StatusCode::INTERNAL_SERVER_ERROR,
+									format!("Could not get class by name"),
+								)
+									.into_response();
+							}
+						};
+
+						ItemListData::Reference {
+							class: class.name.to_string(),
+							item: None,
+						}
+					}
+				},
+				MetastoreData::PositiveInteger(x) => {
+					ItemListData::PositiveInteger { value: Some(*x) }
+				}
 				MetastoreData::Blob { handle } => {
 					let size = match dataset.blob_size(*handle).await {
 						Ok(x) => x,
@@ -205,23 +275,23 @@ pub(super) async fn list_item(
 					};
 
 					ItemListData::Blob {
-						handle: *handle,
-						size,
+						handle: Some(*handle),
+						size: Some(size),
 					}
 				}
-				MetastoreData::Integer(x) => ItemListData::Integer { value: *x },
-				MetastoreData::Boolean(x) => ItemListData::Boolean { value: *x },
-				MetastoreData::Float(x) => ItemListData::Float { value: *x },
+				MetastoreData::Integer(x) => ItemListData::Integer { value: Some(*x) },
+				MetastoreData::Boolean(x) => ItemListData::Boolean { value: Some(*x) },
+				MetastoreData::Float(x) => ItemListData::Float { value: Some(*x) },
 				MetastoreData::Binary { format, data } => ItemListData::Binary {
-					format: format.clone(),
-					size: data.len().try_into().unwrap(),
+					format: Some(format.clone()),
+					size: Some(data.len().try_into().unwrap()),
 				},
 				MetastoreData::Text(t) => ItemListData::Text {
-					value: t.to_string(),
+					value: Some(t.to_string()),
 				},
 				MetastoreData::Hash { format, data } => ItemListData::Hash {
 					hash_type: *format,
-					value: data.iter().map(|x| format!("{:X?}", x)).join(""),
+					value: Some(data.iter().map(|x| format!("{:X?}", x)).join("")),
 				},
 				MetastoreData::Reference { class, item } => {
 					let class = match dataset.get_class(*class).await {
@@ -243,7 +313,7 @@ pub(super) async fn list_item(
 
 					ItemListData::Reference {
 						class: class.name.into(),
-						item: *item,
+						item: Some(*item),
 					}
 				}
 			};

@@ -65,37 +65,70 @@ impl LocalDataset {
 	fn read_storage(row: &SqliteRow, attr: &AttrInfo) -> MetastoreData {
 		let col_name = Self::get_column_name(attr.handle);
 		return match attr.data_type {
-			MetastoreDataStub::Float => MetastoreData::Float(row.get(&col_name[..])),
-			MetastoreDataStub::Boolean => MetastoreData::Boolean(row.get(&col_name[..])),
-			MetastoreDataStub::Integer => MetastoreData::Integer(row.get(&col_name[..])),
-			MetastoreDataStub::PositiveInteger => MetastoreData::PositiveInteger(
-				u64::from_be_bytes(row.get::<i64, _>(&col_name[..]).to_be_bytes()),
-			),
-			MetastoreDataStub::Text => {
-				MetastoreData::Text(Arc::new(row.get::<String, _>(&col_name[..])))
-			}
-			MetastoreDataStub::Reference { class } => MetastoreData::Reference {
-				class,
-				item: row.get::<u32, _>(&col_name[..]).into(),
-			},
-			MetastoreDataStub::Hash { hash_type } => MetastoreData::Hash {
-				format: hash_type,
-				data: Arc::new(row.get(&col_name[..])),
-			},
-			MetastoreDataStub::Blob => MetastoreData::Blob {
-				handle: row.get::<u32, _>(&col_name[..]).into(),
-			},
+			MetastoreDataStub::Float => row
+				.get::<Option<_>, _>(&col_name[..])
+				.map(MetastoreData::Float)
+				.unwrap_or(MetastoreData::None(attr.data_type)),
+
+			MetastoreDataStub::Boolean => row
+				.get::<Option<_>, _>(&col_name[..])
+				.map(MetastoreData::Boolean)
+				.unwrap_or(MetastoreData::None(attr.data_type)),
+
+			MetastoreDataStub::Integer => row
+				.get::<Option<_>, _>(&col_name[..])
+				.map(MetastoreData::Integer)
+				.unwrap_or(MetastoreData::None(attr.data_type)),
+
+			MetastoreDataStub::PositiveInteger => row
+				.get::<Option<i64>, _>(&col_name[..])
+				.map(|x| u64::from_be_bytes(x.to_be_bytes()))
+				.map(MetastoreData::PositiveInteger)
+				.unwrap_or(MetastoreData::None(attr.data_type)),
+
+			MetastoreDataStub::Text => row
+				.get::<Option<_>, _>(&col_name[..])
+				.map(|x| Arc::new(x))
+				.map(MetastoreData::Text)
+				.unwrap_or(MetastoreData::None(attr.data_type)),
+
+			MetastoreDataStub::Reference { class } => row
+				.get::<Option<_>, _>(&col_name[..])
+				.map(|item: u32| MetastoreData::Reference {
+					class,
+					item: item.into(),
+				})
+				.unwrap_or(MetastoreData::None(attr.data_type)),
+
+			MetastoreDataStub::Hash { hash_type } => row
+				.get::<Option<_>, _>(&col_name[..])
+				.map(|item| MetastoreData::Hash {
+					format: hash_type,
+					data: Arc::new(item),
+				})
+				.unwrap_or(MetastoreData::None(attr.data_type)),
+
+			MetastoreDataStub::Blob => row
+				.get::<Option<_>, _>(&col_name[..])
+				.map(|item: u32| MetastoreData::Blob {
+					handle: item.into(),
+				})
+				.unwrap_or(MetastoreData::None(attr.data_type)),
+
 			MetastoreDataStub::Binary => {
 				// TODO: don't panic on malformed db
-				let data: Vec<u8> = row.get(&col_name[..]);
-				let len = u32::from_be_bytes(data[0..4].try_into().unwrap());
-				let len = usize::try_from(len).unwrap();
-				let mime = String::from_utf8(data[4..len + 4].into()).unwrap();
-				let data = Arc::new(data[len + 4..].into());
+				if let Some(data) = row.get::<Option<Vec<u8>>, _>(&col_name[..]) {
+					let len = u32::from_be_bytes(data[0..4].try_into().unwrap());
+					let len = usize::try_from(len).unwrap();
+					let mime = String::from_utf8(data[4..len + 4].into()).unwrap();
+					let data = Arc::new(data[len + 4..].into());
 
-				MetastoreData::Binary {
-					format: MimeType::from_str(&mime).unwrap(),
-					data,
+					MetastoreData::Binary {
+						format: MimeType::from_str(&mime).unwrap(),
+						data,
+					}
+				} else {
+					MetastoreData::None(attr.data_type)
 				}
 			}
 		};
