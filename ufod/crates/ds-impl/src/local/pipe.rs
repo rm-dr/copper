@@ -1,7 +1,7 @@
 use futures::executor::block_on;
 use sqlx::Row;
 use std::sync::Arc;
-use ufo_ds_core::{api::pipe::Pipestore, errors::MetastoreError};
+use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeStub},
 	labels::PipelineName,
@@ -15,22 +15,18 @@ impl<PipelineNodeStubType: PipelineNodeStub> Pipestore<PipelineNodeStubType> for
 		&self,
 		name: &PipelineName,
 		context: Arc<<PipelineNodeStubType::NodeType as PipelineNode>::NodeContext>,
-	) -> Result<Option<Pipeline<PipelineNodeStubType>>, MetastoreError> {
-		let mut conn_lock = self.conn.lock().unwrap();
-		if conn_lock.is_none() {
-			return Err(MetastoreError::NotConnected);
-		}
-		let conn = conn_lock.as_mut().unwrap();
+	) -> Result<Option<Pipeline<PipelineNodeStubType>>, PipestoreError> {
+		let mut conn = self.conn.lock().unwrap();
 
 		let res = block_on(
 			sqlx::query("SELECT pipeline_data FROM meta_pipelines WHERE pipeline_name=?;")
 				.bind(name.to_string())
-				.fetch_one(conn),
+				.fetch_one(&mut *conn),
 		);
 
 		let pipe_spec = match res {
 			Err(sqlx::Error::RowNotFound) => return Ok(None),
-			Err(e) => return Err(MetastoreError::DbError(Box::new(e))),
+			Err(e) => return Err(PipestoreError::DbError(Box::new(e))),
 			Ok(res) => res.get::<String, _>("pipeline_data"),
 		};
 
@@ -39,17 +35,14 @@ impl<PipelineNodeStubType: PipelineNodeStub> Pipestore<PipelineNodeStubType> for
 		));
 	}
 
-	fn all_pipelines(&self) -> Result<Vec<PipelineName>, MetastoreError> {
-		let mut conn_lock = self.conn.lock().unwrap();
-		if conn_lock.is_none() {
-			return Err(MetastoreError::NotConnected);
-		}
-		let conn = conn_lock.as_mut().unwrap();
+	fn all_pipelines(&self) -> Result<Vec<PipelineName>, PipestoreError> {
+		let mut conn = self.conn.lock().unwrap();
 
 		let res = block_on(
-			sqlx::query("SELECT pipeline_name FROM meta_pipelines ORDER BY id;").fetch_all(conn),
+			sqlx::query("SELECT pipeline_name FROM meta_pipelines ORDER BY id;")
+				.fetch_all(&mut *conn),
 		)
-		.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+		.map_err(|e| PipestoreError::DbError(Box::new(e)))?;
 
 		return Ok(res
 			.into_iter()
