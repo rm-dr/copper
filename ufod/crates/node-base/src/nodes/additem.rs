@@ -55,18 +55,24 @@ impl AddItem {
 	pub fn new(
 		ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Self {
+	) -> Result<Self, PipelineNodeError> {
 		if params.len() != 2 {
-			panic!()
+			return Err(PipelineNodeError::BadParameterCount { expected: 2 });
 		}
 
 		let error_non_unique: bool = if let Some(value) = params.get("error_non_unique") {
 			match value {
 				NodeParameterValue::Boolean(x) => *x,
-				_ => panic!(),
+				_ => {
+					return Err(PipelineNodeError::BadParameterType {
+						param_name: "error_non_unique".into(),
+					})
+				}
 			}
 		} else {
-			panic!()
+			return Err(PipelineNodeError::MissingParameter {
+				param_name: "error_non_unique".into(),
+			});
 		};
 
 		let class: ClassHandle = if let Some(value) = params.get("class") {
@@ -76,23 +82,30 @@ impl AddItem {
 					match x {
 						Ok(Some(x)) => x.handle,
 						Ok(None) => {
-							panic!()
+							return Err(PipelineNodeError::BadParameterOther {
+								param_name: "class".into(),
+								message: "No such class".into(),
+							})
 						}
-						Err(_) => {
-							panic!()
-						}
+						Err(e) => return Err(PipelineNodeError::Other(Box::new(e))),
 					}
 				}
-				_ => panic!(),
+				_ => {
+					return Err(PipelineNodeError::BadParameterType {
+						param_name: "class".into(),
+					})
+				}
 			}
 		} else {
-			panic!()
+			return Err(PipelineNodeError::MissingParameter {
+				param_name: "class".into(),
+			});
 		};
 
 		let attrs: Vec<AttrInfo> = block_on(ctx.dataset.class_get_attrs(class)).unwrap();
 		let data = attrs.iter().map(|_| None).collect();
 
-		AddItem {
+		Ok(AddItem {
 			inputs: attrs
 				.iter()
 				.map(|x| NodeInputInfo {
@@ -107,7 +120,7 @@ impl AddItem {
 			attrs,
 			data,
 			error_non_unique,
-		}
+		})
 	}
 }
 

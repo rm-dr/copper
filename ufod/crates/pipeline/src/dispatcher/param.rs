@@ -77,9 +77,6 @@ pub enum NodeParameterValue<DataType: PipelineData> {
 
 /// A description of one parameter a node accepts
 pub struct NodeParameterSpec<DataType: PipelineData> {
-	/// The name of this parameter
-	pub param_name: SmartString<LazyCompact>,
-
 	/// The type of this parameter
 	pub param_type: NodeParameterType<DataType>,
 

@@ -35,9 +35,9 @@ impl FindItem {
 	pub fn new(
 		ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Self {
+	) -> Result<Self, PipelineNodeError> {
 		if params.len() != 2 {
-			panic!()
+			return Err(PipelineNodeError::BadParameterCount { expected: 2 });
 		}
 
 		let class: ClassHandle = if let Some(value) = params.get("class") {
@@ -47,17 +47,24 @@ impl FindItem {
 					match x {
 						Ok(Some(x)) => x.handle,
 						Ok(None) => {
-							panic!()
+							return Err(PipelineNodeError::BadParameterOther {
+								param_name: "class".into(),
+								message: "No such class".into(),
+							})
 						}
-						Err(_) => {
-							panic!()
-						}
+						Err(e) => return Err(PipelineNodeError::Other(Box::new(e))),
 					}
 				}
-				_ => panic!(),
+				_ => {
+					return Err(PipelineNodeError::BadParameterType {
+						param_name: "class".into(),
+					})
+				}
 			}
 		} else {
-			panic!()
+			return Err(PipelineNodeError::MissingParameter {
+				param_name: "class".into(),
+			});
 		};
 
 		let by_attr: AttrInfo = if let Some(value) = params.get("by_attr") {
@@ -67,20 +74,27 @@ impl FindItem {
 					match x {
 						Ok(Some(x)) => x.clone(),
 						Ok(None) => {
-							panic!()
+							return Err(PipelineNodeError::BadParameterOther {
+								param_name: "by_attr".into(),
+								message: "No such attribute".into(),
+							})
 						}
-						Err(_) => {
-							panic!()
-						}
+						Err(e) => return Err(PipelineNodeError::Other(Box::new(e))),
 					}
 				}
-				_ => panic!(),
+				_ => {
+					return Err(PipelineNodeError::BadParameterType {
+						param_name: "by_attr".into(),
+					})
+				}
 			}
 		} else {
-			panic!()
+			return Err(PipelineNodeError::MissingParameter {
+				param_name: "by_attr".into(),
+			});
 		};
 
-		FindItem {
+		Ok(FindItem {
 			inputs: vec![NodeInputInfo {
 				name: PipelinePortID::new("attr_value"),
 				accepts_type: by_attr.data_type.into(),
@@ -96,7 +110,7 @@ impl FindItem {
 			class,
 			by_attr,
 			attr_value: None,
-		}
+		})
 	}
 }
 

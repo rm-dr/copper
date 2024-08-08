@@ -118,7 +118,7 @@ impl LocalDataset {
 					message = "Blobstore tmp dir is not a directory!",
 					blob_tmp_dir = ?blob_tmp_dir_absolute
 				);
-				panic!("")
+				panic!()
 			}
 		}
 

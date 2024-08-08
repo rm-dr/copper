@@ -190,6 +190,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 						&node_data.node_params,
 						&node_data.id.id(),
 					)
+					// We already checked node type in `Builder`
+					.unwrap()
 					.unwrap();
 
 				let mut input_queue = VecDeque::new();

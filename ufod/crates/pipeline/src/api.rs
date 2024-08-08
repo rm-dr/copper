@@ -42,6 +42,41 @@ pub enum PipelineNodeError {
 	/// A generic I/O error
 	IoError(std::io::Error),
 
+	/// We got an unexpected number of parameters
+	BadParameterCount {
+		/// How many we expected
+		expected: usize,
+	},
+
+	/// A parameter had an unexpected type
+	BadParameterType {
+		/// The parameter
+		param_name: SmartString<LazyCompact>,
+	},
+
+	/// We expected a parameter, but it wasn't there
+	MissingParameter {
+		/// The parameter that was missing
+		param_name: SmartString<LazyCompact>,
+	},
+
+	/// Generic parameter error
+	BadParameterOther {
+		/// The parameter that caused the error
+		param_name: SmartString<LazyCompact>,
+
+		/// A description of the error
+		message: String,
+	},
+
+	/// We tried to create an `Input` node with data that doesn't match
+	/// its configured type. This means that our pipeline was run with
+	/// invalid inputs.
+	///
+	/// Only the `Input` node should throw this error, since no other nodes
+	/// access the context's input.
+	BadInputType,
+
 	/// We tried to process data we don't know how to handle
 	/// (e.g, we tried to process binary data with a format we don't support)
 	///
@@ -49,7 +84,7 @@ pub enum PipelineNodeError {
 	UnsupportedFormat(String),
 
 	/// An arbitrary error
-	Other(Box<dyn Error + Sync + Send>),
+	Other(Box<dyn Error + Sync + Send + 'static>),
 }
 
 impl Display for PipelineNodeError {
@@ -58,6 +93,20 @@ impl Display for PipelineNodeError {
 			Self::IoError(_) => write!(f, "I/O error"),
 			Self::UnsupportedFormat(msg) => write!(f, "Unsupported format: {msg}"),
 			Self::Other(_) => write!(f, "Generic error"),
+			Self::BadParameterOther {
+				message,
+				param_name,
+			} => write!(f, "Bad parameter `{param_name}`: {message}"),
+			Self::BadParameterCount { expected } => {
+				write!(f, "Bad number of parameters: expected {expected}")
+			}
+			Self::BadParameterType { param_name } => {
+				write!(f, "Bad type for parameter `{param_name}`")
+			}
+			Self::MissingParameter { param_name } => {
+				write!(f, "Missing parameter `{param_name}`")
+			}
+			Self::BadInputType => write!(f, "Tried to run pipeline with invalid input"),
 		}
 	}
 }

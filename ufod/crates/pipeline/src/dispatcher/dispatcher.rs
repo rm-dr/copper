@@ -1,10 +1,9 @@
-use itertools::Itertools;
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, marker::PhantomData};
+use std::{collections::BTreeMap, error::Error, fmt::Display, marker::PhantomData};
 
 use super::{NodeParameterSpec, NodeParameterValue};
 use crate::{
-	api::{PipelineData, PipelineJobContext, PipelineNode},
+	api::{PipelineData, PipelineJobContext, PipelineNode, PipelineNodeError},
 	nodes::input::{Input, INPUT_NODE_TYPE_NAME},
 };
 
@@ -16,7 +15,7 @@ type InitNodeType<DataType, ContextType> = &'static (dyn Fn(
 	&BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
 	// This node's name
 	&str,
-) -> Result<Box<dyn PipelineNode<DataType>>, ()>
+) -> Result<Box<dyn PipelineNode<DataType>>, PipelineNodeError>
               + Send
               + Sync);
 
@@ -26,8 +25,25 @@ struct RegisteredNode<DataType: PipelineData, ContextType: PipelineJobContext<Da
 	init_node: InitNodeType<DataType, ContextType>,
 
 	/// The parameters this node takes
-	parameters: Vec<NodeParameterSpec<DataType>>,
+	parameters: BTreeMap<SmartString<LazyCompact>, NodeParameterSpec<DataType>>,
 }
+
+/// An error we encounter when trying to register a node
+#[derive(Debug)]
+pub enum RegisterNodeError {
+	/// We tried to register a node with a type string that is already used
+	AlreadyExists,
+}
+
+impl Display for RegisterNodeError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::AlreadyExists => write!(f, "A node with this name already exists"),
+		}
+	}
+}
+
+impl Error for RegisterNodeError {}
 
 /// A factory struct that constructs pipeline nodes
 /// `ContextType` is per-job state that is passed to each node.
@@ -50,9 +66,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		};
 
 		// Register internal nodes
-		x.register_node(INPUT_NODE_TYPE_NAME, vec![], &|ctx, params, name| {
-			Ok(Box::new(Input::new(ctx, params, name)))
-		})
+		x.register_node(
+			INPUT_NODE_TYPE_NAME,
+			BTreeMap::new(),
+			&|ctx, params, name| Ok(Box::new(Input::new(ctx, params, name)?)),
+		)
 		.unwrap();
 
 		x
@@ -65,15 +83,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	pub fn register_node(
 		&mut self,
 		type_name: &str,
-		parameters: Vec<NodeParameterSpec<DataType>>,
+		parameters: BTreeMap<SmartString<LazyCompact>, NodeParameterSpec<DataType>>,
 		init_node: InitNodeType<DataType, ContextType>,
-	) -> Result<(), ()> {
+	) -> Result<(), RegisterNodeError> {
 		if self.nodes.contains_key(type_name) {
-			panic!()
-		}
-
-		if !parameters.iter().map(|x| &x.param_name).all_unique() {
-			panic!()
+			return Err(RegisterNodeError::AlreadyExists);
 		}
 
 		self.nodes.insert(
@@ -93,11 +107,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		node_type: &str,
 		node_params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
 		node_name: &str,
-	) -> Result<Box<dyn PipelineNode<DataType>>, ()> {
+	) -> Result<Option<Box<dyn PipelineNode<DataType>>>, PipelineNodeError> {
 		if let Some(node) = self.nodes.get(node_type) {
-			return Ok((node.init_node)(context, node_params, node_name).unwrap());
+			return Ok(Some((node.init_node)(context, node_params, node_name)?));
 		} else {
-			panic!()
+			return Ok(None);
 		}
 	}
 }

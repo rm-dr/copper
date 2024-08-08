@@ -24,21 +24,27 @@ impl IfNone {
 	pub fn new(
 		_ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Self {
+	) -> Result<Self, PipelineNodeError> {
 		if params.len() != 1 {
-			panic!()
+			return Err(PipelineNodeError::BadParameterCount { expected: 1 });
 		}
 
 		let data_type = if let Some(value) = params.get("value") {
 			match value {
 				NodeParameterValue::DataType(data_type) => data_type.clone(),
-				_ => panic!(),
+				_ => {
+					return Err(PipelineNodeError::BadParameterType {
+						param_name: "value".into(),
+					})
+				}
 			}
 		} else {
-			panic!()
+			return Err(PipelineNodeError::MissingParameter {
+				param_name: "value".into(),
+			});
 		};
 
-		Self {
+		Ok(Self {
 			inputs: vec![
 				NodeInputInfo {
 					name: PipelinePortID::new("data"),
@@ -57,7 +63,7 @@ impl IfNone {
 
 			ifnone: None,
 			input: None,
-		}
+		})
 	}
 }
 

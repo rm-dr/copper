@@ -36,9 +36,9 @@ impl ExtractTags {
 	pub fn new(
 		ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Self {
+	) -> Result<Self, PipelineNodeError> {
 		if params.len() != 1 {
-			panic!()
+			return Err(PipelineNodeError::BadParameterCount { expected: 0 });
 		}
 
 		let mut tags: Vec<TagType> = Vec::new();
@@ -48,17 +48,27 @@ impl ExtractTags {
 					for t in list {
 						match t {
 							NodeParameterValue::String(s) => tags.push(s.as_str().into()),
-							_ => panic!(),
+							_ => {
+								return Err(PipelineNodeError::BadParameterType {
+									param_name: "tags".into(),
+								})
+							}
 						}
 					}
 				}
-				_ => panic!(),
+				_ => {
+					return Err(PipelineNodeError::BadParameterType {
+						param_name: "tags".into(),
+					})
+				}
 			}
 		} else {
-			panic!()
+			return Err(PipelineNodeError::MissingParameter {
+				param_name: "tags".into(),
+			});
 		}
 
-		Self {
+		Ok(Self {
 			inputs: vec![NodeInputInfo {
 				name: PipelinePortID::new("data"),
 				accepts_type: UFODataStub::Bytes,
@@ -82,7 +92,7 @@ impl ExtractTags {
 				pick_vorbiscomment: true,
 				..Default::default()
 			}),
-		}
+		})
 	}
 }
 
@@ -113,10 +123,10 @@ impl PipelineNode<UFOData> for ExtractTags {
 					self.data.consume(mime, source);
 				}
 
-				_ => panic!("bad input type"),
+				_ => unreachable!("Received unexpected data type"),
 			},
 
-			_ => unreachable!(),
+			_ => unreachable!("Received data at invalid port"),
 		}
 		return Ok(());
 	}

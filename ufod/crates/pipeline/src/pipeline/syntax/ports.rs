@@ -41,7 +41,7 @@ impl FromStr for NodeOutput {
 /// An input port in the pipeline.
 /// (i.e, a port that consumes data.)
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub(crate) struct NodeInput {
+pub struct NodeInput {
 	/// The node that provides this input
 	pub node: PipelineNodeID,
 

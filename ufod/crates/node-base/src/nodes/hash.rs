@@ -93,9 +93,9 @@ impl Hash {
 	pub fn new(
 		_ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Self {
+	) -> Result<Self, PipelineNodeError> {
 		if params.len() != 1 {
-			panic!()
+			return Err(PipelineNodeError::BadParameterCount { expected: 1 });
 		}
 
 		let hash_type: HashType = if let Some(value) = params.get("hash_type") {
@@ -104,13 +104,19 @@ impl Hash {
 					// TODO: direct from_str
 					serde_json::from_str(&format!("\"{hash_type}\"")).unwrap()
 				}
-				_ => panic!(),
+				_ => {
+					return Err(PipelineNodeError::BadParameterType {
+						param_name: "hash_type".into(),
+					})
+				}
 			}
 		} else {
-			panic!()
+			return Err(PipelineNodeError::MissingParameter {
+				param_name: "value".into(),
+			});
 		};
 
-		Self {
+		Ok(Self {
 			inputs: vec![NodeInputInfo {
 				name: PipelinePortID::new("data"),
 				accepts_type: UFODataStub::Bytes,
@@ -125,7 +131,7 @@ impl Hash {
 
 			data: DataSource::Uninitialized,
 			hasher: Some(HashComputer::new(hash_type)),
-		}
+		})
 	}
 }
 
@@ -149,10 +155,10 @@ impl PipelineNode<UFOData> for Hash {
 					self.data.consume(mime, source);
 				}
 
-				_ => panic!("bad input type"),
+				_ => unreachable!("Received input with unexpected type"),
 			},
 
-			_ => unreachable!("bad input port {target_port}"),
+			_ => unreachable!("Received input on invalid port {target_port}"),
 		}
 		return Ok(());
 	}

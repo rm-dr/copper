@@ -2,9 +2,11 @@
 
 use std::{error::Error, fmt::Display};
 
+use smartstring::{LazyCompact, SmartString};
+
 use super::ports::NodeInput;
 use crate::{
-	api::PipelineData,
+	api::{PipelineData, PipelineNodeError},
 	labels::{PipelineName, PipelineNodeID, PipelinePortID},
 };
 
@@ -101,8 +103,24 @@ pub enum PipelinePrepareError<DataType: PipelineData> {
 	NoSuchPipeline {
 		/// The Pipeline node with a bad pipeline
 		node: PipelineNodeID,
+
 		/// The bad pipeline
 		pipeline: PipelineName,
+	},
+
+	/// We tried to create a node with an unrecognized type
+	InvalidNodeType {
+		/// The node that was invalid
+		node: PipelineNodeID,
+
+		///The invalid type
+		bad_type: SmartString<LazyCompact>,
+	},
+
+	/// We encountered a [`PipelineNodeError`] while building a pipeline
+	PipelineNodeError {
+		/// The error we encountered
+		error: PipelineNodeError,
 	},
 }
 
@@ -164,6 +182,12 @@ impl<DataType: PipelineData> Display for PipelinePrepareError<DataType> {
 					"PipelinePrepareError: Node {node} references an unknown pipeline {pipeline}"
 				)
 			}
+			Self::InvalidNodeType { node, bad_type } => {
+				writeln!(f, "Node {node} has invalid type {bad_type}")
+			}
+			Self::PipelineNodeError { .. } => {
+				writeln!(f, "Encountered a PipelineNodeError")
+			}
 		}
 	}
 }
@@ -174,7 +198,15 @@ impl<DataType: PipelineData> Error for PipelinePrepareError<DataType> {
 			Self::CouldNotOpenFile { error } => Some(error),
 			Self::CouldNotReadFile { error } => Some(error),
 			Self::CouldNotParseFile { error } => Some(error),
+			Self::PipelineNodeError { error } => Some(error),
 			_ => None,
 		}
+	}
+}
+
+// TODO: this is messy
+impl<DataType: PipelineData> From<PipelineNodeError> for PipelinePrepareError<DataType> {
+	fn from(error: PipelineNodeError) -> Self {
+		Self::PipelineNodeError { error }
 	}
 }

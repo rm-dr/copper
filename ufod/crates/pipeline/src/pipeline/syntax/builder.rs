@@ -165,8 +165,11 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 							&node_spec.node_type,
 							&node_spec.node_params,
 							&node_name.id(),
-						)
-						.unwrap();
+						)?
+						.ok_or(PipelinePrepareError::InvalidNodeType {
+							node: node_name.clone(),
+							bad_type: node_spec.node_type.clone(),
+						})?;
 					let in_port = (&*node)
 						.inputs()
 						.iter()
@@ -211,8 +214,11 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				&node_spec.node_type,
 				&node_spec.node_params,
 				&out_link.node.id(),
-			)
-			.unwrap();
+			)?
+			.ok_or(PipelinePrepareError::InvalidNodeType {
+				node: out_link.node.clone(),
+				bad_type: node_spec.node_type.clone(),
+			})?;
 		let out_port = node_inst
 			.outputs()
 			.iter()
@@ -265,8 +271,11 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 					&get_node.node_type,
 					&get_node.node_params,
 					&output.node.id(),
-				)
-				.unwrap();
+				)?
+				.ok_or(PipelinePrepareError::InvalidNodeType {
+					node: output.node.clone(),
+					bad_type: get_node.node_type.clone(),
+				})?;
 
 			node.outputs()
 				.iter()
@@ -292,8 +301,11 @@ impl<'a, DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 					&get_node.node_type,
 					&get_node.node_params,
 					&input.node.id(),
-				)
-				.unwrap();
+				)?
+				.ok_or(PipelinePrepareError::InvalidNodeType {
+					node: input.node.clone(),
+					bad_type: get_node.node_type.clone(),
+				})?;
 
 			node.inputs()
 				.iter()

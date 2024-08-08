@@ -41,8 +41,9 @@ impl DataSource {
 					*is_done = is_last;
 				}
 
-				// TODO: proper errors
-				_ => panic!(""),
+				DataSource::File { .. } => {
+					unreachable!("DataSource consumed an array after other source type")
+				}
 			},
 
 			BytesSource::File { path } => match self {
@@ -53,7 +54,7 @@ impl DataSource {
 					}
 				}
 
-				_ => panic!(""),
+				_ => unreachable!("Datasource received a file after other source type"),
 			},
 		};
 	}

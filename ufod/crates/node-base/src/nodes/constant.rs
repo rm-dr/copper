@@ -20,28 +20,34 @@ impl Constant {
 	pub fn new(
 		_ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Self {
+	) -> Result<Self, PipelineNodeError> {
 		if params.len() != 1 {
-			panic!()
+			return Err(PipelineNodeError::BadParameterCount { expected: 1 });
 		}
 
 		let value = if let Some(value) = params.get("value") {
 			match value {
 				NodeParameterValue::Data(data) => data.clone(),
-				_ => panic!(),
+				_ => {
+					return Err(PipelineNodeError::BadParameterType {
+						param_name: "value".into(),
+					})
+				}
 			}
 		} else {
-			panic!()
+			return Err(PipelineNodeError::MissingParameter {
+				param_name: "value".into(),
+			});
 		};
 
-		Self {
+		Ok(Self {
 			outputs: [NodeOutputInfo {
 				name: PipelinePortID::new("out"),
 				produces_type: value.as_stub(),
 			}],
 
 			value,
-		}
+		})
 	}
 }
 
@@ -63,7 +69,7 @@ impl PipelineNode<UFOData> for Constant {
 		_target_port: usize,
 		_input_data: UFOData,
 	) -> Result<(), PipelineNodeError> {
-		unreachable!()
+		unreachable!("Constant nodes do not take input.")
 	}
 
 	fn run(

@@ -26,18 +26,24 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		ctx: &ContextType,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
 		node_name: &str,
-	) -> Self {
+	) -> Result<Self, PipelineNodeError> {
 		if params.len() != 1 {
-			panic!()
+			return Err(PipelineNodeError::BadParameterCount { expected: 1 });
 		}
 
 		let data_type = if let Some(value) = params.get("data_type") {
 			match value {
 				NodeParameterValue::DataType(data_type) => data_type.clone(),
-				_ => panic!(),
+				_ => {
+					return Err(PipelineNodeError::BadParameterType {
+						param_name: "data_type".into(),
+					});
+				}
 			}
 		} else {
-			panic!()
+			return Err(PipelineNodeError::MissingParameter {
+				param_name: "data_type".into(),
+			});
 		};
 
 		let value = if let Some(value) = ctx.get_input().get(node_name) {
@@ -48,17 +54,17 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		};
 
 		if data_type != value.as_stub() {
-			panic!()
+			return Err(PipelineNodeError::BadInputType);
 		}
 
-		Self {
+		Ok(Self {
 			_p: PhantomData {},
 			outputs: [NodeOutputInfo {
 				name: PipelinePortID::new("out"),
 				produces_type: data_type,
 			}],
 			value,
-		}
+		})
 	}
 }
 
@@ -82,7 +88,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Pipeline
 		_target_port: usize,
 		_input_data: DataType,
 	) -> Result<(), PipelineNodeError> {
-		unreachable!()
+		unreachable!("Input nodes do not have any input ports.")
 	}
 
 	fn run(

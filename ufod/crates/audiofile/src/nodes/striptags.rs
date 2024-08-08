@@ -33,12 +33,12 @@ impl StripTags {
 	pub fn new(
 		ctx: &UFOContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<UFOData>>,
-	) -> Self {
+	) -> Result<Self, PipelineNodeError> {
 		if params.len() != 0 {
-			panic!()
+			return Err(PipelineNodeError::BadParameterCount { expected: 0 });
 		}
 
-		Self {
+		Ok(Self {
 			inputs: vec![NodeInputInfo {
 				name: PipelinePortID::new("data"),
 				accepts_type: UFODataStub::Bytes,
@@ -53,7 +53,7 @@ impl StripTags {
 
 			strip: FlacMetaStrip::new(),
 			data: DataSource::Uninitialized,
-		}
+		})
 	}
 }
 
@@ -84,10 +84,10 @@ impl PipelineNode<UFOData> for StripTags {
 					self.data.consume(mime, source);
 				}
 
-				_ => panic!("bad input type"),
+				_ => unreachable!("Received data with an unexpected type"),
 			},
 
-			_ => unreachable!(),
+			_ => unreachable!("Received data at invalid port"),
 		}
 		return Ok(());
 	}
