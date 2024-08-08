@@ -49,9 +49,14 @@ readme = ""
 [workspace.dependencies]
 ufo-pipeline = { path = "crates/pipeline" }
 ufo-pipeline-nodes = { path = "crates/pipeline-nodes" }
-ufo-database = { path = "crates/database" }
 ufo-util = { path = "crates/util" }
 ufo-audiofile = { path = "crates/audiofile" }
+
+ufo-database = { path = "crates/database" }
+ufo-db-blobstore = { path = "crates/db-blobstore" }
+ufo-db-metastore = { path = "crates/db-metastore" }
+ufo-db-pipestore = { path = "crates/db-pipestore" }
+
 
 ufoc = { path = "crates/ufoc" }
 ufod = { path = "crates/ufod" }
@@ -90,3 +95,6 @@ serde = { version = "1.0.201", features = ["serde_derive"] }
 serde_json = "1.0.68"
 toml = "0.8.12"
 serde_with = "3.8.1"
+
+# Other
+sqlx = { version = "0.7", features = ["sqlite", "runtime-async-std"] }

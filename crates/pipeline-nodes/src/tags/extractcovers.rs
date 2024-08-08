@@ -3,7 +3,7 @@ use std::{
 	sync::Arc,
 };
 use ufo_audiofile::flac::flac_read_pictures;
-use ufo_database::metastore::data::MetastoreDataStub;
+use ufo_db_metastore::data::MetastoreDataStub;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 

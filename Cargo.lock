@@ -3047,13 +3047,45 @@ dependencies = [
 name = "ufo-database"
 version = "0.1.0"
 dependencies = [
+ "ufo-db-blobstore",
+ "ufo-db-metastore",
+ "ufo-db-pipestore",
+ "ufo-util",
+]
+
+[[package]]
+name = "ufo-db-blobstore"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "smartstring",
+ "sqlx",
+ "ufo-util",
+]
+
+[[package]]
+name = "ufo-db-metastore"
+version = "0.1.0"
+dependencies = [
  "futures",
  "itertools",
  "serde",
  "smartstring",
  "sqlx",
+ "ufo-db-blobstore",
+ "ufo-pipeline",
+ "ufo-util",
+]
+
+[[package]]
+name = "ufo-db-pipestore"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "smartstring",
  "toml",
  "ufo-pipeline",
+ "ufo-pipeline-nodes",
  "ufo-util",
  "walkdir",
 ]
@@ -3084,7 +3116,8 @@ dependencies = [
  "sha2",
  "smartstring",
  "ufo-audiofile",
- "ufo-database",
+ "ufo-db-blobstore",
+ "ufo-db-metastore",
  "ufo-pipeline",
  "ufo-util",
 ]
@@ -3114,6 +3147,9 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "ufo-database",
+ "ufo-db-blobstore",
+ "ufo-db-metastore",
+ "ufo-db-pipestore",
  "ufo-pipeline",
  "ufo-pipeline-nodes",
  "ufo-util",

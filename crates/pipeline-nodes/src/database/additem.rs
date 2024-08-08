@@ -1,21 +1,14 @@
 use core::panic;
-use std::{
-	collections::VecDeque,
-	fmt::Debug,
-	io::Write,
-	sync::{Arc, Mutex},
-};
+use std::{collections::VecDeque, fmt::Debug, io::Write, sync::Arc};
 
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
-use ufo_database::{
-	api::UFODatabase,
-	blobstore::api::{BlobHandle, BlobstoreTmpWriter},
-	metastore::{
-		data::{MetastoreData, MetastoreDataStub},
-		errors::MetastoreError,
-		handles::{AttrHandle, ClassHandle},
-	},
+use ufo_db_blobstore::api::{BlobHandle, Blobstore, BlobstoreTmpWriter};
+use ufo_db_metastore::{
+	api::Metastore,
+	data::{MetastoreData, MetastoreDataStub},
+	errors::MetastoreError,
+	handles::{AttrHandle, ClassHandle},
 };
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
@@ -53,7 +46,9 @@ pub struct AddItemConfig {
 }
 
 pub struct AddItem {
-	db: Arc<Mutex<dyn UFODatabase>>,
+	metastore: Arc<dyn Metastore>,
+	blobstore: Arc<dyn Blobstore>,
+
 	class: ClassHandle,
 	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetastoreDataStub)>,
 	config: AddItemConfig,
@@ -70,7 +65,9 @@ impl AddItem {
 	) -> Self {
 		let data = attrs.iter().map(|_| None).collect();
 		AddItem {
-			db: ctx.database.clone(),
+			metastore: ctx.metastore.clone(),
+			blobstore: ctx.blobstore.clone(),
+
 			class,
 			attrs,
 			data,
@@ -95,7 +92,7 @@ impl PipelineNode for AddItem {
 				None => {
 					self.data[port] = Some(DataHold::BlobWriting {
 						buffer: VecDeque::from([fragment]),
-						writer: Some(self.db.lock().unwrap().new_blob(&format)),
+						writer: Some(self.blobstore.new_blob(&format)),
 						is_done: is_last,
 					})
 				}
@@ -130,7 +127,7 @@ impl PipelineNode for AddItem {
 						writer.as_mut().unwrap().write(&data[..])?;
 					}
 					if *is_done {
-						let x = self.db.lock().unwrap().finish_blob(writer.take().unwrap());
+						let x = self.blobstore.finish_blob(writer.take().unwrap());
 						std::mem::swap(i, &mut Some(DataHold::BlobDone(x)));
 					}
 				}
@@ -154,12 +151,7 @@ impl PipelineNode for AddItem {
 			};
 			attrs.push((*attr, data.into()));
 		}
-		let res = self
-			.db
-			.lock()
-			.unwrap()
-			.get_metastore()
-			.add_item(self.class, attrs);
+		let res = self.metastore.add_item(self.class, attrs);
 
 		match res {
 			Ok(item) => {
@@ -194,21 +186,8 @@ impl UFONode for AddItem {
 	fn n_inputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
 		match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = ctx
-					.database
-					.lock()
-					.unwrap()
-					.get_metastore()
-					.get_class(&class[..])
-					.unwrap()
-					.unwrap();
-				let attrs = ctx
-					.database
-					.lock()
-					.unwrap()
-					.get_metastore()
-					.class_get_attrs(class)
-					.unwrap();
+				let class = ctx.metastore.get_class(&class[..]).unwrap().unwrap();
+				let attrs = ctx.metastore.class_get_attrs(class).unwrap();
 
 				attrs.into_iter().count()
 			}
@@ -237,21 +216,8 @@ impl UFONode for AddItem {
 	) -> Option<usize> {
 		match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = ctx
-					.database
-					.lock()
-					.unwrap()
-					.get_metastore()
-					.get_class(&class[..])
-					.unwrap()
-					.unwrap();
-				let attrs = ctx
-					.database
-					.lock()
-					.unwrap()
-					.get_metastore()
-					.class_get_attrs(class)
-					.unwrap();
+				let class = ctx.metastore.get_class(&class[..]).unwrap().unwrap();
+				let attrs = ctx.metastore.class_get_attrs(class).unwrap();
 
 				attrs
 					.into_iter()
@@ -270,21 +236,8 @@ impl UFONode for AddItem {
 	) -> MetastoreDataStub {
 		match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = ctx
-					.database
-					.lock()
-					.unwrap()
-					.get_metastore()
-					.get_class(&class[..])
-					.unwrap()
-					.unwrap();
-				let attrs = ctx
-					.database
-					.lock()
-					.unwrap()
-					.get_metastore()
-					.class_get_attrs(class)
-					.unwrap();
+				let class = ctx.metastore.get_class(&class[..]).unwrap().unwrap();
+				let attrs = ctx.metastore.class_get_attrs(class).unwrap();
 
 				attrs.into_iter().nth(input_idx).unwrap().2
 			}
@@ -295,21 +248,8 @@ impl UFONode for AddItem {
 	fn n_outputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
 		match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = ctx
-					.database
-					.lock()
-					.unwrap()
-					.get_metastore()
-					.get_class(&class[..])
-					.unwrap()
-					.unwrap();
-				let attrs = ctx
-					.database
-					.lock()
-					.unwrap()
-					.get_metastore()
-					.class_get_attrs(class)
-					.unwrap();
+				let class = ctx.metastore.get_class(&class[..]).unwrap().unwrap();
+				let attrs = ctx.metastore.class_get_attrs(class).unwrap();
 				attrs.into_iter().count()
 			}
 			_ => unreachable!(),
@@ -320,8 +260,7 @@ impl UFONode for AddItem {
 		match stub {
 			UFONodeType::AddItem { class, .. } => {
 				assert!(output_idx == 0);
-				let mut d = ctx.database.lock().unwrap();
-				let class = d.get_metastore().get_class(class).unwrap().unwrap();
+				let class = ctx.metastore.get_class(class).unwrap().unwrap();
 				MetastoreDataStub::Reference { class }
 			}
 			_ => unreachable!(),

@@ -39,66 +39,66 @@ impl AttributeOptions {
 
 pub trait Metastore
 where
-	Self: Send,
+	Self: Send + Sync,
 {
-	fn add_class(&mut self, name: &str) -> Result<ClassHandle, MetastoreError>;
+	fn add_class(&self, name: &str) -> Result<ClassHandle, MetastoreError>;
 	fn add_item(
-		&mut self,
+		&self,
 		class: ClassHandle,
 		attrs: Vec<(AttrHandle, MetastoreData)>,
 	) -> Result<ItemHandle, MetastoreError>;
 	fn add_attr(
-		&mut self,
+		&self,
 		class: ClassHandle,
 		name: &str,
 		data_type: MetastoreDataStub,
 		options: AttributeOptions,
 	) -> Result<AttrHandle, MetastoreError>;
 
-	fn del_class(&mut self, class: ClassHandle) -> Result<(), MetastoreError>;
-	fn del_item(&mut self, item: ItemHandle) -> Result<(), MetastoreError>;
-	fn del_attr(&mut self, attr: AttrHandle) -> Result<(), MetastoreError>;
+	fn del_class(&self, class: ClassHandle) -> Result<(), MetastoreError>;
+	fn del_item(&self, item: ItemHandle) -> Result<(), MetastoreError>;
+	fn del_attr(&self, attr: AttrHandle) -> Result<(), MetastoreError>;
 
 	//fn iter_items(&self) -> Result<impl Iterator<Item = ItemHandle>, ()>;
 	//fn iter_classes(&self) -> Result<impl Iterator<Item = ClassHandle>, ()>;
 	//fn iter_attrs(&self) -> Result<impl Iterator<Item = AttrHandle>, ()>;
 
-	fn get_class(&mut self, class_name: &str) -> Result<Option<ClassHandle>, MetastoreError>;
+	fn get_class(&self, class_name: &str) -> Result<Option<ClassHandle>, MetastoreError>;
 	fn get_attr(
-		&mut self,
+		&self,
 		class: ClassHandle,
 		attr_name: &str,
 	) -> Result<Option<AttrHandle>, MetastoreError>;
 
 	// TODO: take &[(_, _)] instead of single data
-	fn item_set_attr(&mut self, attr: AttrHandle, data: MetastoreData) -> Result<(), MetastoreError>;
+	fn item_set_attr(&self, attr: AttrHandle, data: MetastoreData) -> Result<(), MetastoreError>;
 	fn item_get_attr(
-		&mut self,
+		&self,
 		item: ItemHandle,
 		attr: AttrHandle,
 	) -> Result<MetastoreData, MetastoreError>;
-	fn item_get_class(&mut self, item: ItemHandle) -> Result<ClassHandle, MetastoreError>;
+	fn item_get_class(&self, item: ItemHandle) -> Result<ClassHandle, MetastoreError>;
 
-	fn class_set_name(&mut self, class: ClassHandle, name: &str) -> Result<(), MetastoreError>;
-	fn class_get_name(&mut self, class: ClassHandle) -> Result<&str, MetastoreError>;
+	fn class_set_name(&self, class: ClassHandle, name: &str) -> Result<(), MetastoreError>;
+	fn class_get_name(&self, class: ClassHandle) -> Result<&str, MetastoreError>;
 
 	/// Get all attributes in the given class.
 	/// Returns (attr handle, attr name, attr type)
 	///
 	/// Attribute order MUST be consistent!
 	fn class_get_attrs(
-		&mut self,
+		&self,
 		class: ClassHandle,
 	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, MetastoreDataStub)>, MetastoreError>;
-	fn class_num_attrs(&mut self, class: ClassHandle) -> Result<usize, MetastoreError>;
+	fn class_num_attrs(&self, class: ClassHandle) -> Result<usize, MetastoreError>;
 
-	fn attr_set_name(&mut self, attr: AttrHandle, name: &str) -> Result<(), MetastoreError>;
-	fn attr_get_name(&mut self, attr: AttrHandle) -> Result<&str, MetastoreError>;
-	fn attr_get_type(&mut self, attr: AttrHandle) -> Result<MetastoreDataStub, MetastoreError>;
-	fn attr_get_class(&mut self, attr: AttrHandle) -> ClassHandle;
+	fn attr_set_name(&self, attr: AttrHandle, name: &str) -> Result<(), MetastoreError>;
+	fn attr_get_name(&self, attr: AttrHandle) -> Result<&str, MetastoreError>;
+	fn attr_get_type(&self, attr: AttrHandle) -> Result<MetastoreDataStub, MetastoreError>;
+	fn attr_get_class(&self, attr: AttrHandle) -> ClassHandle;
 
 	fn find_item_with_attr(
-		&mut self,
+		&self,
 		attr: AttrHandle,
 		attr_value: MetastoreData,
 	) -> Result<Option<ItemHandle>, MetastoreError>;

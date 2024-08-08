@@ -1,5 +1,5 @@
 [package]
-name = "ufo-database"
+name = "ufo-db-blobstore"
 description = "TODO"
 categories = { workspace = true }
 keywords = { workspace = true }
@@ -18,6 +18,7 @@ workspace = true
 
 [dependencies]
 ufo-util = { workspace = true }
-ufo-db-blobstore = { workspace = true }
-ufo-db-metastore = { workspace = true }
-ufo-db-pipestore = { workspace = true }
+
+smartstring = { workspace = true }
+futures = { workspace = true }
+sqlx = { workspace = true }

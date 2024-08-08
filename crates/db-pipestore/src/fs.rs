@@ -18,7 +18,7 @@ pub struct FsPipestore {
 unsafe impl Send for FsPipestore {}
 
 impl FsPipestore {
-	pub(crate) fn create(pipe_storage_dir: &Path) -> Result<(), ()> {
+	pub fn create(pipe_storage_dir: &Path) -> Result<(), ()> {
 		if pipe_storage_dir.exists() {
 			return Err(());
 		}
@@ -27,7 +27,7 @@ impl FsPipestore {
 		Ok(())
 	}
 
-	pub(crate) fn open(pipe_storage_dir: &Path) -> Result<Self, ()> {
+	pub fn open(pipe_storage_dir: &Path) -> Result<Self, ()> {
 		let mut pipeline_names = Vec::new();
 		for entry in WalkDir::new(pipe_storage_dir) {
 			let entry = entry.unwrap();

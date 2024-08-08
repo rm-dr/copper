@@ -16,12 +16,15 @@ pub mod errors;
 pub mod nodeinstance;
 pub mod nodetype;
 
-use std::sync::{Arc, Mutex};
-use ufo_database::api::UFODatabase;
+use std::sync::Arc;
+
+use ufo_db_blobstore::api::Blobstore;
+use ufo_db_metastore::api::Metastore;
 
 #[derive(Clone)]
 pub struct UFOContext {
-	pub database: Arc<Mutex<dyn UFODatabase>>,
+	pub metastore: Arc<dyn Metastore>,
+	pub blobstore: Arc<dyn Blobstore>,
 
 	/// The maximum size, in bytes, of a blob channel fragment
 	pub blob_fragment_size: usize,

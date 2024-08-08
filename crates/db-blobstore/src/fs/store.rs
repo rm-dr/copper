@@ -7,9 +7,7 @@ use futures::executor::block_on;
 use sqlx::{Connection, Row, SqliteConnection};
 use ufo_util::mime::MimeType;
 
-use crate::blobstore::api::{BlobHandle, BlobstoreTmpWriter};
-
-use super::super::api::Blobstore;
+use crate::api::{BlobHandle, Blobstore, BlobstoreTmpWriter};
 
 pub struct FsBlobstore {
 	root: PathBuf,
@@ -17,14 +15,8 @@ pub struct FsBlobstore {
 	conn: Mutex<SqliteConnection>,
 }
 
-unsafe impl Send for FsBlobstore {}
-
 impl FsBlobstore {
-	pub(crate) fn create(
-		root_dir: &Path,
-		blob_db_file: &Path,
-		blob_storage_dir: &Path,
-	) -> Result<(), ()> {
+	pub fn create(root_dir: &Path, blob_db_file: &Path, blob_storage_dir: &Path) -> Result<(), ()> {
 		let blob_db_absolute = root_dir.join(&blob_db_file);
 		let blob_storage_dir_absolute = root_dir.join(&blob_storage_dir);
 
@@ -51,7 +43,7 @@ impl FsBlobstore {
 		Ok(())
 	}
 
-	pub(crate) fn open(db_root_dir: &Path, blob_db_name: &str) -> Result<Self, ()> {
+	pub fn open(db_root_dir: &Path, blob_db_name: &str) -> Result<Self, ()> {
 		let database = db_root_dir.join(blob_db_name);
 		let db_addr = format!("sqlite:{}?mode=rwc", database.to_str().unwrap());
 		let mut conn = block_on(SqliteConnection::connect(&db_addr)).unwrap();
@@ -81,7 +73,7 @@ impl FsBlobstore {
 }
 
 impl Blobstore for FsBlobstore {
-	fn new_blob(&mut self, mime: &MimeType) -> BlobstoreTmpWriter {
+	fn new_blob(&self, mime: &MimeType) -> BlobstoreTmpWriter {
 		let mut li = self.idx.lock().unwrap();
 		let i = *li;
 		*li += 1;
@@ -103,7 +95,7 @@ impl Blobstore for FsBlobstore {
 		)
 	}
 
-	fn finish_blob(&mut self, mut blob: BlobstoreTmpWriter) -> BlobHandle {
+	fn finish_blob(&self, mut blob: BlobstoreTmpWriter) -> BlobHandle {
 		block_on(
 			sqlx::query("INSERT INTO blobs (data_type, file_path) VALUES (?, ?);")
 				.bind(blob.handle.get_type().to_db_str())

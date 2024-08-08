@@ -58,7 +58,8 @@ async fn main() {
 		.collect::<Vec<_>>();
 
 	let ctx = UFOContext {
-		database: Arc::new(Mutex::new(database)),
+		metastore: database.get_metastore(),
+		blobstore: database.get_blobstore(),
 		blob_fragment_size: 1_000_000,
 	};
 

@@ -17,10 +17,12 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
-ufo-database = { workspace = true }
 ufo-util = { workspace = true }
 ufo-audiofile = { workspace = true }
 ufo-pipeline = { workspace = true }
+
+ufo-db-blobstore = { workspace = true }
+ufo-db-metastore = { workspace = true }
 
 serde = { workspace = true }
 smartstring = { workspace = true }

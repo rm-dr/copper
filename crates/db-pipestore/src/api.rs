@@ -2,7 +2,7 @@ use ufo_pipeline::labels::PipelineLabel;
 
 pub trait Pipestore
 where
-	Self: Send,
+	Self: Send + Sync,
 {
 	fn load_pipeline(&self, name: PipelineLabel) -> String;
 	fn all_pipelines(&self) -> &[String];
@@ -11,7 +11,7 @@ where
 /*
 pub trait Pipestore<NodeStub: PipelineNodeStub>
 where
-	Self: Send + Sized,
+	Self: Send + Sync,
 {
 	fn load_pipeline(
 		&self,

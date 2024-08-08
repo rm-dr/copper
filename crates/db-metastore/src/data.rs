@@ -1,10 +1,9 @@
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
+use ufo_db_blobstore::api::BlobHandle;
 use ufo_pipeline::api::PipelineDataStub;
 use ufo_util::mime::MimeType;
-
-use crate::blobstore::api::BlobHandle;
 
 use super::handles::{ClassHandle, ItemHandle};
 

@@ -1,11 +1,9 @@
-use std::sync::{Arc, Mutex};
-use ufo_database::{
-	api::UFODatabase,
-	metastore::{
-		data::MetastoreDataStub,
-		errors::MetastoreError,
-		handles::{AttrHandle, ClassHandle},
-	},
+use std::sync::Arc;
+use ufo_db_metastore::{
+	api::Metastore,
+	data::MetastoreDataStub,
+	errors::MetastoreError,
+	handles::{AttrHandle, ClassHandle},
 };
 use ufo_pipeline::{
 	api::{PipelineData, PipelineNode, PipelineNodeState},
@@ -17,7 +15,7 @@ use crate::{
 };
 
 pub struct FindItem {
-	db: Arc<Mutex<dyn UFODatabase>>,
+	metastore: Arc<dyn Metastore>,
 	class: ClassHandle,
 	by_attr: AttrHandle,
 	attr_type: MetastoreDataStub,
@@ -31,14 +29,9 @@ impl FindItem {
 		class: ClassHandle,
 		by_attr: AttrHandle,
 	) -> Result<Self, MetastoreError> {
-		let attr_type = ctx
-			.database
-			.lock()
-			.unwrap()
-			.get_metastore()
-			.attr_get_type(by_attr)?;
+		let attr_type = ctx.metastore.attr_get_type(by_attr)?;
 		Ok(FindItem {
-			db: ctx.database.clone(),
+			metastore: ctx.metastore.clone(),
 			class,
 			by_attr,
 			attr_type,
@@ -67,15 +60,10 @@ impl PipelineNode for FindItem {
 			return Ok(PipelineNodeState::Pending("waiting for input"));
 		}
 
-		let found = self
-			.db
-			.lock()
-			.unwrap()
-			.get_metastore()
-			.find_item_with_attr(
-				self.by_attr,
-				self.attr_value.as_ref().unwrap().as_db_data().unwrap(),
-			)?;
+		let found = self.metastore.find_item_with_attr(
+			self.by_attr,
+			self.attr_value.as_ref().unwrap().as_db_data().unwrap(),
+		)?;
 
 		if let Some(item) = found {
 			send_data(
@@ -140,14 +128,9 @@ impl UFONode for FindItem {
 		match stub {
 			UFONodeType::FindItem { class, by_attr } => {
 				assert!(input_idx == 0);
-				let mut d = ctx.database.lock().unwrap();
-				let class = d.get_metastore().get_class(&class[..]).unwrap().unwrap();
-				let attr = d
-					.get_metastore()
-					.get_attr(class, &by_attr)
-					.unwrap()
-					.unwrap();
-				d.get_metastore().attr_get_type(attr).unwrap()
+				let class = ctx.metastore.get_class(&class[..]).unwrap().unwrap();
+				let attr = ctx.metastore.get_attr(class, &by_attr).unwrap().unwrap();
+				ctx.metastore.attr_get_type(attr).unwrap()
 			}
 			_ => unreachable!(),
 		}
@@ -164,8 +147,7 @@ impl UFONode for FindItem {
 		match stub {
 			UFONodeType::FindItem { class, .. } => {
 				assert!(output_idx == 0);
-				let mut d = ctx.database.lock().unwrap();
-				let class = d.get_metastore().get_class(class).unwrap().unwrap();
+				let class = ctx.metastore.get_class(class).unwrap().unwrap();
 				MetastoreDataStub::Reference { class }
 			}
 			_ => unreachable!(),

@@ -1,49 +1,36 @@
-use std::path::{Path, PathBuf};
-
-use crate::{
-	api::UFODatabase,
-	blobstore::{
-		api::{BlobHandle, Blobstore, BlobstoreTmpWriter},
-		fs::store::FsBlobstore,
-	},
-	metastore::{api::Metastore, errors::MetastoreError, sqlite::db::SQLiteMetastore},
-	pipestore::{api::Pipestore, fs::FsPipestore},
+use std::{
+	path::{Path, PathBuf},
+	sync::Arc,
 };
 
+use ufo_db_blobstore::{api::Blobstore, fs::store::FsBlobstore};
+use ufo_db_metastore::{api::Metastore, errors::MetastoreError, sqlite::db::SQLiteMetastore};
+use ufo_db_pipestore::{api::Pipestore, fs::FsPipestore};
+
+use crate::api::UFODatabase;
+
 pub struct Database<BlobstoreType: Blobstore, MetastoreType: Metastore, PipestoreType: Pipestore> {
-	blobstore: BlobstoreType,
-	metastore: MetastoreType,
-	pipestore: PipestoreType,
+	blobstore: Arc<BlobstoreType>,
+	metastore: Arc<MetastoreType>,
+	pipestore: Arc<PipestoreType>,
 }
 
-// TODO: modular locks
-unsafe impl<BlobStoreType: Blobstore, MetaDbType: Metastore, PipestoreType: Pipestore> Send
-	for Database<BlobStoreType, MetaDbType, PipestoreType>
+impl<
+		BlobStoreType: Blobstore + 'static,
+		MetaDbType: Metastore + 'static,
+		PipestoreType: Pipestore + 'static,
+	> UFODatabase for Database<BlobStoreType, MetaDbType, PipestoreType>
 {
-}
-
-unsafe impl<BlobStoreType: Blobstore, MetaDbType: Metastore, PipestoreType: Pipestore> Sync
-	for Database<BlobStoreType, MetaDbType, PipestoreType>
-{
-}
-
-impl<BlobStoreType: Blobstore, MetaDbType: Metastore, PipestoreType: Pipestore> UFODatabase
-	for Database<BlobStoreType, MetaDbType, PipestoreType>
-{
-	fn get_metastore(&mut self) -> &mut dyn Metastore {
-		&mut self.metastore
+	fn get_metastore(&self) -> Arc<dyn Metastore> {
+		self.metastore.clone()
 	}
 
-	fn get_pipestore(&self) -> &dyn Pipestore {
-		&self.pipestore
+	fn get_blobstore(&self) -> Arc<dyn Blobstore> {
+		self.blobstore.clone()
 	}
 
-	fn new_blob(&mut self, mime: &ufo_util::mime::MimeType) -> BlobstoreTmpWriter {
-		self.blobstore.new_blob(mime)
-	}
-
-	fn finish_blob(&mut self, blob: BlobstoreTmpWriter) -> BlobHandle {
-		self.blobstore.finish_blob(blob)
+	fn get_pipestore(&self) -> Arc<dyn Pipestore> {
+		self.pipestore.clone()
 	}
 }
 
@@ -96,9 +83,9 @@ impl Database<FsBlobstore, SQLiteMetastore, FsPipestore> {
 		let pipestore = FsPipestore::open(&db_root.join("pipelines")).unwrap();
 
 		Ok(Self {
-			metastore,
-			blobstore,
-			pipestore,
+			metastore: Arc::new(metastore),
+			blobstore: Arc::new(blobstore),
+			pipestore: Arc::new(pipestore),
 		})
 	}
 }

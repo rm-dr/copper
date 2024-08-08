@@ -1,17 +1,17 @@
-use crate::metastore::{
-	api::{AttributeOptions, Metastore},
-	data::{MetastoreData, MetastoreDataStub},
-	errors::MetastoreError,
-	handles::{AttrHandle, ClassHandle, ItemHandle},
-};
-
 use futures::executor::block_on;
 use itertools::Itertools;
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{
 	query::Query, sqlite::SqliteArguments, Connection, Executor, Row, Sqlite, SqliteConnection,
 };
-use std::{iter, path::Path};
+use std::{iter, path::Path, sync::Mutex};
+
+use crate::{
+	api::{AttributeOptions, Metastore},
+	data::{MetastoreData, MetastoreDataStub},
+	errors::MetastoreError,
+	handles::{AttrHandle, ClassHandle, ItemHandle},
+};
 
 pub struct SQLiteMetastore {
 	/// The path to the database we'll connect to
@@ -19,7 +19,8 @@ pub struct SQLiteMetastore {
 
 	/// A connection to a database.
 	/// `None` if disconnected.
-	conn: Option<SqliteConnection>,
+	conn: Option<Mutex<SqliteConnection>>,
+	//TODO:async mutex
 }
 
 // SQL helper functions
@@ -71,7 +72,7 @@ impl SQLiteMetastore {
 }
 
 impl SQLiteMetastore {
-	pub(crate) fn create(db_file: &Path) -> Result<(), MetastoreError> {
+	pub fn create(db_file: &Path) -> Result<(), MetastoreError> {
 		assert!(!db_file.exists());
 		let db_addr = format!("sqlite:{}?mode=rwc", db_file.to_str().unwrap());
 		let mut conn = block_on(SqliteConnection::connect(&db_addr))?;
@@ -81,31 +82,31 @@ impl SQLiteMetastore {
 		Ok(())
 	}
 
-	pub(crate) fn open(db_file: &Path) -> Result<Self, MetastoreError> {
+	pub fn open(db_file: &Path) -> Result<Self, MetastoreError> {
 		let db_addr = format!("sqlite:{}?mode=rw", db_file.to_str().unwrap());
 		let conn = block_on(SqliteConnection::connect(&db_addr))?;
 
 		Ok(Self {
 			//database: db_addr.into(),
-			conn: Some(conn),
+			conn: Some(Mutex::new(conn)),
 		})
 	}
 }
 
 impl Metastore for SQLiteMetastore {
 	fn add_attr(
-		&mut self,
+		&self,
 		class: ClassHandle,
 		attr_name: &str,
 		data_type: MetastoreDataStub,
 		options: AttributeOptions,
 	) -> Result<AttrHandle, MetastoreError> {
 		// Start transaction
-		let mut t = if let Some(ref mut conn) = self.conn {
-			block_on(conn.begin())?
-		} else {
+		if self.conn.is_none() {
 			return Err(MetastoreError::NotConnected);
-		};
+		}
+		let mut conn_lock = self.conn.as_ref().unwrap().lock().unwrap();
+		let mut t = block_on(conn_lock.begin())?;
 
 		// Add attribute metadata
 		let new_attr_id = {
@@ -199,13 +200,13 @@ impl Metastore for SQLiteMetastore {
 		Ok(u32::try_from(new_attr_id).unwrap().into())
 	}
 
-	fn add_class(&mut self, class_name: &str) -> Result<ClassHandle, MetastoreError> {
+	fn add_class(&self, class_name: &str) -> Result<ClassHandle, MetastoreError> {
 		// Start transaction
-		let mut t = if let Some(ref mut conn) = self.conn {
-			block_on(conn.begin())?
-		} else {
+		if self.conn.is_none() {
 			return Err(MetastoreError::NotConnected);
-		};
+		}
+		let mut conn_lock = self.conn.as_ref().unwrap().lock().unwrap();
+		let mut t = block_on(conn_lock.begin())?;
 
 		// Add metadata
 		let new_class_id = {
@@ -244,16 +245,16 @@ impl Metastore for SQLiteMetastore {
 	}
 
 	fn add_item(
-		&mut self,
+		&self,
 		class: ClassHandle,
 		mut attrs: Vec<(AttrHandle, MetastoreData)>,
 	) -> Result<ItemHandle, MetastoreError> {
 		// Start transaction
-		let mut t = if let Some(ref mut conn) = self.conn {
-			block_on(conn.begin())?
-		} else {
+		if self.conn.is_none() {
 			return Err(MetastoreError::NotConnected);
-		};
+		}
+		let mut conn_lock = self.conn.as_ref().unwrap().lock().unwrap();
+		let mut t = block_on(conn_lock.begin())?;
 
 		let table_name = Self::get_table_name(&mut *t, class)?;
 
@@ -322,28 +323,26 @@ impl Metastore for SQLiteMetastore {
 		Ok(u32::try_from(id).unwrap().into())
 	}
 
-	fn del_attr(&mut self, _attr: AttrHandle) -> Result<(), MetastoreError> {
+	fn del_attr(&self, _attr: AttrHandle) -> Result<(), MetastoreError> {
 		unimplemented!()
 	}
 
-	fn del_class(&mut self, _class: ClassHandle) -> Result<(), MetastoreError> {
+	fn del_class(&self, _class: ClassHandle) -> Result<(), MetastoreError> {
 		unimplemented!()
 	}
-
-	fn del_item(&mut self, _item: ItemHandle) -> Result<(), MetastoreError> {
+	fn del_item(&self, _item: ItemHandle) -> Result<(), MetastoreError> {
 		unimplemented!()
 	}
 
 	fn get_attr(
-		&mut self,
+		&self,
 		class: ClassHandle,
 		attr_name: &str,
 	) -> Result<Option<AttrHandle>, MetastoreError> {
-		let conn = if let Some(ref mut conn) = self.conn {
-			conn
-		} else {
+		if self.conn.is_none() {
 			return Err(MetastoreError::NotConnected);
-		};
+		}
+		let conn = &mut *self.conn.as_ref().unwrap().lock().unwrap();
 
 		let res = block_on(
 			sqlx::query("SELECT id FROM meta_attributes WHERE class_id=? AND pretty_name=?;")
@@ -359,13 +358,11 @@ impl Metastore for SQLiteMetastore {
 		};
 	}
 
-	fn get_class(&mut self, class_name: &str) -> Result<Option<ClassHandle>, MetastoreError> {
-		// Start transaction
-		let conn = if let Some(ref mut conn) = self.conn {
-			conn
-		} else {
+	fn get_class(&self, class_name: &str) -> Result<Option<ClassHandle>, MetastoreError> {
+		if self.conn.is_none() {
 			return Err(MetastoreError::NotConnected);
-		};
+		}
+		let conn = &mut *self.conn.as_ref().unwrap().lock().unwrap();
 
 		let res = block_on(
 			sqlx::query("SELECT id FROM meta_classes WHERE pretty_name=?;")
@@ -381,28 +378,28 @@ impl Metastore for SQLiteMetastore {
 	}
 
 	fn item_get_attr(
-		&mut self,
+		&self,
 		_item: ItemHandle,
 		_attr: AttrHandle,
 	) -> Result<MetastoreData, MetastoreError> {
 		unimplemented!()
 	}
 
-	fn item_get_class(&mut self, _item: ItemHandle) -> Result<ClassHandle, MetastoreError> {
+	fn item_get_class(&self, _item: ItemHandle) -> Result<ClassHandle, MetastoreError> {
 		unimplemented!()
 	}
 
 	fn item_set_attr(
-		&mut self,
+		&self,
 		attr: AttrHandle,
 		mut data: MetastoreData,
 	) -> Result<(), MetastoreError> {
 		// Start transaction
-		let mut t = if let Some(ref mut conn) = self.conn {
-			block_on(conn.begin())?
-		} else {
+		if self.conn.is_none() {
 			return Err(MetastoreError::NotConnected);
-		};
+		}
+		let mut conn_lock = self.conn.as_ref().unwrap().lock().unwrap();
+		let mut t = block_on(conn_lock.begin())?;
 
 		// Find table and column name to modify
 		let (table_name, column_name, is_not_null): (String, String, bool) = {
@@ -472,28 +469,26 @@ impl Metastore for SQLiteMetastore {
 		Ok(())
 	}
 
-	fn class_set_name(&mut self, _class: ClassHandle, _name: &str) -> Result<(), MetastoreError> {
+	fn class_set_name(&self, _class: ClassHandle, _name: &str) -> Result<(), MetastoreError> {
 		unimplemented!()
 	}
 
-	fn class_get_name(&mut self, _class: ClassHandle) -> Result<&str, MetastoreError> {
+	fn class_get_name(&self, _class: ClassHandle) -> Result<&str, MetastoreError> {
 		unimplemented!()
 	}
 
-	fn class_num_attrs(&mut self, _class: ClassHandle) -> Result<usize, MetastoreError> {
+	fn class_num_attrs(&self, _class: ClassHandle) -> Result<usize, MetastoreError> {
 		unimplemented!()
 	}
 
 	fn class_get_attrs(
-		&mut self,
+		&self,
 		class: ClassHandle,
 	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, MetastoreDataStub)>, MetastoreError> {
-		// Start transaction
-		let conn = if let Some(ref mut conn) = self.conn {
-			conn
-		} else {
+		if self.conn.is_none() {
 			return Err(MetastoreError::NotConnected);
-		};
+		}
+		let conn = &mut *self.conn.as_ref().unwrap().lock().unwrap();
 
 		let res = block_on(
 			sqlx::query(
@@ -529,20 +524,19 @@ impl Metastore for SQLiteMetastore {
 			.collect())
 	}
 
-	fn attr_set_name(&mut self, _attr: AttrHandle, _name: &str) -> Result<(), MetastoreError> {
+	fn attr_set_name(&self, _attr: AttrHandle, _name: &str) -> Result<(), MetastoreError> {
 		unimplemented!()
 	}
 
-	fn attr_get_name(&mut self, _attr: AttrHandle) -> Result<&str, MetastoreError> {
+	fn attr_get_name(&self, _attr: AttrHandle) -> Result<&str, MetastoreError> {
 		unimplemented!()
 	}
 
-	fn attr_get_type(&mut self, attr: AttrHandle) -> Result<MetastoreDataStub, MetastoreError> {
-		let conn = if let Some(ref mut conn) = self.conn {
-			conn
-		} else {
+	fn attr_get_type(&self, attr: AttrHandle) -> Result<MetastoreDataStub, MetastoreError> {
+		if self.conn.is_none() {
 			return Err(MetastoreError::NotConnected);
-		};
+		}
+		let conn = &mut *self.conn.as_ref().unwrap().lock().unwrap();
 
 		let res = block_on(
 			sqlx::query("SELECT data_type FROM meta_attributes WHERE id=?;")
@@ -559,20 +553,19 @@ impl Metastore for SQLiteMetastore {
 		};
 	}
 
-	fn attr_get_class(&mut self, _attr: AttrHandle) -> ClassHandle {
+	fn attr_get_class(&self, _attr: AttrHandle) -> ClassHandle {
 		unimplemented!()
 	}
 
 	fn find_item_with_attr(
-		&mut self,
+		&self,
 		attr: AttrHandle,
 		mut attr_value: MetastoreData,
 	) -> Result<Option<ItemHandle>, MetastoreError> {
-		let conn = if let Some(ref mut conn) = self.conn {
-			conn
-		} else {
+		if self.conn.is_none() {
 			return Err(MetastoreError::NotConnected);
-		};
+		}
+		let conn = &mut *self.conn.as_ref().unwrap().lock().unwrap();
 
 		// Find table and column name to modify
 		let (table_name, column_name): (String, String) = {

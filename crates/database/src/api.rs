@@ -1,17 +1,14 @@
-use ufo_util::mime::MimeType;
+use std::sync::Arc;
 
-use crate::{
-	blobstore::api::{BlobHandle, BlobstoreTmpWriter},
-	metastore::api::Metastore,
-	pipestore::api::Pipestore,
-};
+use ufo_db_blobstore::api::Blobstore;
+use ufo_db_metastore::api::Metastore;
+use ufo_db_pipestore::api::Pipestore;
 
 pub trait UFODatabase
 where
 	Self: Send + Sync,
 {
-	fn get_metastore(&mut self) -> &mut dyn Metastore;
-	fn get_pipestore(&self) -> &dyn Pipestore;
-	fn new_blob(&mut self, mime: &MimeType) -> BlobstoreTmpWriter;
-	fn finish_blob(&mut self, blob: BlobstoreTmpWriter) -> BlobHandle;
+	fn get_metastore(&self) -> Arc<dyn Metastore>;
+	fn get_pipestore(&self) -> Arc<dyn Pipestore>;
+	fn get_blobstore(&self) -> Arc<dyn Blobstore>;
 }

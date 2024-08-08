@@ -3,17 +3,14 @@ use clap::{Parser, Subcommand};
 use crossterm::style::Stylize;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::{fmt::Write, path::PathBuf};
-use ufo_database::{
-	api::UFODatabase,
-	blobstore::fs::store::FsBlobstore,
-	database::Database,
-	metastore::{
-		api::AttributeOptions,
-		data::{HashType, MetastoreDataStub},
-		sqlite::db::SQLiteMetastore,
-	},
-	pipestore::fs::FsPipestore,
+use ufo_database::{api::UFODatabase, database::Database};
+use ufo_db_blobstore::fs::store::FsBlobstore;
+use ufo_db_metastore::{
+	api::AttributeOptions,
+	data::{HashType, MetastoreDataStub},
+	sqlite::db::SQLiteMetastore,
 };
+use ufo_db_pipestore::fs::FsPipestore;
 use ufod::{AddJobParams, RunnerStatus, RunningNodeState};
 use url::Url;
 use walkdir::WalkDir;
@@ -87,7 +84,7 @@ fn main() -> Result<()> {
 
 			// Everything below this point should be done in UI
 			{
-				let mut database = Database::open(&PathBuf::from("./db")).unwrap();
+				let database = Database::open(&PathBuf::from("./db")).unwrap();
 				let db = database.get_metastore();
 
 				let x = db.add_class("AudioFile").unwrap();

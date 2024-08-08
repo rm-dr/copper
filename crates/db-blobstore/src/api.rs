@@ -84,8 +84,8 @@ impl Drop for BlobstoreTmpWriter {
 
 pub trait Blobstore
 where
-	Self: Send + Sized,
+	Self: Send + Sync,
 {
-	fn new_blob(&mut self, mime: &MimeType) -> BlobstoreTmpWriter;
-	fn finish_blob(&mut self, blob: BlobstoreTmpWriter) -> BlobHandle;
+	fn new_blob(&self, mime: &MimeType) -> BlobstoreTmpWriter;
+	fn finish_blob(&self, blob: BlobstoreTmpWriter) -> BlobHandle;
 }
