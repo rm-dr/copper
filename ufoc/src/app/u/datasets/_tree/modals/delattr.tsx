@@ -98,8 +98,8 @@ export function useDeleteAttrModal(params: {
 						data-autofocus
 						placeholder="Enter attribute name"
 						disabled={isLoading}
-						key={form.key("attr")}
-						{...form.getInputProps("attr")}
+						key={form.key("attr_name")}
+						{...form.getInputProps("attr_name")}
 					/>
 
 					<Button.Group style={{ marginTop: "1rem" }}>
@@ -118,6 +118,7 @@ export function useDeleteAttrModal(params: {
 							fullWidth
 							leftSection={<XIcon icon={IconTrash} />}
 							type="submit"
+							loading={isLoading}
 						>
 							Confirm
 						</Button>
