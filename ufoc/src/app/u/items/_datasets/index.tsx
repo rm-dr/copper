@@ -1,15 +1,14 @@
 import styles from "./datasets.module.scss";
 import { Panel } from "@/app/components/panel";
 
-import { XIconDatabase, XIconFolder } from "@/app/components/icons";
-import { Dispatch, SetStateAction } from "react";
+import { XIconDatabase } from "@/app/components/icons";
 import { DatasetSelector } from "@/app/components/apiselect/dataset";
 import { ClassSelector } from "@/app/components/apiselect/class";
 
 export function DatsetPanel(params: {
 	selectedDataset: string | null;
-	setSelectedDataset: Dispatch<SetStateAction<string | null>>;
-	setSelectedClass: Dispatch<SetStateAction<string | null>>;
+	setSelectedDataset: (dataset: string | null) => void;
+	setSelectedClass: (class_name: string | null) => void;
 }) {
 	return (
 		<>
