@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS meta_classes (
 	id INTEGER PRIMARY KEY NOT NULL,
 
 	-- This class' display name
-	pretty_name TEXT NOT NULL
+	pretty_name TEXT NOT NULL UNIQUE
 );
 
 CREATE INDEX IF NOT EXISTS idx_meta_class_name on meta_classes(pretty_name);
@@ -99,6 +99,8 @@ CREATE TABLE IF NOT EXISTS meta_enums (
 	is_multi INTEGER NOT NULL,
 
 	FOREIGN KEY (class_id) REFERENCES meta_classes(id)
+
+	-- Enum names must be unique within a class
 	UNIQUE (pretty_name, class_id)
 );
 
@@ -119,6 +121,8 @@ CREATE TABLE IF NOT EXISTS meta_enum_variants (
 	pretty_name TEXT NOT NULL,
 
 	FOREIGN KEY (enum_id) REFERENCES meta_enums(id)
+
+	-- Enum variant names be unique within an enum
 	UNIQUE (pretty_name, enum_id)
 );
 
