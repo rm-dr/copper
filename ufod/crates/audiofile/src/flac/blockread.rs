@@ -103,15 +103,20 @@ pub enum FlacBlock {
 
 impl FlacBlock {
 	/// Encode this block
-	pub fn encode(&self, is_last: bool, target: &mut impl Write) -> Result<(), FlacEncodeError> {
+	pub fn encode(
+		&self,
+		is_last: bool,
+		with_header: bool,
+		target: &mut impl Write,
+	) -> Result<(), FlacEncodeError> {
 		match self {
-			Self::Streaminfo(b) => b.encode(is_last, target),
-			Self::SeekTable(b) => b.encode(is_last, target),
-			Self::Picture(b) => b.encode(is_last, target),
-			Self::Padding(b) => b.encode(is_last, target),
-			Self::Application(b) => b.encode(is_last, target),
-			Self::VorbisComment(b) => b.encode(is_last, target),
-			Self::CueSheet(b) => b.encode(is_last, target),
+			Self::Streaminfo(b) => b.encode(is_last, with_header, target),
+			Self::SeekTable(b) => b.encode(is_last, with_header, target),
+			Self::Picture(b) => b.encode(is_last, with_header, target),
+			Self::Padding(b) => b.encode(is_last, with_header, target),
+			Self::Application(b) => b.encode(is_last, with_header, target),
+			Self::VorbisComment(b) => b.encode(is_last, with_header, target),
+			Self::CueSheet(b) => b.encode(is_last, with_header, target),
 			Self::AudioFrame(b) => b.encode(target),
 		}
 	}
@@ -493,7 +498,7 @@ mod tests {
 					&& matches!(&out_blocks[i + 1], FlacBlock::AudioFrame(_))
 			};
 
-			b.encode(is_last, &mut out).unwrap();
+			b.encode(is_last, true, &mut out).unwrap();
 		}
 
 		let mut hasher = Sha256::new();
@@ -643,19 +648,58 @@ mod tests {
 				},
 
 				FlacBlock::VorbisComment(v) => match &test_case.get_blocks().unwrap()[result_i] {
-					FlacBlockOutput::VorbisComment { vendor, comments } => {
+					FlacBlockOutput::VorbisComment {
+						vendor,
+						comments,
+						pictures,
+					} => {
 						assert_eq!(*vendor, v.comment.vendor, "Comment vendor doesn't match");
 
+						assert_eq!(
+							v.comment.pictures.len(),
+							pictures.len(),
+							"Number of pictures doesn't match"
+						);
+
+						for (p, e) in v.comment.pictures.iter().zip(*pictures) {
+							match e {
+								FlacBlockOutput::Picture {
+									picture_type,
+									mime,
+									description,
+									width,
+									height,
+									bit_depth,
+									color_count,
+									img_data,
+								} => {
+									assert_eq!(*picture_type, p.picture_type);
+									assert_eq!(*mime, p.mime);
+									assert_eq!(*description, p.description);
+									assert_eq!(*width, p.width);
+									assert_eq!(*height, p.height);
+									assert_eq!(*bit_depth, p.bit_depth);
+									assert_eq!(*color_count, p.color_count);
+									assert_eq!(*img_data, {
+										let mut hasher = Sha256::new();
+										hasher.update(&p.img_data);
+										&format!("{:x}", hasher.finalize())
+									});
+								}
+								_ => panic!("Bad test data: expected only Picture blocks."),
+							}
+						}
+
 						match comments {
-							VorbisCommentTestValue::Raw(comments) => {
+							VorbisCommentTestValue::Raw { tags } => {
 								assert_eq!(
 									v.comment.comments.len(),
-									comments.len(),
+									tags.len(),
 									"Number of comments doesn't match"
 								);
 
 								for ((got_tag, got_val), (exp_tag, exp_val)) in
-									v.comment.comments.iter().zip(*comments)
+									v.comment.comments.iter().zip(*tags)
 								{
 									assert_eq!(
 										*got_tag,
@@ -816,6 +860,10 @@ mod tests {
 		};
 	}
 
+	gen_tests!(custom_01);
+	gen_tests!(custom_02);
+	gen_tests!(custom_03);
+
 	gen_tests!(uncommon_10);
 
 	gen_tests!(faulty_06);
@@ -838,5 +886,4 @@ mod tests {
 	gen_tests!(subset_57);
 	gen_tests!(subset_58);
 	gen_tests!(subset_59);
-	gen_tests!(custom_01);
 }

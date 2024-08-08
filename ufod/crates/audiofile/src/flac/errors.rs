@@ -1,5 +1,8 @@
 //! FLAC errors
-use crate::common::{picturetype::PictureTypeError, vorbiscomment::VorbisCommentError};
+use crate::common::{
+	picturetype::PictureTypeError,
+	vorbiscomment::{VorbisCommentDecodeError, VorbisCommentEncodeError},
+};
 use std::{error::Error, fmt::Display, string::FromUtf8Error};
 
 #[allow(missing_docs)]
@@ -19,7 +22,7 @@ pub enum FlacDecodeError {
 	IoError(std::io::Error),
 
 	/// We could not parse a vorbis comment
-	VorbisComment(VorbisCommentError),
+	VorbisComment(VorbisCommentDecodeError),
 
 	/// We tried to decode a string, but found invalid UTF-8
 	FailedStringDecode(FromUtf8Error),
@@ -68,8 +71,8 @@ impl From<std::io::Error> for FlacDecodeError {
 	}
 }
 
-impl From<VorbisCommentError> for FlacDecodeError {
-	fn from(value: VorbisCommentError) -> Self {
+impl From<VorbisCommentDecodeError> for FlacDecodeError {
+	fn from(value: VorbisCommentDecodeError) -> Self {
 		Self::VorbisComment(value)
 	}
 }
@@ -91,12 +94,18 @@ impl From<PictureTypeError> for FlacDecodeError {
 pub enum FlacEncodeError {
 	/// We encountered an i/o error while processing
 	IoError(std::io::Error),
+
+	/// We could not encode a picture inside a vorbis comment
+	VorbisPictureEncodeError,
 }
 
 impl Display for FlacEncodeError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::IoError(_) => write!(f, "io error while encoding block"),
+			Self::VorbisPictureEncodeError => {
+				write!(f, "could not encode picture in vorbis comment")
+			}
 		}
 	}
 }
@@ -105,6 +114,7 @@ impl Error for FlacEncodeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		Some(match self {
 			Self::IoError(e) => e,
+			_ => return None,
 		})
 	}
 }
@@ -112,5 +122,14 @@ impl Error for FlacEncodeError {
 impl From<std::io::Error> for FlacEncodeError {
 	fn from(value: std::io::Error) -> Self {
 		Self::IoError(value)
+	}
+}
+
+impl From<VorbisCommentEncodeError> for FlacEncodeError {
+	fn from(value: VorbisCommentEncodeError) -> Self {
+		match value {
+			VorbisCommentEncodeError::IoError(e) => e.into(),
+			VorbisCommentEncodeError::PictureEncodeError => Self::VorbisPictureEncodeError,
+		}
 	}
 }

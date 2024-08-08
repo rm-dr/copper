@@ -137,18 +137,24 @@ impl FlacMetablockDecode for FlacStreaminfoBlock {
 }
 
 impl FlacMetablockEncode for FlacStreaminfoBlock {
+	fn get_len(&self) -> u32 {
+		34
+	}
+
 	fn encode(
 		&self,
 		is_last: bool,
+		with_header: bool,
 		target: &mut impl std::io::Write,
 	) -> Result<(), FlacEncodeError> {
-		let header = FlacMetablockHeader {
-			block_type: FlacMetablockType::Streaminfo,
-			length: 34,
-			is_last,
-		};
-
-		header.encode(target)?;
+		if with_header {
+			let header = FlacMetablockHeader {
+				block_type: FlacMetablockType::Streaminfo,
+				length: self.get_len(),
+				is_last,
+			};
+			header.encode(target)?;
+		}
 
 		// TODO: enforce sizes
 

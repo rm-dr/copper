@@ -39,17 +39,18 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 Audiofile library
 - [ ] Tests
-  - [ ] "Uncommon" tests
-  - [ ] Add failing tests
   - [ ] Many metadata blocks
   - [ ] Many streaminfo blocks
-- [ ] FLAC complete implementation
-  - [ ] Cover inside comment
 - [ ] IDv3 complete implementation
-- [ ] Tag node types
-- [ ] Generic strip class
 - [ ] Early exit if we don't need audio
 
+## 📦 Better pipelines
+- redo serialize/deserialize pipeline spec
+- show error when class ref is invalid (if class was deleted)
+- Tag node types
+- Node spec codegen?
+- Better type checking
+- How to exit early (don't read file if done)
 
 ## 📦 Better uploads
 - [ ] Upload in parallel
@@ -81,15 +82,12 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Reorder attributes (ui + logic)
 - [ ] Fix attribute index on delete
 
-## 📦 Pipeline editor
-- redo serialize/deserialize pipeline spec
-- show error when class ref is invalid (if class was deleted)
-
 ## 📦 Pipeline argument nodes
 - already in upload ui, just need node implementation
 - Dynamic input panel
 
 ## 📦 Daemon cleanup
+- [ ] Generic strip class
 - [ ] Rename "fragment", "item class", "database", "blob fragment", "pipeline", "job", etc (glossary)
 - [ ] clone fewer arcs
 - [ ] fix all panics/unwraps
@@ -101,7 +99,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Check serializations
 - [ ] Force nonempty set, attr, class names
 - [ ] Error if full db path doesn't exist (no panic)
-- [ ] Text vs long text datatypes
 - [ ] Deletion could take a while. Will our request time out?
 - [ ] Clippy
 - [ ] What if we panic when an unfinished blob is dropped? (log)
@@ -249,7 +246,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 
 ## More nodes:
-- [ ] Node spec codegen
 - [ ] node tests
 - [ ] hash additional types
 - [ ] external command (for user plugins)
@@ -343,3 +339,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## Virtual attributes
 - Attributes computed by a pipeline, auto-updated on change
 
+## Audiofile library
+- Linked images
+- Skip bad blocks (don't reject whole file)

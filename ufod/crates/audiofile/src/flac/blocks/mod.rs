@@ -44,9 +44,15 @@ pub trait FlacMetablockDecode: Sized {
 /// A encode implementation for a
 /// flac metadata block
 pub trait FlacMetablockEncode: Sized {
+	/// Get the number of bytes that `encode()` will write.
+	/// This does NOT include header length.
+	fn get_len(&self) -> u32;
+
 	/// Try to encode this block as bytes.
-	///
-	/// Writes this block's data into `data`,
-	/// including the metablock header.
-	fn encode(&self, is_last: bool, target: &mut impl Write) -> Result<(), FlacEncodeError>;
+	fn encode(
+		&self,
+		is_last: bool,
+		with_header: bool,
+		target: &mut impl Write,
+	) -> Result<(), FlacEncodeError>;
 }

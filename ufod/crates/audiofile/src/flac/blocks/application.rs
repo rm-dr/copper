@@ -47,18 +47,25 @@ impl FlacMetablockDecode for FlacApplicationBlock {
 }
 
 impl FlacMetablockEncode for FlacApplicationBlock {
+	fn get_len(&self) -> u32 {
+		(self.data.len() + 4).try_into().unwrap()
+	}
+
 	fn encode(
 		&self,
 		is_last: bool,
+		with_header: bool,
 		target: &mut impl std::io::Write,
 	) -> Result<(), FlacEncodeError> {
-		let header = FlacMetablockHeader {
-			block_type: FlacMetablockType::Application,
-			length: (self.data.len() + 4).try_into().unwrap(),
-			is_last,
-		};
+		if with_header {
+			let header = FlacMetablockHeader {
+				block_type: FlacMetablockType::Application,
+				length: self.get_len(),
+				is_last,
+			};
+			header.encode(target)?;
+		}
 
-		header.encode(target)?;
 		target.write_all(&self.application_id.to_be_bytes())?;
 		target.write_all(&self.data)?;
 		return Ok(());

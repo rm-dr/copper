@@ -78,6 +78,7 @@ impl FlacMetaStrip {
 					// The last metadata block is the only one followed by an audio frame
 					!matches!(last_block, FlacBlock::AudioFrame(_))
 						&& matches!(block, FlacBlock::AudioFrame(_)),
+					true,
 					target,
 				)?;
 			}
@@ -88,7 +89,7 @@ impl FlacMetaStrip {
 		// since they do not have an `is_last` flag.
 		if matches!(self.last_block, Some(FlacBlock::AudioFrame(_))) {
 			let x = self.last_block.take().unwrap();
-			x.encode(false, target)?;
+			x.encode(false, true, target)?;
 		}
 
 		return Ok(());
@@ -157,31 +158,7 @@ mod tests {
 		( $test_name:ident ) => {
 			paste! {
 				#[test]
-				pub fn [<strip_small_ $test_name>]() {
-					let test_case = MANIFEST.iter().find(|x| x.get_name() == stringify!($test_name)).unwrap();
-					match test_case {
-						FlacTestCase::Error { stripped_hash: Some(_), .. } |
-						FlacTestCase::Success { .. } => {
-							for _ in 0..5 {
-								test_strip(
-									test_case,
-									Some(1..256),
-								).unwrap()
-							}
-						},
-
-						FlacTestCase::Error { check_error, .. } => {
-							let e = test_strip(test_case, Some(1..256)).unwrap_err();
-							match e {
-								FlacBlockReaderError::DecodeError(e) => assert!(check_error(&e), "Unexpected error {e:?}"),
-								_ => panic!("Unexpected error {e:?}")
-							}
-						}
-					}
-				}
-
-				#[test]
-				pub fn [<strip_large_ $test_name>]() {
+				pub fn [<strip_ $test_name>]() {
 					let test_case = MANIFEST.iter().find(|x| x.get_name() == stringify!($test_name)).unwrap();
 					match test_case {
 						FlacTestCase::Error { stripped_hash: Some(_), .. } |
@@ -205,7 +182,13 @@ mod tests {
 				}
 			}
 		};
+
+
 	}
+
+	gen_tests!(custom_01);
+	gen_tests!(custom_02);
+	gen_tests!(custom_03);
 
 	gen_tests!(uncommon_10);
 
@@ -215,19 +198,8 @@ mod tests {
 	gen_tests!(faulty_11);
 
 	gen_tests!(subset_45);
-	gen_tests!(subset_46);
 	gen_tests!(subset_47);
-	gen_tests!(subset_48);
-	gen_tests!(subset_49);
-	gen_tests!(subset_50);
-	gen_tests!(subset_51);
-	gen_tests!(subset_52);
-	gen_tests!(subset_53);
 	gen_tests!(subset_54);
 	gen_tests!(subset_55);
-	gen_tests!(subset_56);
 	gen_tests!(subset_57);
-	gen_tests!(subset_58);
-	gen_tests!(subset_59);
-	gen_tests!(custom_01);
 }

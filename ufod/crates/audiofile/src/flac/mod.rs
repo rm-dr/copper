@@ -61,7 +61,7 @@ mod tests {
 	use ufo_util::mime::MimeType;
 
 	use super::errors::FlacDecodeError;
-	use crate::common::{picturetype::PictureType, vorbiscomment::VorbisCommentError};
+	use crate::common::{picturetype::PictureType, vorbiscomment::VorbisCommentDecodeError};
 
 	/// The value of a vorbis comment.
 	///
@@ -69,7 +69,9 @@ mod tests {
 	/// explicitly here doesn't make sense.
 	pub enum VorbisCommentTestValue {
 		/// The comments, in order
-		Raw(&'static [(&'static str, &'static str)]),
+		Raw {
+			tags: &'static [(&'static str, &'static str)],
+		},
 		/// The hash of all comments concatenated together,
 		/// stringified as `{key}={value};`
 		Hash {
@@ -127,6 +129,7 @@ mod tests {
 		VorbisComment {
 			vendor: &'static str,
 			comments: VorbisCommentTestValue,
+			pictures: &'static [FlacBlockOutput],
 		},
 	}
 
@@ -231,15 +234,23 @@ mod tests {
 
 		pub fn get_pictures(&self) -> Option<Vec<&FlacBlockOutput>> {
 			match self {
-				Self::Success { blocks, .. } => Some(
-					blocks
-						.iter()
-						.filter_map(|x| match x {
-							FlacBlockOutput::Picture { .. } => Some(x),
-							_ => None,
-						})
-						.collect::<Vec<_>>(),
-				),
+				Self::Success { blocks, .. } => {
+					let mut out = Vec::new();
+					for b in *blocks {
+						match b {
+							FlacBlockOutput::Picture { .. } => out.push(b),
+							FlacBlockOutput::VorbisComment { pictures, .. } => {
+								for p in *pictures {
+									out.push(p)
+								}
+							}
+							_ => {}
+						}
+					}
+
+					return Some(out);
+				}
+
 				Self::Error { pictures, .. } => pictures.map(|x| x.iter().collect()),
 			}
 		}
@@ -290,7 +301,7 @@ mod tests {
 			check_error: &|x| {
 				matches!(
 					x,
-					FlacDecodeError::VorbisComment(VorbisCommentError::MalformedData)
+					FlacDecodeError::VorbisComment(VorbisCommentDecodeError::MalformedData)
 				)
 			},
 			// This file's vorbis comment is invalid, but that shouldn't stop us from removing it.
@@ -299,7 +310,7 @@ mod tests {
 			// We should, however, get errors when we try to strip flac files with invalid *structure*
 			// (For example, the out-of-order streaminfo test in faulty_07).
 			stripped_hash: Some("4b994f82dc1699a58e2b127058b37374220ee41dc294d4887ac14f056291a1b0"),
-			pictures: Some(&[]),
+			pictures: None,
 		},
 		FlacTestCase::Error {
 			test_name: "faulty_11",
@@ -333,7 +344,8 @@ mod tests {
 				},
 				FlacBlockOutput::VorbisComment {
 					vendor: "reference libFLAC 1.3.2 20170101",
-					comments: VorbisCommentTestValue::Raw(&[]),
+					comments: VorbisCommentTestValue::Raw { tags: &[] },
+					pictures: &[],
 				},
 			],
 			audio_hash: "3fb3482ebc1724559bdd57f34de472458563d78a676029614e76e32b5d2b8816",
@@ -360,7 +372,8 @@ mod tests {
 				},
 				FlacBlockOutput::VorbisComment {
 					vendor: "reference libFLAC 1.3.2 20170101",
-					comments: VorbisCommentTestValue::Raw(&[]),
+					comments: VorbisCommentTestValue::Raw { tags: &[] },
+					pictures: &[],
 				},
 			],
 			audio_hash: "a1eed422462b386a932b9eb3dff3aea3687b41eca919624fb574aadb7eb50040",
@@ -411,7 +424,8 @@ mod tests {
 				},
 				FlacBlockOutput::VorbisComment {
 					vendor: "reference libFLAC 1.3.2 20170101",
-					comments: VorbisCommentTestValue::Raw(&[]),
+					comments: VorbisCommentTestValue::Raw { tags: &[] },
+					pictures: &[],
 				},
 			],
 			audio_hash: "c2d691f2c4c986fe3cd5fd7864d9ba9ce6dd68a4ffc670447f008434b13102c2",
@@ -438,7 +452,8 @@ mod tests {
 				},
 				FlacBlockOutput::VorbisComment {
 					vendor: "reference libFLAC 1.3.2 20170101",
-					comments: VorbisCommentTestValue::Raw(&[]),
+					comments: VorbisCommentTestValue::Raw { tags: &[] },
+					pictures: &[],
 				},
 				FlacBlockOutput::Padding { size: 16777215 },
 			],
@@ -466,7 +481,8 @@ mod tests {
 				},
 				FlacBlockOutput::VorbisComment {
 					vendor: "reference libFLAC 1.3.2 20170101",
-					comments: VorbisCommentTestValue::Raw(&[]),
+					comments: VorbisCommentTestValue::Raw { tags: &[] },
+					pictures: &[],
 				},
 				FlacBlockOutput::Picture {
 					picture_type: PictureType::FrontCover,
@@ -507,6 +523,7 @@ mod tests {
 						n_comments: 39,
 						hash: "01984e9ec0cfad41f27b3b4e84184966f6725ead84b7815bd0b3313549ee4229",
 					},
+					pictures: &[],
 				},
 			],
 			audio_hash: "76419865d10eb22a74f020423a4e515e800f0177441676afd0418557c2d76c36",
@@ -533,7 +550,8 @@ mod tests {
 				},
 				FlacBlockOutput::VorbisComment {
 					vendor: "reference libFLAC 1.3.2 20170101",
-					comments: VorbisCommentTestValue::Raw(&[]),
+					comments: VorbisCommentTestValue::Raw { tags: &[] },
+					pictures: &[],
 				},
 				FlacBlockOutput::Application {
 					application_id: 0x74657374,
@@ -567,7 +585,8 @@ mod tests {
 				},
 				FlacBlockOutput::VorbisComment {
 					vendor: "reference libFLAC 1.3.2 20170101",
-					comments: VorbisCommentTestValue::Raw(&[]),
+					comments: VorbisCommentTestValue::Raw { tags: &[] },
+					pictures: &[],
 				},
 				FlacBlockOutput::CueSheet {
 					hash: "70638a241ca06881a52c0a18258ea2d8946a830137a70479c49746d2a1344bdd",
@@ -601,6 +620,7 @@ mod tests {
 						n_comments: 20000,
 						hash: "433f34ae532d265835153139b1db79352a26ad0d3b03e2f1a1b88ada34abfc77",
 					},
+					pictures: &[],
 				},
 			],
 			audio_hash: "4721b784058410c6263f73680079e9a71aee914c499afcf5580c121fce00e874",
@@ -634,6 +654,7 @@ mod tests {
 						n_comments: 40036,
 						hash: "66cac9f9c42f48128e9fc24e1e96b46a06e885d233155556da16d9b05a23486e",
 					},
+					pictures: &[],
 				},
 				FlacBlockOutput::CueSheet {
 					hash: "db11916c8f5f39648256f93f202e00ff8d73d7d96b62f749b4c77cf3ea744f90",
@@ -678,7 +699,8 @@ mod tests {
 				},
 				FlacBlockOutput::VorbisComment {
 					vendor: "reference libFLAC 1.3.2 20170101",
-					comments: VorbisCommentTestValue::Raw(&[]),
+					comments: VorbisCommentTestValue::Raw { tags: &[] },
+					pictures: &[],
 				},
 				FlacBlockOutput::Picture {
 					picture_type: PictureType::FrontCover,
@@ -715,7 +737,8 @@ mod tests {
 				},
 				FlacBlockOutput::VorbisComment {
 					vendor: "reference libFLAC 1.3.2 20170101",
-					comments: VorbisCommentTestValue::Raw(&[]),
+					comments: VorbisCommentTestValue::Raw { tags: &[] },
+					pictures: &[],
 				},
 				FlacBlockOutput::Picture {
 					picture_type: PictureType::FrontCover,
@@ -752,7 +775,8 @@ mod tests {
 				},
 				FlacBlockOutput::VorbisComment {
 					vendor: "reference libFLAC 1.3.2 20170101",
-					comments: VorbisCommentTestValue::Raw(&[]),
+					comments: VorbisCommentTestValue::Raw { tags: &[] },
+					pictures: &[],
 				},
 				FlacBlockOutput::Picture {
 					picture_type: PictureType::FrontCover,
@@ -789,7 +813,8 @@ mod tests {
 				},
 				FlacBlockOutput::VorbisComment {
 					vendor: "reference libFLAC 1.3.2 20170101",
-					comments: VorbisCommentTestValue::Raw(&[]),
+					comments: VorbisCommentTestValue::Raw { tags: &[] },
+					pictures: &[],
 				},
 				FlacBlockOutput::Picture {
 					picture_type: PictureType::FrontCover,
@@ -811,7 +836,7 @@ mod tests {
 				env!("CARGO_MANIFEST_DIR"),
 				"/tests/files/flac_custom/01 - many images.flac"
 			),
-			in_hash: "58ee39efe51e37f51b4dedeee8b28bed88ac1d4a70ba0e3a326ef7e94f0ebf1b",
+			in_hash: "8a5df37488866cd91ac16773e549ef4e3a85d9f88a0d9d345f174807bb536b96",
 			blocks: &[
 				FlacBlockOutput::Streaminfo {
 					min_block_size: 4096,
@@ -826,7 +851,18 @@ mod tests {
 				},
 				FlacBlockOutput::VorbisComment {
 					vendor: "reference libFLAC 1.3.2 20170101",
-					comments: VorbisCommentTestValue::Raw(&[]),
+					comments: VorbisCommentTestValue::Raw { tags: &[] },
+					pictures: &[FlacBlockOutput::Picture {
+						picture_type: PictureType::FrontCover,
+						mime: MimeType::Png,
+						description: "",
+						width: 960,
+						height: 540,
+						bit_depth: 24,
+						color_count: 0,
+						img_data:
+							"d804e5c7b9ee5af694b5e301c6cdf64508ff85997deda49d2250a06a964f10b2",
+					}],
 				},
 				FlacBlockOutput::Picture {
 					picture_type: PictureType::FrontCover,
@@ -881,6 +917,60 @@ mod tests {
 			],
 			audio_hash: "9778b25c5d1f56cfcd418e550baed14f9d6a4baf29489a83ed450fbebb28de8c",
 			stripped_hash: "20df129287d94f9ae5951b296d7f65fcbed92db423ba7db4f0d765f1f0a7e18c",
+		},
+		FlacTestCase::Success {
+			test_name: "custom_02",
+			file_path: concat!(
+				env!("CARGO_MANIFEST_DIR"),
+				"/tests/files/flac_custom/02 - picture in vorbis comment.flac"
+			),
+			in_hash: "f6bb1a726fe6a3e25a4337d36e29fdced8ff01a46d627b7c2e1988c88f461f8c",
+			blocks: &[
+				FlacBlockOutput::Streaminfo {
+					min_block_size: 4096,
+					max_block_size: 4096,
+					min_frame_size: 463,
+					max_frame_size: 6770,
+					sample_rate: 44100,
+					channels: 2,
+					bits_per_sample: 16,
+					total_samples: 221623,
+					md5_signature: "ad16957bcf8d5a3ec8caf261e43d5ff7",
+				},
+				FlacBlockOutput::VorbisComment {
+					vendor: "reference libFLAC 1.3.2 20170101",
+					comments: VorbisCommentTestValue::Raw { tags: &[] },
+					pictures: &[FlacBlockOutput::Picture {
+						picture_type: PictureType::FrontCover,
+						mime: MimeType::Png,
+						description: "",
+						width: 960,
+						height: 540,
+						bit_depth: 24,
+						color_count: 0,
+						img_data:
+							"d804e5c7b9ee5af694b5e301c6cdf64508ff85997deda49d2250a06a964f10b2",
+					}],
+				},
+			],
+			audio_hash: "39bf9981613ac2f35d253c0c21b76a48abba7792c27da5dbf23e6021e2e6673f",
+			stripped_hash: "3328201dd56289b6c81fa90ff26cb57fa9385cb0db197e89eaaa83efd79a58b1",
+		},
+		FlacTestCase::Error {
+			test_name: "custom_03",
+			file_path: concat!(
+				env!("CARGO_MANIFEST_DIR"),
+				"/tests/files/flac_custom/03 - faulty picture in vorbis comment.flac"
+			),
+			in_hash: "7177f0ae4f04a563292be286ec05967f81ab16eb0a28b70fc07a1e47da9cafd0",
+			check_error: &|x| {
+				matches!(
+					x,
+					FlacDecodeError::VorbisComment(VorbisCommentDecodeError::MalformedPicture)
+				)
+			},
+			stripped_hash: Some("3328201dd56289b6c81fa90ff26cb57fa9385cb0db197e89eaaa83efd79a58b1"),
+			pictures: None,
 		},
 	];
 

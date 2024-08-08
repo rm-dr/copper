@@ -25,18 +25,25 @@ impl FlacMetablockDecode for FlacSeektableBlock {
 }
 
 impl FlacMetablockEncode for FlacSeektableBlock {
+	fn get_len(&self) -> u32 {
+		self.data.len().try_into().unwrap()
+	}
+
 	fn encode(
 		&self,
 		is_last: bool,
+		with_header: bool,
 		target: &mut impl std::io::Write,
 	) -> Result<(), FlacEncodeError> {
-		let header = FlacMetablockHeader {
-			block_type: FlacMetablockType::Seektable,
-			length: self.data.len().try_into().unwrap(),
-			is_last,
-		};
+		if with_header {
+			let header = FlacMetablockHeader {
+				block_type: FlacMetablockType::Seektable,
+				length: self.get_len(),
+				is_last,
+			};
+			header.encode(target)?;
+		}
 
-		header.encode(target)?;
 		target.write_all(&self.data)?;
 		return Ok(());
 	}

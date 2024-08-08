@@ -29,18 +29,25 @@ impl FlacMetablockDecode for FlacCommentBlock {
 }
 
 impl FlacMetablockEncode for FlacCommentBlock {
+	fn get_len(&self) -> u32 {
+		self.comment.get_len()
+	}
+
 	fn encode(
 		&self,
 		is_last: bool,
+		with_header: bool,
 		target: &mut impl std::io::Write,
 	) -> Result<(), FlacEncodeError> {
-		let header = FlacMetablockHeader {
-			block_type: FlacMetablockType::VorbisComment,
-			length: self.comment.get_len().try_into().unwrap(),
-			is_last,
-		};
+		if with_header {
+			let header = FlacMetablockHeader {
+				block_type: FlacMetablockType::VorbisComment,
+				length: self.get_len(),
+				is_last,
+			};
+			header.encode(target)?;
+		}
 
-		header.encode(target)?;
 		self.comment.encode(target)?;
 		return Ok(());
 	}

@@ -1,5 +1,6 @@
 //! Decode and write Vorbis comment blocks
 
+use base64::Engine;
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	fmt::Display,
@@ -7,11 +8,13 @@ use std::{
 	string::FromUtf8Error,
 };
 
+use crate::flac::blocks::{FlacMetablockDecode, FlacMetablockEncode, FlacPictureBlock};
+
 use super::tagtype::TagType;
 
 #[derive(Debug)]
 #[allow(missing_docs)]
-pub enum VorbisCommentError {
+pub enum VorbisCommentDecodeError {
 	/// We encountered an IoError while processing a block
 	IoError(std::io::Error),
 
@@ -23,9 +26,12 @@ pub enum VorbisCommentError {
 
 	/// The comment we're reading is invalid
 	MalformedData,
+
+	/// We tried to decode picture data, but it was malformed.
+	MalformedPicture,
 }
 
-impl Display for VorbisCommentError {
+impl Display for VorbisCommentDecodeError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::IoError(_) => write!(f, "io error while reading vorbis comments"),
@@ -35,15 +41,17 @@ impl Display for VorbisCommentError {
 			Self::MalformedCommentString(x) => {
 				write!(f, "malformed comment string `{x}`")
 			}
-
 			Self::MalformedData => {
 				write!(f, "malformed comment data")
+			}
+			Self::MalformedPicture => {
+				write!(f, "malformed picture data")
 			}
 		}
 	}
 }
 
-impl std::error::Error for VorbisCommentError {
+impl std::error::Error for VorbisCommentDecodeError {
 	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
 		match self {
 			Self::IoError(x) => Some(x),
@@ -53,15 +61,51 @@ impl std::error::Error for VorbisCommentError {
 	}
 }
 
-impl From<std::io::Error> for VorbisCommentError {
+impl From<std::io::Error> for VorbisCommentDecodeError {
 	fn from(value: std::io::Error) -> Self {
 		Self::IoError(value)
 	}
 }
 
-impl From<FromUtf8Error> for VorbisCommentError {
+impl From<FromUtf8Error> for VorbisCommentDecodeError {
 	fn from(value: FromUtf8Error) -> Self {
 		Self::FailedStringDecode(value)
+	}
+}
+
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub enum VorbisCommentEncodeError {
+	/// We encountered an IoError while processing a block
+	IoError(std::io::Error),
+
+	/// We could not encode picture data
+	PictureEncodeError,
+}
+
+impl Display for VorbisCommentEncodeError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::IoError(_) => write!(f, "io error while reading vorbis comments"),
+			Self::PictureEncodeError => {
+				write!(f, "could not encode picture")
+			}
+		}
+	}
+}
+
+impl std::error::Error for VorbisCommentEncodeError {
+	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		match self {
+			Self::IoError(x) => Some(x),
+			_ => None,
+		}
+	}
+}
+
+impl From<std::io::Error> for VorbisCommentEncodeError {
+	fn from(value: std::io::Error) -> Self {
+		Self::IoError(value)
 	}
 }
 
@@ -73,11 +117,14 @@ pub struct VorbisComment {
 
 	/// List of (tag, value)
 	pub comments: Vec<(TagType, String)>,
+
+	/// A list of pictures found in this comment
+	pub pictures: Vec<FlacPictureBlock>,
 }
 
 impl VorbisComment {
 	/// Try to decode the given data as a vorbis comment block
-	pub fn decode(data: &[u8]) -> Result<Self, VorbisCommentError> {
+	pub fn decode(data: &[u8]) -> Result<Self, VorbisCommentDecodeError> {
 		let mut d = Cursor::new(data);
 
 		// This is re-used whenever we need to read four bytes
@@ -85,70 +132,89 @@ impl VorbisComment {
 
 		let vendor = {
 			d.read_exact(&mut block)
-				.map_err(|_| VorbisCommentError::MalformedData)?;
+				.map_err(|_| VorbisCommentDecodeError::MalformedData)?;
 
 			let length = u32::from_le_bytes(block);
 			let mut text = vec![0u8; length.try_into().unwrap()];
 
 			d.read_exact(&mut text)
-				.map_err(|_| VorbisCommentError::MalformedData)?;
+				.map_err(|_| VorbisCommentDecodeError::MalformedData)?;
 
 			String::from_utf8(text)?
 		};
 
 		d.read_exact(&mut block)
-			.map_err(|_| VorbisCommentError::MalformedData)?;
+			.map_err(|_| VorbisCommentDecodeError::MalformedData)?;
 		let n_comments: usize = u32::from_le_bytes(block).try_into().unwrap();
 
 		let mut comments = Vec::with_capacity(n_comments);
+		let mut pictures = Vec::new();
 		for _ in 0..n_comments {
 			let comment = {
 				d.read_exact(&mut block)
-					.map_err(|_| VorbisCommentError::MalformedData)?;
+					.map_err(|_| VorbisCommentDecodeError::MalformedData)?;
 
 				let length = u32::from_le_bytes(block);
 				let mut text = vec![0u8; length.try_into().unwrap()];
 
 				d.read_exact(&mut text)
-					.map_err(|_| VorbisCommentError::MalformedData)?;
+					.map_err(|_| VorbisCommentDecodeError::MalformedData)?;
 
 				String::from_utf8(text)?
 			};
-			let (var, val) = comment
-				.split_once('=')
-				.ok_or(VorbisCommentError::MalformedCommentString(comment.clone()))?;
+			let (var, val) =
+				comment
+					.split_once('=')
+					.ok_or(VorbisCommentDecodeError::MalformedCommentString(
+						comment.clone(),
+					))?;
+
 			if !val.is_empty() {
-				// Make sure empty strings are saved as "None"
-				comments.push((
-					match &var.to_uppercase()[..] {
-						"TITLE" => TagType::TrackTitle,
-						"ALBUM" => TagType::Album,
-						"TRACKNUMBER" => TagType::TrackNumber,
-						"ARTIST" => TagType::TrackArtist,
-						"ALBUMARTIST" => TagType::AlbumArtist,
-						"GENRE" => TagType::Genre,
-						"ISRC" => TagType::Isrc,
-						"DATE" => TagType::ReleaseDate,
-						"TOTALTRACKS" => TagType::TrackTotal,
-						"LYRICS" => TagType::Lyrics,
-						x => TagType::Other(x.into()),
-					},
-					val.into(),
-				))
+				if var.to_uppercase() == "METADATA_BLOCK_PICTURE" {
+					pictures.push(
+						FlacPictureBlock::decode(
+							&base64::prelude::BASE64_STANDARD
+								.decode(val)
+								.map_err(|_| VorbisCommentDecodeError::MalformedPicture)?,
+						)
+						.map_err(|_| VorbisCommentDecodeError::MalformedPicture)?,
+					);
+				} else {
+					// Make sure empty strings are saved as "None"
+					comments.push((
+						match &var.to_uppercase()[..] {
+							"TITLE" => TagType::TrackTitle,
+							"ALBUM" => TagType::Album,
+							"TRACKNUMBER" => TagType::TrackNumber,
+							"ARTIST" => TagType::TrackArtist,
+							"ALBUMARTIST" => TagType::AlbumArtist,
+							"GENRE" => TagType::Genre,
+							"ISRC" => TagType::Isrc,
+							"DATE" => TagType::ReleaseDate,
+							"TOTALTRACKS" => TagType::TrackTotal,
+							"LYRICS" => TagType::Lyrics,
+							x => TagType::Other(x.into()),
+						},
+						val.into(),
+					))
+				}
 			};
 		}
 
 		Ok(Self {
 			vendor: vendor.into(),
 			comments,
+			pictures,
 		})
 	}
 }
 
 impl VorbisComment {
 	/// Get the number of bytes that `encode()` will write.
-	pub fn get_len(&self) -> usize {
-		let mut sum = 4 + self.vendor.len() + 4;
+	pub fn get_len(&self) -> u32 {
+		let mut sum: u32 = 0;
+		sum += u32::try_from(self.vendor.len()).unwrap() + 4;
+		sum += 4;
 
 		for (tagtype, value) in &self.comments {
 			let tagtype_str = match tagtype {
@@ -171,18 +237,38 @@ impl VorbisComment {
 			.to_uppercase();
 
 			let str = format!("{tagtype_str}={value}");
-			sum += 4 + str.len();
+			sum += 4 + u32::try_from(str.len()).unwrap();
+		}
+
+		for p in &self.pictures {
+			// Compute b64 len
+			let mut x = p.get_len();
+			if x % 3 != 0 {
+				x -= x % 3;
+				x += 3;
+			}
+			sum += 4 * (x / 3);
+
+			// Add "METADATA_BLOCK_PICTURE="
+			sum += 23;
+
+			// Add length bytes
+			sum += 4;
 		}
 
 		return sum;
 	}
 
 	/// Try to encode this vorbis comment
-	pub fn encode(&self, target: &mut impl Write) -> Result<(), std::io::Error> {
+	pub fn encode(&self, target: &mut impl Write) -> Result<(), VorbisCommentEncodeError> {
 		target.write_all(&u32::try_from(self.vendor.len()).unwrap().to_le_bytes())?;
 		target.write_all(self.vendor.as_bytes())?;
 
-		target.write_all(&u32::try_from(self.comments.len()).unwrap().to_le_bytes())?;
+		target.write_all(
+			&u32::try_from(self.comments.len() + self.pictures.len())
+				.unwrap()
+				.to_le_bytes(),
+		)?;
 
 		for (tagtype, value) in &self.comments {
 			let tagtype_str = match tagtype {
@@ -207,6 +293,19 @@ impl VorbisComment {
 			let str = format!("{tagtype_str}={value}");
 			target.write_all(&u32::try_from(str.len()).unwrap().to_le_bytes())?;
 			target.write_all(str.as_bytes())?;
+		}
+
+		for p in &self.pictures {
+			let mut pic_data = Vec::new();
+			p.encode(false, false, &mut pic_data)
+				.map_err(|_| VorbisCommentEncodeError::PictureEncodeError)?;
+			let pic_string = format!(
+				"METADATA_BLOCK_PICTURE={}",
+				&base64::prelude::BASE64_STANDARD.encode(&pic_data)
+			);
+
+			target.write_all(&u32::try_from(pic_string.len()).unwrap().to_le_bytes())?;
+			target.write_all(pic_string.as_bytes())?;
 		}
 
 		return Ok(());

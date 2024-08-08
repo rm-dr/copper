@@ -22,18 +22,25 @@ impl FlacMetablockDecode for FlacPaddingBlock {
 }
 
 impl FlacMetablockEncode for FlacPaddingBlock {
+	fn get_len(&self) -> u32 {
+		self.size.try_into().unwrap()
+	}
+
 	fn encode(
 		&self,
 		is_last: bool,
+		with_header: bool,
 		target: &mut impl std::io::Write,
 	) -> Result<(), FlacEncodeError> {
-		let header = FlacMetablockHeader {
-			block_type: FlacMetablockType::Padding,
-			length: self.size.try_into().unwrap(),
-			is_last,
-		};
+		if with_header {
+			let header = FlacMetablockHeader {
+				block_type: FlacMetablockType::Padding,
+				length: self.get_len(),
+				is_last,
+			};
+			header.encode(target)?;
+		}
 
-		header.encode(target)?;
 		std::io::copy(
 			&mut std::io::repeat(0u8).take(self.size.try_into().unwrap()),
 			target,

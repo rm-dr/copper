@@ -136,24 +136,29 @@ impl FlacMetablockDecode for FlacPictureBlock {
 }
 
 impl FlacMetablockEncode for FlacPictureBlock {
+	fn get_len(&self) -> u32 {
+		(4 + (4 + self.mime.to_string().len())
+			+ (4 + self.description.len())
+			+ 4 + 4 + 4 + 4
+			+ (4 + self.img_data.len()))
+		.try_into()
+		.unwrap()
+	}
+
 	fn encode(
 		&self,
 		is_last: bool,
+		with_header: bool,
 		target: &mut impl std::io::Write,
 	) -> Result<(), FlacEncodeError> {
-		let header = FlacMetablockHeader {
-			block_type: FlacMetablockType::Picture,
-			length: (4
-				+ 4 + self.mime.to_string().len()
-				+ 4 + self.description.len()
-				+ 4 + 4 + 4 + 4 + 4
-				+ self.img_data.len())
-			.try_into()
-			.unwrap(),
-			is_last,
-		};
-
-		header.encode(target)?;
+		if with_header {
+			let header = FlacMetablockHeader {
+				block_type: FlacMetablockType::Picture,
+				length: self.get_len(),
+				is_last,
+			};
+			header.encode(target)?;
+		}
 
 		target.write_all(&self.picture_type.to_idx().to_be_bytes())?;
 
