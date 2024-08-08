@@ -75,8 +75,7 @@ impl Pipeline {
 					.node_type
 					.get_inputs()
 					.iter()
-					.find(|x| x.0 == &input_name[..])
-					.is_none()
+					.any(|x| x.0 == &input_name[..])
 				{
 					return PipelineCheckResult::NoNodeInput {
 						node: node_spec.clone(),
@@ -218,6 +217,8 @@ impl Display for PipelineLink {
 	}
 }
 
+// TODO: handle "in" links
+// TODO: type for "in" links?
 fn parse_link<'de, D>(deserializer: D) -> Result<PortLink, D::Error>
 where
 	D: Deserializer<'de>,
@@ -228,7 +229,7 @@ where
 	let b = i.next();
 
 	if a.is_none() || b.is_none() || i.next().is_some() {
-		return Err("bad link format").map_err(de::Error::custom);
+		return Err(de::Error::custom("bad link format"));
 	}
 
 	Ok(PortLink {
