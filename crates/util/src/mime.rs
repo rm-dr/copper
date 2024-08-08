@@ -76,6 +76,20 @@ impl MimeType {
 			_ => return None,
 		})
 	}
+
+	/// Get the extension we use for files with this type.
+	/// Includes a dot. Might be the empty string.
+	pub fn extension(&self) -> &str {
+		match self {
+			Self::Blob => "",
+			Self::Unknown(_) => "",
+
+			Self::Flac => ".flac",
+			Self::Mp3 => ".mp3",
+			Self::Jpg => ".jpg",
+			Self::Png => ".png",
+		}
+	}
 }
 
 impl Display for MimeType {
