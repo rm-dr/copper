@@ -1,11 +1,12 @@
 //! Media type utilities
 
+use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::fmt::Display;
 
 /// A media type, conveniently parsed
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum MimeType {
 	/// A mimetype we didn't recognize
 	Unknown(SmartString<LazyCompact>),
