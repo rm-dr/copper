@@ -11,7 +11,7 @@ use utoipa::ToSchema;
 use crate::api::RouterState;
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
-pub(in crate::api) struct DeleteDatasetRequest {
+pub(super) struct DeleteDatasetRequest {
 	/// The dataset to delete from.
 	pub dataset_name: String,
 }

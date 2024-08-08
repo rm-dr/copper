@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::api::RouterState;
 use axum::{
-	debug_handler,
 	extract::{Query, State},
 	http::StatusCode,
 	response::{IntoResponse, Response},
@@ -74,8 +73,7 @@ pub(super) enum ItemListData {
 		(status = 500, description = "Internal server error", body=String),
 	),
 )]
-#[debug_handler]
-pub(in crate::api) async fn list_item(
+pub(super) async fn list_item(
 	State(state): State<RouterState>,
 	Query(query): Query<ItemListRequest>,
 ) -> Response {

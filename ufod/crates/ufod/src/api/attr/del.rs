@@ -21,7 +21,7 @@ use crate::api::RouterState;
 		(status = 500, description = "Internal server error", body = String),
 	),
 )]
-pub(in crate::api) async fn del_attr(
+pub(super) async fn del_attr(
 	State(state): State<RouterState>,
 	Json(payload): Json<AttrSelect>,
 ) -> Response {

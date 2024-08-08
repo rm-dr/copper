@@ -19,23 +19,17 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 
 ## 📦 CRUD items
-- [ ] Dynamic input panel
 - [ ] Hash files when uploading (incremental)
   - make sure uploads don't expire
   - [ ] clean up upload api
   - [ ] move upload logic to `Uploader`
   - [ ] get fragment size from server config
 - [ ] UI item CRUD
-  - [ ] View table (endless scroll)
+  - [ ] Delete items
+  - [ ] Bottom panel (edit items)
   - [ ] Select attrs to show
   - [ ] Search panel (no logic yet)
   - [ ] Sort by attr
-
-## 📦 How to fail pipelines?
-- e.g, duplicate album art
-
-## CRUD datasets
-- [ ] Rename set, class, attr endpoint
 
 ## 📦 Authentication
 - [ ] Pick auth method & storage
@@ -88,6 +82,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 Pipeline argument nodes
 - already in upload ui, just need node implementation
+- Dynamic input panel
 
 ## 📦 Daemon cleanup
 - [ ] Rename "fragment", "item class", "database", "blob fragment", "pipeline", "job", etc (glossary)
@@ -105,7 +100,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Deletion could take a while. Will our request time out?
 - [ ] Clippy
 - [ ] What if we panic when an unfinished blob is dropped? (log)
-- [ ] Structs for big returns in dataset api
 - [ ] Which locks should be async?
 
 ## 📦 Logging cleanup
@@ -251,13 +245,13 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - in their own class, with a list of refs?
 - [ ] Date
 - [ ] Time
-- [ ] Store `Binary` mime type
 
 ## Ui Polish v2
 - [ ] Better errors in modals
 - [ ] Better `ApiSelector` loading state
 - [ ] Status update shouldn't trigger `ApiSelector` update in upload page
 - [ ] Reorder attributes & classes
+- [ ] Rename set, class, attrs
 - [ ] Close dataset menu when dropdown closed
 ---------------------------------------------------------------------
 

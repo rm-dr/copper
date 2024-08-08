@@ -7,6 +7,8 @@ CREATE TABLE meta (
 	val TEXT NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_meta_var on meta(var);
+
 
 -- Dataset index
 CREATE TABLE datasets (
@@ -24,3 +26,29 @@ CREATE TABLE datasets (
 );
 
 CREATE INDEX IF NOT EXISTS idx_dataset_name on datasets(ds_name);
+
+
+CREATE TABLE groups (
+	id INTEGER PRIMARY KEY NOT NULL,
+
+	group_name TEXT NOT NULL UNIQUE,
+	group_permissions TEXT NOT NULL,
+
+	-- If this is none, the parent of this group is the root group,
+	-- which always has all permissions.
+	group_parent INTEGER,
+	FOREIGN KEY (group_parent) REFERENCES groups(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_group_name on groups(group_name);
+
+
+CREATE TABLE users (
+	id INTEGER PRIMARY KEY NOT NULL,
+	user_name TEXT NOT NULL UNIQUE,
+	user_group TEXT NOT NULL,
+	pw_hash TEXT NOT NULL,
+	FOREIGN KEY (user_group) REFERENCES groups(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_name on users(user_name);

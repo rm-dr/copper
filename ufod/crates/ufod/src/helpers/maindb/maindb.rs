@@ -5,6 +5,7 @@ use tokio::sync::Mutex;
 use tracing::{error, info};
 use ufo_ds_impl::local::LocalDataset;
 
+use super::auth::AuthToken;
 use crate::config::UfodConfig;
 
 pub struct MainDB {
@@ -12,6 +13,7 @@ pub struct MainDB {
 	pub(super) config: Arc<UfodConfig>,
 
 	pub(super) open_datasets: Mutex<Vec<(SmartString<LazyCompact>, Arc<LocalDataset>)>>,
+	pub(super) active_tokens: Mutex<Vec<AuthToken>>,
 }
 
 impl MainDB {
@@ -58,6 +60,7 @@ impl MainDB {
 			conn: Mutex::new(conn),
 			config,
 			open_datasets: Mutex::new(Vec::new()),
+			active_tokens: Mutex::new(Vec::new()),
 		})
 	}
 }

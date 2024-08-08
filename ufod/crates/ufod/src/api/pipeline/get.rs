@@ -42,7 +42,7 @@ pub(super) struct PipelineInfo {
 		(status = 500, description = "Internal server error", body=String)
 	),
 )]
-pub(in crate::api) async fn get_pipeline(
+pub(super) async fn get_pipeline(
 	State(state): State<RouterState>,
 	Query(query): Query<PipelineSelect>,
 ) -> Response {

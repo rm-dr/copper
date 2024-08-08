@@ -67,10 +67,10 @@ pub(super) async fn add_dataset(
 				Err(CreateDatasetError::BadName(message)) => {
 					return (StatusCode::BAD_REQUEST, message).into_response()
 				}
-				Err(CreateDatasetError::AlreadyExists(_)) => {
+				Err(CreateDatasetError::AlreadyExists) => {
 					return (
 						StatusCode::BAD_REQUEST,
-						format!("A dataeset named `{}` already exists.", payload.name),
+						format!("A dataset named `{}` already exists.", payload.name),
 					)
 						.into_response();
 				}

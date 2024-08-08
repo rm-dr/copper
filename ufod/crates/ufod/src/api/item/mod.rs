@@ -1,19 +1,10 @@
+use super::RouterState;
 use axum::{routing::get, Router};
-use serde::{Deserialize, Serialize};
-use utoipa::{OpenApi, ToSchema};
-
-use super::{class::ClassSelect, RouterState};
+use utoipa::OpenApi;
 
 mod list;
 
 use list::*;
-
-#[derive(Deserialize, Serialize, ToSchema, Debug)]
-pub(in crate::api) struct AttrSelect {
-	#[serde(flatten)]
-	pub class: ClassSelect,
-	pub attr: String,
-}
 
 #[derive(OpenApi)]
 #[openapi(

@@ -19,13 +19,24 @@ impl MainDB {
 		name: &str,
 		ds_type: DatasetType,
 	) -> Result<(), CreateDatasetError> {
+		// No empty names
+		if name == "" {
+			return Err(CreateDatasetError::BadName(
+				"Dataset name cannot be empty".into(),
+			));
+		} else if name.trim() == "" {
+			return Err(CreateDatasetError::BadName(
+				"Dataset name cannot be whitespace".into(),
+			));
+		}
+
 		// Make sure this name is new
 		let datasets = self
 			.get_datasets()
 			.await
 			.map_err(|e| CreateDatasetError::DbError(Box::new(e)))?;
 		if datasets.iter().any(|x| x.name == name) {
-			return Err(CreateDatasetError::AlreadyExists(name.into()));
+			return Err(CreateDatasetError::AlreadyExists);
 		}
 
 		// generate new unique dir name

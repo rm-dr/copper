@@ -16,7 +16,7 @@ use super::AttrSelect;
 use crate::api::RouterState;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub(in crate::api) struct NewClassAttrParams {
+pub(super) struct NewClassAttrParams {
 	#[serde(flatten)]
 	pub attr: AttrSelect,
 
@@ -38,7 +38,7 @@ pub(in crate::api) struct NewClassAttrParams {
 		(status = 500, description = "Internal server error", body=String),
 	),
 )]
-pub(in crate::api) async fn add_attr(
+pub(super) async fn add_attr(
 	State(state): State<RouterState>,
 	Json(payload): Json<NewClassAttrParams>,
 ) -> Response {

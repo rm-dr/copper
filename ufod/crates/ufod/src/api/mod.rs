@@ -14,6 +14,7 @@ use ufo_pipeline::runner::runner::PipelineRunner;
 use ufo_pipeline_nodes::nodetype::UFONodeType;
 
 mod attr;
+mod auth;
 mod class;
 mod dataset;
 mod item;
@@ -44,7 +45,8 @@ pub struct RouterState {
 		(path = "/pipeline", api = pipeline::PipelineApi),
 		(path = "/class", api = class::ClassApi),
 		(path = "/attr", api = attr::AttrApi),
-		(path = "/item", api = item::ItemApi)
+		(path = "/item", api = item::ItemApi),
+		(path = "/auth", api = auth::AuthApi)
 	),
 	tags(
 		(name = "ufod", description = "UFO backend daemon")
@@ -71,6 +73,7 @@ pub(super) fn router(state: RouterState) -> Router {
 		.nest("/class", class::router())
 		.nest("/attr", attr::router())
 		.nest("/item", item::router())
+		.nest("/auth", auth::router())
 		//
 		.layer(TraceLayer::new_for_http())
 		.layer(DefaultBodyLimit::max(

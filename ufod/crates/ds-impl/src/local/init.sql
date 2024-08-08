@@ -7,6 +7,8 @@ CREATE TABLE meta_meta (
 	val TEXT NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_meta_meta_var on meta_meta(var);
+
 
 
 
