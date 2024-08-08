@@ -1,15 +1,15 @@
+use copper_ds_core::data::HashType;
+use copper_pipeline::{
+	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
+	dispatcher::NodeParameterValue,
+	labels::PipelinePortID,
+};
 use sha2::{Digest, Sha256, Sha512};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::BTreeMap,
 	io::{Cursor, Read},
 	sync::Arc,
-};
-use ufo_ds_core::data::HashType;
-use ufo_pipeline::{
-	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
-	dispatcher::NodeParameterValue,
-	labels::PipelinePortID,
 };
 
 use crate::{
@@ -138,7 +138,7 @@ impl NodeInfo<CopperData> for Hash {
 }
 
 impl Node<CopperData> for Hash {
-	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<CopperData> {
+	fn get_info(&self) -> &dyn NodeInfo<CopperData> {
 		self
 	}
 

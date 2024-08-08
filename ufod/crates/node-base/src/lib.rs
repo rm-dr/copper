@@ -6,11 +6,11 @@ pub mod data;
 pub mod helpers;
 pub mod nodes;
 
+use copper_ds_impl::local::LocalDataset;
 use data::CopperData;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use ufo_ds_impl::local::LocalDataset;
-use ufo_pipeline::api::PipelineJobContext;
+use copper_pipeline::api::PipelineJobContext;
 
 #[derive(Clone)]
 pub struct CopperContext {

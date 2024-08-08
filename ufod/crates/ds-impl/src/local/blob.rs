@@ -2,11 +2,11 @@ use rand::{distributions::Alphanumeric, Rng};
 use sqlx::Row;
 use std::path::PathBuf;
 use tracing::{trace, warn};
-use ufo_ds_core::{
+use copper_ds_core::{
 	api::blob::{BlobHandle, BlobInfo, Blobstore, BlobstoreTmpWriter},
 	errors::BlobstoreError,
 };
-use ufo_util::mime::MimeType;
+use copper_util::mime::MimeType;
 
 use super::LocalDataset;
 

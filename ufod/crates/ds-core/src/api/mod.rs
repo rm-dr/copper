@@ -1,4 +1,4 @@
-use ufo_pipeline::api::{PipelineData, PipelineJobContext};
+use copper_pipeline::api::{PipelineData, PipelineJobContext};
 
 pub mod blob;
 pub mod meta;

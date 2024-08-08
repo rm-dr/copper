@@ -1,6 +1,6 @@
 use sqlx::Row;
-use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
-use ufo_pipeline::{
+use copper_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
+use copper_pipeline::{
 	api::{PipelineData, PipelineJobContext},
 	dispatcher::NodeDispatcher,
 	labels::PipelineName,

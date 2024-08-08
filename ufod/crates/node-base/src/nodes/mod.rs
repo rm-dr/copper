@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use ufo_pipeline::dispatcher::{NodeDispatcher, RegisterNodeError};
+use copper_pipeline::dispatcher::{NodeDispatcher, RegisterNodeError};
 
 use crate::{data::CopperData, CopperContext};
 

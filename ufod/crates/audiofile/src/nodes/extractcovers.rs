@@ -1,17 +1,17 @@
 use crate::flac::proc::pictures::FlacPictureReader;
-use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, io::Read, sync::Arc};
-use ufo_node_base::{
+use copper_node_base::{
 	data::{BytesSource, CopperData, CopperDataStub},
 	helpers::DataSource,
 	CopperContext,
 };
-use ufo_pipeline::{
+use copper_pipeline::{
 	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
-use ufo_util::mime::MimeType;
+use copper_util::mime::MimeType;
+use smartstring::{LazyCompact, SmartString};
+use std::{collections::BTreeMap, io::Read, sync::Arc};
 
 /// Info for a [`ExtractCovers`] node
 pub struct ExtractCoversInfo {
@@ -69,7 +69,7 @@ impl ExtractCovers {
 }
 
 impl Node<CopperData> for ExtractCovers {
-	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<CopperData> {
+	fn get_info(&self) -> &dyn NodeInfo<CopperData> {
 		&self.info
 	}
 

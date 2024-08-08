@@ -5,9 +5,9 @@
 			"type": "lldb",
 			"request": "launch",
 			"name": "Debug",
-			"program": "${workspaceRoot}/ufod/target/debug/ufod",
+			"program": "${workspaceRoot}/copperd/target/debug/copperd",
 			"args": [],
-			"cwd": "${workspaceRoot}/ufod/",
+			"cwd": "${workspaceRoot}/copperd/",
 			"sourceLanguages": ["rust"]
 		}
 	]

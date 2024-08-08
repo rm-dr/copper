@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, sync::Arc};
-use ufo_util::mime::MimeType;
+use copper_util::mime::MimeType;
 use utoipa::ToSchema;
 
 use super::handles::{ClassHandle, ItemIdx};

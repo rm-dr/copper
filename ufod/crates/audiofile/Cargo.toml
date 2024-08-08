@@ -1,5 +1,5 @@
 [package]
-name = "ufo-audiofile"
+name = "copper-audiofile"
 description = "Audio file decoders"
 categories = { workspace = true }
 keywords = { workspace = true }
@@ -17,9 +17,9 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
-ufo-util = { workspace = true }
-ufo-pipeline = { workspace = true }
-ufo-node-base = { workspace = true }
+copper-util = { workspace = true }
+copper-pipeline = { workspace = true }
+copper-node-base = { workspace = true }
 
 smartstring = { workspace = true }
 itertools = { workspace = true }

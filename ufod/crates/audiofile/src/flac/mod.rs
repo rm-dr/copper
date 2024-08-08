@@ -9,7 +9,7 @@ pub mod proc;
 mod tests {
 
 	use itertools::Itertools;
-	use ufo_util::mime::MimeType;
+	use copper_util::mime::MimeType;
 
 	use super::errors::FlacDecodeError;
 	use crate::common::{picturetype::PictureType, vorbiscomment::VorbisCommentDecodeError};

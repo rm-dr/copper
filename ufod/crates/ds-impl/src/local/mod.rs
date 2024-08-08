@@ -5,8 +5,8 @@ use std::{
 
 use sqlx::{sqlite::SqliteConnectOptions, Connection, Row, SqliteConnection, SqlitePool};
 use tracing::{error, info};
-use ufo_ds_core::{api::Dataset, errors::MetastoreError};
-use ufo_pipeline::api::{PipelineData, PipelineJobContext};
+use copper_ds_core::{api::Dataset, errors::MetastoreError};
+use copper_pipeline::api::{PipelineData, PipelineJobContext};
 
 mod blob;
 mod meta;

@@ -1,5 +1,5 @@
 [package]
-name = "ufo-ds-core"
+name = "copper-ds-core"
 description = "TODO"
 categories = { workspace = true }
 keywords = { workspace = true }
@@ -17,8 +17,8 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
-ufo-util = { workspace = true }
-ufo-pipeline = { workspace = true }
+copper-util = { workspace = true }
+copper-pipeline = { workspace = true }
 
 tokio = { workspace = true }
 serde = { workspace = true }

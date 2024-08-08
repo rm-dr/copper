@@ -1,5 +1,5 @@
 [package]
-name = "ufo-ds-impl"
+name = "copper-ds-impl"
 description = "Dataset implementations"
 categories = { workspace = true }
 keywords = { workspace = true }
@@ -17,9 +17,9 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
-ufo-ds-core = { workspace = true }
-ufo-pipeline = { workspace = true }
-ufo-util = { workspace = true }
+copper-ds-core = { workspace = true }
+copper-pipeline = { workspace = true }
+copper-util = { workspace = true }
 
 sqlx = { workspace = true }
 itertools = { workspace = true }

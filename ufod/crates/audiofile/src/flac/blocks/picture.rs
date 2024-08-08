@@ -2,7 +2,7 @@ use std::{
 	fmt::Debug,
 	io::{Cursor, Read},
 };
-use ufo_util::mime::MimeType;
+use copper_util::mime::MimeType;
 
 use crate::{
 	common::picturetype::PictureType,

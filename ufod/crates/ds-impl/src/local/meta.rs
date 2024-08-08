@@ -6,7 +6,7 @@ use sqlx::{
 };
 use std::{io::Read, iter, str::FromStr, sync::Arc};
 use tracing::{info, trace};
-use ufo_ds_core::{
+use copper_ds_core::{
 	api::{
 		blob::{BlobHandle, Blobstore},
 		meta::{AttrInfo, AttributeOptions, ClassInfo, ItemData, Metastore},
@@ -15,7 +15,7 @@ use ufo_ds_core::{
 	errors::MetastoreError,
 	handles::{AttrHandle, ClassHandle, ItemIdx},
 };
-use ufo_util::{mime::MimeType, names::clean_name};
+use copper_util::{mime::MimeType, names::clean_name};
 
 use super::LocalDataset;
 

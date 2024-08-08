@@ -696,6 +696,95 @@ export interface components {
 			/** @description The pipeline this job ran */
 			pipeline: string;
 		};
+		/** @description Immutable bits of data inside a pipeline.
+		 *
+		 *     Cloning [`CopperData`] should be very fast. Consider wrapping
+		 *     big containers in an [`Arc`].
+		 *
+		 *     Any variant that has a "deserialize" implementation
+		 *     may be used as a parameter in certain nodes.
+		 *     (for example, the `Constant` node's `value` field)
+		 *
+		 *     This is very similar to [`MetastoreData`]. In fact, we often convert between the two.
+		 *     We can't use [`MetastoreData`] everywhere, though... Data inside a pipeline is represented
+		 *     slightly differently than data inside a metastore. (For example, look at the `Blob` variant.
+		 *     In a metastore, `Blob`s are always stored in a blobstore. Here, they are given as streams.)
+		 *
+		 *     Also, some types that exist here cannot exist inside a metastore (for example, `Path`, which
+		 *     represents a file path that is available when the pipeline is run. This path may vanish later.) */
+		CopperData:
+			| {
+					/** @enum {string} */
+					data_type: "Text";
+					value: string;
+			  }
+			| {
+					/** @enum {string} */
+					data_type: "Integer";
+					is_non_negative: boolean;
+					/** Format: int64 */
+					value: number;
+			  }
+			| {
+					/** @enum {string} */
+					data_type: "Boolean";
+					value: boolean;
+			  }
+			| {
+					/** @enum {string} */
+					data_type: "Float";
+					is_non_negative: boolean;
+					/** Format: double */
+					value: number;
+			  }
+			| {
+					/**
+					 * Format: int32
+					 * @description The item class this
+					 */
+					class: number;
+					/** @enum {string} */
+					data_type: "Reference";
+					/**
+					 * Format: int32
+					 * @description The item
+					 */
+					item: number;
+			  };
+		CopperDataStub:
+			| {
+					/** @enum {string} */
+					stub_type: "Text";
+			  }
+			| {
+					/** @enum {string} */
+					stub_type: "Bytes";
+			  }
+			| {
+					is_non_negative: boolean;
+					/** @enum {string} */
+					stub_type: "Integer";
+			  }
+			| {
+					is_non_negative: boolean;
+					/** @enum {string} */
+					stub_type: "Float";
+			  }
+			| {
+					/** @enum {string} */
+					stub_type: "Boolean";
+			  }
+			| {
+					hash_type: components["schemas"]["HashType"];
+					/** @enum {string} */
+					stub_type: "Hash";
+			  }
+			| {
+					/** Format: int32 */
+					class: number;
+					/** @enum {string} */
+					stub_type: "Reference";
+			  };
 		/** @description Dataset info */
 		DatasetInfoShort: {
 			ds_type: components["schemas"]["DatasetType"];
@@ -949,7 +1038,7 @@ export interface components {
 			has_error: boolean;
 			/** @description The input this pipeline takes */
 			inputs: {
-				[key: string]: components["schemas"]["UFODataStub"] | undefined;
+				[key: string]: components["schemas"]["CopperDataStub"] | undefined;
 			};
 			/** @description This pipeline's name */
 			name: string;
@@ -1044,95 +1133,6 @@ export interface components {
 			 */
 			version: string;
 		};
-		/** @description Immutable bits of data inside a pipeline.
-		 *
-		 *     Cloning [`UFOData`] should be very fast. Consider wrapping
-		 *     big containers in an [`Arc`].
-		 *
-		 *     Any variant that has a "deserialize" implementation
-		 *     may be used as a parameter in certain nodes.
-		 *     (for example, the `Constant` node's `value` field)
-		 *
-		 *     This is very similar to [`MetastoreData`]. In fact, we often convert between the two.
-		 *     We can't use [`MetastoreData`] everywhere, though... Data inside a pipeline is represented
-		 *     slightly differently than data inside a metastore. (For example, look at the `Blob` variant.
-		 *     In a metastore, `Blob`s are always stored in a blobstore. Here, they are given as streams.)
-		 *
-		 *     Also, some types that exist here cannot exist inside a metastore (for example, `Path`, which
-		 *     represents a file path that is available when the pipeline is run. This path may vanish later.) */
-		UFOData:
-			| {
-					/** @enum {string} */
-					data_type: "Text";
-					value: string;
-			  }
-			| {
-					/** @enum {string} */
-					data_type: "Integer";
-					is_non_negative: boolean;
-					/** Format: int64 */
-					value: number;
-			  }
-			| {
-					/** @enum {string} */
-					data_type: "Boolean";
-					value: boolean;
-			  }
-			| {
-					/** @enum {string} */
-					data_type: "Float";
-					is_non_negative: boolean;
-					/** Format: double */
-					value: number;
-			  }
-			| {
-					/**
-					 * Format: int32
-					 * @description The item class this
-					 */
-					class: number;
-					/** @enum {string} */
-					data_type: "Reference";
-					/**
-					 * Format: int32
-					 * @description The item
-					 */
-					item: number;
-			  };
-		UFODataStub:
-			| {
-					/** @enum {string} */
-					stub_type: "Text";
-			  }
-			| {
-					/** @enum {string} */
-					stub_type: "Bytes";
-			  }
-			| {
-					is_non_negative: boolean;
-					/** @enum {string} */
-					stub_type: "Integer";
-			  }
-			| {
-					is_non_negative: boolean;
-					/** @enum {string} */
-					stub_type: "Float";
-			  }
-			| {
-					/** @enum {string} */
-					stub_type: "Boolean";
-			  }
-			| {
-					hash_type: components["schemas"]["HashType"];
-					/** @enum {string} */
-					stub_type: "Hash";
-			  }
-			| {
-					/** Format: int32 */
-					class: number;
-					/** @enum {string} */
-					stub_type: "Reference";
-			  };
 		/** @description Parameters to finish an uploading file */
 		UploadFinish: {
 			/**

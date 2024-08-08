@@ -1,5 +1,5 @@
 [package]
-name = "ufo-util"
+name = "copper-util"
 description = "TODO"
 categories = { workspace = true }
 keywords = { workspace = true }

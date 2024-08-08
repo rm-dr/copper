@@ -1,16 +1,16 @@
-use futures::executor::block_on;
-use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, sync::Arc};
-use ufo_ds_core::{
+use copper_ds_core::{
 	api::meta::{AttrInfo, Metastore},
 	handles::ClassHandle,
 };
-use ufo_ds_impl::local::LocalDataset;
-use ufo_pipeline::{
+use copper_ds_impl::local::LocalDataset;
+use copper_pipeline::{
 	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
+use futures::executor::block_on;
+use smartstring::{LazyCompact, SmartString};
+use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
 	data::{CopperData, CopperDataStub},
@@ -137,7 +137,7 @@ impl FindItem {
 }
 
 impl Node<CopperData> for FindItem {
-	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<CopperData> {
+	fn get_info(&self) -> &dyn NodeInfo<CopperData> {
 		&self.info
 	}
 

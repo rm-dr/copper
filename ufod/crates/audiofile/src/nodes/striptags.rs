@@ -1,19 +1,19 @@
 //! Strip all tags from an audio file
 
 use crate::flac::proc::metastrip::FlacMetaStrip;
-use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, io::Read, sync::Arc};
-use ufo_node_base::{
+use copper_node_base::{
 	data::{BytesSource, CopperData, CopperDataStub},
 	helpers::DataSource,
 	CopperContext,
 };
-use ufo_pipeline::{
+use copper_pipeline::{
 	api::{InitNodeError, Node, NodeInfo, NodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
-use ufo_util::mime::MimeType;
+use copper_util::mime::MimeType;
+use smartstring::{LazyCompact, SmartString};
+use std::{collections::BTreeMap, io::Read, sync::Arc};
 
 /// Info for a [`StripTags`] node
 pub struct StripTagsInfo {
@@ -71,7 +71,7 @@ impl StripTags {
 }
 
 impl Node<CopperData> for StripTags {
-	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<CopperData> {
+	fn get_info(&self) -> &dyn NodeInfo<CopperData> {
 		&self.info
 	}
 
@@ -104,7 +104,7 @@ impl Node<CopperData> for StripTags {
 	fn run(
 		&mut self,
 		send_data: &dyn Fn(PipelinePortID, CopperData) -> Result<(), RunNodeError>,
-	) -> Result<ufo_pipeline::api::NodeState, RunNodeError> {
+	) -> Result<NodeState, RunNodeError> {
 		// Push latest data into metadata stripper
 		match &mut self.data {
 			DataSource::Uninitialized => {

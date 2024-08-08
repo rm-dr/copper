@@ -1,5 +1,5 @@
 [package]
-name = "ufo-node-base"
+name = "copper-node-base"
 description = "TODO"
 categories = { workspace = true }
 keywords = { workspace = true }
@@ -17,10 +17,10 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
-ufo-util = { workspace = true }
-ufo-pipeline = { workspace = true }
-ufo-ds-core = { workspace = true }
-ufo-ds-impl = { workspace = true }
+copper-util = { workspace = true }
+copper-pipeline = { workspace = true }
+copper-ds-core = { workspace = true }
+copper-ds-impl = { workspace = true }
 
 serde = { workspace = true }
 smartstring = { workspace = true }

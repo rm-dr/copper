@@ -1,8 +1,8 @@
 use std::{error::Error, fmt::Display};
 
 use smartstring::{LazyCompact, SmartString};
-use ufo_pipeline::{api::PipelineData, pipeline::syntax::errors::PipelinePrepareError};
-use ufo_util::names::NameError;
+use copper_pipeline::{api::PipelineData, pipeline::syntax::errors::PipelinePrepareError};
+use copper_util::names::NameError;
 
 #[derive(Debug)]
 pub enum MetastoreError {

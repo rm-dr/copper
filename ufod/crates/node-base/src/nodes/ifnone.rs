@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
-use smartstring::{LazyCompact, SmartString};
-use ufo_pipeline::{
+use copper_pipeline::{
 	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
+use smartstring::{LazyCompact, SmartString};
 
 use crate::data::{CopperData, CopperDataStub};
 
@@ -65,7 +65,7 @@ impl NodeInfo<CopperData> for IfNone {
 }
 
 impl Node<CopperData> for IfNone {
-	fn get_info(&self) -> &dyn ufo_pipeline::api::NodeInfo<CopperData> {
+	fn get_info(&self) -> &dyn NodeInfo<CopperData> {
 		self
 	}
 

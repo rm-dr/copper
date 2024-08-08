@@ -1,6 +1,6 @@
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
-use ufo_pipeline::{
+use copper_pipeline::{
 	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,

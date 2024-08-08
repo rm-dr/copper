@@ -1,4 +1,4 @@
-use ufo_pipeline::{
+use copper_pipeline::{
 	api::{PipelineData, PipelineJobContext},
 	dispatcher::NodeDispatcher,
 	labels::PipelineName,

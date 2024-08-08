@@ -5,7 +5,7 @@ use std::{
 	io::{Read, Write},
 	sync::Arc,
 };
-use ufo_ds_core::{
+use copper_ds_core::{
 	api::{
 		blob::{BlobHandle, Blobstore, BlobstoreTmpWriter},
 		meta::{AttrInfo, Metastore},
@@ -14,8 +14,8 @@ use ufo_ds_core::{
 	errors::MetastoreError,
 	handles::ClassHandle,
 };
-use ufo_ds_impl::local::LocalDataset;
-use ufo_pipeline::{
+use copper_ds_impl::local::LocalDataset;
+use copper_pipeline::{
 	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,

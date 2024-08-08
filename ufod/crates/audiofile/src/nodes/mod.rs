@@ -1,8 +1,8 @@
 //! Pipeline nodes for processing audio files
 
+use copper_pipeline::dispatcher::{NodeDispatcher, RegisterNodeError};
 use std::collections::BTreeMap;
-use ufo_node_base::{data::CopperData, CopperContext};
-use ufo_pipeline::dispatcher::{NodeDispatcher, RegisterNodeError};
+use copper_node_base::{data::CopperData, CopperContext};
 
 mod extractcovers;
 mod extracttags;
