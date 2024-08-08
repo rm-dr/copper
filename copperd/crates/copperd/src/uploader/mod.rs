@@ -1,17 +1,44 @@
-use rand::{distributions::Alphanumeric, Rng};
-use sha2::{Digest, Sha256};
-use smartstring::{LazyCompact, SmartString};
-use std::{collections::HashMap, fs::File, io::Write, path::PathBuf, sync::Arc, time::Instant};
-use tracing::{debug, error, info, warn};
 use copper_node_base::{data::CopperData, CopperContext};
 use copper_pipeline::runner::runner::PipelineRunner;
 use copper_util::mime::MimeType;
+use rand::{distributions::Alphanumeric, Rng};
+use sha2::{Digest, Sha256};
+use smartstring::{LazyCompact, SmartString};
+use std::{
+	collections::HashMap, error::Error, fmt::Display, fs::File, io::Write, path::PathBuf,
+	sync::Arc, time::Instant,
+};
+use tracing::{debug, error, info, warn};
 
 use crate::config::CopperConfig;
 
 pub mod errors;
 
 const UPLOAD_ID_LENGTH: usize = 8;
+
+#[derive(Debug)]
+pub enum UploaderOpenError {
+	IoError(std::io::Error),
+	NotDir,
+}
+
+impl Display for UploaderOpenError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::IoError(_) => write!(f, "i/o error"),
+			Self::NotDir => write!(f, "uploader target is nnot a directory"),
+		}
+	}
+}
+
+impl Error for UploaderOpenError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::IoError(e) => Some(e),
+			_ => return None,
+		}
+	}
+}
 
 pub struct UploadJob {
 	pub id: SmartString<LazyCompact>,
@@ -49,36 +76,36 @@ pub struct Uploader {
 }
 
 impl Uploader {
-	pub fn open(config: Arc<CopperConfig>) -> Self {
+	pub fn open(config: Arc<CopperConfig>) -> Result<Self, UploaderOpenError> {
 		// Initialize upload dir
 		if !config.paths.upload_dir.exists() {
 			warn!(
 				message = "Creating upload dir because it doesn't exist",
 				upload_dir = ?config.paths.upload_dir
 			);
-			std::fs::create_dir_all(&config.paths.upload_dir).unwrap();
+			std::fs::create_dir_all(&config.paths.upload_dir)
+				.map_err(UploaderOpenError::IoError)?;
 		} else if config.paths.upload_dir.is_dir() {
 			warn!(
 				message = "Upload directory isn't empty, removing",
 				directory = ?config.paths.upload_dir
 			);
-			std::fs::remove_dir_all(&config.paths.upload_dir).unwrap();
-			std::fs::create_dir_all(&config.paths.upload_dir).unwrap();
+			std::fs::remove_dir_all(&config.paths.upload_dir)
+				.map_err(UploaderOpenError::IoError)?;
+			std::fs::create_dir_all(&config.paths.upload_dir)
+				.map_err(UploaderOpenError::IoError)?;
 		} else {
 			error!(
 				message = "Upload dir is not a directory",
 				upload_path = ?config.paths.upload_dir
 			);
-			panic!(
-				"Upload dir {:?} is not a directory",
-				config.paths.upload_dir
-			)
+			return Err(UploaderOpenError::NotDir);
 		}
 
-		Self {
+		Ok(Self {
 			config,
 			jobs: tokio::sync::Mutex::new(Vec::new()),
-		}
+		})
 	}
 
 	#[inline(always)]
