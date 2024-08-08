@@ -23,7 +23,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Dataset & attribute type descriptions
   - [ ] Enter to make new set/attr/etc
   - [ ] Center icons in dropdown
-  - [ ] Fix modal text colors
 
 ## 📦 Dataset locks
 - [ ] delete dataset while pipeline is running?
@@ -115,6 +114,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 UI Cleanup
  - Rename `upload` page
+ - Find all console.log
 
 ## 📦 Distribution
 - [ ] Docker file & compose

@@ -369,9 +369,9 @@ export function useAddClassModal(params: {
 						marginBottom: "1rem",
 					}}
 				>
-					<Text c="teal" size="sm">
+					<Text c="dimmed" size="sm">
 						Add a class to the dataset
-						<Text c="lime" span>{` ${params.dataset_name}`}</Text>:
+						<Text c="gray" span>{` ${params.dataset_name}`}</Text>:
 					</Text>
 				</div>
 				<TextInput

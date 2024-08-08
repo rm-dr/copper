@@ -479,9 +479,9 @@ export function useAddAttrModal(params: {
 						marginBottom: "1rem",
 					}}
 				>
-					<Text c="teal" size="sm">
+					<Text c="dimmed" size="sm">
 						Add an attribute to the class
-						<Text c="green" span>{` ${params.class_name}`}</Text>:
+						<Text c="gray" span>{` ${params.class_name}`}</Text>:
 					</Text>
 				</div>
 				<TextInput
