@@ -8,8 +8,7 @@ use crate::common::vorbiscomment::VorbisComment;
 pub mod blockread;
 pub mod blocks;
 pub mod errors;
-pub mod metastrip;
-pub mod picture;
+pub mod proc;
 
 use blocks::{FlacMetablockHeader, FlacMetablockType};
 

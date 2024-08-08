@@ -1,5 +1,5 @@
-use std::{io::Read, sync::Arc};
-use ufo_audiofile::flac::metastrip::{FlacMetaStrip, FlacMetaStripSelector};
+use std::sync::Arc;
+use ufo_audiofile::flac::proc::metastrip::FlacMetaStrip;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 
@@ -11,24 +11,13 @@ use crate::{
 };
 
 pub struct StripTags {
-	blob_fragment_size: usize,
-
-	is_done: bool,
 	strip: FlacMetaStrip,
 }
 
 impl StripTags {
-	pub fn new(ctx: &<Self as PipelineNode>::NodeContext) -> Self {
+	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext) -> Self {
 		Self {
-			blob_fragment_size: ctx.blob_fragment_size,
-
-			is_done: false,
-			strip: FlacMetaStrip::new(
-				FlacMetaStripSelector::new()
-					.keep_streaminfo(true)
-					.keep_seektable(true)
-					.keep_cuesheet(true),
-			),
+			strip: FlacMetaStrip::new(),
 		}
 	}
 }
@@ -58,9 +47,10 @@ impl PipelineNode for StripTags {
 					)));
 				}
 
-				assert!(!self.is_done);
-				self.is_done = is_last;
 				self.strip.push_data(&fragment)?;
+				if is_last {
+					self.strip.finish()?;
+				}
 			}
 			_ => unreachable!(),
 		}
@@ -71,34 +61,27 @@ impl PipelineNode for StripTags {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		// Read a segment of our file
-		let mut read_buf = Vec::with_capacity(self.blob_fragment_size);
-		Read::by_ref(&mut self.strip)
-			.take(self.blob_fragment_size.try_into().unwrap())
-			.read_to_end(&mut read_buf)?;
-		assert!(read_buf.len() <= self.blob_fragment_size);
-		let empty = read_buf.is_empty();
+		if self.strip.has_data() {
+			let mut out = Vec::new();
+			self.strip.read_data(&mut out).unwrap();
 
-		// The last fragment we send is always empty and done.
-		// This prevents us from accidentally skipping the last
-		// part of the file.
-
-		if !empty || self.is_done {
-			send_data(
-				0,
-				UFOData::Blob {
-					mime: MimeType::Flac,
-					fragment: Arc::new(read_buf),
-					is_last: self.is_done && empty,
-				},
-			)?;
-		}
-
-		if self.is_done && empty {
+			if !out.is_empty() {
+				send_data(
+					0,
+					UFOData::Blob {
+						mime: MimeType::Flac,
+						fragment: Arc::new(out),
+						is_last: !self.strip.has_data(),
+					},
+				)?;
+			}
+		} else if self.strip.is_done() {
+			let mut out = Vec::new();
+			self.strip.read_data(&mut out).unwrap();
 			return Ok(PipelineNodeState::Done);
-		} else {
-			return Ok(PipelineNodeState::Pending("waiting for data"));
 		}
+
+		return Ok(PipelineNodeState::Pending("Reader is waiting for data"));
 	}
 }
 

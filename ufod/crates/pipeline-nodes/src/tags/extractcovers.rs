@@ -1,31 +1,25 @@
-use std::{
-	io::{Seek, SeekFrom},
-	sync::Arc,
-};
-use ufo_audiofile::flac::picture::flac_read_pictures;
+use std::sync::Arc;
+use ufo_audiofile::flac::proc::pictures::FlacPictureReader;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 
 use crate::{
 	data::{UFOData, UFODataStub},
 	errors::PipelineError,
-	helpers::ArcVecBuffer,
 	traits::UFOStaticNode,
 	UFOContext,
 };
 
 pub struct ExtractCovers {
 	mime: Option<MimeType>,
-	fragments: ArcVecBuffer,
-	is_done: bool,
+	reader: FlacPictureReader,
 }
 
 impl ExtractCovers {
 	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext) -> Self {
 		Self {
 			mime: None,
-			fragments: ArcVecBuffer::new(),
-			is_done: false,
+			reader: FlacPictureReader::new(),
 		}
 	}
 }
@@ -47,16 +41,16 @@ impl PipelineNode for ExtractCovers {
 					_ => unreachable!(),
 				};
 
-				assert!(!self.is_done);
-
 				if let Some(f) = &self.mime {
 					assert!(*f == format);
 				} else {
 					self.mime = Some(format);
 				}
 
-				self.fragments.push_back(fragment);
-				self.is_done = is_last;
+				self.reader.push_data(&fragment)?;
+				if is_last {
+					self.reader.finish()?;
+				}
 			}
 			_ => unreachable!(),
 		}
@@ -71,26 +65,7 @@ impl PipelineNode for ExtractCovers {
 			return Ok(PipelineNodeState::Pending("args not ready"));
 		}
 
-		self.fragments.seek(SeekFrom::Start(0))?;
-		let picture = match self.mime.as_ref().unwrap() {
-			MimeType::Flac => {
-				let pictures = flac_read_pictures(&mut self.fragments);
-				if pictures.is_err() {
-					return Ok(PipelineNodeState::Pending("malformed pictures"));
-				}
-				let mut pictures = pictures.unwrap();
-				pictures.pop()
-			}
-			MimeType::Mp3 => unimplemented!(),
-			_ => {
-				return Err(PipelineError::UnsupportedDataType(format!(
-					"cannot extract pictures from `{}`",
-					self.mime.as_ref().unwrap()
-				)))
-			}
-		};
-
-		if let Some(picture) = picture {
+		if let Some(picture) = self.reader.pop_picture() {
 			send_data(
 				0,
 				UFOData::Binary {
@@ -98,11 +73,13 @@ impl PipelineNode for ExtractCovers {
 					data: Arc::new(picture.img_data),
 				},
 			)?;
-		} else {
+			return Ok(PipelineNodeState::Done);
+		} else if self.reader.is_done() {
 			send_data(0, UFOData::None(UFODataStub::Binary))?;
+			return Ok(PipelineNodeState::Done);
 		}
 
-		return Ok(PipelineNodeState::Done);
+		return Ok(PipelineNodeState::Pending("No pictures yet"));
 	}
 }
 
