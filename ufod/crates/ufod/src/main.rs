@@ -1,7 +1,7 @@
 use api::RouterState;
 use config::UfodConfig;
-use futures::executor::block_on;
-use std::{path::PathBuf, sync::Arc, thread};
+use futures::TryFutureExt;
+use std::{error::Error, future::IntoFuture, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::info;
 
@@ -18,7 +18,7 @@ use helpers::{maindb::MainDB, uploader::Uploader};
 // delete after timeout (what if uploading takes a while? Multiple big files?)
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn Error>> {
 	let config_path: PathBuf = "./data/config.toml".into();
 	if !config_path.exists() {
 		println!(
@@ -49,11 +49,11 @@ async fn main() {
 			message = "Creating main database because it doesn't exist",
 			main_db_path = ?config.paths.main_db
 		);
-		MainDB::create(&config.paths.main_db).unwrap();
+		MainDB::create(&config.paths.main_db).await.unwrap();
 	}
 
 	// TODO: arc config?
-	let main_db = MainDB::open(config.clone()).unwrap();
+	let main_db = MainDB::open(config.clone()).await.unwrap();
 	let uploader = Uploader::open(config.clone());
 
 	// Prep runner
@@ -63,6 +63,8 @@ async fn main() {
 	});
 
 	// TODO: clone fewer arcs
+
+	// Note how these are all async locks
 	let state = RouterState {
 		main_db: Arc::new(main_db),
 		config,
@@ -77,14 +79,32 @@ async fn main() {
 
 	let app = api::router(state.clone());
 
-	thread::spawn(move || loop {
-		let mut runner = block_on(state.runner.lock());
-		runner.run().unwrap();
-		block_on(state.uploader.check_jobs(&runner));
+	// Main loop(s)
+	tokio::try_join!(
+		run_pipes(state),
+		// Call .into on the error axum returns
+		// so that the error types of all futures
+		// in this join have the same type.
+		//
+		// The type of error is inferred from the first arg of this join.
+		axum::serve(listener, app)
+			.into_future()
+			.map_err(|x| x.into())
+	)?;
+
+	return Ok(());
+}
+
+async fn run_pipes(state: RouterState) -> Result<(), Box<dyn Error>> {
+	loop {
+		let mut runner = state.runner.lock().await;
+		runner.run()?;
+		state.uploader.check_jobs(&runner).await;
 		drop(runner);
 
-		std::thread::sleep(std::time::Duration::from_millis(10));
-	});
-
-	axum::serve(listener, app).await.unwrap();
+		// Sleep a little bit so we don't waste cpu cycles.
+		// If this is too long, we'll slow down pipeline runners,
+		// but if it's too short we'll waste cycles checking pending threads.
+		tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+	}
 }

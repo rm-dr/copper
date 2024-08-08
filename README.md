@@ -1,3 +1,15 @@
+# Notes
+Eventually, consolidate these in docs
+- If a dataset, class, or attr is deleted under a running pipe, that pipe should normally fail.
+Nodes should be panic-free, returning an error when resources they need vanish. This situation
+also shouldn't cause deadlocks, since datasets manage their own locks.
+- Pipeline nodes that need to call async functions should just `block_on` them. Nodes are run in
+a threadpool, and are thus inherintly async. This isn't ideal, though, we might want to fix this
+later (part of writing a better scheduler).
+
+
+
+
 # TODO
 
 Poor man's issue tracker. Good enough for now, this team isn't very big.
@@ -5,6 +17,8 @@ Poor man's issue tracker. Good enough for now, this team isn't very big.
 Projects marked with a 📦 are prerequisites for `v0.1.0` release.
 The goal is a *minimal* working version: robust, usable, but possibly slow and missing fancy features.
 
+
+- name validation: no empty string after strip
 
 ## 📦 CRUD items
 - [ ] Create items by pipeline
@@ -21,12 +35,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Select attrs to show
   - [ ] Search panel (no logic yet)
   - [ ] Sort by attr
-
-## 📦 Dataset locks
-- [ ] delete dataset while pipeline is running?
-  - Jobs should automatically fail (dataset id?)
-- [ ] async dataset api?
-- [ ] async pipeline runner
 
 ## 📦 How to fail pipelines?
 - e.g, duplicate album art
@@ -87,7 +95,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - already in upload ui, just need node implementation
 
 ## 📦 Daemon cleanup
-- [ ] Rename "fragment", "item class", "database", etc (glossary)
+- [ ] Rename "fragment", "item class", "database", "blob fragment", "pipeline", "job", etc (glossary)
 - [ ] clone fewer arcs
 - [ ] fix all panics/unwraps
 - [ ] Remove petgraph (write cycle detection algo)
@@ -107,11 +115,18 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## 📦 Logging cleanup
 - [ ] logging everywhere
 - [ ] well-defined log levels
+- [ ] log locks?
 
 ## 📦 UI Cleanup
- - Rename `upload` page
- - Find all console.log
- - Better dataset tree (open/close spacing, background, etc)
+- Rename `upload` page
+- Find all console.log
+- Better dataset tree (open/close spacing, background, etc)
+- Show running pipeline node count & progress
+
+## 📦 Config cleanup
+- [ ] accept envvars (docker) and toml file?
+- [ ] default values for everything
+- [ ] configure pipeline runner (n threads, n pipelines)
 
 ## 📦 Distribution
 - [ ] Docker file & compose
@@ -142,11 +157,16 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ---------------------------------------------------------------------
 
 
-# Daemon cleanup v2
+## Daemon cleanup v2
 - [ ] utoipa tags
 - [ ] use memmap2 for files
 - [ ] One integer type, with options
+- [ ] Generic datasets, other dataset types
 
+## More async
+- [ ] asyncify blobstore
+- [ ] asyncify pipestore
+- [ ] should pipelinenodetype methods be async?
 
 ## Audit log
 - [ ] Track logins
@@ -266,6 +286,8 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Catch as many errors as possible when building pipeline
 - [ ] Warnings (disconnected inputs)
 
+## Read-only "views" into data?
+- allow other apps to use our db (jellyfin, syncthing, etc)
 
 ## Tasks
 - Trigger jobs automatically on some event

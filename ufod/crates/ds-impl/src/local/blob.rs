@@ -58,7 +58,7 @@ impl Blobstore for LocalDataset {
 			sqlx::query("INSERT INTO meta_blobs (data_type, file_path) VALUES (?, ?);")
 				.bind(blob.mime.to_string())
 				.bind(final_path_rel)
-				.execute(&mut *self.conn.lock().unwrap()),
+				.execute(&mut *block_on(self.conn.lock())),
 		);
 
 		let id = match res {
@@ -84,7 +84,7 @@ impl Blobstore for LocalDataset {
 			blob_handle = ?blob,
 		);
 
-		let mut conn = self.conn.lock().unwrap();
+		let mut conn = block_on(self.conn.lock());
 
 		// We intentionally don't use a connection here.
 		// A blob shouldn't point to a partially-deleted file.
@@ -131,7 +131,7 @@ impl Blobstore for LocalDataset {
 	}
 
 	fn all_blobs(&self) -> Result<Vec<BlobHandle>, BlobstoreError> {
-		let mut conn = self.conn.lock().unwrap();
+		let mut conn = block_on(self.conn.lock());
 
 		let res =
 			block_on(sqlx::query("SELECT id FROM meta_blobs ORDER BY id;").fetch_all(&mut *conn))

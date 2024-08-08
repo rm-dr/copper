@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use axum::{
 	extract::{Query, State},
 	http::StatusCode,
@@ -7,8 +5,9 @@ use axum::{
 	Json,
 };
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tracing::error;
-use ufo_ds_core::errors::PipestoreError;
+use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
 use ufo_pipeline::labels::{PipelineName, PipelineNodeID};
 use ufo_pipeline_nodes::UFOContext;
 use utoipa::ToSchema;
@@ -49,7 +48,7 @@ pub(in crate::api) async fn get_pipeline(
 ) -> Response {
 	let pipeline_name = PipelineName::new(&query.pipeline);
 
-	let dataset = match state.main_db.get_dataset(&query.dataset) {
+	let dataset = match state.main_db.get_dataset(&query.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (

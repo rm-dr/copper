@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use tracing::error;
 use ufo_ds_core::{
+	api::meta::Metastore,
 	data::MetastoreDataStub,
 	handles::{AttrHandle, ClassHandle},
 };
@@ -63,7 +64,7 @@ pub(super) async fn list_classes(
 	State(state): State<RouterState>,
 	Query(query): Query<ClassInfoRequest>,
 ) -> Response {
-	let dataset = match state.main_db.get_dataset(&query.dataset) {
+	let dataset = match state.main_db.get_dataset(&query.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -86,7 +87,7 @@ pub(super) async fn list_classes(
 		}
 	};
 
-	let classes = match dataset.get_all_classes() {
+	let classes = match dataset.get_all_classes().await {
 		Ok(x) => x,
 		Err(e) => {
 			error!(
@@ -104,7 +105,7 @@ pub(super) async fn list_classes(
 
 	let mut out = Vec::new();
 	for (class_handle, class_name) in classes {
-		let attrs = match dataset.class_get_attrs(class_handle) {
+		let attrs = match dataset.class_get_attrs(class_handle).await {
 			Ok(x) => x,
 			Err(e) => {
 				error!(

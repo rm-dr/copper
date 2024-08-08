@@ -5,7 +5,7 @@ use axum::{
 	Json,
 };
 use tracing::error;
-use ufo_ds_core::handles::ClassHandle;
+use ufo_ds_core::{api::meta::Metastore, handles::ClassHandle};
 
 use super::AttrSelect;
 use crate::api::RouterState;
@@ -25,7 +25,7 @@ pub(in crate::api) async fn del_attr(
 	State(state): State<RouterState>,
 	Json(payload): Json<AttrSelect>,
 ) -> Response {
-	let dataset = match state.main_db.get_dataset(&payload.class.dataset) {
+	let dataset = match state.main_db.get_dataset(&payload.class.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -48,7 +48,7 @@ pub(in crate::api) async fn del_attr(
 		}
 	};
 
-	let class_handle: ClassHandle = match dataset.get_class(&payload.class.class) {
+	let class_handle: ClassHandle = match dataset.get_class(&payload.class.class).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -72,7 +72,7 @@ pub(in crate::api) async fn del_attr(
 		}
 	};
 
-	let attr_handle = match dataset.get_attr(class_handle, &payload.attr) {
+	let attr_handle = match dataset.get_attr(class_handle, &payload.attr).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -100,7 +100,7 @@ pub(in crate::api) async fn del_attr(
 		}
 	};
 
-	let res = dataset.del_attr(attr_handle);
+	let res = dataset.del_attr(attr_handle).await;
 
 	match res {
 		Ok(_) => return StatusCode::OK.into_response(),

@@ -1,9 +1,11 @@
+use futures::executor::block_on;
 use std::sync::Arc;
 use ufo_ds_core::{
-	api::Dataset,
+	api::meta::Metastore,
 	errors::MetastoreError,
 	handles::{AttrHandle, ClassHandle},
 };
+use ufo_ds_impl::local::LocalDataset;
 use ufo_pipeline::{
 	api::{PipelineData, PipelineNode, PipelineNodeState},
 	labels::PipelinePortID,
@@ -18,7 +20,7 @@ use crate::{
 };
 
 pub struct FindItem {
-	dataset: Arc<dyn Dataset<UFONodeType>>,
+	dataset: Arc<LocalDataset>,
 	class: ClassHandle,
 	by_attr: AttrHandle,
 	attr_type: UFODataStub,
@@ -32,7 +34,7 @@ impl FindItem {
 		class: ClassHandle,
 		by_attr: AttrHandle,
 	) -> Result<Self, MetastoreError> {
-		let attr_type = ctx.dataset.attr_get_type(by_attr)?.into();
+		let attr_type = block_on(ctx.dataset.attr_get_type(by_attr))?.into();
 		Ok(FindItem {
 			dataset: ctx.dataset.clone(),
 
@@ -64,10 +66,10 @@ impl PipelineNode for FindItem {
 			return Ok(PipelineNodeState::Pending("waiting for input"));
 		}
 
-		let found = self.dataset.find_item_with_attr(
+		let found = block_on(self.dataset.find_item_with_attr(
 			self.by_attr,
 			self.attr_value.as_ref().unwrap().as_db_data().unwrap(),
-		)?;
+		))?;
 
 		if let Some(item) = found {
 			send_data(
@@ -133,19 +135,19 @@ impl UFONode for FindItem {
 			UFONodeType::FindItem { class, by_attr } => {
 				assert!(input_idx == 0);
 
-				let class_h = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+				let class_h = if let Some(c) = block_on(ctx.dataset.get_class(&class[..]))? {
 					c
 				} else {
 					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
 				};
 
-				let attr = if let Some(a) = ctx.dataset.get_attr(class_h, &by_attr)? {
+				let attr = if let Some(a) = block_on(ctx.dataset.get_attr(class_h, &by_attr))? {
 					a
 				} else {
 					return Err(UFONodeTypeError::NoSuchAttr(class.clone(), by_attr.clone()));
 				};
 
-				ctx.dataset.attr_get_type(attr).unwrap().into()
+				block_on(ctx.dataset.attr_get_type(attr)).unwrap().into()
 			}
 			_ => unreachable!(),
 		})
@@ -167,7 +169,7 @@ impl UFONode for FindItem {
 			UFONodeType::FindItem { class, .. } => {
 				assert!(output_idx == 0);
 
-				let class = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+				let class = if let Some(c) = block_on(ctx.dataset.get_class(&class[..]))? {
 					c
 				} else {
 					return Err(UFONodeTypeError::NoSuchClass(class.clone()));

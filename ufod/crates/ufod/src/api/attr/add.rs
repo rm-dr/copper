@@ -7,8 +7,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error};
 use ufo_ds_core::{
-	api::meta::AttributeOptions, data::MetastoreDataStub, errors::MetastoreError,
-	handles::ClassHandle,
+	api::meta::AttributeOptions, api::meta::Metastore, data::MetastoreDataStub,
+	errors::MetastoreError, handles::ClassHandle,
 };
 use utoipa::ToSchema;
 
@@ -47,7 +47,7 @@ pub(in crate::api) async fn add_attr(
 		payload = ?payload
 	);
 
-	let dataset = match state.main_db.get_dataset(&payload.attr.class.dataset) {
+	let dataset = match state.main_db.get_dataset(&payload.attr.class.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -70,7 +70,7 @@ pub(in crate::api) async fn add_attr(
 		}
 	};
 
-	let class_handle: ClassHandle = match dataset.get_class(&payload.attr.class.class) {
+	let class_handle: ClassHandle = match dataset.get_class(&payload.attr.class.class).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -94,12 +94,14 @@ pub(in crate::api) async fn add_attr(
 		}
 	};
 
-	let res = dataset.add_attr(
-		class_handle,
-		&payload.attr.attr,
-		payload.data_type,
-		payload.options,
-	);
+	let res = dataset
+		.add_attr(
+			class_handle,
+			&payload.attr.attr,
+			payload.data_type,
+			payload.options,
+		)
+		.await;
 
 	match res {
 		Ok(_) => return StatusCode::OK.into_response(),

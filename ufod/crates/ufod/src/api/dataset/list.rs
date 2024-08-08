@@ -32,7 +32,7 @@ pub(super) struct DatasetInfoShort {
 pub(super) async fn list_datasets(State(state): State<RouterState>) -> Response {
 	let mut out = Vec::new();
 
-	let datasets = match state.main_db.get_datasets() {
+	let datasets = match state.main_db.get_datasets().await {
 		Ok(x) => x,
 		Err(e) => {
 			error!(

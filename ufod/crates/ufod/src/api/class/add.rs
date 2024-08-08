@@ -5,7 +5,7 @@ use axum::{
 	Json,
 };
 use tracing::error;
-use ufo_ds_core::errors::MetastoreError;
+use ufo_ds_core::{api::meta::Metastore, errors::MetastoreError};
 
 use super::ClassSelect;
 use crate::api::RouterState;
@@ -25,7 +25,7 @@ pub(super) async fn add_class(
 	State(state): State<RouterState>,
 	Json(payload): Json<ClassSelect>,
 ) -> Response {
-	let dataset = match state.main_db.get_dataset(&payload.dataset) {
+	let dataset = match state.main_db.get_dataset(&payload.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -48,7 +48,7 @@ pub(super) async fn add_class(
 		}
 	};
 
-	let res = dataset.add_class(&payload.class);
+	let res = dataset.add_class(&payload.class).await;
 
 	match res {
 		Ok(_) => return StatusCode::OK.into_response(),

@@ -1,8 +1,9 @@
-use std::{error::Error, fmt::Display};
-
+use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+use std::{error::Error, fmt::Display};
 use ufo_audiofile::common::tagtype::TagType;
+use ufo_ds_core::api::meta::Metastore;
 use ufo_ds_core::{data::HashType, errors::MetastoreError};
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeStub},
@@ -156,15 +157,13 @@ impl PipelineNodeStub for UFONodeType {
 				node: FileReader::new(ctx),
 			},
 			UFONodeType::AddItem { class, config } => {
-				let class = if let Some(c) = ctx.dataset.get_class(class)? {
+				let class = if let Some(c) = block_on(ctx.dataset.get_class(class))? {
 					c
 				} else {
 					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
 				};
 
-				let attrs = ctx
-					.dataset
-					.class_get_attrs(class)?
+				let attrs = block_on(ctx.dataset.class_get_attrs(class))?
 					.into_iter()
 					.map(|(a, b, c)| (a, b, c.into()))
 					.collect();
@@ -177,13 +176,14 @@ impl PipelineNodeStub for UFONodeType {
 			}
 
 			UFONodeType::FindItem { class, by_attr } => {
-				let class_handle = if let Some(c) = ctx.dataset.get_class(class)? {
+				let class_handle = if let Some(c) = block_on(ctx.dataset.get_class(class))? {
 					c
 				} else {
 					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
 				};
 
-				let attrs = if let Some(a) = ctx.dataset.get_attr(class_handle, &by_attr)? {
+				let attrs = if let Some(a) = block_on(ctx.dataset.get_attr(class_handle, &by_attr))?
+				{
 					a
 				} else {
 					return Err(UFONodeTypeError::NoSuchAttr(class.clone(), by_attr.clone()));

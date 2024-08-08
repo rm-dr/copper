@@ -16,7 +16,7 @@ impl<PipelineNodeStubType: PipelineNodeStub> Pipestore<PipelineNodeStubType> for
 		name: &PipelineName,
 		context: Arc<<PipelineNodeStubType::NodeType as PipelineNode>::NodeContext>,
 	) -> Result<Option<Pipeline<PipelineNodeStubType>>, PipestoreError<PipelineNodeStubType>> {
-		let mut conn = self.conn.lock().unwrap();
+		let mut conn = block_on(self.conn.lock());
 
 		let res = block_on(
 			sqlx::query("SELECT pipeline_data FROM meta_pipelines WHERE pipeline_name=?;")
@@ -41,7 +41,7 @@ impl<PipelineNodeStubType: PipelineNodeStub> Pipestore<PipelineNodeStubType> for
 	}
 
 	fn all_pipelines(&self) -> Result<Vec<PipelineName>, PipestoreError<PipelineNodeStubType>> {
-		let mut conn = self.conn.lock().unwrap();
+		let mut conn = block_on(self.conn.lock());
 
 		let res = block_on(
 			sqlx::query("SELECT pipeline_name FROM meta_pipelines ORDER BY id;")

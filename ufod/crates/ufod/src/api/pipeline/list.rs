@@ -9,7 +9,8 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::error;
-use ufo_ds_core::errors::PipestoreError;
+use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
+use ufo_ds_impl::local::LocalDataset;
 use ufo_pipeline::labels::PipelineName;
 use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
 use utoipa::{IntoParams, ToSchema};
@@ -69,7 +70,7 @@ pub(super) async fn list_pipelines(
 	State(state): State<RouterState>,
 	Query(query): Query<PipelineListRequest>,
 ) -> Response {
-	let dataset = match state.main_db.get_dataset(&query.dataset) {
+	let dataset = match state.main_db.get_dataset(&query.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -97,7 +98,9 @@ pub(super) async fn list_pipelines(
 		blob_fragment_size: 1_000_000,
 	});
 
-	let all_pipes = match dataset.all_pipelines() {
+	// TODO: this is ugly, fix it!
+	// (do while implementing generic datasets)
+	let all_pipes = match <LocalDataset as Pipestore<UFONodeType>>::all_pipelines(&dataset) {
 		Ok(x) => x,
 		Err(e) => {
 			error!(

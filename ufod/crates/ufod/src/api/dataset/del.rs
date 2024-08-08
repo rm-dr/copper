@@ -30,7 +30,7 @@ pub(super) async fn del_dataset(
 	State(state): State<RouterState>,
 	Json(payload): Json<DeleteDatasetRequest>,
 ) -> Response {
-	let res = state.main_db.del_dataset(&payload.dataset_name);
+	let res = state.main_db.del_dataset(&payload.dataset_name).await;
 
 	match res {
 		Ok(_) => {}

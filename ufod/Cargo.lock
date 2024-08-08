@@ -3087,6 +3087,7 @@ dependencies = [
  "serde_json",
  "smartstring",
  "sqlx",
+ "tokio",
  "tracing",
  "ufo-ds-core",
  "ufo-pipeline",
@@ -3114,6 +3115,7 @@ name = "ufo-pipeline-nodes"
 version = "0.1.0"
 dependencies = [
  "crossbeam",
+ "futures",
  "itertools",
  "md5",
  "serde",
@@ -3122,6 +3124,7 @@ dependencies = [
  "smartstring",
  "ufo-audiofile",
  "ufo-ds-core",
+ "ufo-ds-impl",
  "ufo-pipeline",
  "ufo-util",
 ]

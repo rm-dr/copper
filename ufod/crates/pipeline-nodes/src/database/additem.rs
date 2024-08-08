@@ -1,17 +1,18 @@
 use core::panic;
 use std::{collections::VecDeque, fmt::Debug, io::Write, sync::Arc};
 
+use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use ufo_ds_core::{
-	api::{
-		blob::{BlobHandle, BlobstoreTmpWriter},
-		Dataset,
-	},
+	api::blob::Blobstore,
+	api::blob::{BlobHandle, BlobstoreTmpWriter},
+	api::meta::Metastore,
 	data::MetastoreData,
 	errors::MetastoreError,
 	handles::{AttrHandle, ClassHandle},
 };
+use ufo_ds_impl::local::LocalDataset;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	labels::PipelinePortID,
@@ -52,7 +53,7 @@ pub struct AddItemConfig {
 }
 
 pub struct AddItem {
-	dataset: Arc<dyn Dataset<UFONodeType>>,
+	dataset: Arc<LocalDataset>,
 
 	class: ClassHandle,
 	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, UFODataStub)>,
@@ -155,7 +156,7 @@ impl PipelineNode for AddItem {
 			};
 			attrs.push((*attr, data.into()));
 		}
-		let res = self.dataset.add_item(self.class, attrs);
+		let res = block_on(self.dataset.add_item(self.class, attrs));
 
 		match res {
 			Ok(item) => {
@@ -190,13 +191,13 @@ impl UFONode for AddItem {
 	fn n_inputs(stub: &UFONodeType, ctx: &UFOContext) -> Result<usize, UFONodeTypeError> {
 		Ok(match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+				let class = if let Some(c) = block_on(ctx.dataset.get_class(&class[..]))? {
 					c
 				} else {
 					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
 				};
 
-				let attrs = ctx.dataset.class_get_attrs(class)?;
+				let attrs = block_on(ctx.dataset.class_get_attrs(class))?;
 				attrs.into_iter().count()
 			}
 			_ => unreachable!(),
@@ -224,13 +225,13 @@ impl UFONode for AddItem {
 	) -> Result<Option<usize>, UFONodeTypeError> {
 		Ok(match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+				let class = if let Some(c) = block_on(ctx.dataset.get_class(&class[..]))? {
 					c
 				} else {
 					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
 				};
 
-				let attrs = ctx.dataset.class_get_attrs(class)?;
+				let attrs = block_on(ctx.dataset.class_get_attrs(class))?;
 				attrs
 					.into_iter()
 					.enumerate()
@@ -248,13 +249,13 @@ impl UFONode for AddItem {
 	) -> Result<UFODataStub, UFONodeTypeError> {
 		Ok(match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+				let class = if let Some(c) = block_on(ctx.dataset.get_class(&class[..]))? {
 					c
 				} else {
 					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
 				};
 
-				let attrs = ctx.dataset.class_get_attrs(class)?;
+				let attrs = block_on(ctx.dataset.class_get_attrs(class))?;
 				attrs.into_iter().nth(input_idx).unwrap().2.into()
 			}
 			_ => unreachable!(),
@@ -264,13 +265,13 @@ impl UFONode for AddItem {
 	fn n_outputs(stub: &UFONodeType, ctx: &UFOContext) -> Result<usize, UFONodeTypeError> {
 		Ok(match stub {
 			UFONodeType::AddItem { class, .. } => {
-				let class = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+				let class = if let Some(c) = block_on(ctx.dataset.get_class(&class[..]))? {
 					c
 				} else {
 					return Err(UFONodeTypeError::NoSuchClass(class.clone()));
 				};
 
-				let attrs = ctx.dataset.class_get_attrs(class)?;
+				let attrs = block_on(ctx.dataset.class_get_attrs(class))?;
 				attrs.into_iter().count()
 			}
 			_ => unreachable!(),
@@ -286,7 +287,7 @@ impl UFONode for AddItem {
 			UFONodeType::AddItem { class, .. } => {
 				assert!(output_idx == 0);
 
-				let class = if let Some(c) = ctx.dataset.get_class(&class[..])? {
+				let class = if let Some(c) = block_on(ctx.dataset.get_class(&class[..]))? {
 					c
 				} else {
 					return Err(UFONodeTypeError::NoSuchClass(class.clone()));

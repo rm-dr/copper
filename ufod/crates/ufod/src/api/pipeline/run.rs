@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::sync::Arc;
 use tracing::error;
-use ufo_ds_core::errors::PipestoreError;
+use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
 use ufo_pipeline::labels::PipelineName;
 use ufo_pipeline_nodes::{data::UFOData, UFOContext};
 use utoipa::ToSchema;
@@ -57,7 +57,7 @@ pub(super) async fn run_pipeline(
 
 	let mut runner = state.runner.lock().await;
 
-	let dataset = match state.main_db.get_dataset(&payload.pipe.dataset) {
+	let dataset = match state.main_db.get_dataset(&payload.pipe.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (

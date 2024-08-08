@@ -43,7 +43,10 @@ pub(super) async fn add_dataset(
 
 	match payload.params {
 		NewDatasetParams::Local => {
-			let res = state.main_db.new_dataset(&payload.name, DatasetType::Local);
+			let res = state
+				.main_db
+				.new_dataset(&payload.name, DatasetType::Local)
+				.await;
 
 			match res {
 				Ok(_) => {}

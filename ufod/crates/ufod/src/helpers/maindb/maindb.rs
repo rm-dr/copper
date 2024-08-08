@@ -1,13 +1,9 @@
-use futures::executor::block_on;
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{Connection, SqliteConnection};
-use std::{
-	path::Path,
-	sync::{Arc, Mutex},
-};
+use std::{path::Path, sync::Arc};
+use tokio::sync::Mutex;
 use tracing::{error, info};
-use ufo_ds_core::api::Dataset;
-use ufo_pipeline_nodes::nodetype::UFONodeType;
+use ufo_ds_impl::local::LocalDataset;
 
 use crate::config::UfodConfig;
 
@@ -15,28 +11,30 @@ pub struct MainDB {
 	pub(super) conn: Mutex<SqliteConnection>,
 	pub(super) config: Arc<UfodConfig>,
 
-	pub(super) open_datasets: Mutex<Vec<(SmartString<LazyCompact>, Arc<dyn Dataset<UFONodeType>>)>>,
+	pub(super) open_datasets: Mutex<Vec<(SmartString<LazyCompact>, Arc<LocalDataset>)>>,
 }
 
 impl MainDB {
-	pub fn create(db_path: &Path) -> Result<(), sqlx::Error> {
+	pub async fn create(db_path: &Path) -> Result<(), sqlx::Error> {
 		let db_addr = format!("sqlite:{}?mode=rwc", db_path.to_str().unwrap());
-		let mut conn = block_on(SqliteConnection::connect(&db_addr))?;
+		let mut conn = SqliteConnection::connect(&db_addr).await?;
 
-		block_on(sqlx::query(include_str!("./init.sql")).execute(&mut conn))?;
-		block_on(
-			sqlx::query("INSERT INTO meta (var, val) VALUES (?, ?);")
-				.bind("ufo_version")
-				.bind(env!("CARGO_PKG_VERSION"))
-				.execute(&mut conn),
-		)?;
+		sqlx::query(include_str!("./init.sql"))
+			.execute(&mut conn)
+			.await?;
+
+		sqlx::query("INSERT INTO meta (var, val) VALUES (?, ?);")
+			.bind("ufo_version")
+			.bind(env!("CARGO_PKG_VERSION"))
+			.execute(&mut conn)
+			.await?;
 
 		Ok(())
 	}
 
-	pub fn open(config: Arc<UfodConfig>) -> Result<Self, sqlx::Error> {
+	pub async fn open(config: Arc<UfodConfig>) -> Result<Self, sqlx::Error> {
 		let db_addr = format!("sqlite:{}?mode=rw", config.paths.main_db.to_str().unwrap());
-		let conn = block_on(SqliteConnection::connect(&db_addr))?;
+		let conn = SqliteConnection::connect(&db_addr).await?;
 
 		// Initialize dataset dir
 		if !config.paths.dataset_dir.exists() {

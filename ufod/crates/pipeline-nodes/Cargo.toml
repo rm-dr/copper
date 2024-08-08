@@ -21,6 +21,7 @@ ufo-util = { workspace = true }
 ufo-audiofile = { workspace = true }
 ufo-pipeline = { workspace = true }
 ufo-ds-core = { workspace = true }
+ufo-ds-impl = { workspace = true }
 
 serde = { workspace = true }
 smartstring = { workspace = true }
@@ -29,3 +30,4 @@ itertools = { workspace = true }
 crossbeam = { workspace = true }
 sha2 = { workspace = true }
 md5 = { workspace = true }
+futures = { workspace = true }
