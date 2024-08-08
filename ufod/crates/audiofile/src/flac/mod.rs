@@ -140,7 +140,7 @@ mod tests {
 	*/
 
 	#[test]
-	fn image_extract_45() {
+	fn picture_subset_45() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/45 - no total number of samples set.flac"),
@@ -150,7 +150,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_46() {
+	fn picture_subset_46() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/46 - no min-max framesize set.flac"),
@@ -160,7 +160,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_47() {
+	fn picture_subset_47() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/47 - only STREAMINFO.flac"),
@@ -170,7 +170,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_48() {
+	fn picture_subset_48() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/48 - Extremely large SEEKTABLE.flac"),
@@ -180,7 +180,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_49() {
+	fn picture_subset_49() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/49 - Extremely large PADDING.flac"),
@@ -190,7 +190,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_50() {
+	fn picture_subset_50() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/50 - Extremely large PICTURE.flac"),
@@ -207,7 +207,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_51() {
+	fn picture_subset_51() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/51 - Extremely large VORBISCOMMENT.flac"),
@@ -217,7 +217,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_52() {
+	fn picture_subset_52() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/52 - Extremely large APPLICATION.flac"),
@@ -227,7 +227,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_53() {
+	fn picture_subset_53() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/53 - CUESHEET with very many indexes.flac"),
@@ -237,7 +237,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_54() {
+	fn picture_subset_54() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/54 - 1000x repeating VORBISCOMMENT.flac"),
@@ -247,7 +247,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_55() {
+	fn picture_subset_55() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/55 - file 48-53 combined.flac"),
@@ -264,7 +264,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_56() {
+	fn picture_subset_56() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/56 - JPG PICTURE.flac"),
@@ -281,7 +281,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_57() {
+	fn picture_subset_57() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/57 - PNG PICTURE.flac"),
@@ -298,7 +298,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_58() {
+	fn picture_subset_58() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/58 - GIF PICTURE.flac"),
@@ -315,7 +315,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_59() {
+	fn picture_subset_59() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_subset/59 - AVIF PICTURE.flac"),
@@ -332,7 +332,7 @@ mod tests {
 	}
 
 	#[test]
-	fn image_extract_c01() {
+	fn picture_custom_01() {
 		fetch_images(
 			&PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 				.join("tests/files/flac_custom/01 - many images.flac"),
