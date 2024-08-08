@@ -26,7 +26,7 @@ pub enum ApiData {
 	/// TODO: this can become a Blob, a Path, or a Binary.
 	Blob {
 		upload_job: SmartString<LazyCompact>,
-		file_id: SmartString<LazyCompact>,
+		file_name: SmartString<LazyCompact>,
 	},
 
 	/// An integer

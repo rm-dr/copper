@@ -4,7 +4,7 @@ use ufo_util::mime::MimeType;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct UploadStartResult {
-	pub handle: SmartString<LazyCompact>,
+	pub job_id: SmartString<LazyCompact>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -14,7 +14,7 @@ pub struct UploadStartInfo {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct UploadNewFileResult {
-	pub file_handle: SmartString<LazyCompact>,
+	pub file_name: SmartString<LazyCompact>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -24,5 +24,6 @@ pub struct UploadFragmentMetadata {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct UploadFinish {
+	pub part_count: u32,
 	pub hash: SmartString<LazyCompact>,
 }

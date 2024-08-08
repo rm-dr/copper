@@ -1,8 +1,14 @@
 use anyhow::Result;
+use api::client::UfoApiClient;
 use clap::{Parser, Subcommand};
 use crossterm::style::Stylize;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use std::{fmt::Write, path::PathBuf};
+use std::{fmt::Write, fs::File, path::PathBuf};
+use ufo_api::{
+	data::{ApiData, ApiDataStub},
+	pipeline::AddJobParams,
+	runner::RunningNodeState,
+};
 use ufo_database::{api::UFODatabase, database::Database};
 use ufo_db_blobstore::fs::store::FsBlobstore;
 use ufo_db_metastore::{
@@ -11,9 +17,11 @@ use ufo_db_metastore::{
 	sqlite::db::SQLiteMetastore,
 };
 use ufo_db_pipestore::fs::FsPipestore;
-use ufod::{AddJobParams, PipelineInputData, RunnerStatus, RunningNodeState};
+use ufo_pipeline::labels::PipelineLabel;
+use ufo_util::mime::MimeType;
 use url::Url;
-use walkdir::WalkDir;
+
+mod api;
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
@@ -28,8 +36,13 @@ struct Args {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-	New { target_dir: Option<PathBuf> },
-	Import { pipeline: String, args: Vec<String> },
+	New {
+		target_dir: Option<PathBuf>,
+	},
+	CreateJob {
+		pipeline: PipelineLabel,
+		args: Vec<String>,
+	},
 	WatchJobs,
 }
 
@@ -59,6 +72,8 @@ fn main() -> Result<()> {
 		.unwrap()
 		.progress_chars("⣿⣷⣶⣦⣤⣄⣀");
 	*/
+
+	let api = UfoApiClient::new(cli.host);
 
 	match cli.command {
 		Commands::New { target_dir } => {
@@ -172,50 +187,86 @@ fn main() -> Result<()> {
 			}
 		}
 
-		Commands::Import { pipeline, args } => {
-			let client = reqwest::blocking::Client::new();
-			let scan_spin = ProgressBar::new_spinner().with_style(spin_style.clone());
-			let mut n_jobs = 0;
+		Commands::CreateJob { pipeline, args } => {
+			let pipe = if let Some(pipe) = api.get_pipeline(&pipeline) {
+				pipe
+			} else {
+				panic!("bad pipeline");
+			};
 
-			let p = PathBuf::from(args.first().unwrap());
-			if p.is_file() {
-				client
-					.post(cli.host.join("add_job").unwrap())
-					.json(&AddJobParams {
-						pipeline: pipeline.into(),
-						input: vec![PipelineInputData::Path(p)],
-					})
-					.send()
-					.unwrap();
-			} else if p.is_dir() {
-				for entry in WalkDir::new(&p) {
-					let entry = entry.unwrap();
-					if entry.path().is_file() {
-						scan_spin.tick();
-						client
-							.post(cli.host.join("add_job").unwrap())
-							.json(&AddJobParams {
-								pipeline: pipeline.clone().into(),
-								input: vec![PipelineInputData::Path(entry.path().into())],
+			let input_node = api.get_pipeline_node(&pipeline, &pipe.input_node).unwrap();
+
+			if input_node.inputs.len() != args.len() {
+				panic!("bad arguments")
+			}
+			let mut input = Vec::new();
+
+			let mut uploadjob = None;
+
+			for (accepted_types, arg) in input_node.inputs.iter().zip(&args) {
+				let mut pushed = false;
+				for t in accepted_types {
+					let parsed_input_data = match t {
+						ApiDataStub::Text => Some(ApiData::Text(arg.clone())),
+						ApiDataStub::Blob => {
+							let path: PathBuf = if let Ok(path) = arg.parse() {
+								path
+							} else {
+								panic!("")
+							};
+
+							if !path.is_file() {
+								panic!("")
+							}
+
+							// Start an upload job if we haven't already
+							let info = match &uploadjob {
+								Some(x) => x,
+								None => {
+									uploadjob = Some(api.new_upload_job().unwrap());
+									uploadjob.as_ref().unwrap()
+								}
+							};
+
+							// Open file & detect mime type
+							let mut f = File::open(&path).unwrap();
+							let mime = MimeType::from_extension(
+								&path.extension().unwrap().to_string_lossy().to_string(),
+							)
+							.unwrap_or(MimeType::Blob);
+
+							// Upload file & get id
+							let file_handle = info.upload_file(mime, &mut f).unwrap();
+							Some(ApiData::Blob {
+								upload_job: info.get_job_id().clone(),
+								file_name: file_handle,
 							})
-							.send()
-							.unwrap();
-						n_jobs += 1;
-						scan_spin.set_message(format!(
-							"{} {} {}",
-							"Scanning".cyan(),
-							p.canonicalize().unwrap().to_str().unwrap().dark_grey(),
-							format!("(added {n_jobs} jobs)")
-						))
+						}
+						ApiDataStub::Float => arg.parse().ok().map(ApiData::Float),
+						ApiDataStub::Integer => arg.parse().ok().map(ApiData::Integer),
+						ApiDataStub::PositiveInteger => {
+							arg.parse().ok().map(ApiData::PositiveInteger)
+						}
+						ApiDataStub::Boolean => arg.parse().ok().map(ApiData::Boolean),
+					};
+
+					if let Some(p) = parsed_input_data {
+						input.push(p);
+						pushed = true;
+						break;
 					}
 				}
+
+				if !pushed {
+					panic!("failed to add an argument")
+				}
 			}
-			scan_spin.finish();
+
+			println!("{:?}", input);
+			println!("{:?}", api.add_job(AddJobParams { pipeline, input }));
 		}
 
 		Commands::WatchJobs => {
-			let client = reqwest::blocking::Client::new();
-
 			let mut active_job_spinners: Vec<(u128, ProgressBar)> = Vec::new();
 			//let bar = ProgressBar::new(0).with_style(bar_style.clone());
 			let multi_bar = MultiProgress::new();
@@ -225,7 +276,7 @@ fn main() -> Result<()> {
 				.with_style(spin_style.clone())
 				.with_message(format!(
 					"No jobs in queue at {}",
-					format!("{}", cli.host).dark_grey().italic()
+					format!("{}", api.get_host()).dark_grey().italic()
 				));
 
 			multi_bar.insert_from_back(0, empty_spinner.clone());
@@ -233,18 +284,16 @@ fn main() -> Result<()> {
 			loop {
 				std::thread::sleep(std::time::Duration::from_millis(100));
 
-				let resp = client.get(cli.host.join("status").unwrap()).send().unwrap();
-				let resp: RunnerStatus = serde_json::from_str(&resp.text().unwrap()).unwrap();
-
-				if !resp.running_jobs.is_empty() {
+				let status = api.get_status();
+				if !status.running_jobs.is_empty() {
 					multi_bar.remove(&empty_spinner);
 					is_empty = false;
 				} else if is_empty {
 					empty_spinner.tick();
 					empty_spinner.set_message(format!(
 						"No jobs in queue at {} ({} completed)",
-						format!("{}", cli.host).dark_grey().italic(),
-						resp.finished_jobs
+						format!("{}", api.get_host()).dark_grey().italic(),
+						status.finished_jobs
 					));
 				} else {
 					is_empty = true;
@@ -254,7 +303,7 @@ fn main() -> Result<()> {
 				let mut i = 0;
 				while i < active_job_spinners.len() {
 					let (job_id, spin) = &active_job_spinners[i];
-					if resp.running_jobs.iter().all(|x| x.job_id != *job_id) {
+					if status.running_jobs.iter().all(|x| x.job_id != *job_id) {
 						spin.finish_and_clear();
 						multi_bar.remove(&spin);
 						active_job_spinners.swap_remove(i);
@@ -263,7 +312,7 @@ fn main() -> Result<()> {
 					}
 				}
 
-				for j in &resp.running_jobs {
+				for j in &status.running_jobs {
 					if active_job_spinners.iter().all(|(i, _)| *i != j.job_id) {
 						let spin = multi_bar.insert_from_back(
 							0,
