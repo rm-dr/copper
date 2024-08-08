@@ -8,7 +8,7 @@ use super::{FlacMetablockDecode, FlacMetablockEncode, FlacMetablockHeader, FlacM
 #[derive(Debug)]
 pub struct FlacPaddingBlock {
 	/// The length of this padding, in bytes.
-	pub size: usize,
+	pub size: u32,
 }
 
 impl FlacMetablockDecode for FlacPaddingBlock {
@@ -17,7 +17,9 @@ impl FlacMetablockDecode for FlacPaddingBlock {
 			return Err(FlacDecodeError::MalformedBlock);
 		}
 
-		Ok(Self { size: data.len() })
+		Ok(Self {
+			size: data.len().try_into().unwrap(),
+		})
 	}
 }
 

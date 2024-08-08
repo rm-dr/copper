@@ -4,5 +4,6 @@
 
 pub mod common;
 pub mod flac;
+pub mod nodes;
 
 // TODO: CLI

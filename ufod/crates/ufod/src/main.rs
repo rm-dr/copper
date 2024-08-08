@@ -62,6 +62,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		max_active_jobs: 8,
 	});
 
+	{
+		use ufo_audiofile::nodes::{ExtractCovers, ExtractTags, StripTags};
+
+		runner
+			.mut_dispatcher()
+			.register_node("striptags", vec![], &|ctx, params| {
+				Ok(Box::new(StripTags::new(ctx, params)))
+			})
+			.unwrap();
+
+		runner
+			.mut_dispatcher()
+			.register_node("extractcovers", vec![], &|ctx, params| {
+				Ok(Box::new(ExtractCovers::new(ctx, params)))
+			})
+			.unwrap();
+
+		runner
+			.mut_dispatcher()
+			.register_node("extracttags", vec![], &|ctx, params| {
+				Ok(Box::new(ExtractTags::new(ctx, params)))
+			})
+			.unwrap();
+	}
+
 	// TODO: clone fewer arcs
 
 	// Note how these are all async locks

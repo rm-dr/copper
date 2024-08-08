@@ -282,7 +282,7 @@ impl FlacBlockReader {
 						.read_to_end(data)
 						.unwrap();
 
-					if data.len() == header.length.try_into().unwrap() {
+					if data.len() == usize::try_from(header.length).unwrap() {
 						// If we picked this block type, add it to the queue
 						if self.selector.should_pick_meta(header.block_type) {
 							let b = FlacBlock::decode(header.block_type, data)?;
@@ -604,7 +604,7 @@ mod tests {
 
 				FlacBlock::Padding(p) => match &test_case.get_blocks().unwrap()[result_i] {
 					FlacBlockOutput::Padding { size } => {
-						assert_eq!(*size, p.size.try_into().unwrap());
+						assert_eq!(p.size, *size);
 					}
 					_ => panic!("Unexpected block type"),
 				},
