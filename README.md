@@ -28,7 +28,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 ### Current:
 - Deadlock detection
 - Pipeline status
-- Rename pipeline, runner, job, db, database, dataset, metadata (well-defined)
 - Do "after"s cause deadlocks? (probably)
 
 - Clean up pipeline error handling (search for unwrap, assert, and panic)
@@ -83,6 +82,11 @@ UFO's goal is to be "[Paperless] for everything," with...
 - Docs
   - classes & attrs are immutable (cannot change once made)
   - node deadlocks: buffer blobs even if input not ready
+  - Definitions:
+    - pipeline & pipelinespec: definition of pipeline
+    - runner: manages many jobs
+    - job: an instance of one pipeline, possibly with many threads
+    - database = blobstore + metadb
 - Fast search (index certain attributes)
 - Save pipelines in database
 - Web streams as pipeline input

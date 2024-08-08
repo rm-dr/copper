@@ -19,7 +19,7 @@ use crate::{
 	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
 };
 
-pub struct AddToDataset {
+pub struct AddToDatabase {
 	db: Arc<Mutex<dyn MetaDb<FsBlobStore>>>,
 	class: ClassHandle,
 	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
@@ -36,15 +36,15 @@ enum DataHold {
 	BlobDone(FsBlobHandle),
 }
 
-impl AddToDataset {
+impl AddToDatabase {
 	pub fn new(
 		ctx: &<Self as PipelineNode>::NodeContext,
 		class: ClassHandle,
 		attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
 	) -> Self {
 		let data = attrs.iter().map(|_| None).collect();
-		AddToDataset {
-			db: ctx.dataset.clone(),
+		AddToDatabase {
+			db: ctx.database.clone(),
 			class,
 			attrs,
 			data,
@@ -52,7 +52,7 @@ impl AddToDataset {
 	}
 }
 
-impl PipelineNode for AddToDataset {
+impl PipelineNode for AddToDatabase {
 	type NodeContext = UFOContext;
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
@@ -168,18 +168,18 @@ impl PipelineNode for AddToDataset {
 	}
 }
 
-impl UFONode for AddToDataset {
+impl UFONode for AddToDatabase {
 	fn n_inputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
 		match stub {
-			UFONodeType::AddToDataset { class } => {
+			UFONodeType::AddItem { class } => {
 				let class = ctx
-					.dataset
+					.database
 					.lock()
 					.unwrap()
 					.get_class(&class[..])
 					.unwrap()
 					.unwrap();
-				let attrs = ctx.dataset.lock().unwrap().class_get_attrs(class).unwrap();
+				let attrs = ctx.database.lock().unwrap().class_get_attrs(class).unwrap();
 
 				attrs.into_iter().count()
 			}
@@ -194,7 +194,7 @@ impl UFONode for AddToDataset {
 		input_type: MetaDbDataStub,
 	) -> bool {
 		match stub {
-			UFONodeType::AddToDataset { .. } => {
+			UFONodeType::AddItem { .. } => {
 				Self::input_default_type(stub, ctx, input_idx) == input_type
 			}
 			_ => unreachable!(),
@@ -207,15 +207,15 @@ impl UFONode for AddToDataset {
 		input_name: &PipelinePortLabel,
 	) -> Option<usize> {
 		match stub {
-			UFONodeType::AddToDataset { class } => {
+			UFONodeType::AddItem { class } => {
 				let class = ctx
-					.dataset
+					.database
 					.lock()
 					.unwrap()
 					.get_class(&class[..])
 					.unwrap()
 					.unwrap();
-				let attrs = ctx.dataset.lock().unwrap().class_get_attrs(class).unwrap();
+				let attrs = ctx.database.lock().unwrap().class_get_attrs(class).unwrap();
 
 				attrs
 					.into_iter()
@@ -233,15 +233,15 @@ impl UFONode for AddToDataset {
 		input_idx: usize,
 	) -> MetaDbDataStub {
 		match stub {
-			UFONodeType::AddToDataset { class } => {
+			UFONodeType::AddItem { class } => {
 				let class = ctx
-					.dataset
+					.database
 					.lock()
 					.unwrap()
 					.get_class(&class[..])
 					.unwrap()
 					.unwrap();
-				let attrs = ctx.dataset.lock().unwrap().class_get_attrs(class).unwrap();
+				let attrs = ctx.database.lock().unwrap().class_get_attrs(class).unwrap();
 
 				attrs.into_iter().nth(input_idx).unwrap().2
 			}
@@ -251,15 +251,15 @@ impl UFONode for AddToDataset {
 
 	fn n_outputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
 		match stub {
-			UFONodeType::AddToDataset { class } => {
+			UFONodeType::AddItem { class } => {
 				let class = ctx
-					.dataset
+					.database
 					.lock()
 					.unwrap()
 					.get_class(&class[..])
 					.unwrap()
 					.unwrap();
-				let attrs = ctx.dataset.lock().unwrap().class_get_attrs(class).unwrap();
+				let attrs = ctx.database.lock().unwrap().class_get_attrs(class).unwrap();
 				attrs.into_iter().count()
 			}
 			_ => unreachable!(),
@@ -268,9 +268,9 @@ impl UFONode for AddToDataset {
 
 	fn output_type(stub: &UFONodeType, ctx: &UFOContext, output_idx: usize) -> MetaDbDataStub {
 		match stub {
-			UFONodeType::AddToDataset { class } => {
+			UFONodeType::AddItem { class } => {
 				assert!(output_idx == 0);
-				let mut d = ctx.dataset.lock().unwrap();
+				let mut d = ctx.database.lock().unwrap();
 				let class = d.get_class(class).unwrap().unwrap();
 				MetaDbDataStub::Reference { class }
 			}
@@ -284,7 +284,7 @@ impl UFONode for AddToDataset {
 		output_name: &PipelinePortLabel,
 	) -> Option<usize> {
 		match stub {
-			UFONodeType::AddToDataset { .. } => match Into::<&str>::into(output_name) {
+			UFONodeType::AddItem { .. } => match Into::<&str>::into(output_name) {
 				"added_item" => Some(0),
 				_ => None,
 			},

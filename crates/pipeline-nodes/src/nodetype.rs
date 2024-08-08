@@ -16,7 +16,7 @@ use super::{
 use crate::{
 	data::UFOData,
 	input::file::FileReader,
-	output::addtodataset::AddToDataset,
+	output::addtodataset::AddToDatabase,
 	tags::{extractcovers::ExtractCovers, striptags::StripTags},
 	traits::UFONode,
 	util::hash::Hash,
@@ -53,7 +53,7 @@ pub enum UFONodeType {
 
 	// Etc
 	File,
-	AddToDataset {
+	AddItem {
 		class: String,
 	},
 }
@@ -117,15 +117,15 @@ impl PipelineNodeStub for UFONodeType {
 				name: name.into(),
 				node: FileReader::new(ctx),
 			},
-			UFONodeType::AddToDataset { class } => {
-				let mut d = ctx.dataset.lock().unwrap();
+			UFONodeType::AddItem { class } => {
+				let mut d = ctx.database.lock().unwrap();
 				let class = d.get_class(class).unwrap().unwrap();
 				let attrs = d.class_get_attrs(class).unwrap();
 
-				UFONodeInstance::Dataset {
+				UFONodeInstance::AddItem {
 					node_type: self.clone(),
 					name: name.into(),
-					node: AddToDataset::new(ctx, class, attrs),
+					node: AddToDatabase::new(ctx, class, attrs),
 				}
 			}
 		}
@@ -142,7 +142,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::StripTags => StripTags::n_inputs(self, ctx),
 			Self::ExtractTags { .. } => ExtractTags::n_inputs(self, ctx),
 			Self::File => FileReader::n_inputs(self, ctx),
-			Self::AddToDataset { .. } => AddToDataset::n_inputs(self, ctx),
+			Self::AddItem { .. } => AddToDatabase::n_inputs(self, ctx),
 		}
 	}
 
@@ -168,8 +168,8 @@ impl PipelineNodeStub for UFONodeType {
 				ExtractTags::input_compatible_with(self, ctx, input_idx, input_type)
 			}
 			Self::File => FileReader::input_compatible_with(self, ctx, input_idx, input_type),
-			Self::AddToDataset { .. } => {
-				AddToDataset::input_compatible_with(self, ctx, input_idx, input_type)
+			Self::AddItem { .. } => {
+				AddToDatabase::input_compatible_with(self, ctx, input_idx, input_type)
 			}
 		}
 	}
@@ -189,7 +189,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::StripTags => StripTags::input_default_type(self, ctx, input_idx),
 			Self::ExtractTags { .. } => ExtractTags::input_default_type(self, ctx, input_idx),
 			Self::File => FileReader::input_default_type(self, ctx, input_idx),
-			Self::AddToDataset { .. } => AddToDataset::input_default_type(self, ctx, input_idx),
+			Self::AddItem { .. } => AddToDatabase::input_default_type(self, ctx, input_idx),
 		}
 	}
 
@@ -208,7 +208,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::StripTags => StripTags::input_with_name(self, ctx, input_name),
 			Self::ExtractTags { .. } => ExtractTags::input_with_name(self, ctx, input_name),
 			Self::File => FileReader::input_with_name(self, ctx, input_name),
-			Self::AddToDataset { .. } => AddToDataset::input_with_name(self, ctx, input_name),
+			Self::AddItem { .. } => AddToDatabase::input_with_name(self, ctx, input_name),
 		}
 	}
 
@@ -223,7 +223,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::StripTags => StripTags::n_outputs(self, ctx),
 			Self::ExtractTags { .. } => ExtractTags::n_outputs(self, ctx),
 			Self::File => FileReader::n_outputs(self, ctx),
-			Self::AddToDataset { .. } => AddToDataset::n_outputs(self, ctx),
+			Self::AddItem { .. } => AddToDatabase::n_outputs(self, ctx),
 		}
 	}
 
@@ -242,7 +242,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::StripTags => StripTags::output_type(self, ctx, output_idx),
 			Self::ExtractTags { .. } => ExtractTags::output_type(self, ctx, output_idx),
 			Self::File => FileReader::output_type(self, ctx, output_idx),
-			Self::AddToDataset { .. } => AddToDataset::output_type(self, ctx, output_idx),
+			Self::AddItem { .. } => AddToDatabase::output_type(self, ctx, output_idx),
 		}
 	}
 
@@ -261,7 +261,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::StripTags => StripTags::output_with_name(self, ctx, output_name),
 			Self::ExtractTags { .. } => ExtractTags::output_with_name(self, ctx, output_name),
 			Self::File => FileReader::output_with_name(self, ctx, output_name),
-			Self::AddToDataset { .. } => AddToDataset::output_with_name(self, ctx, output_name),
+			Self::AddItem { .. } => AddToDatabase::output_with_name(self, ctx, output_name),
 		}
 	}
 }

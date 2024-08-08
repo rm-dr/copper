@@ -22,7 +22,7 @@ use ufo_metadb::api::MetaDb;
 
 #[derive(Clone)]
 pub struct UFOContext {
-	pub dataset: Arc<Mutex<dyn MetaDb<FsBlobStore>>>,
+	pub database: Arc<Mutex<dyn MetaDb<FsBlobStore>>>,
 
 	/// How many fragments a blob channel can hold at once
 	pub blob_channel_capacity: usize,

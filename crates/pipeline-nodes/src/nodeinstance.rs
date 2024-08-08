@@ -8,7 +8,7 @@ use crate::{
 	data::UFOData,
 	errors::PipelineError,
 	input::file::FileReader,
-	output::addtodataset::AddToDataset,
+	output::addtodataset::AddToDatabase,
 	tags::{extractcovers::ExtractCovers, striptags::StripTags},
 	util::hash::Hash,
 	UFOContext,
@@ -70,10 +70,10 @@ pub enum UFONodeInstance {
 		node: FileReader,
 	},
 
-	Dataset {
+	AddItem {
 		node_type: UFONodeType,
 		name: PipelineNodeLabel,
-		node: AddToDataset,
+		node: AddToDatabase,
 	},
 }
 
@@ -88,7 +88,7 @@ impl Debug for UFONodeInstance {
 			Self::Hash { name, .. } => write!(f, "Hash({name})"),
 			Self::StripTags { name, .. } => write!(f, "StripTags({name})"),
 			Self::ExtractCovers { name, .. } => write!(f, "ExtractCovers({name})"),
-			Self::Dataset { name, .. } => write!(f, "Dataset({name})"),
+			Self::AddItem { name, .. } => write!(f, "AddItem({name})"),
 			Self::File { name, .. } => write!(f, "File({name})"),
 		}
 	}
@@ -101,7 +101,7 @@ impl PipelineNode for UFONodeInstance {
 
 	fn quick_run(&self) -> bool {
 		match self {
-			Self::Dataset { node, .. } => node.quick_run(),
+			Self::AddItem { node, .. } => node.quick_run(),
 			Self::File { node, .. } => node.quick_run(),
 
 			// Utility
@@ -127,7 +127,7 @@ impl PipelineNode for UFONodeInstance {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		match self {
-			Self::Dataset { node, .. } => node.take_input(portdata, send_data),
+			Self::AddItem { node, .. } => node.take_input(portdata, send_data),
 			Self::File { node, .. } => node.take_input(portdata, send_data),
 
 			// Utility
@@ -153,7 +153,7 @@ impl PipelineNode for UFONodeInstance {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		match self {
-			Self::Dataset { node, .. } => node.run(ctx, send_data),
+			Self::AddItem { node, .. } => node.run(ctx, send_data),
 			Self::File { node, .. } => node.run(ctx, send_data),
 
 			// Utility
@@ -174,7 +174,7 @@ impl PipelineNode for UFONodeInstance {
 impl UFONodeInstance {
 	pub fn get_type(&self) -> &UFONodeType {
 		match self {
-			| Self::Dataset { node_type, .. }
+			| Self::AddItem { node_type, .. }
 			| Self::File { node_type, .. }
 
 			// Utility

@@ -32,8 +32,7 @@ fn main() -> Result<()> {
 	let d = PathBuf::from("./db");
 	std::fs::create_dir(&d).unwrap();
 
-	// Make dataset
-	let dataset = {
+	let database = {
 		let mut d = SQLiteMetaDB::connect(&d).unwrap();
 
 		let x = d.add_class("AudioFile").unwrap();
@@ -101,7 +100,7 @@ fn main() -> Result<()> {
 	};
 
 	let ctx = UFOContext {
-		dataset: Arc::new(Mutex::new(dataset)),
+		database: Arc::new(Mutex::new(database)),
 		blob_channel_capacity: 10,
 		blob_fragment_size: 1_000,
 	};
@@ -122,7 +121,7 @@ fn main() -> Result<()> {
 	}
 
 	loop {
-		thread::sleep(Duration::from_secs(1));
+		//thread::sleep(Duration::from_secs(1));
 		runner.run()?;
 
 		let mut has_active_job = false;
