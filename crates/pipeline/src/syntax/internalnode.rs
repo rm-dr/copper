@@ -1,3 +1,4 @@
+use crossbeam::channel::Receiver;
 use serde::{de::DeserializeOwned, Deserialize};
 use std::fmt::Debug;
 
@@ -36,10 +37,17 @@ impl<StubType: PipelineNodeStub> PipelineNodeStub for InternalNodeStub<StubType>
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		name: &str,
+
+		input_receiver: Receiver<(
+			// The port this data goes to
+			usize,
+			// The data
+			<Self::NodeType as PipelineNode>::DataType,
+		)>,
 	) -> Self::NodeType {
 		match self {
 			Self::Pipeline { .. } => unreachable!(),
-			Self::User(n) => StubType::build(n, ctx, name),
+			Self::User(n) => StubType::build(n, ctx, name, input_receiver),
 		}
 	}
 

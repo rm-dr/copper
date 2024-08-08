@@ -5,13 +5,13 @@ use std::{
 };
 use threadpool::ThreadPool;
 
-use super::util::{EdgeValue, NodeRunState};
+use super::util::{EdgeState, NodeRunState};
 use crate::{
 	api::{PipelineData, PipelineNode, PipelineNodeState, PipelineNodeStub},
 	errors::PipelineError,
 	graph::util::GraphNodeIdx,
 	labels::PipelineNodeLabel,
-	pipeline::Pipeline,
+	pipeline::{Pipeline, PipelineEdge},
 	SDataType, SNodeType,
 };
 
@@ -35,18 +35,22 @@ pub(super) struct PipelineSingleRunner<StubType: PipelineNodeStub> {
 	/// The context for this pipeline
 	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 
-	/// The inputs that were provided to this pipeline
-	pipeline_inputs: Vec<SDataType<StubType>>,
-
 	/// Mutable instances of each node in this pipeline
-	node_instances: Vec<(PipelineNodeLabel, Arc<Mutex<SNodeType<StubType>>>)>,
+	node_instances: Vec<(
+		// The node's label
+		PipelineNodeLabel,
+		// Where to send this node's inputs
+		Sender<(usize, SDataType<StubType>)>,
+		// The node
+		Arc<Mutex<Option<SNodeType<StubType>>>>,
+	)>,
 
 	/// Each node's status
 	/// (indices match `node_instances`)
 	node_status: Vec<NodeRunState>,
 
 	/// The value each edge in this pipeline carries
-	edge_values: Vec<EdgeValue<SDataType<StubType>>>,
+	edge_values: Vec<EdgeState>,
 
 	/// A threadpool of node runners
 	pool: ThreadPool,
@@ -108,11 +112,48 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 
 		let node_instances = pipeline
 			.graph
-			.iter_nodes()
-			.map(|(name, x)| {
+			.iter_nodes_idx()
+			.map(|(idx, (name, x))| {
+				#[allow(clippy::type_complexity)]
+				let (send_input, receive_input): (
+					Sender<(usize, SDataType<StubType>)>,
+					Receiver<(usize, SDataType<StubType>)>,
+				) = unbounded();
+
+				// Pass pipeline inputs to input node immediately
+				if idx == pipeline.input_node_idx {
+					for (i, d) in pipeline_inputs.iter().enumerate() {
+						send_input.send((i, d.clone())).unwrap();
+					}
+				} else {
+					// Send empty data to disconnected inputs
+					let mut port_is_empty =
+						(0..x.n_inputs(&*context)).map(|_| true).collect::<Vec<_>>();
+					for i in pipeline.graph.edges_ending_at(idx) {
+						let edge = &pipeline.graph.get_edge(*i).2;
+						if edge.is_after() {
+							continue;
+						}
+						port_is_empty[edge.target_port().unwrap()] = false;
+					}
+					for (i, e) in port_is_empty.into_iter().enumerate() {
+						if e {
+							let t = x.input_default_type(&*context, i);
+							send_input
+								.send((i, SDataType::<StubType>::new_empty(t)))
+								.unwrap();
+						}
+					}
+				}
+
 				(
 					name.clone(),
-					Arc::new(Mutex::new(x.build(&context, name.into()))),
+					send_input,
+					Arc::new(Mutex::new(Some(x.build(
+						&context,
+						name.into(),
+						receive_input,
+					)))),
 				)
 			})
 			.collect::<Vec<_>>();
@@ -123,7 +164,10 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 			pipeline
 				.graph
 				.iter_edges()
-				.map(|_| EdgeValue::Uninitialized)
+				.map(|(_, _, x)| match x {
+					PipelineEdge::After => EdgeState::AfterWaiting,
+					PipelineEdge::PortToPort(_) => EdgeState::Data,
+				})
 				.collect::<Vec<_>>()
 		};
 
@@ -132,7 +176,7 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 		let node_status = pipeline
 			.graph
 			.iter_nodes_idx()
-			.map(|_| NodeRunState::NotRunning(PipelineNodeState::NotStarted))
+			.map(|_| NodeRunState::NotRunning(PipelineNodeState::Pending))
 			.collect::<Vec<_>>();
 
 		// Threadpool we'll use to run nodes
@@ -162,7 +206,6 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 		Self {
 			_p: PhantomData,
 			pipeline,
-			pipeline_inputs,
 			context,
 			node_instances,
 			node_status,
@@ -221,114 +264,51 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 			.iter()
 			.any(|edge_idx| {
 				match self.edge_values.get(edge_idx.as_usize()).unwrap() {
-					// Any input edges uninitialized => This node hasn't been run yet, and is waiting on another.
-					EdgeValue::Uninitialized => true,
-					// All edges have data => good to go!
-					EdgeValue::Data(_) => false,
+					// We don't care about these
+					EdgeState::Data => false,
+					// If any `after` edges are waiting, we can't start.
+					// Be careful with these, they can cause a deadlock when
+					// used with `Blob` data.
+					EdgeState::AfterWaiting => true,
 					// All `after` edges are ready => good to go!
-					EdgeValue::AfterReady => false,
-					// No edges should be consumed unless this node has been started
-					EdgeValue::Consumed => {
-						if !n.is_pending() {
-							let n = self.pipeline.graph.get_node(node);
-							unreachable!("Node {} tried to use consumed edge", n.0)
-						} else {
-							false
-						}
-					}
+					EdgeState::AfterReady => false,
 				}
 			}) {
 			return Ok(());
 		}
 
-		let mut prepare_inputs = || {
-			if node == self.pipeline.input_node_idx {
-				self.pipeline_inputs.clone()
-			} else {
-				// Initialize all with None, in case some are disconnected.
-				let node_type = &self.pipeline.graph.get_node(node).1;
-				let mut inputs = Vec::with_capacity(node_type.n_inputs(&self.context));
-				for i in 0..node_type.n_inputs(&self.context) {
-					let t = node_type.input_default_type(&self.context, i);
-					inputs.push(PipelineData::new_empty(t));
-				}
-
-				// Now, fill input values
-				for edge_idx in self.pipeline.graph.edges_ending_at(node) {
-					let edge = &self.pipeline.graph.get_edge(*edge_idx).2;
-
-					// Skip non-value-carrying edges
-					if !edge.is_ptp() {
-						continue;
-					}
-
-					let val = self.edge_values.get_mut(edge_idx.as_usize()).unwrap();
-					match val {
-						EdgeValue::Data(_) => {
-							let x = std::mem::replace(val, EdgeValue::Consumed);
-							*inputs.get_mut(edge.target_port().unwrap()).unwrap() = x.unwrap();
-						}
-						_ => unreachable!(),
-					};
-				}
-				inputs
-			}
-		};
-
-		let (n, node_instance) = &self.node_instances.get(node.as_usize()).unwrap();
+		let (n, _, node_instance) = &self.node_instances.get(node.as_usize()).unwrap();
 		let node_instance = node_instance.clone();
 		let n = n.clone();
 
-		// Initialize this node if we need to
-		if self
-			.node_status
-			.get_mut(node.as_usize())
-			.unwrap()
-			.is_notstarted()
-		{
-			println!("Init {}", n);
-			let mut node_instance_locked = node_instance.lock().unwrap();
-			*self.node_status.get_mut(node.as_usize()).unwrap() = NodeRunState::Running;
-			let res = node_instance_locked.init(&self.context, prepare_inputs(), |port, data| {
-				// This should never fail, since we never close the receiver.
-				self.send_data.send((node, port, data)).unwrap();
-				Ok(())
-			});
-			let done = res
-				.as_ref()
-				.ok()
-				.map(|x| *x == PipelineNodeState::Done)
-				.unwrap_or(true);
-			self.send_status.send((node, res)).unwrap();
-
-			// We don't need to run nodes that finished early
-			if done {
-				return Ok(());
-			}
-
-			// Process data and apply state changes
-			// that this node's `init()`` produced.
-			//
-			// This MUST be done before running the node.
-			self.handle_all_messages()?;
-		}
-
 		*self.node_status.get_mut(node.as_usize()).unwrap() = NodeRunState::Running;
-
 		let ctx = self.context.clone();
 		let send_data = self.send_data.clone();
 		let send_status = self.send_status.clone();
 
 		self.pool.execute(move || {
 			println!("Run  {}", n);
-			let mut node_instance = node_instance.lock().unwrap();
-			let res = node_instance.run(&*ctx, |port, data| {
+			// Panics if mutex is locked. This is intentional, only one thread should have this at a time.
+			// We use a mutex only for interior mutability.
+			let mut node_instance_opt = node_instance.lock().unwrap();
+			let node_instance = node_instance_opt.as_mut().unwrap();
+			let res = node_instance.take_input(|port, data| {
 				// This should never fail, since we never close the receiver.
 				send_data.send((node, port, data)).unwrap();
 				Ok(())
 			});
-			send_status.send((node, res)).unwrap();
-			println!("Done {}", n);
+
+			if let Err(res) = res {
+				send_status.send((node, Err(res))).unwrap();
+			} else {
+				let res = node_instance.run(&*ctx, |port, data| {
+					// This should never fail, since we never close the receiver.
+					send_data.send((node, port, data)).unwrap();
+					Ok(())
+				});
+				println!("Done {} {res:?}", n);
+				send_status.send((node, res)).unwrap();
+			}
 		});
 
 		return Ok(());
@@ -336,21 +316,23 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 
 	/// Handle all messages nodes have sent up to this point.
 	/// This MUST be done between successive calls of
-	/// `run()` or `init()` on any one node.
+	/// `run()` on any one node.
 	fn handle_all_messages(&mut self) -> Result<(), PipelineError> {
 		for (node, port, data) in self.receive_data.try_iter() {
-			// Fill every edge that is connected to this output port of this node
-			for edge_idx in self
-				.pipeline
-				.graph
-				.edges_starting_at(node)
-				.iter()
-				.filter(|edge_idx| {
-					let edge = &self.pipeline.graph.get_edge(**edge_idx).2;
-					edge.source_port() == Some(port)
-				}) {
-				*self.edge_values.get_mut(edge_idx.as_usize()).unwrap() =
-					EdgeValue::Data(data.clone());
+			// Send data to all inputs connected to this output
+			for edge_idx in self.pipeline.graph.edges_starting_at(node) {
+				let (_, to_node, edge) = &self.pipeline.graph.get_edge(*edge_idx);
+				if !(edge.is_ptp() && edge.source_port() == Some(port)) {
+					continue;
+				}
+
+				// Send data to target port
+				self.node_instances
+					.get(to_node.as_usize())
+					.unwrap()
+					.1
+					.send((edge.target_port().unwrap(), data.clone()))
+					.unwrap();
 			}
 		}
 
@@ -376,8 +358,18 @@ impl<StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 									edge.is_after()
 								}) {
 							*self.edge_values.get_mut(edge_idx.as_usize()).unwrap() =
-								EdgeValue::AfterReady;
+								EdgeState::AfterReady;
 						}
+
+						// Drop any node instance that is done.
+						// This cleans up all resources that node used, and prevents
+						// deadlocks caused by dangling Blob receivers.
+						//
+						// This intentionally panics if the mutex is already locked.
+						// That should never happen!
+						println!("drop {}", self.node_instances[node.as_usize()].0);
+						let mut x = self.node_instances[node.as_usize()].2.try_lock().unwrap();
+						drop(x.take());
 					}
 				}
 			}

@@ -1,5 +1,6 @@
 //! Traits that allow external code to defune pipeline nodes
 
+use crossbeam::channel::Receiver;
 use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 
@@ -8,10 +9,6 @@ use crate::{errors::PipelineError, labels::PipelinePortLabel, NDataStub};
 /// The state of a [`PipelineNode`] at a point in time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipelineNodeState {
-	/// This node has not been started
-	/// and is waiting for `init()`.
-	NotStarted,
-
 	/// This node has more work to do
 	/// and is waiting to be `run()`.
 	Pending,
@@ -22,11 +19,6 @@ pub enum PipelineNodeState {
 }
 
 impl PipelineNodeState {
-	/// Is this [`PipelineNodeState::NotStarted`]?
-	pub fn is_notstarted(&self) -> bool {
-		matches!(self, Self::NotStarted)
-	}
-
 	/// Is this [`PipelineNodeState::Pending`]?
 	pub fn is_pending(&self) -> bool {
 		matches!(self, Self::Pending)
@@ -51,39 +43,15 @@ pub trait PipelineNode {
 	/// The kind of data this node handles
 	type DataType: PipelineData;
 
-	/// Initialize this node.
-	/// This is called only once, when this node's inputs are ready.
-	///
-	/// A node's state should be [`PipelineNodeState::NotStarted`] before `init()` is called,
-	/// and [`PipelineNodeState::Pending`] or [`PipelineNodeState::Done`] afterwards.
-	///
-	/// Note that this method can send data. For nodes that do very little computation,
-	/// `init()` might be the only method that does meaningful work. This should be rare,
-	/// though: `init()` blocks the main thread, and should *never* take a long time to run.
-	///
-	/// - Usually, `init()` sets up a node's inputs and returns [`PipelineNodeState::Pending`].
-	/// - An `init()` call that takes too long will slow down *all* pipelines.
-	/// - If `init()` returns [`PipelineNodeState::Done`], `run()` is never called.
-	fn init<F>(
-		&mut self,
-		ctx: &Self::NodeContext,
-		input: Vec<Self::DataType>,
-
-		// Call this when data is ready.
-		// Arguments are (port idx, data).
-		//
-		// This must be called *exactly once* for each of this port's outputs,
-		// across both `init()` and `run()`.
-		// (not enforced, but the pipeline will panic or hang if this is violated.)
-		// TODO: enforce
-		send_data: F,
-	) -> Result<PipelineNodeState, PipelineError>
+	/// Receive all inputs queued for this node.
+	/// Always called before run().
+	// TODO: we shouldn't need a channel for this, `take_input` should just provide data.
+	fn take_input<F>(&mut self, send_data: F) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>;
 
 	/// Run this node.
 	/// This is always run in a worker thread.
-	/// All heavy computation goes here.
 	fn run<F>(
 		&mut self,
 		_ctx: &Self::NodeContext,
@@ -110,6 +78,13 @@ where
 		&self,
 		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
 		name: &str,
+
+		input_receiver: Receiver<(
+			// The port this data goes to
+			usize,
+			// The data
+			<Self::NodeType as PipelineNode>::DataType,
+		)>,
 	) -> Self::NodeType;
 
 	/// How many inputs does this node produce?
