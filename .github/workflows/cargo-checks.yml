@@ -1,5 +1,5 @@
 on: push
-name: Cargo clippy
+name: Cargo checks
 
 env:
   RUSTFLAGS: "-Dwarnings"
@@ -12,3 +12,11 @@ jobs:
       - name: Run clippy
         working-directory: ./copperd
         run: cargo clippy --all-targets --all-features
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run cargo fmt
+        working-directory: ./copperd
+        run: cargo fmt --check
