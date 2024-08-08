@@ -1,0 +1,29 @@
+[package]
+name = "ufo-pipeline-nodes"
+description = "TODO"
+categories = { workspace = true }
+keywords = { workspace = true }
+version = { workspace = true }
+rust-version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+ufo-storage = { workspace = true }
+ufo-util = { workspace = true }
+ufo-audiofile = { workspace = true }
+ufo-pipeline = { workspace = true }
+
+serde = { workspace = true }
+smartstring = { workspace = true }
+serde_with = { workspace = true }
+itertools = { workspace = true }
+sha2 = { workspace = true }

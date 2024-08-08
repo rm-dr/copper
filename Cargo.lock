@@ -2882,6 +2882,7 @@ dependencies = [
  "serde",
  "smartstring",
  "ufo-pipeline",
+ "ufo-pipeline-nodes",
  "ufo-storage",
  "ufo-util",
 ]
@@ -2906,11 +2907,24 @@ dependencies = [
  "petgraph",
  "serde",
  "serde_with",
- "sha2",
  "smartstring",
  "threadpool",
  "toml",
+ "ufo-storage",
+ "ufo-util",
+]
+
+[[package]]
+name = "ufo-pipeline-nodes"
+version = "0.1.0"
+dependencies = [
+ "itertools",
+ "serde",
+ "serde_with",
+ "sha2",
+ "smartstring",
  "ufo-audiofile",
+ "ufo-pipeline",
  "ufo-storage",
  "ufo-util",
 ]

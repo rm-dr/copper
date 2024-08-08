@@ -1,9 +1,13 @@
-use crate::{
+use std::sync::Arc;
+
+use ufo_pipeline::{
 	data::{PipelineData, PipelineDataType},
 	errors::PipelineError,
-	nodes::{PipelineNode, PipelineNodeState},
+	node::{PipelineNode, PipelineNodeState},
 	syntax::labels::PipelinePortLabel,
 };
+
+use crate::UFOContext;
 
 #[derive(Clone)]
 pub struct Noop {
@@ -17,10 +21,13 @@ impl Noop {
 }
 
 impl PipelineNode for Noop {
+	type RunContext = UFOContext;
+
 	fn init<F>(
 		&mut self,
-		send_data: F,
+		_ctx: Arc<Self::RunContext>,
 		input: Vec<PipelineData>,
+		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,

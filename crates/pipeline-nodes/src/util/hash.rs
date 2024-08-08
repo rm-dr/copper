@@ -1,11 +1,12 @@
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
-
-use crate::{
+use ufo_pipeline::{
 	data::PipelineData,
 	errors::PipelineError,
-	nodes::{PipelineNode, PipelineNodeState},
+	node::{PipelineNode, PipelineNodeState},
 };
+
+use crate::UFOContext;
 
 // TODO: hash datatype
 // TODO: select hash method
@@ -27,10 +28,13 @@ impl Default for Hash {
 }
 
 impl PipelineNode for Hash {
+	type RunContext = UFOContext;
+
 	fn init<F>(
 		&mut self,
-		_send_data: F,
+		_ctx: Arc<Self::RunContext>,
 		mut input: Vec<PipelineData>,
+		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
@@ -40,7 +44,11 @@ impl PipelineNode for Hash {
 		Ok(PipelineNodeState::Pending)
 	}
 
-	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(
+		&mut self,
+		_ctx: Arc<Self::RunContext>,
+		send_data: F,
+	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{

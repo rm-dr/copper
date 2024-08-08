@@ -1,8 +1,12 @@
-use crate::{
+use std::sync::Arc;
+
+use ufo_pipeline::{
 	data::PipelineData,
 	errors::PipelineError,
-	nodes::{PipelineNode, PipelineNodeState},
+	node::{PipelineNode, PipelineNodeState},
 };
+
+use crate::UFOContext;
 
 #[derive(Clone)]
 pub struct IfNone {}
@@ -20,10 +24,13 @@ impl Default for IfNone {
 }
 
 impl PipelineNode for IfNone {
+	type RunContext = UFOContext;
+
 	fn init<F>(
 		&mut self,
-		send_data: F,
+		_ctx: Arc<Self::RunContext>,
 		mut input: Vec<PipelineData>,
+		send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,

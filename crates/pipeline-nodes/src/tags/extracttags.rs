@@ -7,13 +7,14 @@ use ufo_audiofile::{
 	common::{tagtype::TagType, vorbiscomment::VorbisComment},
 	flac::flac_read_tags,
 };
-use ufo_util::mime::MimeType;
-
-use crate::{
+use ufo_pipeline::{
 	data::{PipelineData, PipelineDataType},
 	errors::PipelineError,
-	nodes::{PipelineNode, PipelineNodeState},
+	node::{PipelineNode, PipelineNodeState},
 };
+use ufo_util::mime::MimeType;
+
+use crate::UFOContext;
 
 #[derive(Clone)]
 pub struct ExtractTags {
@@ -41,10 +42,13 @@ impl ExtractTags {
 }
 
 impl PipelineNode for ExtractTags {
+	type RunContext = UFOContext;
+
 	fn init<F>(
 		&mut self,
-		_send_data: F,
+		_ctx: Arc<Self::RunContext>,
 		mut input: Vec<PipelineData>,
+		_send_data: F,
 	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
@@ -54,7 +58,11 @@ impl PipelineNode for ExtractTags {
 		Ok(PipelineNodeState::Pending)
 	}
 
-	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(
+		&mut self,
+		_ctx: Arc<Self::RunContext>,
+		send_data: F,
+	) -> Result<PipelineNodeState, PipelineError>
 	where
 		F: Fn(usize, PipelineData) -> Result<(), PipelineError>,
 	{
