@@ -40,12 +40,20 @@ pub(crate) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
 	output_node_idx: GraphNodeIdx,
 
 	/// Map node names to node indices
-	/// (used when connecting outputs)
-	node_output_name_map: RefCell<HashMap<PipelineNodeLabel, GraphNodeIdx>>,
+	/// (used when connecting port-to-port outputs)
+	node_output_name_map_ptp: RefCell<HashMap<PipelineNodeLabel, GraphNodeIdx>>,
 
 	/// Map node names to node indices
-	/// (used when connecting inputs)
-	node_input_name_map: RefCell<HashMap<PipelineNodeLabel, GraphNodeIdx>>,
+	/// (used when connecting port-to-port inputs)
+	node_input_name_map_ptp: RefCell<HashMap<PipelineNodeLabel, GraphNodeIdx>>,
+
+	/// Map node names to node indices
+	/// (used when connecting "after" outputs)
+	node_output_name_map_after: RefCell<HashMap<PipelineNodeLabel, GraphNodeIdx>>,
+
+	/// Map node names to node indices
+	/// (used when connecting "after" inputs)
+	node_input_name_map_after: RefCell<HashMap<PipelineNodeLabel, GraphNodeIdx>>,
 }
 
 // TODO: shorten signatures with aliases everywhere
@@ -76,8 +84,10 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 				graph: RefCell::new(graph),
 				input_node_idx,
 				output_node_idx,
-				node_output_name_map: RefCell::new(HashMap::new()),
-				node_input_name_map: RefCell::new(HashMap::new()),
+				node_output_name_map_ptp: RefCell::new(HashMap::new()),
+				node_input_name_map_ptp: RefCell::new(HashMap::new()),
+				node_output_name_map_after: RefCell::new(HashMap::new()),
+				node_input_name_map_after: RefCell::new(HashMap::new()),
 			}
 		};
 
@@ -122,11 +132,19 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 						.borrow_mut()
 						.add_node((node_name.clone(), node_spec.node_type.clone()));
 					builder
-						.node_output_name_map
+						.node_output_name_map_ptp
 						.borrow_mut()
 						.insert(node_name.clone(), n);
 					builder
-						.node_input_name_map
+						.node_input_name_map_ptp
+						.borrow_mut()
+						.insert(node_name.clone(), n);
+					builder
+						.node_output_name_map_after
+						.borrow_mut()
+						.insert(node_name.clone(), n);
+					builder
+						.node_input_name_map_after
 						.borrow_mut()
 						.insert(node_name.clone(), n);
 				}
@@ -136,10 +154,15 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 		// Make sure all "after" edges are valid and create them in the graph.
 		for (node_name, node_spec) in &builder.spec.nodes {
 			for after_name in node_spec.after.iter().unique() {
-				if let Some(after_idx) = builder.node_input_name_map.borrow().get(after_name) {
+				if let Some(after_idx) = builder.node_input_name_map_after.borrow().get(after_name)
+				{
 					builder.graph.borrow_mut().add_edge(
 						*after_idx,
-						*builder.node_input_name_map.borrow().get(node_name).unwrap(),
+						*builder
+							.node_input_name_map_after
+							.borrow()
+							.get(node_name)
+							.unwrap(),
 						PipelineEdge::After,
 					);
 				} else {
@@ -154,7 +177,11 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 		// Make sure all "port to port" edges are valid and create them in the graph.
 		{
 			for (node_name, node_spec) in &builder.spec.nodes {
-				let node_idx = *builder.node_input_name_map.borrow().get(node_name).unwrap();
+				let node_idx = *builder
+					.node_input_name_map_ptp
+					.borrow()
+					.get(node_name)
+					.unwrap();
 				for (input_name, out_link) in node_spec.inputs.iter() {
 					let in_port = builder
 						.get_input(&node_spec.node_type, input_name, node_name)?
@@ -306,7 +333,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 					.get_output(&self.spec.nodes.get(node).unwrap().node_type, port, node)?
 					.0;
 				self.graph.borrow_mut().add_edge(
-					*self.node_output_name_map.borrow().get(node).unwrap(),
+					*self.node_output_name_map_ptp.borrow().get(node).unwrap(),
 					node_idx,
 					PipelineEdge::PortToPort((out_port, in_port)),
 				);
@@ -458,7 +485,18 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 					.borrow_mut()
 					.add_node((format!("{}::{}", node_name, l).into(), other_node.clone()));
 				new_index_map.push(Some(n));
-				self.node_input_name_map
+
+				// This is why we have different name maps for "ptp" and "after" nodes.
+				// ptp nodes that end at a pipeline node should be remapped to that pipeline's INPUT.
+				// "after" nodes that end at a pipeline node should be remapped to that pipeline's OUTPUT.
+				// (so that "after" waits for the whole sub-pipeline to finish)
+				//
+				// Similarly, "after" nodes that START at a pipeline node should be moved to start at
+				// the pipeline's INPUT node, so that the whole pipeline must wait.
+				self.node_input_name_map_ptp
+					.borrow_mut()
+					.insert(node_name.clone(), n);
+				self.node_output_name_map_after
 					.borrow_mut()
 					.insert(node_name.clone(), n);
 			} else if idx == p.output_node_idx {
@@ -467,7 +505,11 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 					.borrow_mut()
 					.add_node((format!("{}::{}", node_name, l).into(), other_node.clone()));
 				new_index_map.push(Some(n));
-				self.node_output_name_map
+
+				self.node_output_name_map_ptp
+					.borrow_mut()
+					.insert(node_name.clone(), n);
+				self.node_input_name_map_after
 					.borrow_mut()
 					.insert(node_name.clone(), n);
 			} else {

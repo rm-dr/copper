@@ -47,7 +47,7 @@ input."ifnone" = { type = "Constant", value = "Unknown Lyrics" }
 [node.strip]
 node.type = "StripTags"
 input."data" = { pipeline = "data" }
-#after = ["add_cover"]
+after = ["add_cover"]
 
 [node."extract_cover"]
 node.type = "ExtractCovers"
