@@ -44,7 +44,7 @@ fn main() -> Result<()> {
 
 	match &pipe.get_config().output {
 		PipelineOutputKind::DataSet { class_name } => {
-			let c = dataset.get_class(&class_name).unwrap();
+			let c = dataset.get_class(class_name).unwrap();
 			let mut e = StorageOutput::new(&mut dataset, c);
 			e.export(o.iter().map(|x| x.as_ref().map(|x| x.as_ref())).collect())?;
 		}

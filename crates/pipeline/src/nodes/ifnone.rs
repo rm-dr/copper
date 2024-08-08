@@ -12,6 +12,12 @@ impl IfNone {
 	}
 }
 
+impl Default for IfNone {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl PipelineStatelessRunner for IfNone {
 	fn run(
 		&self,

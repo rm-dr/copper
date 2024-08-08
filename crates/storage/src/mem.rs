@@ -70,6 +70,12 @@ impl MemDataset {
 	}
 }
 
+impl Default for MemDataset {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl Dataset for MemDataset {
 	type AttrHandle = MemAttrIdx;
 	type ClassHandle = MemClassIdx;
@@ -97,7 +103,7 @@ impl Dataset for MemDataset {
 			id,
 			MemAttr {
 				name: name.to_string(),
-				class: class,
+				class,
 				data_type,
 			},
 		);
@@ -124,7 +130,7 @@ impl Dataset for MemDataset {
 		let mut data = HashMap::new();
 
 		for (i, a) in self.class_get_attrs(class).enumerate() {
-			data.insert(a, attrs.get(i).unwrap().map(|x| x.clone()));
+			data.insert(a, attrs.get(i).unwrap().cloned());
 		}
 
 		let id = self.new_id_item();

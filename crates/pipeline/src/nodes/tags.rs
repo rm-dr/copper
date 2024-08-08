@@ -19,6 +19,12 @@ impl ExtractTags {
 	}
 }
 
+impl Default for ExtractTags {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl ExtractTags {
 	fn parse_flac<R>(mut data_read: &mut R) -> Result<Option<Tag>, PipelineError>
 	where
