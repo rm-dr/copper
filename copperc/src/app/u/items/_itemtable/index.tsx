@@ -139,7 +139,7 @@ export function ItemTablePanel(params: {
 			});
 
 			// Resize the column we're dragging.
-			// There are columns.length - 1 dragable column seperators.
+			// There are (columns.length - 1) draggable column separators.
 			for (let i = 0; i < columns.length - 1; i++) {
 				let cref = col_refs.current[i];
 

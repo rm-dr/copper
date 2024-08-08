@@ -280,7 +280,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	PipelineSingleJob<DataType, ContextType>
 {
-	/// Update this job: process state changes that occured since we last called `run()`,
+	/// Update this job: process state changes that occurred since we last called `run()`,
 	/// deliver new data, and start nodes that should be started.
 	///
 	/// This method should be called often, but not too often.
@@ -289,7 +289,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	pub(super) fn run(&mut self) -> Result<SingleJobState, PipelineSingleJobError> {
 		// Run nodes in a better order, and maybe skip a few.
 
-		// Handle all changes that occured since we last called `run()`
+		// Handle all changes that occurred since we last called `run()`
 		self.handle_all_messages()?;
 
 		// Clean up threads that finished since we last called `run()`

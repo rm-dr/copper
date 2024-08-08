@@ -4,7 +4,7 @@ Eventually, consolidate these in docs
 Nodes should be panic-free, returning an error when resources they need vanish. This situation
 also shouldn't cause deadlocks, since datasets manage their own locks.
 - Pipeline nodes that need to call async functions should just `block_on` them. Nodes are run in
-a threadpool, and are thus inherintly async. This isn't ideal, though, we might want to fix this
+a threadpool, and are thus inherently async. This isn't ideal, though, we might want to fix this
 later (part of writing a better scheduler).
 
 - What log level should I use?
@@ -137,7 +137,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - Pipeline = one-off job. No streams!
   - Nodes take input even when not ready
 
-## 📦 Inline documenation
+## 📦 Inline documentation
 - UI should be usable without a manual (info hovers)
 - [ ] Dataset & attribute type descriptions
 

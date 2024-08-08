@@ -40,7 +40,7 @@ pub(super) struct RunningJobStatus {
 	#[schema(value_type = String)]
 	pub pipeline: PipelineName,
 
-	/// The status of each node in this pipline
+	/// The status of each node in this pipeline
 	pub node_status: Vec<RunningNodeStatus>,
 
 	/// This pipeline's input, converted to a pretty string.

@@ -1093,7 +1093,7 @@ export interface components {
 			input_exemplar: string;
 			/** @description This job's id */
 			job_id: number;
-			/** @description The status of each node in this pipline */
+			/** @description The status of each node in this pipeline */
 			node_status: components["schemas"]["RunningNodeStatus"][];
 			/** @description The pipeline this job is running */
 			pipeline: string;

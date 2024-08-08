@@ -31,7 +31,7 @@ export function TreeEntry(params: {
 			<div
 				className={styles.tree_entry_arrow}
 				onMouseDown={(e) => {
-					// Arrow click aways toggles expanded
+					// Arrow click always toggles expanded
 					if (e.button == 0 && params.expandable) {
 						if (params.onExpandClick !== undefined) {
 							params.onExpandClick();
@@ -44,7 +44,7 @@ export function TreeEntry(params: {
 
 			<div
 				className={styles.tree_entry_left}
-				// Icon click aways toggles expanded
+				// Icon click always toggles expanded
 				onMouseDown={(e) => {
 					if (e.button == 0 && params.expandable) {
 						if (params.onExpandClick !== undefined) {

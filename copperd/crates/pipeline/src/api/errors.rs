@@ -1,7 +1,7 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{error::Error, fmt::Display};
 
-/// An error we encounter when initializeing a node
+/// An error we encounter when initializing a node
 #[derive(Debug)]
 pub enum InitNodeError {
 	/// We got an unexpected number of parameters

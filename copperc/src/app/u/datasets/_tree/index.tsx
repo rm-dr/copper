@@ -2,7 +2,7 @@ import styles from "./tree.module.scss";
 import { Panel, PanelTitle } from "@/app/components/panel";
 import { ActionIcon, Button, Loader, Menu, Text, rem } from "@mantine/core";
 import { ReactNode, useCallback, useEffect, useState } from "react";
-import { useNewDsModal } from "./modals/addds";
+import { useNewDsModal } from "./modals/adddataset";
 import { useTree, TreeNode } from "@/app/components/tree";
 import { datasetTypes } from "@/app/_util/datasets";
 import { attrTypes } from "@/app/_util/attrs";
@@ -29,7 +29,7 @@ import { APIclient } from "@/app/_util/api";
 import { components } from "@/app/_util/api/openapi";
 import { useRenameAttrModal } from "./modals/renameattr";
 import { useRenameClassModal } from "./modals/renameclass";
-import { useRenameDatasetModal } from "./modals/renameds";
+import { useRenameDatasetModal } from "./modals/renamedataset";
 
 type TreeState = {
 	error: boolean;

@@ -739,7 +739,7 @@ mod tests {
 					data.encode(&mut audio_data_hasher).unwrap();
 
 					if result_i != test_case.get_blocks().unwrap().len() {
-						panic!("There are metadata blocks betwen audio frames!")
+						panic!("There are metadata blocks between audio frames!")
 					}
 
 					// Don't increment result_i

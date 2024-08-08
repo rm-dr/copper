@@ -1,5 +1,5 @@
 //! Top-level pipeline runner.
-//! Runs a set of jobs asyncronously and in parallel.
+//! Runs a set of jobs asynchronously and in parallel.
 
 use smartstring::{LazyCompact, SmartString};
 use std::{
@@ -181,7 +181,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			.map(|x| x.as_ref().unwrap())
 	}
 
-	/// Update this runner: process all changes that occured since we last called `run()`,
+	/// Update this runner: process all changes that occurred since we last called `run()`,
 	pub fn run(&mut self) {
 		for r in &mut self.active_jobs {
 			if let Some((id, x)) = r {

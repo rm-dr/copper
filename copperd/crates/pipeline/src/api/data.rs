@@ -47,6 +47,6 @@ where
 	Self: Send + Sync + 'static,
 	DataType: PipelineData,
 {
-	/// Get the inputs we passed to this pipline
+	/// Get the inputs we passed to this pipeline
 	fn get_input(&self) -> &BTreeMap<SmartString<LazyCompact>, DataType>;
 }

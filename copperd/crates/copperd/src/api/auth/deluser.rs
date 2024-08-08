@@ -85,7 +85,7 @@ pub(super) async fn del_user(
 			};
 
 			// We can only create users in our group,
-			// or in gorups that are subgroups of our group.
+			// or in groups that are subgroups of our group.
 			if !(is_parent || u.group.id == target_user.group.id) {
 				return StatusCode::UNAUTHORIZED.into_response();
 			}

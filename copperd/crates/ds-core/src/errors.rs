@@ -52,7 +52,7 @@ pub enum MetastoreError {
 	// We intentionally don't implement From<BlobstoreError> here.
 	// This helps keep us from accidentally `?`ing a BlobstoreError into a MetastoreError.
 	// Any time we want to convert, we have to do so explicitly.
-	/// We enountered an error while manipulating blobs
+	/// We encountered an error while manipulating blobs
 	BlobstoreError(BlobstoreError),
 }
 

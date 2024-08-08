@@ -73,10 +73,10 @@ CREATE TABLE IF NOT EXISTS meta_attributes (
 	-- (Internal Copper datatype. This is more specific than the types SQL provides.)
 	data_type TEXT NOT NULL,
 
-	--- Boolean (0 or 1). Does this attribute have a "unique" constrait?
+	--- Boolean (0 or 1). Does this attribute have a "unique" constraint?
 	is_unique INTEGER NOT NULL,
 
-	--- Boolean (0 or 1). Does this attribute have a "not_null" constrait?
+	--- Boolean (0 or 1). Does this attribute have a "not_null" constraint?
 	is_not_null INTEGER NOT NULL,
 
 	FOREIGN KEY (class_id) REFERENCES meta_classes(id)

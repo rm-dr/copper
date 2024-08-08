@@ -26,7 +26,7 @@ impl Display for UploaderOpenError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::IoError(_) => write!(f, "i/o error"),
-			Self::NotDir => write!(f, "uploader target is nnot a directory"),
+			Self::NotDir => write!(f, "uploader target is not a directory"),
 		}
 	}
 }
@@ -245,7 +245,7 @@ impl Uploader {
 
 		if job.bound_to_pipeline_job.is_some() {
 			warn!(
-				message = "Tried to bind job, but it is alredy bound",
+				message = "Tried to bind job, but it is already bound",
 				job = ?job.id,
 				pipeline = pipeline_job_id
 			);
