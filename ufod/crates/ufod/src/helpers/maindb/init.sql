@@ -45,9 +45,13 @@ CREATE INDEX IF NOT EXISTS idx_group_name on groups(group_name);
 
 CREATE TABLE users (
 	id INTEGER PRIMARY KEY NOT NULL,
+
 	user_name TEXT NOT NULL UNIQUE,
-	user_group TEXT NOT NULL,
 	pw_hash TEXT NOT NULL,
+
+	-- The group this user belongs to.
+	-- If this is NULL, this user belongs to the root group.
+	user_group INTEGER,
 	FOREIGN KEY (user_group) REFERENCES groups(id)
 );
 

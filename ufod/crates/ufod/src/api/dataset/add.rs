@@ -1,6 +1,6 @@
 use axum::{
 	extract::State,
-	http::StatusCode,
+	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
@@ -9,7 +9,7 @@ use tracing::{debug, error};
 use ufo_ds_impl::DatasetType;
 use utoipa::ToSchema;
 
-use crate::{api::RouterState, helpers::maindb::errors::CreateDatasetError};
+use crate::{api::RouterState, helpers::maindb::dataset::errors::CreateDatasetError};
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 pub(super) struct NewDatasetRequest {
@@ -33,12 +33,38 @@ pub(super) enum NewDatasetParams {
 		(status = 200, description = "Dataset created successfully"),
 		(status = 400, description = "Could not create dataset", body = String),
 		(status = 500, description = "Internal server error", body = String),
+		(status = 401, description = "Unauthorized")
 	),
+	security(
+		("bearer" = []),
+	)
 )]
 pub(super) async fn add_dataset(
+	headers: HeaderMap,
 	State(state): State<RouterState>,
 	Json(payload): Json<NewDatasetRequest>,
 ) -> Response {
+	match state.main_db.auth.check_headers(&headers).await {
+		Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
+		Ok(Some(u)) => {
+			if !u.group.permissions.edit_datasets.is_allowed() {
+				return StatusCode::UNAUTHORIZED.into_response();
+			}
+		}
+		Err(e) => {
+			error!(
+				message = "Could not check auth header",
+				headers = ?headers,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not check auth header"),
+			)
+				.into_response();
+		}
+	}
+
 	debug!(message = "Making new dataset", payload = ?payload);
 
 	if payload.name == "" {
@@ -59,6 +85,7 @@ pub(super) async fn add_dataset(
 		NewDatasetParams::Local => {
 			let res = state
 				.main_db
+				.dataset
 				.new_dataset(&payload.name, DatasetType::Local)
 				.await;
 

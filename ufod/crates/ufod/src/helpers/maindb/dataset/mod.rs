@@ -1,10 +1,14 @@
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
-use sqlx::{Connection, Row};
+use sqlx::{Connection, Row, SqliteConnection};
 use std::{path::PathBuf, sync::Arc};
+use tokio::sync::Mutex;
 use ufo_ds_impl::{local::LocalDataset, DatasetType};
 
-use super::{errors::CreateDatasetError, MainDB};
+use crate::config::UfodConfig;
+
+pub mod errors;
+use errors::CreateDatasetError;
 
 #[derive(Debug)]
 pub struct DatasetEntry {
@@ -13,20 +17,33 @@ pub struct DatasetEntry {
 	pub path: PathBuf,
 }
 
-impl MainDB {
+pub struct DatasetProvider {
+	conn: Arc<Mutex<SqliteConnection>>,
+	config: Arc<UfodConfig>,
+	open_datasets: Mutex<Vec<(SmartString<LazyCompact>, Arc<LocalDataset>)>>,
+}
+
+impl DatasetProvider {
+	pub(super) fn new(conn: Arc<Mutex<SqliteConnection>>, config: Arc<UfodConfig>) -> Self {
+		Self {
+			conn,
+			config,
+			open_datasets: Mutex::new(Vec::new()),
+		}
+	}
+}
+
+impl DatasetProvider {
 	pub async fn new_dataset(
 		&self,
 		name: &str,
 		ds_type: DatasetType,
 	) -> Result<(), CreateDatasetError> {
 		// No empty names
+		let name = name.trim();
 		if name == "" {
 			return Err(CreateDatasetError::BadName(
 				"Dataset name cannot be empty".into(),
-			));
-		} else if name.trim() == "" {
-			return Err(CreateDatasetError::BadName(
-				"Dataset name cannot be whitespace".into(),
 			));
 		}
 

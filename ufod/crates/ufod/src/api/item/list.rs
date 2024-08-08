@@ -89,7 +89,7 @@ pub(super) async fn list_item(
 			.into_response();
 	}
 
-	let dataset = match state.main_db.get_dataset(&query.dataset).await {
+	let dataset = match state.main_db.dataset.get_dataset(&query.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (

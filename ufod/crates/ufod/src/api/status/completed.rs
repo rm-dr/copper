@@ -1,10 +1,11 @@
 use axum::{
 	extract::State,
-	http::StatusCode,
+	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
 use serde::{Deserialize, Serialize};
+use tracing::error;
 use ufo_pipeline::labels::PipelineName;
 use utoipa::ToSchema;
 
@@ -31,9 +32,33 @@ pub(super) struct CompletedJobStatus {
 	path = "/runner/completed",
 	responses(
 		(status = 200, description = "Completed jobs", body=Vec<CompletedJobStatus>),
+		(status = 401, description = "Unauthorized")
 	),
+	security(
+		("bearer" = []),
+	)
 )]
-pub(super) async fn get_runner_completed(State(state): State<RouterState>) -> Response {
+pub(super) async fn get_runner_completed(
+	headers: HeaderMap,
+	State(state): State<RouterState>,
+) -> Response {
+	match state.main_db.auth.check_headers(&headers).await {
+		Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
+		Ok(Some(_)) => {}
+		Err(e) => {
+			error!(
+				message = "Could not check auth header",
+				headers = ?headers,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not check auth header"),
+			)
+				.into_response();
+		}
+	}
+
 	let runner = state.runner.lock().await;
 
 	let completed_jobs: Vec<CompletedJobStatus> = runner

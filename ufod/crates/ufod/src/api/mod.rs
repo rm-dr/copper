@@ -7,7 +7,10 @@ use ufo_ds_core::{
 	data::{HashType, MetastoreDataStub},
 };
 use ufo_ds_impl::DatasetType;
-use utoipa::OpenApi;
+use utoipa::{
+	openapi::security::{Http, HttpAuthScheme, SecurityScheme},
+	Modify, OpenApi,
+};
 use utoipa_swagger_ui::SwaggerUi;
 
 use ufo_pipeline::runner::runner::PipelineRunner;
@@ -35,9 +38,22 @@ pub struct RouterState {
 	pub uploader: Arc<Uploader>,
 }
 
+struct BearerSecurityAddon;
+impl Modify for BearerSecurityAddon {
+	fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+		if let Some(components) = openapi.components.as_mut() {
+			components.add_security_scheme(
+				"bearer",
+				SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)),
+			)
+		}
+	}
+}
+
 // TODO: fix utoipa tags
 #[derive(OpenApi)]
 #[openapi(
+	modifiers(&BearerSecurityAddon),
 	nest(
 		(path = "/status", api = status::StatusApi),
 		(path = "/upload", api = upload::UploadApi),

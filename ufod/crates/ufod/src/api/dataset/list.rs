@@ -1,7 +1,7 @@
 use crate::RouterState;
 use axum::{
 	extract::State,
-	http::StatusCode,
+	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
@@ -27,12 +27,36 @@ pub(super) struct DatasetInfoShort {
 	responses(
 		(status = 200, description = "Dataset info", body = Vec<DatasetInfoShort>),
 		(status = 500, description = "Internal server error", body = String),
+		(status = 401, description = "Unauthorized")
 	),
+	security(
+		("bearer" = []),
+	)
 )]
-pub(super) async fn list_datasets(State(state): State<RouterState>) -> Response {
+pub(super) async fn list_datasets(
+	headers: HeaderMap,
+	State(state): State<RouterState>,
+) -> Response {
+	match state.main_db.auth.check_headers(&headers).await {
+		Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
+		Ok(Some(_)) => {}
+		Err(e) => {
+			error!(
+				message = "Could not check auth header",
+				headers = ?headers,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not check auth header"),
+			)
+				.into_response();
+		}
+	}
+
 	let mut out = Vec::new();
 
-	let datasets = match state.main_db.get_datasets().await {
+	let datasets = match state.main_db.dataset.get_datasets().await {
 		Ok(x) => x,
 		Err(e) => {
 			error!(

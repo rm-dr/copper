@@ -64,7 +64,7 @@ pub(super) async fn list_classes(
 	State(state): State<RouterState>,
 	Query(query): Query<ClassInfoRequest>,
 ) -> Response {
-	let dataset = match state.main_db.get_dataset(&query.dataset).await {
+	let dataset = match state.main_db.dataset.get_dataset(&query.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (

@@ -1,6 +1,6 @@
 use axum::{
 	extract::State,
-	http::StatusCode,
+	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
@@ -8,12 +8,15 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 use utoipa::ToSchema;
 
-use crate::{api::RouterState, helpers::maindb::errors::CreateGroupError};
+use crate::{
+	api::RouterState,
+	helpers::maindb::auth::{errors::CreateGroupError, GroupId},
+};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub(super) struct AddgroupRequest {
 	name: String,
-	parent: Option<u32>,
+	parent: GroupId,
 }
 
 /// Create a new group
@@ -24,12 +27,66 @@ pub(super) struct AddgroupRequest {
 		(status = 200, description = "Successfully created group"),
 		(status = 400, description = "Could not create group"),
 		(status = 500, description = "Internal server error", body=String),
+		(status = 401, description = "Unauthorized")
 	),
+	security(
+		("bearer" = []),
+	)
 )]
 pub(super) async fn add_group(
+	headers: HeaderMap,
 	State(state): State<RouterState>,
 	Json(payload): Json<AddgroupRequest>,
 ) -> Response {
+	match state.main_db.auth.check_headers(&headers).await {
+		Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
+		Ok(Some(u)) => {
+			if !u.group.permissions.edit_groups.is_allowed() {
+				return StatusCode::UNAUTHORIZED.into_response();
+			}
+
+			// Is the group we want to create a child of this user's group?
+			let is_parent = match state
+				.main_db
+				.auth
+				.is_group_parent(u.group.id, payload.parent)
+				.await
+			{
+				Ok(x) => x,
+				Err(e) => {
+					error!(
+						message = "Could not check group parent",
+						headers = ?headers,
+						error = ?e
+					);
+					return (
+						StatusCode::INTERNAL_SERVER_ERROR,
+						format!("Could not check group parent"),
+					)
+						.into_response();
+				}
+			};
+
+			// We can only create groups that are children of our group,
+			// or children of subgroups of our group.
+			if !(u.group.id == payload.parent || is_parent) {
+				return StatusCode::UNAUTHORIZED.into_response();
+			}
+		}
+		Err(e) => {
+			error!(
+				message = "Could not check auth header",
+				headers = ?headers,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not check auth header"),
+			)
+				.into_response();
+		}
+	}
+
 	info!(
 		message = "Received addgroup request",
 		payload = ?payload
@@ -37,7 +94,8 @@ pub(super) async fn add_group(
 
 	match state
 		.main_db
-		.new_group(&payload.name, payload.parent.map(|x| x.into()))
+		.auth
+		.new_group(&payload.name, payload.parent)
 		.await
 	{
 		Ok(()) => {

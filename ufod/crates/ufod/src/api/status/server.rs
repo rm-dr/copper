@@ -1,11 +1,12 @@
 use axum::{
 	extract::State,
-	http::StatusCode,
+	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
+use tracing::error;
 use utoipa::ToSchema;
 
 use crate::RouterState;
@@ -31,9 +32,33 @@ pub(super) struct ServerStatus {
 	path = "",
 	responses(
 		(status = 200, description = "Server status", body = ServerStatus),
+		(status = 401, description = "Unauthorized")
 	),
+	security(
+		("bearer" = []),
+	)
 )]
-pub(super) async fn get_server_status(State(state): State<RouterState>) -> Response {
+pub(super) async fn get_server_status(
+	headers: HeaderMap,
+	State(state): State<RouterState>,
+) -> Response {
+	match state.main_db.auth.check_headers(&headers).await {
+		Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
+		Ok(Some(_)) => {}
+		Err(e) => {
+			error!(
+				message = "Could not check auth header",
+				headers = ?headers,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not check auth header"),
+			)
+				.into_response();
+		}
+	}
+
 	return (
 		StatusCode::OK,
 		Json(ServerStatus {

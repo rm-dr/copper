@@ -57,7 +57,12 @@ pub(super) async fn run_pipeline(
 
 	let mut runner = state.runner.lock().await;
 
-	let dataset = match state.main_db.get_dataset(&payload.pipe.dataset).await {
+	let dataset = match state
+		.main_db
+		.dataset
+		.get_dataset(&payload.pipe.dataset)
+		.await
+	{
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (

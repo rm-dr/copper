@@ -61,7 +61,12 @@ pub(super) async fn add_attr(
 			.into_response();
 	}
 
-	let dataset = match state.main_db.get_dataset(&payload.attr.class.dataset).await {
+	let dataset = match state
+		.main_db
+		.dataset
+		.get_dataset(&payload.attr.class.dataset)
+		.await
+	{
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -102,7 +107,7 @@ pub(super) async fn add_attr(
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not get class by name {e}"),
+				format!("Could not get class by name"),
 			)
 				.into_response();
 		}
@@ -135,7 +140,7 @@ pub(super) async fn add_attr(
 			);
 			return (
 				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not create new attribute: {e}"),
+				format!("Could not create new attribute"),
 			)
 				.into_response();
 		}

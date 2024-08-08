@@ -25,7 +25,12 @@ pub(super) async fn del_attr(
 	State(state): State<RouterState>,
 	Json(payload): Json<AttrSelect>,
 ) -> Response {
-	let dataset = match state.main_db.get_dataset(&payload.class.dataset).await {
+	let dataset = match state
+		.main_db
+		.dataset
+		.get_dataset(&payload.class.dataset)
+		.await
+	{
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (

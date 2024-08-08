@@ -26,7 +26,7 @@ pub(super) async fn del_class(
 	State(state): State<RouterState>,
 	Json(payload): Json<ClassSelect>,
 ) -> Response {
-	let dataset = match state.main_db.get_dataset(&payload.dataset).await {
+	let dataset = match state.main_db.dataset.get_dataset(&payload.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (

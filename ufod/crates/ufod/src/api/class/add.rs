@@ -40,7 +40,7 @@ pub(super) async fn add_class(
 			.into_response();
 	}
 
-	let dataset = match state.main_db.get_dataset(&payload.dataset).await {
+	let dataset = match state.main_db.dataset.get_dataset(&payload.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (

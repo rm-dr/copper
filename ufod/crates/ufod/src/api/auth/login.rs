@@ -37,6 +37,7 @@ pub(super) async fn try_login(
 
 	match state
 		.main_db
+		.auth
 		.try_auth_user(&payload.username, &payload.password)
 		.await
 	{

@@ -1,19 +1,15 @@
-use smartstring::{LazyCompact, SmartString};
 use sqlx::{Connection, SqliteConnection};
 use std::{path::Path, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{error, info};
-use ufo_ds_impl::local::LocalDataset;
 
-use super::auth::AuthToken;
 use crate::config::UfodConfig;
 
-pub struct MainDB {
-	pub(super) conn: Mutex<SqliteConnection>,
-	pub(super) config: Arc<UfodConfig>,
+use super::{auth::AuthProvider, dataset::DatasetProvider};
 
-	pub(super) open_datasets: Mutex<Vec<(SmartString<LazyCompact>, Arc<LocalDataset>)>>,
-	pub(super) active_tokens: Mutex<Vec<AuthToken>>,
+pub struct MainDB {
+	pub auth: AuthProvider,
+	pub dataset: DatasetProvider,
 }
 
 impl MainDB {
@@ -28,6 +24,14 @@ impl MainDB {
 		sqlx::query("INSERT INTO meta (var, val) VALUES (?, ?);")
 			.bind("ufo_version")
 			.bind(env!("CARGO_PKG_VERSION"))
+			.execute(&mut conn)
+			.await?;
+
+		// Add default admin account
+		sqlx::query("INSERT INTO users (user_name, pw_hash, user_group) VALUES (?, ?, ?);")
+			.bind("admin")
+			.bind(AuthProvider::hash_password("admin"))
+			.bind(None::<u32>)
 			.execute(&mut conn)
 			.await?;
 
@@ -56,11 +60,11 @@ impl MainDB {
 			)
 		}
 
+		let conn = Arc::new(Mutex::new(conn));
+
 		Ok(Self {
-			conn: Mutex::new(conn),
-			config,
-			open_datasets: Mutex::new(Vec::new()),
-			active_tokens: Mutex::new(Vec::new()),
+			auth: AuthProvider::new(conn.clone()),
+			dataset: DatasetProvider::new(conn.clone(), config),
 		})
 	}
 }

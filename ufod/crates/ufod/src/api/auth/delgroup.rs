@@ -1,6 +1,6 @@
 use axum::{
 	extract::State,
-	http::StatusCode,
+	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
@@ -23,18 +23,72 @@ pub(super) struct DelgroupRequest {
 		(status = 200, description = "Successfully deleted group"),
 		(status = 400, description = "Could not delete group"),
 		(status = 500, description = "Internal server error", body=String),
+		(status = 401, description = "Unauthorized")
 	),
+	security(
+		("bearer" = []),
+	)
 )]
 pub(super) async fn del_group(
+	headers: HeaderMap,
 	State(state): State<RouterState>,
 	Json(payload): Json<DelgroupRequest>,
 ) -> Response {
+	match state.main_db.auth.check_headers(&headers).await {
+		Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
+		Ok(Some(u)) => {
+			if !u.group.permissions.edit_groups.is_allowed() {
+				return StatusCode::UNAUTHORIZED.into_response();
+			}
+
+			// Is the group we want to delete a child of this user's group?
+			let is_parent = match state
+				.main_db
+				.auth
+				.is_group_parent(u.group.id, payload.group.into())
+				.await
+			{
+				Ok(x) => x,
+				Err(e) => {
+					error!(
+						message = "Could not check group parent",
+						headers = ?headers,
+						error = ?e
+					);
+					return (
+						StatusCode::INTERNAL_SERVER_ERROR,
+						format!("Could not check group parent"),
+					)
+						.into_response();
+				}
+			};
+
+			// We can only create groups that are children of our group.
+			// Node that users may NOT delete their own group.
+			if !is_parent {
+				return StatusCode::UNAUTHORIZED.into_response();
+			}
+		}
+		Err(e) => {
+			error!(
+				message = "Could not check auth header",
+				headers = ?headers,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not check auth header"),
+			)
+				.into_response();
+		}
+	}
+
 	info!(
 		message = "Received delgroup request",
 		payload = ?payload
 	);
 
-	match state.main_db.del_group(payload.group.into()).await {
+	match state.main_db.auth.del_group(payload.group.into()).await {
 		Ok(()) => {
 			info!(
 				message = "Deleted group",
