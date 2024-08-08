@@ -7,6 +7,7 @@ import { _blobAttrType } from "./blob";
 import { _posintAttrType } from "./positiveinteger";
 import { _floatAttrType } from "./float";
 import { _intAttrType } from "./integer";
+import { components } from "../api/openapi";
 
 /*
 	Definitions of all attribute types we support
@@ -25,7 +26,9 @@ export type attrTypeInfo = {
 	// How to display the value of this attr
 	// in the item table. This should be compact
 	// and non-interactive.
-	value_preview: (params: { attr: any }) => ReactElement;
+	value_preview: (params: {
+		attr_value: components["schemas"]["ItemListData"];
+	}) => ReactElement;
 
 	editor:
 		| {
@@ -33,11 +36,13 @@ export type attrTypeInfo = {
 				// How to display the old value of attr
 				// in the editor. `attr` param is the object
 				// returned by the api.
-				old_value: (params: { attr: any }) => ReactElement;
+				old_value: (params: {
+					attr_value: components["schemas"]["ItemListData"];
+				}) => ReactElement;
 
 				// Inline value editor
 				new_value: (params: {
-					attr: any;
+					attr_value: components["schemas"]["ItemListData"];
 					onChange: (value: any) => void;
 				}) => ReactElement;
 		  }
@@ -48,8 +53,7 @@ export type attrTypeInfo = {
 					dataset: string;
 					class: string;
 					item_idx: number;
-					attr_name: string;
-					attr_val: any;
+					attr_value: components["schemas"]["ItemListData"];
 				}) => ReactElement;
 		  };
 

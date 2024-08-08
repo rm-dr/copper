@@ -13,10 +13,14 @@ export const _hashAttrType: attrTypeInfo = {
 	},
 
 	value_preview: (params) => {
-		if (params.attr.value === null) {
+		if (params.attr_value.type !== "Hash") {
+			return <>Unreachable!</>;
+		}
+
+		if (params.attr_value.value === null) {
 			return (
 				<>
-					<Text c="dimmed" span>{`${params.attr.hash_type}: `}</Text>
+					<Text c="dimmed" span>{`${params.attr_value.hash_type}: `}</Text>
 					<Text c="dimmed" fs="italic" span>
 						no value
 					</Text>
@@ -25,9 +29,9 @@ export const _hashAttrType: attrTypeInfo = {
 		} else {
 			return (
 				<>
-					<Text c="dimmed" span>{`${params.attr.hash_type}: `}</Text>
+					<Text c="dimmed" span>{`${params.attr_value.hash_type}: `}</Text>
 					<Text ff="monospace" span>
-						{params.attr.value}
+						{params.attr_value.value}
 					</Text>
 				</>
 			);
@@ -38,25 +42,33 @@ export const _hashAttrType: attrTypeInfo = {
 		type: "inline",
 
 		old_value: (params) => {
-			if (params.attr.value == null) {
+			if (params.attr_value.type !== "Hash") {
+				return <>Unreachable!</>;
+			}
+
+			if (params.attr_value.value == null) {
 				return (
 					<Text c="dimmed" fs="italic">
 						no value
 					</Text>
 				);
 			} else {
-				return params.attr.value;
+				return <Text>{params.attr_value.value}</Text>;
 			}
 		},
 
 		new_value: (params) => {
+			if (params.attr_value.type !== "Hash") {
+				return <>Unreachable!</>;
+			}
+
 			return (
 				<Textarea
 					radius="0px"
 					placeholder="no value"
 					autosize
 					minRows={1}
-					defaultValue={params.attr.value}
+					defaultValue={params.attr_value.value || undefined}
 					onChange={params.onChange}
 				/>
 			);

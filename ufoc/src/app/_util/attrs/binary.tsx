@@ -12,7 +12,11 @@ export const _binaryAttrType: attrTypeInfo = {
 	extra_params: null,
 
 	value_preview: (params) => {
-		if (params.attr.size === null) {
+		if (params.attr_value.type !== "Binary") {
+			return <>Unreachable!</>;
+		}
+
+		if (params.attr_value.size == null) {
 			return (
 				<Text c="dimmed" fs="italic">
 					no value
@@ -21,7 +25,7 @@ export const _binaryAttrType: attrTypeInfo = {
 		} else {
 			return (
 				<Text c="dimmed" fs="italic">{`Binary (${ppBytes(
-					params.attr.size,
+					params.attr_value.size,
 				)})`}</Text>
 			);
 		}
@@ -37,19 +41,29 @@ export const _binaryAttrType: attrTypeInfo = {
 					dataset: params.dataset,
 					class: params.class,
 					item_idx: params.item_idx.toString(),
-					attr: params.attr_name,
+					attr: params.attr_value.attr.handle.toString(),
 				});
 
-			if (params.attr_val.mime.startsWith("image/")) {
-				return <BlobPanelImage src={data_url} attr_val={params.attr_val} />;
-			} else if (params.attr_val.mime.startsWith("audio/")) {
-				return <BlobPanelAudio src={data_url} attr_val={params.attr_val} />;
+			if (params.attr_value.type !== "Binary") {
+				return <>Unreachable!</>;
+			}
+
+			if (
+				params.attr_value.mime != null &&
+				params.attr_value.mime.startsWith("image/")
+			) {
+				return <BlobPanelImage src={data_url} attr_value={params.attr_value} />;
+			} else if (
+				params.attr_value.mime != null &&
+				params.attr_value.mime.startsWith("audio/")
+			) {
+				return <BlobPanelAudio src={data_url} attr_value={params.attr_value} />;
 			} else {
 				return (
 					<BlobPanelUnknown
 						src={data_url}
 						icon={<XIcon icon={IconBinary} style={{ height: "5rem" }} />}
-						attr_val={params.attr_val}
+						attr_value={params.attr_value}
 					/>
 				);
 			}

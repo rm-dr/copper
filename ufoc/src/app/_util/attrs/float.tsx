@@ -10,37 +10,49 @@ export const _floatAttrType: attrTypeInfo = {
 	extra_params: null,
 
 	value_preview: (params) => {
-		if (params.attr.value === null) {
+		if (params.attr_value.type !== "Float") {
+			return <>Unreachable!</>;
+		}
+
+		if (params.attr_value.value === null) {
 			return (
 				<Text c="dimmed" fs="italic">
 					no value
 				</Text>
 			);
 		} else {
-			return params.attr.value;
+			return <Text>{params.attr_value.value}</Text>;
 		}
 	},
 
 	editor: {
 		type: "inline",
 		old_value: (params) => {
-			if (params.attr.value === null) {
+			if (params.attr_value.type !== "Float") {
+				return <>Unreachable!</>;
+			}
+
+			if (params.attr_value.value === null) {
 				return (
 					<Text c="dimmed" fs="italic">
 						no value
 					</Text>
 				);
 			} else {
-				return params.attr.value;
+				return <Text>{params.attr_value.value}</Text>;
 			}
 		},
 
 		new_value: (params) => {
+			if (params.attr_value.type !== "Float") {
+				return <>Unreachable!</>;
+			}
+
 			return (
 				<NumberInput
 					placeholder="empty value"
 					allowDecimal={true}
-					defaultValue={params.attr.value}
+					defaultValue={params.attr_value.value || undefined}
 				/>
 			);
 		},

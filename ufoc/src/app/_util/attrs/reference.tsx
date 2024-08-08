@@ -14,7 +14,11 @@ export const _refAttrType: attrTypeInfo = {
 	},
 
 	value_preview: (params) => {
-		if (params.attr.item === null) {
+		if (params.attr_value.type !== "Reference") {
+			return <>Unreachable!</>;
+		}
+
+		if (params.attr_value.item === null) {
 			return (
 				<Text c="dimmed" fs="italic">
 					no value
@@ -25,7 +29,7 @@ export const _refAttrType: attrTypeInfo = {
 				<Text c="dimmed">
 					Reference to{" "}
 					<Text c="dimmed" fs="italic" span>
-						{params.attr.class}
+						{params.attr_value.class}
 					</Text>
 				</Text>
 			);
@@ -36,6 +40,10 @@ export const _refAttrType: attrTypeInfo = {
 		type: "panel",
 
 		panel_body: (params) => {
+			if (params.attr_value.type !== "Reference") {
+				return <>Unreachable!</>;
+			}
+
 			return (
 				<>
 					<div
@@ -54,7 +62,7 @@ export const _refAttrType: attrTypeInfo = {
 						<div>
 							Reference to{" "}
 							<Text c="dimmed" fs="italic" span>
-								{params.attr_val.class}
+								{params.attr_value.class}
 							</Text>
 						</div>
 					</div>
@@ -92,8 +100,7 @@ function RefParams(params: {
 				if (v === null) {
 					params.onChange({ class: null });
 				} else {
-					console.log(v);
-					params.onChange({ class: parseInt(v) });
+					params.onChange(v);
 				}
 			}}
 		/>
