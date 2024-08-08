@@ -2,7 +2,7 @@ use std::{
 	io::{Seek, SeekFrom},
 	sync::Arc,
 };
-use ufo_audiofile::flac::flac_read_pictures;
+use ufo_audiofile::flac::picture::flac_read_pictures;
 use ufo_pipeline::api::{PipelineNode, PipelineNodeState};
 use ufo_util::mime::MimeType;
 
