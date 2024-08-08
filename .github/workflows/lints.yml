@@ -30,3 +30,10 @@ jobs:
         with:
           config: ./typos.toml
 
+  eslint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run eslint
+        working-directory: ./copperc
+        run: npm run lint
