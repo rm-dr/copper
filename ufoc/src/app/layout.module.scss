@@ -20,4 +20,17 @@
 	flex-grow: 1;
 	height: 100%;
 	overflow-y: scroll;
+
+	background-color: color-mix(
+		in srgb,
+		var(--mantine-color-gray-9),
+		var(--mantine-color-black) 65%
+	);
+
+	background-image: radial-gradient(
+		var(--mantine-color-gray-9) 1px,
+		transparent 2px
+	);
+	background-size: 2rem 2rem;
+	background-position: -19px -19px;
 }
