@@ -312,6 +312,18 @@ impl AuthProvider {
 			.bind(u32::from(user))
 			.execute(&mut *self.conn.lock().await)
 			.await?;
+
+		// Invalidate all sessions of the user we just deleted
+		let mut active_tokens = self.active_tokens.lock().await;
+		let mut i = 0;
+		while i < active_tokens.len() {
+			if active_tokens[i].user == user {
+				active_tokens.swap_remove(i);
+			} else {
+				i += 1;
+			}
+		}
+
 		Ok(())
 	}
 
