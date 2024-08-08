@@ -3,7 +3,7 @@ import { Dropzone } from "@mantine/dropzone";
 import { Panel, PanelTitle } from "@/app/components/panel";
 import { Dispatch, SetStateAction } from "react";
 import styles from "../page.module.scss";
-import { UploadQueuedFile, UploadState, ppBytes } from "../util";
+import { UploadQueuedFile, UploadState } from "../util";
 import {
 	XIconFile,
 	XIconFilePlus,
@@ -13,6 +13,7 @@ import {
 	XIconSend,
 	XIconX,
 } from "@/app/components/icons";
+import { ppBytes } from "@/app/_util/ppbytes";
 
 /*
 const updateScrollFade = () => {

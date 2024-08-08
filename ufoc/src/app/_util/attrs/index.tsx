@@ -1,15 +1,12 @@
-import {
-	XIconAttrBinary,
-	XIconAttrBlob,
-	XIconAttrFloat,
-	XIconAttrInt,
-	XIconAttrPosInt,
-} from "@/app/components/icons";
-import { Text } from "@mantine/core";
 import { ReactElement, ReactNode } from "react";
 import { _textAttrType } from "./text";
 import { _hashAttrType } from "./hash";
 import { _refAttrType } from "./reference";
+import { _binaryAttrType } from "./binary";
+import { _blobAttrType } from "./blob";
+import { _posintAttrType } from "./positiveinteger";
+import { _floatAttrType } from "./float";
+import { _intAttrType } from "./integer";
 
 /*
 	Definitions of all attribute types we support
@@ -77,52 +74,9 @@ export const attrTypes: attrTypeInfo[] = [
 	_textAttrType,
 	_hashAttrType,
 	_refAttrType,
-
-	{
-		pretty_name: "Binary",
-		serialize_as: "Binary",
-		icon: <XIconAttrBinary />,
-		extra_params: null,
-	},
-
-	{
-		pretty_name: "Blob",
-		serialize_as: "Blob",
-		icon: <XIconAttrBlob />,
-		extra_params: null,
-
-		value_preview: (params) => (
-			<Text c="dimmed" fs="italic">{`Blob id=${params.attr.handle}`}</Text>
-		),
-	},
-
-	{
-		pretty_name: "Integer",
-		serialize_as: "Integer",
-		icon: <XIconAttrInt />,
-		extra_params: null,
-
-		value_preview: (params) => params.attr.value,
-		old_value: (params) => params.attr.value,
-	},
-
-	{
-		pretty_name: "Positive Integer",
-		serialize_as: "PositiveInteger",
-		icon: <XIconAttrPosInt />,
-		extra_params: null,
-
-		value_preview: (params) => params.attr.value,
-		old_value: (params) => params.attr.value,
-	},
-
-	{
-		pretty_name: "Float",
-		serialize_as: "Float",
-		icon: <XIconAttrFloat />,
-		extra_params: null,
-
-		value_preview: (params) => params.attr.value,
-		old_value: (params) => params.attr.value,
-	},
+	_binaryAttrType,
+	_blobAttrType,
+	_posintAttrType,
+	_floatAttrType,
+	_intAttrType,
 ];

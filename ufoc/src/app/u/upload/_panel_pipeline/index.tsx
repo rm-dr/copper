@@ -1,5 +1,5 @@
 import styles from "../page.module.scss";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { Dispatch, SetStateAction } from "react";
 import { Panel, PanelTitle } from "@/app/components/panel";
 import {
 	XIconAdjustments,

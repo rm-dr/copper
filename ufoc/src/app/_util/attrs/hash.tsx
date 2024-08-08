@@ -12,10 +12,12 @@ export const _hashAttrType: attrTypeInfo = {
 	},
 
 	value_preview: (params) => (
-		<Text>
-			{`${params.attr.hash_type} hash: `}
-			<Code>{params.attr.value}</Code>
-		</Text>
+		<>
+			<Text c="dimmed" span>{`${params.attr.hash_type}: `}</Text>
+			<Text ff="monospace" span>
+				{params.attr.value}
+			</Text>
+		</>
 	),
 };
 

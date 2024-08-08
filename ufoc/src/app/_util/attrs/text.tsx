@@ -16,7 +16,7 @@ export const _textAttrType: attrTypeInfo = {
 				</Text>
 			);
 		} else if (params.attr.value.trim() == "") {
-			return <Text c="dimmed">""</Text>;
+			return <Text c="dimmed">{`""`}</Text>;
 		} else if (params.attr.value == null) {
 			return (
 				<Text c="dimmed" fs="italic">
@@ -36,7 +36,7 @@ export const _textAttrType: attrTypeInfo = {
 				</Text>
 			);
 		} else if (params.attr.value.trim() == "") {
-			return <Text c="dimmed">""</Text>;
+			return <Text c="dimmed">{`""`}</Text>;
 		} else if (params.attr.value == null) {
 			return (
 				<Text c="dimmed" fs="italic">

@@ -2,7 +2,7 @@ import { Badge, Button, Progress, Table, Text } from "@mantine/core";
 import styles from "../page.module.scss";
 import { Panel, PanelTitle } from "@/app/components/panel";
 import { useEffect, useState } from "react";
-import { UploadState, ppBytes } from "../util";
+import { UploadState } from "../util";
 import {
 	XIconCpu,
 	XIconFileUpload,
@@ -12,6 +12,7 @@ import {
 	XIconTrash,
 	XIconUpload,
 } from "@/app/components/icons";
+import { ppBytes } from "@/app/_util/ppbytes";
 
 type RunnerState = {
 	queued_jobs: number;
