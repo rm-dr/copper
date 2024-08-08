@@ -92,10 +92,9 @@ export function ApiSelector<T>(params: {
 		const id = setInterval(update_options, 10_000);
 		return () => clearInterval(id);
 	}, [update_params, update_list]);
-
 	return (
 		<Select
-			onOptionSubmit={params.onSelect}
+			onChange={params.onSelect}
 			onClear={() => {
 				params.onSelect(null);
 			}}

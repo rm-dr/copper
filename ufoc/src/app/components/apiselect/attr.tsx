@@ -38,7 +38,7 @@ export function AttrSelector(params: {
 }) {
 	return (
 		<ApiSelector
-			onSelect={(v) => (v === null ? null : params.onSelect(parseInt(v)))}
+			onSelect={(v) => params.onSelect(v === null ? null : parseInt(v))}
 			update_params={{
 				dataset: params.selectedDataset,
 				class: params.selectedClass,

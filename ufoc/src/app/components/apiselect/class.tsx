@@ -33,7 +33,7 @@ export function ClassSelector(params: {
 }) {
 	return (
 		<ApiSelector
-			onSelect={(v) => (v === null ? null : params.onSelect(parseInt(v)))}
+			onSelect={(v) => params.onSelect(v === null ? null : parseInt(v))}
 			update_params={params.selectedDataset}
 			update_list={update_classes}
 			messages={{
