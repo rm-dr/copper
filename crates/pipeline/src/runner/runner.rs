@@ -5,7 +5,7 @@ use std::{collections::VecDeque, fs::File, io::Read, marker::PhantomData, path::
 
 use super::single::{PipelineSingleJob, SingleJobState};
 use crate::{
-	api::{PipelineNode, PipelineNodeStub},
+	api::{PipelineNode, PipelineNodeState, PipelineNodeStub},
 	labels::PipelineLabel,
 	pipeline::Pipeline,
 	syntax::{builder::PipelineBuilder, errors::PipelinePrepareError, spec::PipelineSpec},
@@ -22,6 +22,23 @@ pub struct PipelineRunConfig {
 	pub max_active_jobs: usize,
 }
 
+/// A completed pipeline job
+#[derive(Debug)]
+pub struct CompletedJob<StubType: PipelineNodeStub> {
+	/// The name of the pipeline that was run
+	pub pipeline: PipelineLabel,
+
+	/// The arguments this pipeline was run with
+	pub input: Vec<SDataType<StubType>>,
+
+	/// The error this pipeline encountered.
+	/// If this is `None`, it completed successfully.
+	pub error: Option<SErrorType<StubType>>,
+
+	/// The state of each node when this pipeline finished running
+	pub node_states: Vec<(bool, PipelineNodeState)>,
+}
+
 /// A prepared data processing pipeline.
 /// This is guaranteed to be correct:
 /// no dependency cycles, no port type mismatch, etc
@@ -31,8 +48,14 @@ pub struct PipelineRunner<StubType: PipelineNodeStub> {
 	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 	config: PipelineRunConfig,
 
+	/// Jobs that are actively running
 	active_jobs: Vec<Option<PipelineSingleJob<StubType>>>,
+
+	/// Jobs that are queued to run
 	job_queue: VecDeque<PipelineSingleJob<StubType>>,
+
+	/// A log of completed jobs
+	completed_jobs: VecDeque<CompletedJob<StubType>>,
 }
 
 impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
@@ -48,6 +71,7 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 
 			active_jobs: (0..config.max_active_jobs).map(|_| None).collect(),
 			job_queue: VecDeque::new(),
+			completed_jobs: VecDeque::new(),
 
 			config,
 		}
@@ -119,17 +143,54 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 		self.active_jobs.iter().filter_map(|x| x.as_ref())
 	}
 
+	/// Get the oldest completed job
+	pub fn pop_completed_job(&mut self) -> Option<CompletedJob<StubType>> {
+		self.completed_jobs.pop_front()
+	}
+
 	/// Update this runner: process all changes that occured since we last called `run()`,
 	pub fn run(&mut self) -> Result<(), SErrorType<StubType>> {
 		for r in &mut self.active_jobs {
 			if let Some(x) = r {
 				// Update running jobs
-				let s = x.run()?;
-				if s == SingleJobState::Done {
-					// Drop finished jobs
-					r.take();
+				match x.run() {
+					Ok(SingleJobState::Running) => {}
+					Ok(SingleJobState::Done) => {
+						// Drop finished jobs
+						self.completed_jobs.push_back(CompletedJob {
+							pipeline: x.get_pipeline().name.clone(),
+							input: x.get_input().clone(),
+							error: None,
+
+							node_states: x
+								.get_pipeline()
+								.iter_node_labels()
+								.map(|l| x.get_node_status(l).unwrap())
+								.collect(),
+						});
+						r.take();
+					}
+					Err(err) => {
+						// Drop finished jobs
+						self.completed_jobs.push_back(CompletedJob {
+							pipeline: x.get_pipeline().name.clone(),
+							input: x.get_input().clone(),
+							error: Some(err),
+
+							node_states: x
+								.get_pipeline()
+								.iter_node_labels()
+								.map(|l| x.get_node_status(l).unwrap())
+								.collect(),
+						});
+						r.take();
+					}
 				}
-			} else if self.job_queue.len() != 0 {
+			}
+		}
+
+		for r in &mut self.active_jobs {
+			if r.is_none() {
 				// Start a new job if we have space
 				*r = self.job_queue.pop_front();
 			}

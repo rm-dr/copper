@@ -3,7 +3,7 @@ type = "Noop"
 input."cover_data" = "binary"
 
 [output]
-node.type = "AddToDataset"
+node.type = "AddItem"
 node.class = "CoverArt"
 
 input."content_hash" = { node = "hash", output = "hash" }

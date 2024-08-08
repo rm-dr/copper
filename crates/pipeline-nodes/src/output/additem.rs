@@ -9,6 +9,7 @@ use ufo_blobstore::fs::store::{FsBlobHandle, FsBlobStore, FsBlobWriter};
 use ufo_metadb::{
 	api::{AttrHandle, ClassHandle, MetaDb},
 	data::{MetaDbData, MetaDbDataStub},
+	errors::MetaDbError,
 };
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
@@ -19,7 +20,7 @@ use crate::{
 	data::UFOData, errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext,
 };
 
-pub struct AddToDatabase {
+pub struct AddItem {
 	db: Arc<Mutex<dyn MetaDb<FsBlobStore>>>,
 	class: ClassHandle,
 	attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
@@ -36,14 +37,14 @@ enum DataHold {
 	BlobDone(FsBlobHandle),
 }
 
-impl AddToDatabase {
+impl AddItem {
 	pub fn new(
 		ctx: &<Self as PipelineNode>::NodeContext,
 		class: ClassHandle,
 		attrs: Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>,
 	) -> Self {
 		let data = attrs.iter().map(|_| None).collect();
-		AddToDatabase {
+		AddItem {
 			db: ctx.database.clone(),
 			class,
 			attrs,
@@ -52,7 +53,7 @@ impl AddToDatabase {
 	}
 }
 
-impl PipelineNode for AddToDatabase {
+impl PipelineNode for AddItem {
 	type NodeContext = UFOContext;
 	type DataType = UFOData;
 	type ErrorType = PipelineError;
@@ -121,8 +122,6 @@ impl PipelineNode for AddToDatabase {
 			return Ok(PipelineNodeState::Pending("args not ready"));
 		}
 
-		let mut d = self.db.lock().unwrap();
-
 		let mut attrs = Vec::new();
 		for ((attr, _, _), data) in self.attrs.iter().zip(self.data.iter_mut()) {
 			let data = match data.as_ref().unwrap() {
@@ -154,21 +153,34 @@ impl PipelineNode for AddToDatabase {
 			};
 			attrs.push((*attr, data.into()));
 		}
-		let item = d.add_item(self.class, attrs).unwrap();
+		let res = self.db.lock().unwrap().add_item(self.class, attrs);
 
-		send_data(
-			0,
-			UFOData::Reference {
-				class: self.class,
-				item,
+		match res {
+			Ok(item) => {
+				send_data(
+					0,
+					UFOData::Reference {
+						class: self.class,
+						item,
+					},
+				)?;
+			}
+			Err(err) => match err {
+				MetaDbError::UniqueViolated => {
+					send_data(
+						0,
+						UFOData::None(MetaDbDataStub::Reference { class: self.class }),
+					)?;
+				}
+				_ => return Err(err.into()),
 			},
-		)?;
+		}
 
 		Ok(PipelineNodeState::Done)
 	}
 }
 
-impl UFONode for AddToDatabase {
+impl UFONode for AddItem {
 	fn n_inputs(stub: &UFONodeType, ctx: &UFOContext) -> usize {
 		match stub {
 			UFONodeType::AddItem { class } => {

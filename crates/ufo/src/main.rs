@@ -116,7 +116,7 @@ fn main() -> Result<()> {
 	runner.add_pipeline(Path::new("pipelines/cover.toml"), "cover".into())?;
 	runner.add_pipeline(Path::new("pipelines/audiofile.toml"), "audio".into())?;
 
-	for p in ["data/freeze.flac"] {
+	for p in ["data/freeze.flac", "data/working.flac", "data/sour.flac"] {
 		runner.add_job(&"audio".into(), vec![UFOData::Path(Arc::new(p.into()))]);
 	}
 
@@ -127,6 +127,7 @@ fn main() -> Result<()> {
 		let mut has_active_job = false;
 		for p in runner.iter_active_jobs() {
 			has_active_job = true;
+			/*
 			for l in p.get_pipeline().iter_node_labels() {
 				println!(
 					"{} {l}",
@@ -137,8 +138,13 @@ fn main() -> Result<()> {
 					}
 				);
 			}
+			*/
 		}
-		println!("\n");
+		//println!("\n");
+
+		while let Some(x) = runner.pop_completed_job() {
+			println!("{x:?}");
+		}
 
 		if !has_active_job {
 			return Ok(());

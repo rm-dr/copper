@@ -8,7 +8,7 @@ use crate::{
 	data::UFOData,
 	errors::PipelineError,
 	input::file::FileReader,
-	output::addtodataset::AddToDatabase,
+	output::additem::AddItem,
 	tags::{extractcovers::ExtractCovers, striptags::StripTags},
 	util::hash::Hash,
 	UFOContext,
@@ -73,7 +73,7 @@ pub enum UFONodeInstance {
 	AddItem {
 		node_type: UFONodeType,
 		name: PipelineNodeLabel,
-		node: AddToDatabase,
+		node: AddItem,
 	},
 }
 

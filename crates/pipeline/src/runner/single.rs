@@ -25,7 +25,7 @@ pub(super) enum SingleJobState {
 	/// Nodes are running, not done yet
 	Running,
 
-	/// Pipeline is done, this runner may be dropped
+	/// Pipeline is done, this runner may be dropped.
 	Done,
 }
 
@@ -35,6 +35,9 @@ pub struct PipelineSingleJob<StubType: PipelineNodeStub> {
 
 	/// The pipeline we're running
 	pipeline: Arc<Pipeline<StubType>>,
+
+	/// The input we ran this pipeline with
+	input: Vec<SDataType<StubType>>,
 
 	/// The context for this pipeline
 	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
@@ -95,7 +98,13 @@ pub struct PipelineSingleJob<StubType: PipelineNodeStub> {
 	)>,
 }
 
-impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
+impl<StubType: PipelineNodeStub> Drop for PipelineSingleJob<StubType> {
+	fn drop(&mut self) {
+		self.pool.join();
+	}
+}
+
+impl<StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 	/// Get the pipeline this job is running
 	pub fn get_pipeline(&self) -> &Pipeline<StubType> {
 		&*self.pipeline
@@ -112,6 +121,10 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 				NodeRunState::NotRunning(x) => (false, *x),
 			})
 	}
+
+	pub fn get_input(&self) -> &Vec<SDataType<StubType>> {
+		&self.input
+	}
 }
 
 impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
@@ -120,10 +133,10 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 		config: &'a PipelineRunConfig,
 		context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 		pipeline: Arc<Pipeline<StubType>>,
-		pipeline_inputs: Vec<SDataType<StubType>>,
+		input: Vec<SDataType<StubType>>,
 	) -> Self {
 		assert!(
-			pipeline_inputs.len()
+			input.len()
 				== pipeline
 					.graph
 					.get_node(pipeline.input_node_idx)
@@ -138,7 +151,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 				let mut input_queue = VecDeque::new();
 				// Pass pipeline inputs to input node immediately
 				if idx == pipeline.input_node_idx {
-					for (i, d) in pipeline_inputs.iter().enumerate() {
+					for (i, d) in input.iter().enumerate() {
 						input_queue.push_back((i, d.clone()));
 					}
 				} else {
@@ -216,6 +229,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 			_p: PhantomData,
 			pipeline,
 			context,
+			input,
 			node_instances,
 			edge_values,
 			pool,
@@ -298,7 +312,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 		let send_data = self.send_data.clone();
 		let send_status = self.send_status.clone();
 
-		let mut locked_node = node_instance.try_lock().unwrap();
+		let mut locked_node = node_instance.lock().unwrap();
 
 		// Send new input to node
 		while !input.is_empty() {
@@ -330,7 +344,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 
 			// Panics if mutex is locked. This is intentional, only one thread should have this at a time.
 			// We use a mutex only for interior mutability.
-			let mut node_instance_opt = node_instance.lock().unwrap();
+			let mut node_instance_opt = node_instance.try_lock().unwrap();
 			let node_instance = node_instance_opt.as_mut().unwrap();
 
 			let res = node_instance.run(&*context, |port, data| {
@@ -356,7 +370,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 
 				// Panics if mutex is locked. This is intentional, only one thread should have this at a time.
 				// We use a mutex only for interior mutability.
-				let mut node_instance_opt = node_instance.lock().unwrap();
+				let mut node_instance_opt = node_instance.try_lock().unwrap();
 				let node_instance = node_instance_opt.as_mut().unwrap();
 
 				let res = node_instance.run(&*context, |port, data| {

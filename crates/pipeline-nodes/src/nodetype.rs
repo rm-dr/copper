@@ -16,7 +16,7 @@ use super::{
 use crate::{
 	data::UFOData,
 	input::file::FileReader,
-	output::addtodataset::AddToDatabase,
+	output::additem::AddItem,
 	tags::{extractcovers::ExtractCovers, striptags::StripTags},
 	traits::UFONode,
 	util::hash::Hash,
@@ -125,7 +125,7 @@ impl PipelineNodeStub for UFONodeType {
 				UFONodeInstance::AddItem {
 					node_type: self.clone(),
 					name: name.into(),
-					node: AddToDatabase::new(ctx, class, attrs),
+					node: AddItem::new(ctx, class, attrs),
 				}
 			}
 		}
@@ -142,7 +142,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::StripTags => StripTags::n_inputs(self, ctx),
 			Self::ExtractTags { .. } => ExtractTags::n_inputs(self, ctx),
 			Self::File => FileReader::n_inputs(self, ctx),
-			Self::AddItem { .. } => AddToDatabase::n_inputs(self, ctx),
+			Self::AddItem { .. } => AddItem::n_inputs(self, ctx),
 		}
 	}
 
@@ -169,7 +169,7 @@ impl PipelineNodeStub for UFONodeType {
 			}
 			Self::File => FileReader::input_compatible_with(self, ctx, input_idx, input_type),
 			Self::AddItem { .. } => {
-				AddToDatabase::input_compatible_with(self, ctx, input_idx, input_type)
+				AddItem::input_compatible_with(self, ctx, input_idx, input_type)
 			}
 		}
 	}
@@ -189,7 +189,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::StripTags => StripTags::input_default_type(self, ctx, input_idx),
 			Self::ExtractTags { .. } => ExtractTags::input_default_type(self, ctx, input_idx),
 			Self::File => FileReader::input_default_type(self, ctx, input_idx),
-			Self::AddItem { .. } => AddToDatabase::input_default_type(self, ctx, input_idx),
+			Self::AddItem { .. } => AddItem::input_default_type(self, ctx, input_idx),
 		}
 	}
 
@@ -208,7 +208,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::StripTags => StripTags::input_with_name(self, ctx, input_name),
 			Self::ExtractTags { .. } => ExtractTags::input_with_name(self, ctx, input_name),
 			Self::File => FileReader::input_with_name(self, ctx, input_name),
-			Self::AddItem { .. } => AddToDatabase::input_with_name(self, ctx, input_name),
+			Self::AddItem { .. } => AddItem::input_with_name(self, ctx, input_name),
 		}
 	}
 
@@ -223,7 +223,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::StripTags => StripTags::n_outputs(self, ctx),
 			Self::ExtractTags { .. } => ExtractTags::n_outputs(self, ctx),
 			Self::File => FileReader::n_outputs(self, ctx),
-			Self::AddItem { .. } => AddToDatabase::n_outputs(self, ctx),
+			Self::AddItem { .. } => AddItem::n_outputs(self, ctx),
 		}
 	}
 
@@ -242,7 +242,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::StripTags => StripTags::output_type(self, ctx, output_idx),
 			Self::ExtractTags { .. } => ExtractTags::output_type(self, ctx, output_idx),
 			Self::File => FileReader::output_type(self, ctx, output_idx),
-			Self::AddItem { .. } => AddToDatabase::output_type(self, ctx, output_idx),
+			Self::AddItem { .. } => AddItem::output_type(self, ctx, output_idx),
 		}
 	}
 
@@ -261,7 +261,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::StripTags => StripTags::output_with_name(self, ctx, output_name),
 			Self::ExtractTags { .. } => ExtractTags::output_with_name(self, ctx, output_name),
 			Self::File => FileReader::output_with_name(self, ctx, output_name),
-			Self::AddItem { .. } => AddToDatabase::output_with_name(self, ctx, output_name),
+			Self::AddItem { .. } => AddItem::output_with_name(self, ctx, output_name),
 		}
 	}
 }
