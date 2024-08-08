@@ -9,48 +9,13 @@ import {
 import { PanelSwitch } from "@/app/components/panel/parts/switch";
 import { PanelText } from "@/app/components/panel/parts/text";
 import { ApiSelector } from "@/app/components/apiselect";
+import { update_datasets, update_pipelines } from "@/app/_util/select";
 
 export function usePipelinePanel(params: {
 	setSelectedPipeline: Dispatch<SetStateAction<string | null>>;
 	setSelectedDataset: Dispatch<SetStateAction<string | null>>;
 	selectedDataset: string | null;
 }) {
-	const update_datasets = async (_: null) => {
-		const res = await fetch("/api/dataset/list");
-		const data: { name: string; ds_type: string }[] = await res.json();
-
-		return data.map(({ name }) => {
-			return {
-				label: name,
-				value: name,
-				disabled: false,
-			};
-		});
-	};
-
-	const update_pipelines = async (dataset: string | null) => {
-		if (dataset === null) {
-			return Promise.resolve(null);
-		}
-
-		const res = await fetch(
-			"/api/pipeline/list?" +
-				new URLSearchParams({
-					dataset,
-				}),
-		);
-
-		const data: { input_type: string; name: string }[] = await res.json();
-
-		return data.map(({ name, input_type }) => {
-			return {
-				label: name,
-				value: name,
-				disabled: input_type == "None",
-			};
-		});
-	};
-
 	return (
 		<>
 			<Panel
