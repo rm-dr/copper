@@ -34,11 +34,12 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Class exemplar
   - [ ] Multi-select and edit
   - [ ] Better reference panel
+  - [ ] Multi-select on blob
 - [ ] Edit ui items
   - [ ] Edit items even if they differ
   - [ ] Show "changed" indicator
   - [ ] "Commit" button
-
+  - [ ] Edit panel items
 
 ## 📦 Database migrations
 - old dbs should not be destroyed

@@ -49,20 +49,20 @@ export const _textAttrType: attrTypeInfo = {
 
 			if (params.attr_value.value == null) {
 				return (
-					<Text key={params.key} c="dimmed" fs="italic">
+					<Text c="dimmed" fs="italic">
 						no value
 					</Text>
 				);
 			} else if (params.attr_value.value == "") {
 				return (
-					<Text key={params.key} c="dimmed" fs="italic">
+					<Text c="dimmed" fs="italic">
 						empty string
 					</Text>
 				);
 			} else if (params.attr_value.value.trim() == "") {
-				return <Text key={params.key} c="dimmed">{`""`}</Text>;
+				return <Text c="dimmed">{`""`}</Text>;
 			} else {
-				return <Text key={params.key}>{params.attr_value.value}</Text>;
+				return <Text>{params.attr_value.value}</Text>;
 			}
 		},
 
@@ -73,7 +73,6 @@ export const _textAttrType: attrTypeInfo = {
 
 			return (
 				<Textarea
-					key={params.key}
 					radius="0px"
 					placeholder="no value"
 					autosize

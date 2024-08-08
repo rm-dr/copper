@@ -137,8 +137,7 @@ export default function Page() {
 			<div className={styles.wrap_bottom}>
 				<EditPanel
 					key={`${selectedClass.dataset}-${selectedClass.class_idx}`}
-					dataset={selectedClass.dataset}
-					class={selectedClass.class_idx}
+					sel={selectedClass}
 					select={select}
 					data={itemdata}
 				/>
