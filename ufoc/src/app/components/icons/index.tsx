@@ -2,10 +2,13 @@ import {
 	IconAdjustmentsAlt,
 	IconAmpersand,
 	IconAnalyze,
+	IconArrowLeftBar,
 	IconBinary,
 	IconBinaryTree,
 	IconCheck,
 	IconChevronDown,
+	IconChevronLeftPipe,
+	IconChevronRightPipe,
 	IconCpu,
 	IconDatabase,
 	IconDatabaseCog,
@@ -56,6 +59,14 @@ const defaultStyles: CSSProperties | undefined = {
 
 // This module lets us apply default styling to tabler icons,
 // and makes it easy to replace our icon provider.
+
+export const XIconAddLeft = ({ style }: { style?: CSSProperties }) => {
+	return <IconChevronLeftPipe style={{ ...defaultStyles, ...style }} />;
+};
+
+export const XIconAddRight = ({ style }: { style?: CSSProperties }) => {
+	return <IconChevronRightPipe style={{ ...defaultStyles, ...style }} />;
+};
 
 export const XIconSortUp = ({ style }: { style?: CSSProperties }) => {
 	return <IconSortAscending2 style={{ ...defaultStyles, ...style }} />;
