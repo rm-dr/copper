@@ -8,6 +8,7 @@ use axum::{
 };
 use futures::executor::block_on;
 use tokio::sync::Mutex;
+use tracing::debug;
 use ufo_api::{
 	data::{ApiData, ApiDataStub},
 	pipeline::{AddJobParams, AddJobResult, NodeInfo, PipelineInfo},
@@ -30,9 +31,8 @@ use ufo_pipeline_nodes::{
 	UFOContext,
 };
 
-use upload::Uploader;
-
 mod upload;
+use upload::Uploader;
 
 #[derive(Clone)]
 pub struct RouterState {
@@ -51,7 +51,7 @@ pub struct RouterState {
 async fn main() {
 	tracing_subscriber::fmt()
 		//.with_env_filter("ufo_pipeline=debug")
-		.with_env_filter("ufo_pipeline=error")
+		.with_env_filter("ufo_pipeline=error,sqlx=error,debug")
 		.without_time()
 		.with_ansi(true)
 		//.with_max_level(Level::DEBUG)
@@ -115,7 +115,9 @@ async fn main() {
 	thread::spawn(move || loop {
 		let mut runner = block_on(state.runner.lock());
 		runner.run().unwrap();
+		block_on(state.uploader.check_jobs(&runner));
 		drop(runner);
+
 		std::thread::sleep(std::time::Duration::from_millis(10));
 	});
 
@@ -262,6 +264,8 @@ async fn add_job(
 	let mut runner = state.runner.lock().await;
 	let db = state.database;
 
+	debug!(message="Got request to add job", payload=?payload);
+
 	let pipeline = if let Some(pipeline) = db
 		.get_pipestore()
 		.load_pipeline(&payload.pipeline, state.context)
@@ -323,23 +327,22 @@ async fn add_job(
 				ApiDataStub::Float => UFODataStub::Float,
 			}),
 			ApiData::Text(t) => UFOData::Text(Arc::new(t)),
-			ApiData::Blob {
-				upload_job,
-				file_name,
-			} => {
-				/*
+			ApiData::Blob { file_name } => {
+				let j = payload.bound_upload_job.as_ref();
+
+				if j.is_none() {
+					panic!();
+				}
+
 				let p = state
 					.uploader
-					.get_job_file_path(&upload_job, &file_name)
+					.get_job_file_path(j.unwrap(), &file_name)
 					.await;
-				*/
-
-				let p = Some(PathBuf::from(format!("./tmp/{upload_job}/{file_name}")));
 
 				if let Some(p) = p {
 					UFOData::Path(p)
 				} else {
-					panic!("")
+					panic!("bad job")
 				}
 			}
 			ApiData::Integer(i) => UFOData::Integer(i),
@@ -351,7 +354,15 @@ async fn add_job(
 		inputs.push(x);
 	}
 
-	runner.add_job(Arc::new(pipeline), inputs);
+	let new_id = runner.add_job(Arc::new(pipeline), inputs);
+
+	if let Some(j) = payload.bound_upload_job {
+		state
+			.uploader
+			.bind_job_to_pipeline(&j, new_id)
+			.await
+			.unwrap();
+	}
 
 	return Json(AddJobResult::Ok);
 }

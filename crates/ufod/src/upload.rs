@@ -17,6 +17,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use sha2::{Digest, Sha256};
 use smartstring::{LazyCompact, SmartString};
 use tokio::sync::Mutex;
+use tracing::{debug, error, info, warn};
 use ufo_api::upload::{
 	UploadFinish, UploadFragmentMetadata, UploadNewFileResult, UploadStartInfo, UploadStartResult,
 };
@@ -115,16 +116,47 @@ impl Uploader {
 			let j = &jobs[i];
 
 			if let Some(p) = j.bound_to_pipeline_job {
-				println!("{} is bound", j.id);
-			} else {
-				if j.last_activity + self.delete_job_after < now {
-					println!("Removing job {} (timeout)", j.id);
-					jobs.swap_remove(i);
+				let is_active = runner.active_job_by_id(p).is_some();
+				let is_pending = runner.active_job_by_id(p).is_some();
+
+				// Not active and not pending implies done
+				if is_active || is_pending {
+					i += 1;
 					continue;
 				}
 			}
+
+			// Wait for timeout even if this job is bound,
+			// just in case it has been created but hasn't yet been added to the runner.
+			if j.last_activity + self.delete_job_after < now {
+				if j.bound_to_pipeline_job.is_none() {
+					debug!(message = "Removing job", reason = "timeout", job_id = ?j.id);
+				} else {
+					debug!(message = "Removing job", reason = "pipeline is done", job_id = ?j.id);
+				}
+
+				let j = jobs.swap_remove(i);
+				match std::fs::remove_dir_all(&j.dir) {
+					Ok(()) => {
+						info!(message = "Removed job directory", job_id = ?j.id, path = ?j.dir)
+					}
+					Err(e) => {
+						error!(message = "Failed removing job directory", job_id = ?j.id, path = ?j.dir, error=?e)
+					}
+				}
+
+				continue;
+			}
+
+			i += 1;
 		}
 	}
+}
+
+#[derive(Debug)]
+pub enum JobBindError {
+	NoSuchJob,
+	AlreadyBound,
 }
 
 impl Uploader {
@@ -149,23 +181,38 @@ impl Uploader {
 		&self,
 		job_id: &SmartString<LazyCompact>,
 		pipeline_id: u128,
-	) -> bool {
+	) -> Result<(), JobBindError> {
 		let mut jobs = self.jobs.lock().await;
 
 		// Try to find the given job
 		let job = if let Some(x) = jobs.iter_mut().find(|us| us.id == *job_id) {
 			x
 		} else {
-			return false;
+			warn!(
+				message = "Tried to bind job that doesn't exist",
+				job = ?job_id,
+				pipeline = pipeline_id
+			);
+			return Err(JobBindError::NoSuchJob);
 		};
 
 		if job.bound_to_pipeline_job.is_some() {
-			return false;
+			warn!(
+				message = "Tried to bind job, but it is alredy bound",
+				job = ?job.id,
+				pipeline = pipeline_id
+			);
+			return Err(JobBindError::AlreadyBound);
 		}
 
 		job.bound_to_pipeline_job = Some(pipeline_id);
+		debug!(
+			message = "Bound job to pipeline",
+			job = ?job.id,
+			pipeline = pipeline_id
+		);
 
-		return true;
+		return Ok(());
 	}
 }
 
