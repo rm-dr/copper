@@ -19,19 +19,11 @@ use helpers::{maindb::MainDB, uploader::Uploader};
 
 #[tokio::main]
 async fn main() {
-	tracing_subscriber::fmt()
-		.with_env_filter(concat!(
-			"ufo_pipeline=debug,sqlx=warn,tower_http=info,debug"
-		))
-		.without_time()
-		.with_ansi(true)
-		.init();
-
 	let config_path: PathBuf = "./data/config.toml".into();
 	if !config_path.exists() {
-		info!(
-			message = "Generating default config because it doesn't exist",
-			config_path = ?config_path
+		println!(
+			"Generating default config at {}",
+			config_path.to_str().unwrap()
 		);
 		UfodConfig::create_default_config(&config_path).unwrap();
 	} else if !config_path.is_file() {
@@ -43,6 +35,13 @@ async fn main() {
 	}
 
 	let config = Arc::new(UfodConfig::load_from_file(&config_path).unwrap());
+
+	// We cannot log before this point
+	tracing_subscriber::fmt()
+		.with_env_filter(config.logging.to_env_filter())
+		.without_time()
+		.with_ansi(true)
+		.init();
 
 	// Open main database
 	if !config.paths.main_db.exists() {

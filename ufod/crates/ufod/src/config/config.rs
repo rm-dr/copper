@@ -1,5 +1,6 @@
 use std::{
 	error::Error,
+	fmt::Display,
 	fs::File,
 	io::{Read, Write},
 	path::{Path, PathBuf},
@@ -21,6 +22,9 @@ pub struct UfodConfig {
 	/// Uploader settings
 	#[serde(default)]
 	pub upload: UfodUploadConfig,
+
+	#[serde(default)]
+	pub logging: UfodLoggingConfig,
 }
 
 impl UfodConfig {
@@ -64,6 +68,76 @@ pub struct UfodNetworkConfig {
 	/// If you're using a reverse proxy, make sure it
 	/// also accepts requests of this size!
 	pub request_body_limit: usize,
+}
+
+#[derive(Deserialize, Debug)]
+pub enum LogLevel {
+	Trace,
+	Debug,
+	Info,
+	Warn,
+	Error,
+}
+
+impl Default for LogLevel {
+	fn default() -> Self {
+		Self::Info
+	}
+}
+
+impl Display for LogLevel {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::Trace => write!(f, "trace"),
+			Self::Debug => write!(f, "debug"),
+			Self::Info => write!(f, "info"),
+			Self::Warn => write!(f, "warn"),
+			Self::Error => write!(f, "error"),
+		}
+	}
+}
+
+/// Ufod logging settings
+#[derive(Deserialize, Debug)]
+pub struct UfodLoggingConfig {
+	#[serde(default)]
+	pub sqlx: LogLevel,
+
+	#[serde(default)]
+	pub http: LogLevel,
+
+	#[serde(default)]
+	pub pipeline: LogLevel,
+
+	#[serde(default = "UfodLoggingConfig::default_warn")]
+	pub all: LogLevel,
+}
+
+impl Default for UfodLoggingConfig {
+	fn default() -> Self {
+		Self {
+			sqlx: Default::default(),
+			http: Default::default(),
+			pipeline: Default::default(),
+
+			// This can get noisy, so default to a higher level
+			all: LogLevel::Warn,
+		}
+	}
+}
+
+impl UfodLoggingConfig {
+	fn default_warn() -> LogLevel {
+		LogLevel::Warn
+	}
+
+	/// Convert this logging config to a tracing env filter
+	pub fn to_env_filter(&self) -> String {
+		format!(
+			"ufo_pipeline={},sqlx={},tower_http={},{}",
+			self.pipeline, self.sqlx, self.http, self.all
+		)
+	}
 }
 
 /// Ufod path settings

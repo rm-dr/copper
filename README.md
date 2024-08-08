@@ -25,7 +25,6 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
 
 ## 📦 Server.toml
 - [ ] read blob size
-- [ ] logging
 
 ## 📦 How to fail pipelines?
 - e.g, duplicate album art
