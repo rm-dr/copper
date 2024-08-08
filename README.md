@@ -26,10 +26,9 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- No channel for blob data
 - Nodes ask for other nodes (ifnone)
 - Remove/rework print node
-- Remove after, buffer all input (no channel)
+- Buffer ALL input (even if not running)
 
 - Clean up pipeline error handling (search for unwrap, assert, and panic)
   - db errors in pipeline run & build
