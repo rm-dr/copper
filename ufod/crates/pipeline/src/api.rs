@@ -5,7 +5,7 @@ use std::{
 	fmt::{Debug, Display},
 };
 
-use crate::{labels::PipelinePortID, NDataStub};
+use crate::labels::PipelinePortID;
 
 /// The state of a [`PipelineNode`] at a point in time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,9 +50,6 @@ pub enum PipelineNodeError {
 	Other(Box<dyn Error + Sync + Send>),
 }
 
-unsafe impl Send for PipelineNodeError {}
-unsafe impl Sync for PipelineNodeError {}
-
 impl Display for PipelineNodeError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
@@ -78,126 +75,72 @@ impl From<std::io::Error> for PipelineNodeError {
 	}
 }
 
+/// Information about an node's input port
+pub struct NodeInputInfo<DataStubType> {
+	/// The port's name
+	pub name: PipelinePortID,
+
+	/// The type of data this port accepts
+	pub accepts_type: DataStubType,
+}
+
+/// Information about a node's output port
+pub struct NodeOutputInfo<DataStubType> {
+	/// This port's name
+	pub name: PipelinePortID,
+
+	/// The type of data this port produces
+	pub produces_type: DataStubType,
+}
+
 /// An instance of a pipeline node, with some state.
 ///
 /// When a pipeline is run, a [`PipelineNode`] is created for each of its nodes.
 ///
 /// A [`PipelineNode`] is used to run exactly one pipeline instance,
 /// and is dropped when that pipeline finishes.
-pub trait PipelineNode {
-	/// Extra resources available when building nodes
-	type NodeContext: Send + Sync;
-
-	/// The kind of data this node handles
-	type DataType: PipelineData;
-
+pub trait PipelineNode<DataType: PipelineData>: Sync + Send {
 	/// If true, run this node in the main loop instead of starting a thread.
 	///
-	/// This should be `true` for nodes that do very little computation, and
-	/// `false` for everything else.
+	/// This should be `true` for nodes that do no heavy computation, and
+	/// `false` for everything else. If this is true, `run` will block the
+	/// async event loop, and thus cannot take a long time to run.
 	fn quick_run(&self) -> bool {
 		false
 	}
 
-	/// Collect inputs queued for this node.
-	/// Called before each call to `run()``.
+	/// Accept input data to a port of this node.
 	fn take_input(
 		&mut self,
-		// (target port, data)
-		input: (usize, Self::DataType),
+		target_port: usize,
+		input_data: DataType,
 	) -> Result<(), PipelineNodeError>;
+
 	/// Run this node.
 	/// This is always run in a worker thread.
-	fn run<F>(&mut self, _send_data: F) -> Result<PipelineNodeState, PipelineNodeError>
-	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineNodeError>,
-	{
-		Ok(PipelineNodeState::Done)
-	}
-}
+	fn run(
+		&mut self,
+		send_data: &dyn Fn(usize, DataType) -> Result<(), PipelineNodeError>,
+	) -> Result<PipelineNodeState, PipelineNodeError>;
 
-/// An object that represents a "type" of pipeline node.
-/// Stubs are small and stateless.
-pub trait PipelineNodeStub
-where
-	Self: Debug + Clone + DeserializeOwned + Sync + Send,
-{
-	/// The type of node this stub produces
-	type NodeType: PipelineNode + Send + 'static;
+	/// What inputs does this node take?
+	fn inputs(&self) -> &[NodeInputInfo<DataType::DataStubType>];
 
-	/// Errors we can encounter when getting node parameters
-	type ErrorType: Error;
-
-	/// Turn this stub into a proper node instance.
-	fn build(
-		&self,
-		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-		name: &str,
-	) -> Result<Self::NodeType, Self::ErrorType>;
-
-	/// How many inputs does this node produce?
-	fn n_inputs(
-		&self,
-		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> Result<usize, Self::ErrorType>;
-
-	/// Find the index of the input with the given name.
-	/// Returns `None` if no such input exists.
-	fn input_with_name(
-		&self,
-		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-		input_name: &PipelinePortID,
-	) -> Result<Option<usize>, Self::ErrorType>;
-
-	/// The default input type for each port.
-	/// `input_compatible_with` should return `true` for each of these types.
-	///
-	/// This is used when we need a data stub for this input, but none is available.
-	/// (for example, if we need to send `None` data to a disconnected input)
-	fn input_default_type(
-		&self,
-		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-		input_idx: usize,
-	) -> Result<NDataStub<Self::NodeType>, Self::ErrorType>;
-
-	/// Can the specified inport port consume the given data type?
-	/// This allows inputs to consume many types of data.
-	fn input_compatible_with(
-		&self,
-		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-		input_idx: usize,
-		input_type: NDataStub<Self::NodeType>,
-	) -> Result<bool, Self::ErrorType>;
-
-	/// How many inputs does this node produce?
-	fn n_outputs(
-		&self,
-		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-	) -> Result<usize, Self::ErrorType>;
-
-	/// Find the index of the output with the given name.
-	/// Returns `None` if no such output exists.
-	fn output_with_name(
-		&self,
-		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-		output_name: &PipelinePortID,
-	) -> Result<Option<usize>, Self::ErrorType>;
-
-	/// What type of data does the output with the given index produce?
-	fn output_type(
-		&self,
-		ctx: &<Self::NodeType as PipelineNode>::NodeContext,
-		output_idx: usize,
-	) -> Result<NDataStub<Self::NodeType>, Self::ErrorType>;
+	/// What outputs does this node produce?
+	fn outputs(&self) -> &[NodeOutputInfo<DataType::DataStubType>];
 }
 
 /// An immutable bit of data inside a pipeline.
 ///
 /// These should be easy to clone. [`PipelineData`]s that
-/// carry something big probably wrap it in an [`std::sync::Arc`].
+/// carry something big should wrap it in an [`std::sync::Arc`].
+///
+/// The `Deserialize` implementation of this struct MUST NOT be transparent.
+/// It should always be some sort of object. See the dispatcher param enums
+/// for more details.
 pub trait PipelineData
 where
-	Self: Debug + Clone + Send + Sync,
+	Self: DeserializeOwned + Debug + Clone + Send + Sync + 'static,
 {
 	/// The stub type that represents this node.
 	type DataStubType: PipelineDataStub;
@@ -205,16 +148,30 @@ where
 	/// Transform this data container into its type.
 	fn as_stub(&self) -> Self::DataStubType;
 
-	/// Create an "empty" node of the given type.
-	fn new_empty(stub: Self::DataStubType) -> Self;
+	/// Create an "empty" data of the given type.
+	/// This is sent to all disconnected inputs.
+	fn disconnected(stub: Self::DataStubType) -> Self;
 }
 
 /// A "type" of [`PipelineData`].
 ///
 /// This does NOT carry data. Rather, it tells us
 /// what *kind* of data a pipeline inputs/outputs.
+///
+/// The `Deserialize` implementation of this struct MUST NOT be transparent.
+/// It should always be some sort of object. See the dispatcher param enums
+/// for more details.
 pub trait PipelineDataStub
 where
-	Self: Debug + PartialEq + Eq + Clone + Copy + Send + Sync,
+	Self: DeserializeOwned + Debug + PartialEq + Eq + Clone + Copy + Send + Sync + 'static,
+{
+	/// If true, an input of type `superset` can accept data of type `self`.
+	fn is_subset_of(&self, superset: &Self) -> bool;
+}
+
+/// Arbitrary additional information for a pipeline job.
+pub trait PipelineJobContext
+where
+	Self: Send + Sync + 'static,
 {
 }

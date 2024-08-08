@@ -3,7 +3,6 @@ use std::{
 	collections::VecDeque,
 	error::Error,
 	fmt::Display,
-	marker::PhantomData,
 	sync::{Arc, Mutex},
 	thread::JoinHandle,
 	time::Instant,
@@ -15,11 +14,11 @@ use super::{
 	util::{EdgeState, NodeRunState},
 };
 use crate::{
-	api::{PipelineData, PipelineNode, PipelineNodeError, PipelineNodeState, PipelineNodeStub},
+	api::{PipelineData, PipelineJobContext, PipelineNode, PipelineNodeError, PipelineNodeState},
+	dispatcher::NodeDispatcher,
 	graph::util::GraphNodeIdx,
 	labels::PipelineNodeID,
 	pipeline::pipeline::{Pipeline, PipelineEdgeData},
-	SDataType, SNodeType,
 };
 
 #[derive(Debug)]
@@ -53,14 +52,14 @@ pub(super) enum SingleJobState {
 	Done,
 }
 
-struct NodeInstanceContainer<NodeStubType: PipelineNodeStub> {
+struct NodeInstanceContainer<DataType: PipelineData> {
 	/// The node's id
 	id: PipelineNodeID,
 
 	/// A queue of inputs to send to this node
 	// This will be `None` only if the node is done,
 	/// since done nodes don't take input.
-	input_queue: Option<VecDeque<(usize, SDataType<NodeStubType>)>>,
+	input_queue: Option<VecDeque<(usize, DataType)>>,
 
 	/// This node's status
 	state: NodeRunState,
@@ -70,21 +69,19 @@ struct NodeInstanceContainer<NodeStubType: PipelineNodeStub> {
 
 	/// The node. This will be `None` if the node is done,
 	/// so that its resources are dropped.
-	node: Arc<Mutex<Option<SNodeType<NodeStubType>>>>,
+	node: Arc<Mutex<Option<Box<dyn PipelineNode<DataType>>>>>,
 }
 
 /// An instance of a single running pipeline
-pub struct PipelineSingleJob<NodeStubType: PipelineNodeStub> {
-	_p: PhantomData<NodeStubType>,
-
+pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobContext> {
 	/// The pipeline we're running
-	pipeline: Arc<Pipeline<NodeStubType>>,
+	pipeline: Arc<Pipeline<DataType, ContextType>>,
 
 	/// The input we ran this pipeline with
-	input: Vec<SDataType<NodeStubType>>,
+	input: Vec<DataType>,
 
 	/// Mutable instances of each node in this pipeline
-	node_instances: Vec<NodeInstanceContainer<NodeStubType>>,
+	node_instances: Vec<NodeInstanceContainer<DataType>>,
 
 	/// The value each edge in this pipeline carries
 	edge_values: Vec<EdgeState>,
@@ -100,7 +97,7 @@ pub struct PipelineSingleJob<NodeStubType: PipelineNodeStub> {
 		// The port index of this output
 		usize,
 		// The data that output produced
-		SDataType<NodeStubType>,
+		DataType,
 	)>,
 
 	/// A receiver for node output data
@@ -110,7 +107,7 @@ pub struct PipelineSingleJob<NodeStubType: PipelineNodeStub> {
 		// The port index of this output
 		usize,
 		// The data that output produced
-		SDataType<NodeStubType>,
+		DataType,
 	)>,
 
 	/// A message is sent here whenever a node finishes running.
@@ -133,7 +130,9 @@ pub struct PipelineSingleJob<NodeStubType: PipelineNodeStub> {
 	node_run_offset: usize,
 }
 
-impl<NodeStubType: PipelineNodeStub> Drop for PipelineSingleJob<NodeStubType> {
+impl<DataType: PipelineData, ContextType: PipelineJobContext> Drop
+	for PipelineSingleJob<DataType, ContextType>
+{
 	fn drop(&mut self) {
 		for i in &mut self.workers {
 			if let Some(t) = i.take() {
@@ -143,9 +142,11 @@ impl<NodeStubType: PipelineNodeStub> Drop for PipelineSingleJob<NodeStubType> {
 	}
 }
 
-impl<NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
+impl<DataType: PipelineData, ContextType: PipelineJobContext>
+	PipelineSingleJob<DataType, ContextType>
+{
 	/// Get the pipeline this job is running
-	pub fn get_pipeline(&self) -> &Pipeline<NodeStubType> {
+	pub fn get_pipeline(&self) -> &Pipeline<DataType, ContextType> {
 		&self.pipeline
 	}
 
@@ -161,35 +162,32 @@ impl<NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 			})
 	}
 
-	pub fn get_input(&self) -> &Vec<SDataType<NodeStubType>> {
+	pub fn get_input(&self) -> &Vec<DataType> {
 		&self.input
 	}
 }
 
-impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
+impl<DataType: PipelineData, ContextType: PipelineJobContext>
+	PipelineSingleJob<DataType, ContextType>
+{
 	/// Make a new [`PipelineSingleRunner`]
 	pub(super) fn new(
-		config: &'a PipelineRunConfig,
-		context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
-		pipeline: Arc<Pipeline<NodeStubType>>,
-		input: Vec<SDataType<NodeStubType>>,
+		config: &PipelineRunConfig,
+		context: ContextType,
+		dispatcher: &NodeDispatcher<DataType, ContextType>,
+		pipeline: Arc<Pipeline<DataType, ContextType>>,
+		input: Vec<DataType>,
 	) -> Self {
-		assert!(
-			input.len()
-				== pipeline
-					.graph
-					.get_node(pipeline.input_node_idx)
-					.node_type
-					.n_inputs(&context)
-					.unwrap()
-		);
-
 		let instant_now = Instant::now();
 		trace!(message = "Making node instances", pipeline_name = ?pipeline.name);
 		let node_instances = pipeline
 			.graph
 			.iter_nodes_idx()
-			.map(|(idx, node)| {
+			.map(|(idx, node_spec)| {
+				let node = dispatcher
+					.make_node(&context, &node_spec.node_type, &node_spec.node_params)
+					.unwrap();
+
 				let mut input_queue = VecDeque::new();
 				// Pass pipeline inputs to input node immediately
 				if idx == pipeline.input_node_idx {
@@ -198,9 +196,7 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 					}
 				} else {
 					// Send empty data to disconnected inputs
-					let mut port_is_empty = (0..node.node_type.n_inputs(&*context).unwrap())
-						.map(|_| true)
-						.collect::<Vec<_>>();
+					let mut port_is_empty = node.inputs().iter().map(|_| true).collect::<Vec<_>>();
 					for i in pipeline.graph.edges_ending_at(idx) {
 						let edge = &pipeline.graph.get_edge(*i).2;
 						if edge.is_after() {
@@ -210,22 +206,20 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 					}
 					for (i, e) in port_is_empty.into_iter().enumerate() {
 						if e {
-							let t = node.node_type.input_default_type(&*context, i).unwrap();
-							input_queue.push_back((i, SDataType::<NodeStubType>::new_empty(t)));
+							input_queue.push_back((
+								i,
+								DataType::disconnected(node.inputs()[i].accepts_type),
+							));
 						}
 					}
 				}
 
 				NodeInstanceContainer {
-					id: node.id.clone(),
+					id: node_spec.id.clone(),
 					input_queue: Some(input_queue),
 					last_run: instant_now,
 					state: NodeRunState::NotRunning(PipelineNodeState::Pending("not started")),
-					node: Arc::new(Mutex::new(Some(
-						node.node_type
-							.build(&context, &node.id.to_string())
-							.unwrap(),
-					))),
+					node: Arc::new(Mutex::new(Some(node))),
 				}
 			})
 			.collect::<Vec<_>>();
@@ -249,8 +243,8 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 		// Contents are (node index, port index, data)
 		#[allow(clippy::type_complexity)]
 		let (send_data, receive_data): (
-			Sender<(GraphNodeIdx, usize, SDataType<NodeStubType>)>,
-			Receiver<(GraphNodeIdx, usize, SDataType<NodeStubType>)>,
+			Sender<(GraphNodeIdx, usize, DataType)>,
+			Receiver<(GraphNodeIdx, usize, DataType)>,
 		) = unbounded();
 
 		// Channel for node status. A node's return status is sent here when it finishes.
@@ -263,7 +257,6 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 		) = unbounded();
 
 		Self {
-			_p: PhantomData,
 			pipeline,
 			input,
 			node_instances,
@@ -278,7 +271,9 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 	}
 }
 
-impl<NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
+impl<DataType: PipelineData, ContextType: PipelineJobContext>
+	PipelineSingleJob<DataType, ContextType>
+{
 	/// Update this job: process state changes that occured since we last called `run()`,
 	/// deliver new data, and start nodes that should be started.
 	///
@@ -358,7 +353,7 @@ impl<NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 				locked_node
 					.as_mut()
 					.unwrap()
-					.take_input(data)
+					.take_input(data.0, data.1)
 					.map_err(|error| PipelineSingleJobError {
 						_private: (),
 						node: node_id.clone(),
@@ -409,7 +404,7 @@ impl<NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 			let mut node_instance_opt = node_instance.try_lock().unwrap();
 			let node_instance = node_instance_opt.as_mut().unwrap();
 
-			let res = node_instance.run(|port, data| {
+			let res = node_instance.run(&|port, data| {
 				// This should never fail, since we never close the receiver.
 				send_data.send((node, port, data)).unwrap();
 				Ok(())
@@ -435,7 +430,7 @@ impl<NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 				let mut node_instance_opt = node_instance.try_lock().unwrap();
 				let node_instance = node_instance_opt.as_mut().unwrap();
 
-				let res = node_instance.run(|port, data| {
+				let res = node_instance.run(&|port, data| {
 					// This should never fail, since we never close the receiver.
 					send_data.send((node, port, data)).unwrap();
 					Ok(())

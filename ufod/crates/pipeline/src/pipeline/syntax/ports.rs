@@ -1,19 +1,15 @@
 //! Helper structs for node inputs and outputs
 
-use serde::{de::DeserializeOwned, Deserialize};
+use serde::Deserialize;
 use std::{fmt::Debug, str::FromStr};
 
-use crate::{
-	api::PipelineNodeStub,
-	labels::{PipelineNodeID, PipelinePortID},
-};
+use crate::labels::{PipelineNodeID, PipelinePortID};
 
 /// An output port in the pipeline.
 /// (i.e, a port that produces data.)
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
-#[serde(bound = "NodeStubType: DeserializeOwned")]
-pub(crate) enum NodeOutput<NodeStubType: PipelineNodeStub> {
+pub(crate) enum NodeOutput {
 	/// An output port of the pipeline
 	Pipeline {
 		/// The port's name
@@ -30,14 +26,10 @@ pub(crate) enum NodeOutput<NodeStubType: PipelineNodeStub> {
 		#[serde(rename = "output")]
 		port: PipelinePortID,
 	},
-
-	/// An inline node.
-	/// This node must have EXACTLY one output.
-	Inline(NodeStubType),
 }
 
 // TODO: better error
-impl<NodeStubType: PipelineNodeStub> FromStr for NodeOutput<NodeStubType> {
+impl FromStr for NodeOutput {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {

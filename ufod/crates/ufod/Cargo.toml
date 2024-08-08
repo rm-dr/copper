@@ -26,6 +26,7 @@ ufo-pipeline-nodes = { workspace = true }
 ufo-util = { workspace = true }
 ufo-ds-core = { workspace = true }
 ufo-ds-impl = { workspace = true }
+ufo-audiofile = { workspace = true }
 
 sqlx = { workspace = true }
 utoipa = { workspace = true }

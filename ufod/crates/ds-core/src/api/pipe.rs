@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use ufo_pipeline::{
-	api::{PipelineNode, PipelineNodeStub},
+	api::{PipelineData, PipelineJobContext},
+	dispatcher::NodeDispatcher,
 	labels::PipelineName,
 	pipeline::pipeline::Pipeline,
 };
@@ -8,18 +8,17 @@ use ufo_pipeline::{
 use crate::errors::PipestoreError;
 
 #[allow(async_fn_in_trait)]
-pub trait Pipestore<PipelineNodeStubType: PipelineNodeStub>
+pub trait Pipestore<DataType: PipelineData, ContextType: PipelineJobContext>
 where
 	Self: Send + Sync,
 {
 	async fn load_pipeline(
 		&self,
+		dispatcher: &NodeDispatcher<DataType, ContextType>,
+		context: &ContextType,
 		name: &PipelineName,
-		context: Arc<<PipelineNodeStubType::NodeType as PipelineNode>::NodeContext>,
-	) -> Result<Option<Pipeline<PipelineNodeStubType>>, PipestoreError<PipelineNodeStubType>>;
+	) -> Result<Option<Pipeline<DataType, ContextType>>, PipestoreError<DataType>>;
 
 	// TODO: cache list of pipelines?
-	async fn all_pipelines(
-		&self,
-	) -> Result<Vec<PipelineName>, PipestoreError<PipelineNodeStubType>>;
+	async fn all_pipelines(&self) -> Result<Vec<PipelineName>, PipestoreError<DataType>>;
 }

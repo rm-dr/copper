@@ -1,20 +1,23 @@
 use sqlx::Row;
-use std::sync::Arc;
 use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
 use ufo_pipeline::{
-	api::{PipelineNode, PipelineNodeStub},
+	api::{PipelineData, PipelineJobContext},
+	dispatcher::NodeDispatcher,
 	labels::PipelineName,
 	pipeline::pipeline::Pipeline,
 };
 
 use super::LocalDataset;
 
-impl<PipelineNodeStubType: PipelineNodeStub> Pipestore<PipelineNodeStubType> for LocalDataset {
+impl<DataType: PipelineData, ContextType: PipelineJobContext> Pipestore<DataType, ContextType>
+	for LocalDataset
+{
 	async fn load_pipeline(
 		&self,
+		dispatcher: &NodeDispatcher<DataType, ContextType>,
+		context: &ContextType,
 		name: &PipelineName,
-		context: Arc<<PipelineNodeStubType::NodeType as PipelineNode>::NodeContext>,
-	) -> Result<Option<Pipeline<PipelineNodeStubType>>, PipestoreError<PipelineNodeStubType>> {
+	) -> Result<Option<Pipeline<DataType, ContextType>>, PipestoreError<DataType>> {
 		let mut conn = self.conn.lock().await;
 
 		let res = sqlx::query("SELECT pipeline_data FROM meta_pipelines WHERE pipeline_name=?;")
@@ -33,14 +36,12 @@ impl<PipelineNodeStubType: PipelineNodeStub> Pipestore<PipelineNodeStubType> for
 			Ok(res) => res.get::<String, _>("pipeline_data"),
 		};
 
-		return Ok(Some(Pipeline::<PipelineNodeStubType>::from_toml_str(
-			name, &pipe_spec, context,
+		return Ok(Some(Pipeline::from_toml_str(
+			dispatcher, context, name, &pipe_spec,
 		)?));
 	}
 
-	async fn all_pipelines(
-		&self,
-	) -> Result<Vec<PipelineName>, PipestoreError<PipelineNodeStubType>> {
+	async fn all_pipelines(&self) -> Result<Vec<PipelineName>, PipestoreError<DataType>> {
 		let mut conn = self.conn.lock().await;
 
 		let res = sqlx::query("SELECT pipeline_name FROM meta_pipelines ORDER BY id;")

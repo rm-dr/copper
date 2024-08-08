@@ -10,11 +10,11 @@ use ufo_ds_core::{
 	data::{HashType, MetastoreDataStub},
 };
 use ufo_ds_impl::DatasetType;
+use ufo_node_base::{data::UFOData, UFOContext};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use ufo_pipeline::runner::runner::PipelineRunner;
-use ufo_pipeline_nodes::nodetype::UFONodeType;
 
 mod attr;
 mod auth;
@@ -39,7 +39,7 @@ use crate::{
 #[derive(Clone)]
 pub struct RouterState {
 	pub config: Arc<UfodConfig>,
-	pub runner: Arc<Mutex<PipelineRunner<UFONodeType>>>,
+	pub runner: Arc<Mutex<PipelineRunner<UFOData, UFOContext>>>,
 	pub main_db: Arc<MainDB>,
 	pub uploader: Arc<Uploader>,
 }

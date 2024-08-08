@@ -6,11 +6,10 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use tracing::error;
 use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
+use ufo_node_base::UFOContext;
 use ufo_pipeline::labels::{PipelineName, PipelineNodeID};
-use ufo_pipeline_nodes::UFOContext;
 use utoipa::ToSchema;
 
 use super::list::{PipelineInfoInput, PipelineInfoShort};
@@ -78,15 +77,21 @@ pub(super) async fn get_pipeline(
 		}
 	};
 
-	let context = Arc::new(UFOContext {
-		dataset: dataset.clone(),
-		// TODO: config & publish
-		blob_fragment_size: 1_000_000,
-	});
+	let runner = state.runner.lock().await;
 
 	// TODO: clean up.
 	// We shouldn't need to load a pipeline to get its info
-	match dataset.load_pipeline(&pipeline_name, context).await {
+	match dataset
+		.load_pipeline(
+			runner.get_dispatcher(),
+			&UFOContext {
+				dataset: dataset.clone(),
+				blob_fragment_size: state.config.blob_fragment_size,
+			},
+			&pipeline_name,
+		)
+		.await
+	{
 		Ok(Some(pipe)) => {
 			let node_ids = pipe.iter_node_ids().cloned().collect::<Vec<_>>();
 			let input_node_type = pipe.get_node(pipe.input_node_id()).unwrap();
@@ -96,7 +101,11 @@ pub(super) async fn get_pipeline(
 				Json(Some(PipelineInfo {
 					short: PipelineInfoShort {
 						name: pipeline_name,
-						input_type: PipelineInfoInput::node_to_input_type(input_node_type),
+						input_type: match &input_node_type.node_type[..] {
+							// TODO: rework this
+							"file" => PipelineInfoInput::File,
+							_ => PipelineInfoInput::None,
+						},
 						has_error: false,
 					},
 					nodes: node_ids,

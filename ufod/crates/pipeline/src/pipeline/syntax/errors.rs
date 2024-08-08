@@ -4,9 +4,8 @@ use std::{error::Error, fmt::Display};
 
 use super::ports::NodeInput;
 use crate::{
-	api::PipelineNodeStub,
+	api::PipelineData,
 	labels::{PipelineName, PipelineNodeID, PipelinePortID},
-	SDataStub, SStubErrorType,
 };
 
 /// A node specification in a [`PipelinePrepareError`]
@@ -27,13 +26,7 @@ pub enum PipelineErrorNode {
 
 /// An error we encounter when a pipeline spec is invalid
 #[derive(Debug)]
-pub enum PipelinePrepareError<NodeStubType: PipelineNodeStub> {
-	/// We encountered an error while getting information about a node stub
-	NodeStubError {
-		/// The error we encountered
-		error: SStubErrorType<NodeStubType>,
-	},
-
+pub enum PipelinePrepareError<DataType: PipelineData> {
 	/// We could not open a pipeline spec file
 	CouldNotOpenFile {
 		/// The error we encountered
@@ -95,15 +88,9 @@ pub enum PipelinePrepareError<NodeStubType: PipelineNodeStub> {
 		output: (PipelineErrorNode, PipelinePortID),
 
 		/// the type of this output
-		output_type: SDataStub<NodeStubType>,
+		output_type: <DataType as PipelineData>::DataStubType,
 
 		/// The input we tried to connect
-		input: NodeInput,
-	},
-
-	/// We tried to use a node with multiple outputs inline
-	BadInlineNode {
-		/// The input we connected to
 		input: NodeInput,
 	},
 
@@ -119,12 +106,9 @@ pub enum PipelinePrepareError<NodeStubType: PipelineNodeStub> {
 	},
 }
 
-impl<NodeStubType: PipelineNodeStub> Display for PipelinePrepareError<NodeStubType> {
+impl<DataType: PipelineData> Display for PipelinePrepareError<DataType> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Self::NodeStubError { .. } => {
-				writeln!(f, "PipelinePrepareError: Could not get node stub info")
-			}
 			Self::CouldNotOpenFile { .. } => {
 				writeln!(f, "PipelinePrepareError: Could not open file")
 			}
@@ -155,14 +139,7 @@ impl<NodeStubType: PipelineNodeStub> Display for PipelinePrepareError<NodeStubTy
 					"PipelinePrepareError: Node `{node:?}` has no input `{input}`"
 				)
 			}
-			Self::BadInlineNode { input } => {
-				writeln!(f, "PipelinePrepareError: Inline node in `{input:?}` doesn't have exactly one argument.")
-			}
-			Self::NoNodeOutput {
-				node,
-				output,
-				//caused_by,
-			} => {
+			Self::NoNodeOutput { node, output } => {
 				writeln!(
 					f,
 					"PipelinePrepareError: Node `{node:?}` has no output `{output}`."
@@ -191,10 +168,9 @@ impl<NodeStubType: PipelineNodeStub> Display for PipelinePrepareError<NodeStubTy
 	}
 }
 
-impl<NodeStubType: PipelineNodeStub + 'static> Error for PipelinePrepareError<NodeStubType> {
+impl<DataType: PipelineData> Error for PipelinePrepareError<DataType> {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::NodeStubError { error } => Some(error),
 			Self::CouldNotOpenFile { error } => Some(error),
 			Self::CouldNotReadFile { error } => Some(error),
 			Self::CouldNotParseFile { error } => Some(error),

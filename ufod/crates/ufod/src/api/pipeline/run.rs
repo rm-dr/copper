@@ -9,11 +9,11 @@ use smartstring::{LazyCompact, SmartString};
 use std::sync::Arc;
 use tracing::error;
 use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
-use ufo_pipeline::labels::PipelineName;
-use ufo_pipeline_nodes::{
+use ufo_node_base::{
 	data::{BytesSource, UFOData},
 	UFOContext,
 };
+use ufo_pipeline::labels::PipelineName;
 use ufo_util::mime::MimeType;
 use utoipa::ToSchema;
 
@@ -90,12 +90,17 @@ pub(super) async fn run_pipeline(
 		}
 	};
 
-	let context = Arc::new(UFOContext {
-		dataset: dataset.clone(),
-		blob_fragment_size: state.config.blob_fragment_size,
-	});
-
-	let pipe = match dataset.load_pipeline(&pipeline_name, context.clone()).await {
+	let pipe = match dataset
+		.load_pipeline(
+			runner.get_dispatcher(),
+			&UFOContext {
+				dataset: dataset.clone(),
+				blob_fragment_size: state.config.blob_fragment_size,
+			},
+			&pipeline_name,
+		)
+		.await
+	{
 		Ok(Some(x)) => x,
 		Ok(None) => {
 			return (
@@ -188,7 +193,14 @@ pub(super) async fn run_pipeline(
 		}
 	};
 
-	let new_id = runner.add_job(context, Arc::new(pipe), inputs);
+	let new_id = runner.add_job(
+		UFOContext {
+			dataset,
+			blob_fragment_size: state.config.blob_fragment_size,
+		},
+		Arc::new(pipe),
+		inputs,
+	);
 
 	if let Some(j) = bound_upload_job {
 		match state.uploader.bind_job_to_pipeline(&j, new_id).await {

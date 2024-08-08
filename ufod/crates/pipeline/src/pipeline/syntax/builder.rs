@@ -1,7 +1,7 @@
 //! A user-provided pipeline specification
 
 use itertools::Itertools;
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, marker::PhantomData};
 use tracing::{debug, trace};
 
 use super::{
@@ -10,25 +10,31 @@ use super::{
 	spec::PipelineSpec,
 };
 use crate::{
-	api::{PipelineNode, PipelineNodeStub},
+	api::{PipelineData, PipelineDataStub, PipelineJobContext},
+	dispatcher::NodeDispatcher,
 	graph::{graph::Graph, util::GraphNodeIdx},
-	labels::{PipelineName, PipelineNodeID, PipelinePortID},
+	labels::{PipelineName, PipelineNodeID},
 	pipeline::pipeline::{Pipeline, PipelineEdgeData, PipelineNodeData},
-	SDataStub,
 };
 
-pub(in super::super) struct PipelineBuilder<NodeStubType: PipelineNodeStub> {
+pub(in super::super) struct PipelineBuilder<
+	'a,
+	DataType: PipelineData,
+	ContextType: PipelineJobContext,
+> {
+	_pa: PhantomData<DataType>,
+	_pb: PhantomData<ContextType>,
+	context: &'a ContextType,
+	dispatcher: &'a NodeDispatcher<DataType, ContextType>,
+
 	/// The name of the pipeline we're building
 	name: PipelineName,
 
-	/// The context with which to build this pipeline
-	context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
-
 	/// The pipeline spec to build
-	spec: PipelineSpec<NodeStubType>,
+	spec: PipelineSpec<DataType>,
 
 	/// The pipeline graph we're building
-	graph: RefCell<Graph<PipelineNodeData<NodeStubType>, PipelineEdgeData>>,
+	graph: RefCell<Graph<PipelineNodeData<DataType>, PipelineEdgeData>>,
 
 	/// The index of this pipeline's input node
 	input_node_idx: GraphNodeIdx,
@@ -50,12 +56,15 @@ pub(in super::super) struct PipelineBuilder<NodeStubType: PipelineNodeStub> {
 	node_input_name_map_after: RefCell<HashMap<PipelineNodeID, GraphNodeIdx>>,
 }
 
-impl<NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
+impl<'a, DataType: PipelineData, ContextType: PipelineJobContext>
+	PipelineBuilder<'a, DataType, ContextType>
+{
 	pub fn build(
-		context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
+		context: &'a ContextType,
+		dispatcher: &'a NodeDispatcher<DataType, ContextType>,
 		name: &PipelineName,
-		spec: PipelineSpec<NodeStubType>,
-	) -> Result<Pipeline<NodeStubType>, PipelinePrepareError<NodeStubType>> {
+		spec: PipelineSpec<DataType>,
+	) -> Result<Pipeline<DataType, ContextType>, PipelinePrepareError<DataType>> {
 		debug!(message = "Building pipeline", pipeline_name = ?name);
 
 		// Initialize all variables
@@ -65,13 +74,19 @@ impl<NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 			// Add input and output nodes to the graph
 			let input_node_idx = graph.add_node(PipelineNodeData {
 				id: PipelineNodeID::new("INPUT"),
-				node_type: spec.input.clone(),
+				node_type: spec.input.node_type.clone(),
+				node_params: spec.input.node_params.clone(),
 			});
 
 			Self {
-				name: name.clone(),
+				_pa: PhantomData {},
+				_pb: PhantomData {},
 				context,
+				dispatcher,
+
+				name: name.clone(),
 				spec,
+
 				graph: RefCell::new(graph),
 				input_node_idx,
 				node_output_name_map_ptp: RefCell::new(HashMap::new()),
@@ -104,6 +119,7 @@ impl<NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 			// If this is a normal node, just add it.
 			let n = builder.graph.borrow_mut().add_node(PipelineNodeData {
 				id: node_name.clone(),
+				node_params: node_spec.node_params.clone(),
 				node_type: node_spec.node_type.clone(),
 			});
 			builder
@@ -158,8 +174,19 @@ impl<NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 					.get(node_name)
 					.unwrap();
 				for (input_name, out_link) in node_spec.inputs.iter() {
-					let in_port = builder.get_input(&node_spec.node_type, input_name, node_name)?;
-					builder.add_to_graph(in_port, node_idx, out_link)?;
+					let node = dispatcher
+						.make_node(context, &node_spec.node_type, &node_spec.node_params)
+						.unwrap();
+					let in_port = (&*node)
+						.inputs()
+						.iter()
+						.find_position(|x| x.name == *input_name)
+						.ok_or(PipelinePrepareError::NoNodeInput {
+							node: PipelineErrorNode::Named(node_name.clone()),
+							input: input_name.clone(),
+						})?;
+
+					builder.add_to_graph(in_port.0, node_idx, out_link)?;
 				}
 			}
 		}
@@ -171,82 +198,12 @@ impl<NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 		}
 
 		return Ok(Pipeline {
+			_pa: PhantomData {},
+			_pb: PhantomData {},
 			name: builder.name,
 			graph: builder.graph.into_inner().finalize(),
 			input_node_idx: builder.input_node_idx,
 		});
-	}
-
-	/// Is the port `input_port_id` of a node with type `node_type`
-	/// compatible with the given input?
-	#[inline(always)]
-	fn is_input_compatible(
-		&self,
-		node_type: &NodeStubType,
-		input_port_id: &PipelinePortID,
-		input_type: SDataStub<NodeStubType>,
-		// Only used for errors
-		node_id: &PipelineNodeID,
-	) -> Result<bool, PipelinePrepareError<NodeStubType>> {
-		Ok({
-			let idx = node_type
-				.input_with_name(&self.context, input_port_id)
-				.map_err(|error| PipelinePrepareError::NodeStubError { error })?
-				.ok_or(PipelinePrepareError::NoNodeInput {
-					node: PipelineErrorNode::Named(node_id.clone()),
-					input: input_port_id.clone(),
-				})?;
-			node_type
-				.input_compatible_with(&self.context, idx, input_type)
-				.map_err(|error| PipelinePrepareError::NodeStubError { error })?
-		})
-	}
-
-	/// Find the port index of the input port `input_port_id`
-	/// of a node with type `node_type`.
-	#[inline(always)]
-	fn get_input(
-		&self,
-		node_type: &NodeStubType,
-		input_port_id: &PipelinePortID,
-
-		// Only used for errors
-		node_id: &PipelineNodeID,
-	) -> Result<usize, PipelinePrepareError<NodeStubType>> {
-		node_type
-			.input_with_name(&self.context, input_port_id)
-			.map_err(|error| PipelinePrepareError::NodeStubError { error })?
-			.ok_or(PipelinePrepareError::NoNodeInput {
-				node: PipelineErrorNode::Named(node_id.clone()),
-				input: input_port_id.clone(),
-			})
-	}
-
-	/// Find the port index and type of the output port `output_port_id`
-	/// of a node with type `node_type`.
-	///
-	/// This provides both `get_input` and `is_input_compatible` for outputs.
-	/// Outputs are simpler than inputs---they always have exactly one type.
-	#[inline(always)]
-	fn get_output(
-		&self,
-		node_type: &NodeStubType,
-		output_port_id: &PipelinePortID,
-
-		// Only used for errors
-		node_id: &PipelineNodeID,
-	) -> Result<(usize, SDataStub<NodeStubType>), PipelinePrepareError<NodeStubType>> {
-		let idx = node_type
-			.output_with_name(&self.context, output_port_id)
-			.map_err(|error| PipelinePrepareError::NodeStubError { error })?
-			.ok_or(PipelinePrepareError::NoNodeOutput {
-				output: output_port_id.clone(),
-				node: PipelineErrorNode::Named(node_id.clone()),
-			})?;
-		let output_type = node_type
-			.output_type(&self.context, idx)
-			.map_err(|error| PipelinePrepareError::NodeStubError { error })?;
-		Ok((idx, output_type))
 	}
 
 	/// Connect `out_link` to port index `in_port` of node `node_idx`.
@@ -255,41 +212,43 @@ impl<NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 		&self,
 		in_port: usize,
 		node_idx: GraphNodeIdx,
-		out_link: &NodeOutput<NodeStubType>,
-	) -> Result<(), PipelinePrepareError<NodeStubType>> {
+		out_link: &NodeOutput,
+	) -> Result<(), PipelinePrepareError<DataType>> {
 		match out_link {
 			NodeOutput::Pipeline { port } => {
-				let out_port = self
-					.spec
-					.input
-					.output_with_name(&self.context, port)
-					.map_err(|error| PipelinePrepareError::NodeStubError { error })?
+				let node_spec = &self.spec.input;
+				let node_inst = self
+					.dispatcher
+					.make_node(self.context, &node_spec.node_type, &node_spec.node_params)
 					.unwrap();
+				let out_port = node_inst
+					.outputs()
+					.iter()
+					.find_position(|x| x.name == *port)
+					.unwrap();
+
 				self.graph.borrow_mut().add_edge(
 					self.input_node_idx,
 					node_idx,
-					PipelineEdgeData::PortToPort((out_port, in_port)),
-				);
-			}
-			NodeOutput::Inline(node) => {
-				let x = self.graph.borrow_mut().add_node(PipelineNodeData {
-					id: PipelineNodeID::new("INLINE"),
-					node_type: node.clone(),
-				});
-				self.graph.borrow_mut().add_edge(
-					x,
-					node_idx,
-					PipelineEdgeData::PortToPort((0, in_port)),
+					PipelineEdgeData::PortToPort((out_port.0, in_port)),
 				);
 			}
 			NodeOutput::Node { node, port } => {
-				let out_port = self
-					.get_output(&self.spec.nodes.get(node).unwrap().node_type, port, node)?
-					.0;
+				let node_spec = self.spec.nodes.get(node).unwrap();
+				let node_inst = self
+					.dispatcher
+					.make_node(self.context, &node_spec.node_type, &node_spec.node_params)
+					.unwrap();
+				let out_port = node_inst
+					.outputs()
+					.iter()
+					.find_position(|x| x.name == *port)
+					.unwrap();
+
 				self.graph.borrow_mut().add_edge(
 					*self.node_output_name_map_ptp.borrow().get(node).unwrap(),
 					node_idx,
-					PipelineEdgeData::PortToPort((out_port, in_port)),
+					PipelineEdgeData::PortToPort((out_port.0, in_port)),
 				);
 			}
 		}
@@ -308,49 +267,28 @@ impl<NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 	/// - The input and output ports have matching types
 	fn check_link(
 		&self,
-		output: &NodeOutput<NodeStubType>,
+		output: &NodeOutput,
 		input: &NodeInput,
-	) -> Result<(), PipelinePrepareError<NodeStubType>> {
+	) -> Result<(), PipelinePrepareError<DataType>> {
 		// Find the datatype of the output port we're connecting to.
 		// While doing this, make sure both the output node and port exist.
-		let output_type: SDataStub<NodeStubType> = match output {
-			NodeOutput::Inline(node) => {
-				// Inline nodes must have exactly one output
-				if node
-					.n_outputs(&self.context)
-					.map_err(|error| PipelinePrepareError::NodeStubError { error })?
-					!= 1
-				{
-					return Err(PipelinePrepareError::BadInlineNode {
-						input: input.clone(),
-					});
-				}
-				node.output_type(&self.context, 0)
-					.map_err(|error| PipelinePrepareError::NodeStubError { error })?
-			}
-
+		let output_type: <DataType as PipelineData>::DataStubType = match output {
 			NodeOutput::Pipeline { port } => {
-				if let Some(idx) = self
-					.spec
-					.input
-					.output_with_name(&self.context, port)
-					.map_err(|error| PipelinePrepareError::NodeStubError { error })?
-				{
-					self.spec
-						.input
-						.output_type(&self.context, idx)
-						.map_err(|error| PipelinePrepareError::NodeStubError { error })?
-				} else {
-					return Err(PipelinePrepareError::NoNodeOutput {
-						node: PipelineErrorNode::PipelineInput,
-						output: port.clone(),
-					});
-				}
+				let get_node = &self.spec.input;
+				let node = self
+					.dispatcher
+					.make_node(self.context, &get_node.node_type, &get_node.node_params)
+					.unwrap();
+
+				node.outputs()
+					.iter()
+					.find(|x| x.name == *port)
+					.unwrap()
+					.produces_type
 			}
 
 			NodeOutput::Node { node, port } => {
 				let get_node = self.spec.nodes.get(node);
-
 				if get_node.is_none() {
 					return Err(PipelinePrepareError::NoNode {
 						node: node.clone(),
@@ -358,16 +296,23 @@ impl<NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 					});
 				}
 				let get_node = get_node.unwrap();
-				self.get_output(&get_node.node_type, port, node)?.1
+
+				let node = self
+					.dispatcher
+					.make_node(self.context, &get_node.node_type, &get_node.node_params)
+					.unwrap();
+
+				node.outputs()
+					.iter()
+					.find(|x| x.name == *port)
+					.unwrap()
+					.produces_type
 			}
 		};
 
-		// Find the datatype of the input port we're connecting to.
-		// While doing this, make sure both the input node and port exist.
-		let compatible = match &input {
+		let input_type: <DataType as PipelineData>::DataStubType = match input {
 			NodeInput::Node { node, port } => {
 				let get_node = self.spec.nodes.get(node);
-
 				if get_node.is_none() {
 					return Err(PipelinePrepareError::NoNode {
 						node: node.clone(),
@@ -375,18 +320,25 @@ impl<NodeStubType: PipelineNodeStub> PipelineBuilder<NodeStubType> {
 					});
 				}
 				let get_node = get_node.unwrap();
-				self.is_input_compatible(&get_node.node_type, port, output_type, node)?
+
+				let node = self
+					.dispatcher
+					.make_node(self.context, &get_node.node_type, &get_node.node_params)
+					.unwrap();
+
+				node.inputs()
+					.iter()
+					.find(|x| x.name == *port)
+					.unwrap()
+					.accepts_type
 			}
 		};
 
-		if !compatible {
+		if !output_type.is_subset_of(&input_type) {
 			return Err(PipelinePrepareError::TypeMismatch {
 				output: match output {
 					NodeOutput::Node { node, port } => {
 						(PipelineErrorNode::Named(node.clone()), port.clone())
-					}
-					NodeOutput::Inline(_) => {
-						(PipelineErrorNode::Inline, PipelinePortID::new("INLINE"))
 					}
 					NodeOutput::Pipeline { port } => {
 						(PipelineErrorNode::PipelineInput, port.clone())

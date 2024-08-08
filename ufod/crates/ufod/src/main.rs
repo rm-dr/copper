@@ -4,9 +4,9 @@ use futures::TryFutureExt;
 use std::{error::Error, future::IntoFuture, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::info;
+use ufo_node_base::{data::UFOData, UFOContext};
 
 use ufo_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
-use ufo_pipeline_nodes::nodetype::UFONodeType;
 
 mod api;
 mod config;
@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	let uploader = Uploader::open(config.clone());
 
 	// Prep runner
-	let runner: PipelineRunner<UFONodeType> = PipelineRunner::new(PipelineRunConfig {
+	let mut runner: PipelineRunner<UFOData, UFOContext> = PipelineRunner::new(PipelineRunConfig {
 		node_threads: 2,
 		max_active_jobs: 8,
 	});

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::RouterState;
 use axum::{
 	extract::{Query, State},
@@ -12,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
 use ufo_ds_impl::local::LocalDataset;
+use ufo_node_base::{data::UFOData, UFOContext};
 use ufo_pipeline::labels::PipelineName;
-use ufo_pipeline_nodes::{nodetype::UFONodeType, UFOContext};
 use utoipa::{IntoParams, ToSchema};
 
 #[derive(Deserialize, Serialize, ToSchema, Debug, IntoParams)]
@@ -43,16 +41,6 @@ pub(super) enum PipelineInfoInput {
 
 	/// This pipeline consumes a file
 	File,
-}
-
-impl PipelineInfoInput {
-	pub(super) fn node_to_input_type(input_node_type: &UFONodeType) -> Self {
-		// This MUST match the decode implementation in `./run.rs`
-		match input_node_type {
-			UFONodeType::File => PipelineInfoInput::File,
-			_ => PipelineInfoInput::None,
-		}
-	}
 }
 
 /// Get all pipelines
@@ -100,32 +88,40 @@ pub(super) async fn list_pipelines(
 		}
 	};
 
-	let context = Arc::new(UFOContext {
-		dataset: dataset.clone(),
-		blob_fragment_size: 1_000_000,
-	});
-
 	// TODO: this is ugly, fix it!
 	// (do while implementing generic datasets)
-	let all_pipes = match <LocalDataset as Pipestore<UFONodeType>>::all_pipelines(&dataset).await {
-		Ok(x) => x,
-		Err(e) => {
-			error!(
-				message = "Could not list pipelines",
-				dataset = query.dataset,
-				error = ?e
-			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not list pipelines: {e}"),
-			)
-				.into_response();
-		}
-	};
+	let all_pipes =
+		match <LocalDataset as Pipestore<UFOData, UFOContext>>::all_pipelines(&dataset).await {
+			Ok(x) => x,
+			Err(e) => {
+				error!(
+					message = "Could not list pipelines",
+					dataset = query.dataset,
+					error = ?e
+				);
+				return (
+					StatusCode::INTERNAL_SERVER_ERROR,
+					format!("Could not list pipelines: {e}"),
+				)
+					.into_response();
+			}
+		};
+
+	let runner = state.runner.lock().await;
 
 	let mut out = Vec::new();
 	for pipe_name in all_pipes {
-		let pipe = match dataset.load_pipeline(&pipe_name, context.clone()).await {
+		let pipe = match dataset
+			.load_pipeline(
+				runner.get_dispatcher(),
+				&UFOContext {
+					dataset: dataset.clone(),
+					blob_fragment_size: state.config.blob_fragment_size,
+				},
+				&pipe_name,
+			)
+			.await
+		{
 			// This should never fail---all_pipelines must only return valid names.
 			Ok(x) => {
 				let pipe = x.unwrap();
@@ -135,7 +131,11 @@ pub(super) async fn list_pipelines(
 
 				PipelineInfoShort {
 					name: pipe_name.clone(),
-					input_type: PipelineInfoInput::node_to_input_type(input_node_type),
+					input_type: match &input_node_type.node_type[..] {
+						// TODO: rework this
+						"file" => PipelineInfoInput::File,
+						_ => PipelineInfoInput::None,
+					},
 					has_error: false,
 				}
 			}

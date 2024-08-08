@@ -1,7 +1,7 @@
 use std::{error::Error, fmt::Display};
 
 use smartstring::{LazyCompact, SmartString};
-use ufo_pipeline::{api::PipelineNodeStub, pipeline::syntax::errors::PipelinePrepareError};
+use ufo_pipeline::{api::PipelineData, pipeline::syntax::errors::PipelinePrepareError};
 
 #[derive(Debug)]
 pub enum MetastoreError {
@@ -89,23 +89,21 @@ impl Error for MetastoreError {
 }
 
 #[derive(Debug)]
-pub enum PipestoreError<NodeStubType: PipelineNodeStub> {
+pub enum PipestoreError<DataType: PipelineData> {
 	/// Database error
 	DbError(Box<dyn Error>),
 
 	/// We could not build a pipeline
-	PipelinePrepareError(PipelinePrepareError<NodeStubType>),
+	PipelinePrepareError(PipelinePrepareError<DataType>),
 }
 
-impl<NodeStubType: PipelineNodeStub> From<PipelinePrepareError<NodeStubType>>
-	for PipestoreError<NodeStubType>
-{
-	fn from(value: PipelinePrepareError<NodeStubType>) -> Self {
+impl<DataType: PipelineData> From<PipelinePrepareError<DataType>> for PipestoreError<DataType> {
+	fn from(value: PipelinePrepareError<DataType>) -> Self {
 		Self::PipelinePrepareError(value)
 	}
 }
 
-impl<NodeStubType: PipelineNodeStub> Display for PipestoreError<NodeStubType> {
+impl<DataType: PipelineData> Display for PipestoreError<DataType> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "Database backend error"),
@@ -114,7 +112,7 @@ impl<NodeStubType: PipelineNodeStub> Display for PipestoreError<NodeStubType> {
 	}
 }
 
-impl<NodeStubType: PipelineNodeStub + 'static> Error for PipestoreError<NodeStubType> {
+impl<DataType: PipelineData> Error for PipestoreError<DataType> {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),

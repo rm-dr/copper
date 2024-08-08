@@ -1,11 +1,11 @@
-use ufo_pipeline::api::PipelineNodeStub;
+use ufo_pipeline::api::{PipelineData, PipelineJobContext};
 
 pub mod blob;
 pub mod meta;
 pub mod pipe;
 
-pub trait Dataset<PipelineNodeStubType: PipelineNodeStub>
+pub trait Dataset<DataType: PipelineData, ContextType: PipelineJobContext>
 where
-	Self: blob::Blobstore + meta::Metastore + pipe::Pipestore<PipelineNodeStubType> + Send + Sync,
+	Self: blob::Blobstore + meta::Metastore + pipe::Pipestore<DataType, ContextType> + Send + Sync,
 {
 }

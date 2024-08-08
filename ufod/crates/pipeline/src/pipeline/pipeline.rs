@@ -1,23 +1,27 @@
 //! Core pipeline structs
 
-use std::{fmt::Debug, sync::Arc};
+use smartstring::{LazyCompact, SmartString};
+use std::{collections::BTreeMap, fmt::Debug, marker::PhantomData};
 
+use super::syntax::{builder::PipelineBuilder, errors::PipelinePrepareError, spec::PipelineSpec};
 use crate::{
-	api::{PipelineNode, PipelineNodeStub},
+	api::{PipelineData, PipelineJobContext},
+	dispatcher::{NodeDispatcher, NodeParameterValue},
 	graph::{finalized::FinalizedGraph, util::GraphNodeIdx},
 	labels::{PipelineName, PipelineNodeID},
 };
 
-use super::syntax::{builder::PipelineBuilder, errors::PipelinePrepareError, spec::PipelineSpec};
-
 /// A node in a pipeline graph
 #[derive(Debug)]
-pub struct PipelineNodeData<NodeStubType: PipelineNodeStub> {
+pub struct PipelineNodeData<DataType: PipelineData> {
 	/// The node's id
 	pub id: PipelineNodeID,
 
-	/// The node's type
-	pub node_type: NodeStubType,
+	/// This node's type
+	pub node_type: SmartString<LazyCompact>,
+
+	/// This node's parameters
+	pub node_params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
 }
 
 /// An edge in a pipeline graph
@@ -64,7 +68,10 @@ impl PipelineEdgeData {
 
 /// A fully loaded data processing pipeline.
 #[derive(Debug)]
-pub struct Pipeline<NodeStubType: PipelineNodeStub> {
+pub struct Pipeline<DataType: PipelineData, ContextType: PipelineJobContext> {
+	pub(crate) _pa: PhantomData<DataType>,
+	pub(crate) _pb: PhantomData<ContextType>,
+
 	/// This pipeline's name.
 	/// Must be unique.
 	pub(crate) name: PipelineName,
@@ -72,18 +79,19 @@ pub struct Pipeline<NodeStubType: PipelineNodeStub> {
 	pub(crate) input_node_idx: GraphNodeIdx,
 
 	/// This pipeline's node graph
-	pub(crate) graph: FinalizedGraph<PipelineNodeData<NodeStubType>, PipelineEdgeData>,
+	pub(crate) graph: FinalizedGraph<PipelineNodeData<DataType>, PipelineEdgeData>,
 }
 
-impl<NodeStubType: PipelineNodeStub> Pipeline<NodeStubType> {
+impl<DataType: PipelineData, ContextType: PipelineJobContext> Pipeline<DataType, ContextType> {
 	/// Load a pipeline from a TOML string
 	pub fn from_toml_str(
+		dispatcher: &NodeDispatcher<DataType, ContextType>,
+		context: &ContextType,
 		pipeline_name: &PipelineName,
 		toml_str: &str,
-		context: Arc<<NodeStubType::NodeType as PipelineNode>::NodeContext>,
-	) -> Result<Self, PipelinePrepareError<NodeStubType>> {
-		let spec: PipelineSpec<NodeStubType> = toml::from_str(toml_str).unwrap();
-		let built = PipelineBuilder::build(context, pipeline_name, spec)?;
+	) -> Result<Self, PipelinePrepareError<DataType>> {
+		let spec: PipelineSpec<DataType> = toml::from_str(toml_str).unwrap();
+		let built = PipelineBuilder::build(context, dispatcher, pipeline_name, spec)?;
 		Ok(built)
 	}
 
@@ -98,11 +106,8 @@ impl<NodeStubType: PipelineNodeStub> Pipeline<NodeStubType> {
 	}
 
 	/// Get a node by name
-	pub fn get_node(&self, node_id: &PipelineNodeID) -> Option<&NodeStubType> {
-		self.graph
-			.iter_nodes()
-			.find(|n| n.id == *node_id)
-			.map(|x| &x.node_type)
+	pub fn get_node(&self, node_id: &PipelineNodeID) -> Option<&PipelineNodeData<DataType>> {
+		self.graph.iter_nodes().find(|n| n.id == *node_id)
 	}
 
 	/// Get this pipeline's input node's id

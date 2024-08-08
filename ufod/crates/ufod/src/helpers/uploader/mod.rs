@@ -3,8 +3,8 @@ use sha2::{Digest, Sha256};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::HashMap, fs::File, io::Write, path::PathBuf, sync::Arc, time::Instant};
 use tracing::{error, info, warn};
+use ufo_node_base::{data::UFOData, UFOContext};
 use ufo_pipeline::runner::runner::PipelineRunner;
-use ufo_pipeline_nodes::nodetype::UFONodeType;
 use ufo_util::mime::MimeType;
 
 use crate::config::UfodConfig;
@@ -95,7 +95,7 @@ impl Uploader {
 	///
 	/// This cleans up jobs that have timed out,
 	/// and jobs bound to a pipeline that has been finished.
-	pub async fn check_jobs(&self, runner: &PipelineRunner<UFONodeType>) {
+	pub async fn check_jobs(&self, runner: &PipelineRunner<UFOData, UFOContext>) {
 		let mut jobs = self.jobs.lock().await;
 
 		let now = Instant::now();

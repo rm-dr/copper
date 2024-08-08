@@ -4,7 +4,7 @@ use sqlx::{Connection, Row, SqliteConnection};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info};
 use ufo_ds_core::{api::Dataset, errors::MetastoreError};
-use ufo_pipeline::api::PipelineNodeStub;
+use ufo_pipeline::api::{PipelineData, PipelineJobContext};
 
 mod blob;
 mod meta;
@@ -19,7 +19,10 @@ pub struct LocalDataset {
 	blobstore_tmp: PathBuf,
 }
 
-impl<PipelineNodeStubType: PipelineNodeStub> Dataset<PipelineNodeStubType> for LocalDataset {}
+impl<DataType: PipelineData, ContextType: PipelineJobContext> Dataset<DataType, ContextType>
+	for LocalDataset
+{
+}
 
 impl LocalDataset {
 	/// Create a new [`LocalDataset`].
