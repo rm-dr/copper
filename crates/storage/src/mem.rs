@@ -82,7 +82,7 @@ impl Dataset for MemDataset {
 	type ItemHandle = MemItemIdx;
 	type ErrorType = ();
 
-	fn add_class(&mut self, name: &str) -> Result<Self::ClassHandle, Self::ErrorType> {
+	async fn add_class(&mut self, name: &str) -> Result<Self::ClassHandle, Self::ErrorType> {
 		let id = self.new_id_class();
 		self.classes.insert(
 			id,
@@ -93,7 +93,7 @@ impl Dataset for MemDataset {
 		return Ok(id);
 	}
 
-	fn add_attr(
+	async fn add_attr(
 		&mut self,
 		class: Self::ClassHandle,
 		name: &str,
@@ -111,7 +111,10 @@ impl Dataset for MemDataset {
 		return Ok(id);
 	}
 
-	fn add_item(&mut self, class: Self::ClassHandle) -> Result<Self::ItemHandle, Self::ErrorType> {
+	async fn add_item(
+		&mut self,
+		class: Self::ClassHandle,
+	) -> Result<Self::ItemHandle, Self::ErrorType> {
 		let id = self.new_id_item();
 		self.items.insert(
 			id,
@@ -123,14 +126,15 @@ impl Dataset for MemDataset {
 		return Ok(id);
 	}
 
-	fn add_item_with_attrs(
+	async fn add_item_with_attrs(
 		&mut self,
 		class: Self::ClassHandle,
 		attrs: &[&PipelineData],
 	) -> Result<Self::ItemHandle, Self::ErrorType> {
 		let mut data = HashMap::new();
 
-		for (i, a) in self.class_get_attrs(class).enumerate() {
+		let attr_iter = self.class_get_attrs(class).await;
+		for (i, a) in attr_iter.enumerate() {
 			data.insert(a, (*attrs.get(i).unwrap()).clone());
 		}
 
@@ -139,48 +143,48 @@ impl Dataset for MemDataset {
 		return Ok(id);
 	}
 
-	fn del_attr(&mut self, attr: Self::AttrHandle) -> Result<(), Self::ErrorType> {
+	async fn del_attr(&mut self, attr: Self::AttrHandle) -> Result<(), Self::ErrorType> {
 		// TODO: delete all instances of this attr
 		self.attrs.remove(&attr).unwrap();
 		Ok(())
 	}
 
-	fn del_class(&mut self, class: Self::ClassHandle) -> Result<(), Self::ErrorType> {
+	async fn del_class(&mut self, class: Self::ClassHandle) -> Result<(), Self::ErrorType> {
 		// TODO: remove all items with class
 		self.classes.remove(&class);
 		Ok(())
 	}
 
-	fn del_item(&mut self, item: Self::ItemHandle) -> Result<(), Self::ErrorType> {
+	async fn del_item(&mut self, item: Self::ItemHandle) -> Result<(), Self::ErrorType> {
 		self.items.remove(&item);
 		Ok(())
 	}
 
-	fn get_attr(&self, attr_name: &str) -> Option<Self::AttrHandle> {
+	async fn get_attr(&self, attr_name: &str) -> Option<Self::AttrHandle> {
 		self.attrs
 			.iter()
 			.find_map(|(x, y)| (y.name == attr_name).then_some(*x))
 	}
 
-	fn get_class(&self, class_name: &str) -> Option<Self::ClassHandle> {
+	async fn get_class(&self, class_name: &str) -> Option<Self::ClassHandle> {
 		self.classes
 			.iter()
 			.find_map(|(x, y)| (y.name == class_name).then_some(*x))
 	}
 
-	fn iter_items(&self) -> impl Iterator<Item = Self::ItemHandle> {
+	async fn iter_items(&self) -> impl Iterator<Item = Self::ItemHandle> {
 		self.items.keys().cloned()
 	}
 
-	fn iter_attrs(&self) -> impl Iterator<Item = Self::AttrHandle> {
+	async fn iter_attrs(&self) -> impl Iterator<Item = Self::AttrHandle> {
 		self.attrs.keys().cloned()
 	}
 
-	fn iter_classes(&self) -> impl Iterator<Item = Self::ClassHandle> {
+	async fn iter_classes(&self) -> impl Iterator<Item = Self::ClassHandle> {
 		self.classes.keys().cloned()
 	}
 
-	fn item_get_attr(
+	async fn item_get_attr(
 		&self,
 		item: Self::ItemHandle,
 		attr: Self::AttrHandle,
@@ -195,11 +199,11 @@ impl Dataset for MemDataset {
 			.clone())
 	}
 
-	fn item_get_class(&self, item: Self::ItemHandle) -> Self::ClassHandle {
+	async fn item_get_class(&self, item: Self::ItemHandle) -> Self::ClassHandle {
 		self.items.get(&item).unwrap().class
 	}
 
-	fn item_set_attr(
+	async fn item_set_attr(
 		&mut self,
 		item: Self::ItemHandle,
 		attr: Self::AttrHandle,
@@ -213,7 +217,7 @@ impl Dataset for MemDataset {
 		Ok(())
 	}
 
-	fn class_set_name(
+	async fn class_set_name(
 		&mut self,
 		class: Self::ClassHandle,
 		name: &str,
@@ -222,37 +226,44 @@ impl Dataset for MemDataset {
 		Ok(())
 	}
 
-	fn class_get_name(&self, class: Self::ClassHandle) -> &str {
+	async fn class_get_name(&self, class: Self::ClassHandle) -> &str {
 		&self.classes.get(&class).unwrap().name
 	}
 
-	fn class_get_attrs(&self, class: Self::ClassHandle) -> impl Iterator<Item = Self::AttrHandle> {
+	async fn class_get_attrs(
+		&self,
+		class: Self::ClassHandle,
+	) -> impl Iterator<Item = Self::AttrHandle> {
 		self.attrs
 			.iter()
 			.filter_map(move |(id, attr)| if attr.class == class { Some(*id) } else { None })
 	}
 
-	fn class_num_attrs(&self, class: Self::ClassHandle) -> usize {
+	async fn class_num_attrs(&self, class: Self::ClassHandle) -> usize {
 		self.attrs
 			.iter()
 			.filter(move |(_, attr)| attr.class == class)
 			.count()
 	}
 
-	fn attr_set_name(&mut self, attr: Self::AttrHandle, name: &str) -> Result<(), Self::ErrorType> {
+	async fn attr_set_name(
+		&mut self,
+		attr: Self::AttrHandle,
+		name: &str,
+	) -> Result<(), Self::ErrorType> {
 		self.attrs.get_mut(&attr).unwrap().name = name.to_string();
 		Ok(())
 	}
 
-	fn attr_get_name(&self, attr: Self::AttrHandle) -> &str {
+	async fn attr_get_name(&self, attr: Self::AttrHandle) -> &str {
 		&self.attrs.get(&attr).unwrap().name
 	}
 
-	fn attr_get_type(&self, attr: Self::AttrHandle) -> PipelineDataType {
+	async fn attr_get_type(&self, attr: Self::AttrHandle) -> PipelineDataType {
 		self.attrs.get(&attr).unwrap().data_type
 	}
 
-	fn attr_get_class(&self, attr: Self::AttrHandle) -> Self::ClassHandle {
+	async fn attr_get_class(&self, attr: Self::AttrHandle) -> Self::ClassHandle {
 		self.attrs.get(&attr).unwrap().class
 	}
 }

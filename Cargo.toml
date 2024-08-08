@@ -57,6 +57,8 @@ serde = { version = "1.0.201", features = ["serde_derive"] }
 smartstring = { version = "1.0.1", features = ["serde"] }
 toml = "0.8.12"
 serde_with = "3.8.1"
+futures = "0.3.30"
+# tokio =
 
 
 [workspace.lints]

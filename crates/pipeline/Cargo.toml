@@ -26,3 +26,4 @@ lofty = { workspace = true }
 petgraph = { workspace = true }
 serde_with = { workspace = true }
 toml = { workspace = true }
+futures = { workspace = true }

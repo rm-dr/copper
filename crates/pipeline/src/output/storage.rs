@@ -1,3 +1,4 @@
+use futures::executor::block_on;
 use smartstring::{LazyCompact, SmartString};
 use std::io;
 use ufo_storage::api::Dataset;
@@ -36,13 +37,13 @@ impl<'a, DatasetType: Dataset> PipelineOutput for StorageOutput<'a, DatasetType>
 		assert!(data.len() == self.attrs.len());
 
 		// TODO: errors
-		let i = self.dataset.add_item(self.class).unwrap();
+		let i = block_on(self.dataset.add_item(self.class)).unwrap();
 
 		// TODO: partial add
 		// TODO: make sure attrs exist
 		for ((attr_name, _), data) in self.attrs.iter().zip(data.iter()) {
-			let a = self.dataset.get_attr(attr_name).unwrap();
-			self.dataset.item_set_attr(i, a, *data).unwrap();
+			let a = block_on(self.dataset.get_attr(attr_name)).unwrap();
+			block_on(self.dataset.item_set_attr(i, a, data)).unwrap();
 		}
 
 		Ok(())
