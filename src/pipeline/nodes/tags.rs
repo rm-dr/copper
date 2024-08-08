@@ -102,12 +102,15 @@ impl PipelineNode for ExtractTag {
 		.map(|x| (*x).into())
 	}
 
-	fn run(
-		inputs: HashMap<PipelinePortLabel, Option<PipelineData>>,
-	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError> {
-		let data = inputs.get(&"data".into()).unwrap();
+	fn run<F>(
+		get_input: F,
+	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError>
+	where
+		F: Fn(&PipelinePortLabel) -> Option<PipelineData>,
+	{
+		let data = get_input(&"data".into()).unwrap();
 
-		let (data_type, data) = match data.as_ref().unwrap() {
+		let (data_type, data) = match &data {
 			PipelineData::Binary {
 				format: data_type,
 				data,

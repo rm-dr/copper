@@ -11,10 +11,20 @@ use super::{
 pub mod ifnone;
 pub mod tags;
 
+// TODO: node test mode (check inputs, outputs, etc)
 pub trait PipelineNode {
-	fn run(
-		inputs: HashMap<PipelinePortLabel, Option<PipelineData>>,
-	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError>;
+	/// Run this pipeline node.
+	///
+	/// `get_input` is a function that returns the pipeline data this node should get
+	/// for each of its inputs. Returns `None` for nonexistent inputs, or for inputs
+	/// which are not attached to anything.
+	///
+	/// Returns a map of "output label" -> "output data"
+	fn run<F>(
+		get_input: F,
+	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError>
+	where
+		F: Fn(&PipelinePortLabel) -> Option<PipelineData>;
 
 	/// List the inputs this node provides.
 	/// Input names MUST be unique. This is not enforced!
@@ -40,13 +50,16 @@ pub enum PipelineNodes {
 }
 
 impl PipelineNodes {
-	pub fn run(
+	pub fn run<F>(
 		&self,
-		inputs: HashMap<PipelinePortLabel, Option<PipelineData>>,
-	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError> {
+		get_input: F,
+	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError>
+	where
+		F: Fn(&PipelinePortLabel) -> Option<PipelineData>,
+	{
 		match self {
-			Self::ExtractTag => tags::ExtractTag::run(inputs),
-			Self::IfNone => ifnone::IfNone::run(inputs),
+			Self::ExtractTag => tags::ExtractTag::run(get_input),
+			Self::IfNone => ifnone::IfNone::run(get_input),
 		}
 	}
 

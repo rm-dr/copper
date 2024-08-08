@@ -32,14 +32,19 @@ impl PipelineNode for IfNone {
 		["out"].iter().map(|x| (*x).into())
 	}
 
-	fn run(
-		mut inputs: HashMap<PipelinePortLabel, Option<PipelineData>>,
-	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError> {
-		let ifnone = inputs.remove(&"ifnone".into()).unwrap();
-		let data = inputs.remove(&"data".into()).unwrap();
+	fn run<F>(
+		get_input: F,
+	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError>
+	where
+		F: Fn(&PipelinePortLabel) -> Option<PipelineData>,
+	{
+		// TODO: don't clone, link (replace Option<>)
+		let ifnone = get_input(&"ifnone".into()).unwrap();
+		let data = get_input(&"data".into());
 		return Ok(HashMap::from([(
 			"out".into(),
-			data.map(Some).unwrap_or(ifnone),
+			//Some(data.cloned().unwrap_or(ifnone.clone())),
+			Some(data.unwrap_or(ifnone)),
 		)]));
 	}
 }

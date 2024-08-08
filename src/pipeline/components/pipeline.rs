@@ -6,7 +6,11 @@ use serde::Deserialize;
 use super::{
 	PipelineCheckResult, PipelineInput, PipelineNodeLabel, PipelineOutput, PipelinePortLabel,
 };
-use crate::pipeline::{data::PipelineDataType, nodes::PipelineNodes};
+use crate::pipeline::{
+	data::{PipelineData, PipelineDataType},
+	errors::PipelineError,
+	nodes::PipelineNodes,
+};
 
 /// Pipeline configuration
 #[derive(Debug, Deserialize)]
@@ -38,17 +42,34 @@ pub struct PipelineNodeSpec {
 	pub input: HashMap<PipelinePortLabel, PipelineOutput>,
 }
 
+#[derive(Debug)]
+enum PipelineCheckState {
+	Unchecked,
+	Failed,
+	Passed,
+}
+
+impl Default for PipelineCheckState {
+	fn default() -> Self {
+		Self::Unchecked
+	}
+}
+
 /// A data processing pipeline
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Pipeline {
 	/// Pipeline parameters
-	pub pipeline: PipelineConfig,
+	pipeline: PipelineConfig,
 
 	/// Nodes in this pipeline
 	#[serde(default)]
 	#[serde(rename = "node")]
-	pub nodes: HashMap<PipelineNodeLabel, PipelineNodeSpec>,
+	nodes: HashMap<PipelineNodeLabel, PipelineNodeSpec>,
+
+	/// Has this pipeline passed [`Pipeline::check()`]?
+	#[serde(skip)]
+	check_state: PipelineCheckState,
 }
 
 // TODO: rename: pipeline inputs are outputs
@@ -165,7 +186,28 @@ impl Pipeline {
 		return None;
 	}
 
-	pub fn check(&self) -> PipelineCheckResult {
+	/// Build
+	fn build_graph(&self) -> GraphMap<&str, (), Directed> {
+		// We don't need to create nodes explicitly,
+		// since `add_edge` does this automatically.
+		let mut graph = GraphMap::<&str, (), Directed>::new();
+		for (node_name, node_spec) in &self.nodes {
+			for out_link in node_spec.input.values() {
+				match out_link {
+					PipelineOutput::InlineText { .. } => {}
+					PipelineOutput::Node { .. } | PipelineOutput::Pinput { .. } => {
+						graph.add_edge(out_link.node_str().unwrap(), node_name.into(), ());
+					}
+				}
+			}
+		}
+
+		return graph;
+	}
+
+	pub fn check(&mut self) -> PipelineCheckResult {
+		self.check_state = PipelineCheckState::Failed;
+
 		// Check each node's inputs
 		for (node_name, node_spec) in &self.nodes {
 			for (input_name, out_link) in &node_spec.input {
@@ -193,31 +235,91 @@ impl Pipeline {
 			};
 		}
 
-		// Build graph...
-		// We don't need to create nodes explicitly,
-		// since `add_edge` does this automatically.
-		let mut deps = GraphMap::<&str, (), Directed>::new();
-		for (node_name, node_spec) in &self.nodes {
-			for out_link in node_spec.input.values() {
-				match out_link {
-					PipelineOutput::InlineText { .. } => {}
-					PipelineOutput::Node { .. } | PipelineOutput::Pinput { .. } => {
-						deps.add_edge(out_link.node_str().unwrap(), node_name.into(), ());
-					}
-				}
-			}
-		}
-
-		// ...and check for cycles.
-		let topo = toposort(&deps, None);
-		if let Err(cycle) = topo {
+		// Build graph and check for cycles
+		let graph = self.build_graph();
+		if let Err(cycle) = toposort(&graph, None) {
 			return PipelineCheckResult::HasCycle {
 				node: cycle.node_id().into(),
 			};
 		}
 
-		return PipelineCheckResult::Ok {
-			topo: topo.unwrap().into_iter().map(|x| x.into()).collect(),
+		self.check_state = PipelineCheckState::Passed;
+		return PipelineCheckResult::Ok;
+	}
+
+	/// Given the global port state `port_data` and the node input mapping `input_map`,
+	/// return the data that `input_port` consumes.
+	///
+	/// Returns `None` if this data is unavailable for any reason.
+	fn get_node_input(
+		port_data: &HashMap<PipelineNodeLabel, HashMap<PipelinePortLabel, Option<PipelineData>>>,
+		input_map: &HashMap<PipelinePortLabel, PipelineOutput>,
+		input_port: &PipelinePortLabel,
+	) -> Option<PipelineData> {
+		match input_map.get(input_port) {
+			None => None,
+			Some(PipelineOutput::InlineText { text }) => Some(PipelineData::Text(text.clone())),
+			Some(PipelineOutput::Node { node, port }) => {
+				if let Some(x) = port_data.get(node) {
+					if let Some(y) = x.get(port) {
+						y.clone()
+					} else {
+						None
+					}
+				} else {
+					None
+				}
+			}
+			Some(PipelineOutput::Pinput { port }) => port_data
+				.get(&"in".into())
+				.unwrap()
+				.get(port)
+				.cloned()
+				.unwrap(),
+		}
+	}
+
+	pub fn run(
+		&self,
+		inputs: HashMap<PipelinePortLabel, Option<PipelineData>>,
+	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError> {
+		match self.check_state {
+			PipelineCheckState::Failed => return Err(PipelineError::PipelineCheckFailed),
+			PipelineCheckState::Unchecked => return Err(PipelineError::PipelineUnchecked),
+			PipelineCheckState::Passed => {}
 		};
+
+		// TODO: parallelize
+		let graph = self.build_graph();
+		let node_order = toposort(&graph, None)
+			.unwrap()
+			.into_iter()
+			.map(Into::<PipelineNodeLabel>::into);
+
+		let mut port_data: HashMap<PipelineNodeLabel, _> = HashMap::new();
+		port_data.insert("in".into(), inputs);
+
+		for n in node_order {
+			if n == "in".into() || n == "out".into() {
+				continue;
+			}
+
+			let node = self.nodes.get(&n).unwrap();
+			let out = node.node_type.run(|label: &PipelinePortLabel| {
+				Self::get_node_input(&port_data, &node.input, label)
+			})?;
+
+			port_data.insert(n, out);
+		}
+
+		let mut out = HashMap::new();
+		for output_label in self.pipeline.outmap.keys() {
+			out.insert(
+				output_label.clone(),
+				Self::get_node_input(&port_data, &self.pipeline.outmap, output_label),
+			);
+		}
+
+		return Ok(out);
 	}
 }

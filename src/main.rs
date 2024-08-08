@@ -44,6 +44,14 @@ fn main() -> Result<()> {
 	let d = x.add_class("Class").unwrap();
 	x.add_attr(d, "test attr", model::AttributeType::String);
 
+	// Load pipeline
+	let mut f = File::open("pipeline.toml").unwrap();
+	let mut s: String = Default::default();
+	f.read_to_string(&mut s)?;
+	let mut p: Pipeline = toml::from_str(&s)?;
+	println!("{:?}", p.check());
+
+	// Run pipeline
 	let f = File::open("data/freeze.flac").unwrap();
 	let mut f = FileReader(f);
 	x.add_item(d, ItemType::Audio(AudioItemType::Flac), &mut f)
@@ -56,7 +64,7 @@ fn main() -> Result<()> {
 
 	println!(
 		"{:#?}",
-		pipeline::nodes::tags::ExtractTag::run(HashMap::from([(
+		p.run(HashMap::from([(
 			"data".into(),
 			Some(PipelineData::Binary {
 				format: BinaryFormat::Audio(AudioFormat::Flac),
@@ -67,8 +75,7 @@ fn main() -> Result<()> {
 
 	let f = File::open("data/top.mp3").unwrap();
 	let mut f = FileReader(f);
-	let i = x
-		.add_item(d, ItemType::Audio(AudioItemType::Mp3), &mut f)
+	x.add_item(d, ItemType::Audio(AudioItemType::Mp3), &mut f)
 		.unwrap();
 
 	f.rewind()?;
@@ -77,7 +84,7 @@ fn main() -> Result<()> {
 
 	println!(
 		"{:#?}",
-		pipeline::nodes::tags::ExtractTag::run(HashMap::from([(
+		p.run(HashMap::from([(
 			"data".into(),
 			Some(PipelineData::Binary {
 				format: BinaryFormat::Audio(AudioFormat::Mp3),
@@ -85,15 +92,6 @@ fn main() -> Result<()> {
 			})
 		)]))?
 	);
-
-	println!("{:?}", x.get_item(i).unwrap());
-
-	let mut f = File::open("pipeline.toml").unwrap();
-	let mut s: String = Default::default();
-	f.read_to_string(&mut s)?;
-	let p: Pipeline = toml::from_str(&s)?;
-	println!("{:#?}", p);
-	println!("{:?}", p.check());
 
 	Ok(())
 }

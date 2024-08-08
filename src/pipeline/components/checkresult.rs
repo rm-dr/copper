@@ -5,11 +5,7 @@ use crate::pipeline::data::PipelineDataType;
 #[derive(Debug)]
 pub enum PipelineCheckResult {
 	/// This pipeline is good to go.
-	Ok {
-		/// A vector of all nodes in this pipeline in topological order:
-		/// each node is ordered before its successors.
-		topo: Vec<PipelineNodeLabel>,
-	},
+	Ok,
 
 	/// There is no node named `node` in this pipeline
 	/// We tried to connect this node from `caused_by_input`.
