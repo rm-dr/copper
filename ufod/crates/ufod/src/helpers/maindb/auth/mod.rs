@@ -1,11 +1,19 @@
-use std::sync::Arc;
-
 use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-use axum_extra::extract::CookieJar;
+use axum::{
+	http::{header::SET_COOKIE, StatusCode},
+	response::{AppendHeaders, IntoResponse, Response},
+};
+use axum_extra::extract::{
+	cookie::{Cookie, Expiration, SameSite},
+	CookieJar,
+};
 use errors::{CreateGroupError, CreateUserError, DeleteGroupError};
 use rand::{distributions::Alphanumeric, rngs::OsRng, Rng};
 use sqlx::{Connection, Row, SqliteConnection};
+use std::sync::Arc;
+use time::OffsetDateTime;
 use tokio::sync::Mutex;
+use tracing::error;
 
 pub mod errors;
 mod info;
@@ -65,6 +73,42 @@ impl AuthProvider {
 }
 
 impl AuthProvider {
+	/// Match a user to an authentication token or log out.
+	/// This simplifies api code, and automatically logs users out if their token is invalid.
+	pub async fn auth_or_logout(&self, jar: &CookieJar) -> Result<UserInfo, Response> {
+		match self.check_cookies(&jar).await {
+			Ok(None) => {}
+			Ok(Some(u)) => return Ok(u),
+			Err(e) => {
+				error!(
+					message = "Could not check auth cookies",
+					cookies = ?jar,
+					error = ?e
+				);
+				return Err((
+					StatusCode::INTERNAL_SERVER_ERROR,
+					format!("Could not check auth cookies"),
+				)
+					.into_response());
+			}
+		}
+
+		// If cookie is invalid, clean up and delete client cookies
+		let _ = self.terminate_session(jar);
+		let cookie = Cookie::build((AUTH_COOKIE_NAME, ""))
+			.path("/")
+			.secure(true)
+			.http_only(true)
+			.same_site(SameSite::None)
+			.expires(Expiration::from(OffsetDateTime::UNIX_EPOCH));
+
+		return Err((
+			AppendHeaders([(SET_COOKIE, cookie.to_string())]),
+			"Invalid auth cookie, logging out",
+		)
+			.into_response());
+	}
+
 	pub async fn check_cookies(&self, jar: &CookieJar) -> Result<Option<UserInfo>, sqlx::Error> {
 		let token = if let Some(h) = jar.get(AUTH_COOKIE_NAME) {
 			h.value()
@@ -81,11 +125,11 @@ impl AuthProvider {
 		return Ok(None);
 	}
 
-	pub async fn terminate_session(&self, jar: &CookieJar) -> Result<Option<AuthToken>, ()> {
+	pub async fn terminate_session(&self, jar: &CookieJar) -> Option<AuthToken> {
 		let token = if let Some(h) = jar.get(AUTH_COOKIE_NAME) {
 			h.value()
 		} else {
-			return Ok(None);
+			return None;
 		};
 
 		let mut active_tokens = self.active_tokens.lock().await;
@@ -99,7 +143,7 @@ impl AuthProvider {
 			}
 		}
 
-		return Ok(x);
+		return x;
 	}
 
 	pub async fn try_auth_user(

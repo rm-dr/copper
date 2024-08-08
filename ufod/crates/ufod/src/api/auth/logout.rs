@@ -9,7 +9,7 @@ use axum_extra::extract::{
 	CookieJar,
 };
 use time::OffsetDateTime;
-use tracing::{error, info};
+use tracing::info;
 
 /// Try to log in
 #[utoipa::path(
@@ -25,7 +25,7 @@ pub(super) async fn logout(jar: CookieJar, State(state): State<RouterState>) -> 
 	info!(message = "Received logout request", cookies = ?jar);
 
 	match state.main_db.auth.terminate_session(&jar).await {
-		Ok(Some(x)) => {
+		Some(x) => {
 			info!(
 				message = "Successfully logged out",
 				auth_info = ?x.user,
@@ -45,21 +45,8 @@ pub(super) async fn logout(jar: CookieJar, State(state): State<RouterState>) -> 
 				.into_response();
 		}
 
-		Ok(None) => {
+		None => {
 			return (StatusCode::OK, "No session to log out of").into_response();
-		}
-
-		Err(e) => {
-			error!(
-				message = "Could not log out",
-				cookies = ?jar,
-				error = ?e
-			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not log out user"),
-			)
-				.into_response();
 		}
 	};
 }

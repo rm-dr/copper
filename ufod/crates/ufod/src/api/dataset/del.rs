@@ -33,24 +33,12 @@ pub(super) async fn del_dataset(
 	State(state): State<RouterState>,
 	Json(payload): Json<DeleteDatasetRequest>,
 ) -> Response {
-	match state.main_db.auth.check_cookies(&jar).await {
-		Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
-		Ok(Some(u)) => {
+	match state.main_db.auth.auth_or_logout(&jar).await {
+		Err(x) => return x,
+		Ok(u) => {
 			if !u.group.permissions.edit_datasets.is_allowed() {
 				return StatusCode::UNAUTHORIZED.into_response();
 			}
-		}
-		Err(e) => {
-			error!(
-				message = "Could not check auth cookies",
-				cookies = ?jar,
-				error = ?e
-			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not check auth cookies"),
-			)
-				.into_response();
 		}
 	}
 

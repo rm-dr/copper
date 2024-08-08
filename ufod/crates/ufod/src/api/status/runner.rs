@@ -6,7 +6,6 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
-use tracing::error;
 use ufo_pipeline::{
 	api::PipelineNodeState,
 	labels::{PipelineName, PipelineNodeID},
@@ -90,21 +89,9 @@ pub(super) async fn get_runner_status(
 	jar: CookieJar,
 	State(state): State<RouterState>,
 ) -> Response {
-	match state.main_db.auth.check_cookies(&jar).await {
-		Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
-		Ok(Some(_)) => {}
-		Err(e) => {
-			error!(
-				message = "Could not check auth cookies",
-				cookies = ?jar,
-				error = ?e
-			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not check auth cookies"),
-			)
-				.into_response();
-		}
+	match state.main_db.auth.auth_or_logout(&jar).await {
+		Err(x) => return x,
+		Ok(_) => {}
 	}
 
 	let runner = state.runner.lock().await;
