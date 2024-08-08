@@ -24,10 +24,7 @@ pub enum ApiData {
 
 	/// A large file we've previously uploaded.
 	/// TODO: this can become a Blob, a Path, or a Binary.
-	Blob {
-		upload_job: SmartString<LazyCompact>,
-		file_name: SmartString<LazyCompact>,
-	},
+	Blob { file_name: SmartString<LazyCompact> },
 
 	/// An integer
 	Integer(i64),

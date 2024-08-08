@@ -238,7 +238,6 @@ fn main() -> Result<()> {
 							// Upload file & get id
 							let file_handle = info.upload_file(mime, &mut f).unwrap();
 							Some(ApiData::Blob {
-								upload_job: info.get_job_id().clone(),
 								file_name: file_handle,
 							})
 						}
@@ -262,17 +261,11 @@ fn main() -> Result<()> {
 				}
 			}
 
-			println!("{:?}", input);
-			/*
-			println!(
-				"{:?}",
-				api.add_job(AddJobParams {
-					pipeline,
-					input,
-					bound_upload_job: uploadjob.map(|x| x.get_job_id().clone())
-				})
-			);
-			*/
+			api.add_job(AddJobParams {
+				pipeline,
+				input,
+				bound_upload_job: uploadjob.map(|x| x.get_job_id().clone()),
+			})
 		}
 
 		Commands::WatchJobs => {
