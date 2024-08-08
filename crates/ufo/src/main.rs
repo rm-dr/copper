@@ -7,16 +7,19 @@ use ufo_pipeline::runner::runner::PipelineRunner;
 use ufo_pipeline_nodes::{data::UFOData, nodetype::UFONodeType, UFOContext};
 use ufo_storage::{
 	api::{AttributeOptions, Dataset},
-	sea::dataset::SeaDataset,
-	StorageDataType,
+	data::StorageDataType,
+	sqlite::dataset::SQLiteDataset,
 };
 
 fn main() -> Result<()> {
 	// Make dataset
 	let dataset = {
-		let mut d = SeaDataset::new("sqlite:./test.sqlite?mode=rwc", "ufo_db");
-		d.connect()?;
+		let mut d = SQLiteDataset::new("sqlite:./test.sqlite?mode=rwc");
+		d.connect().unwrap();
+
 		let x = d.add_class("AudioFile").unwrap();
+		let cover_art = d.add_class("CoverArt").unwrap();
+
 		d.add_attr(x, "album", StorageDataType::Text, AttributeOptions::new())
 			.unwrap();
 		d.add_attr(x, "artist", StorageDataType::Text, AttributeOptions::new())
@@ -43,6 +46,13 @@ fn main() -> Result<()> {
 			.unwrap();
 		d.add_attr(x, "lyrics", StorageDataType::Text, AttributeOptions::new())
 			.unwrap();
+		d.add_attr(
+			x,
+			"cover_art",
+			StorageDataType::Reference { class: cover_art },
+			AttributeOptions::new(),
+		)
+		.unwrap();
 
 		d.add_attr(
 			x,
@@ -52,16 +62,15 @@ fn main() -> Result<()> {
 		)
 		.unwrap();
 
-		let x = d.add_class("CoverArt").unwrap();
 		d.add_attr(
-			x,
+			cover_art,
 			"image_data",
 			StorageDataType::Binary,
 			AttributeOptions::new(),
 		)
 		.unwrap();
 		d.add_attr(
-			x,
+			cover_art,
 			"content_hash",
 			StorageDataType::Text,
 			AttributeOptions::new().unique(true),

@@ -12,7 +12,7 @@ use ufo_pipeline::{
 use ufo_storage::api::{ClassHandle, Dataset};
 
 use crate::{
-	data::{UFOData, UFODataStub},
+	data::{HashType, UFOData, UFODataStub},
 	input::file::FileInput,
 	output::storage::StorageOutput,
 };
@@ -119,7 +119,7 @@ impl PipelineNodeStub for UFONodeType {
 				node: FileInput::new(),
 			},
 			UFONodeType::Dataset { class, attrs } => {
-				let d = ctx.dataset.lock().unwrap();
+				let mut d = ctx.dataset.lock().unwrap();
 				let class = d.get_class(class).unwrap().unwrap();
 
 				UFONodeInstance::Dataset {
@@ -147,6 +147,7 @@ impl PipelineNodeStub for UFONodeType {
 			Self::Print => PipelinePortSpec::VecOwned(vec![(
 				"data".into(),
 				UFODataStub::Reference {
+					// TODO: specify type as arg
 					class: ClassHandle::from(2),
 				},
 			)]),
@@ -178,7 +179,12 @@ impl PipelineNodeStub for UFONodeType {
 
 			// Util
 			Self::IfNone => PipelinePortSpec::Static(&[("out", UFODataStub::Text)]),
-			Self::Hash => PipelinePortSpec::Static(&[("hash", UFODataStub::Text)]),
+			Self::Hash => PipelinePortSpec::Static(&[(
+				"hash",
+				UFODataStub::Hash {
+					format: HashType::SHA256,
+				},
+			)]),
 			Self::Print => PipelinePortSpec::Static(&[]),
 			Self::Noop { inputs } => PipelinePortSpec::Vec(inputs),
 
@@ -198,7 +204,7 @@ impl PipelineNodeStub for UFONodeType {
 
 			// TODO: add output
 			Self::Dataset { class, .. } => {
-				let d = ctx.dataset.lock().unwrap();
+				let mut d = ctx.dataset.lock().unwrap();
 				let class = d.get_class(class).unwrap().unwrap();
 				PipelinePortSpec::VecOwned(vec![(
 					"added_item".into(),

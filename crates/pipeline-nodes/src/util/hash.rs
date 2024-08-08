@@ -5,7 +5,10 @@ use ufo_pipeline::{
 	errors::PipelineError,
 };
 
-use crate::{data::UFOData, UFOContext};
+use crate::{
+	data::{HashType, UFOData},
+	UFOContext,
+};
 
 // TODO: hash datatype
 // TODO: select hash method
@@ -61,7 +64,13 @@ impl PipelineNode for Hash {
 		hasher.update(&**data);
 		let result = hasher.finalize();
 
-		send_data(0, UFOData::Text(Arc::new(format!("{:X}", result))))?;
+		send_data(
+			0,
+			UFOData::Hash {
+				format: HashType::SHA256,
+				data: Arc::new(result.to_vec()),
+			},
+		)?;
 
 		return Ok(PipelineNodeState::Done);
 	}

@@ -1,7 +1,7 @@
 //#![warn(missing_docs)]
 
 use std::sync::Mutex;
-use ufo_storage::sea::dataset::SeaDataset;
+use ufo_storage::sqlite::dataset::SQLiteDataset;
 
 pub mod data;
 pub mod input;
@@ -13,5 +13,6 @@ pub mod nodeinstance;
 pub mod nodetype;
 
 pub struct UFOContext {
-	pub dataset: Mutex<SeaDataset>,
+	// TODO: trait object
+	pub dataset: Mutex<SQLiteDataset>,
 }

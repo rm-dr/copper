@@ -55,14 +55,16 @@ impl PipelineNode for StorageOutput {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		let mut d = ctx.dataset.lock().unwrap();
-		let item = d.add_item(self.class).unwrap();
 
 		// TODO: partial add
 		// TODO: make sure attrs exist
+		let mut attrs = Vec::new();
 		for ((attr_name, _), data) in self.attrs.iter().zip(self.data.iter()) {
-			let a = d.get_attr(attr_name).unwrap().unwrap();
-			d.item_set_attr(item, a, &data.to_storage_data()).unwrap();
+			let a = d.get_attr(self.class, attr_name).unwrap().unwrap();
+			attrs.push((a, data.to_storage_data()));
 		}
+
+		let item = d.add_item(self.class, &attrs).unwrap();
 
 		send_data(
 			0,
