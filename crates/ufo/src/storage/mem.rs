@@ -1,231 +1,196 @@
-use std::{
-	collections::HashMap,
-	hash::Hash,
-	io::{Cursor, Read, Seek},
-};
+use std::collections::HashMap;
+use ufo_pipeline::data::{PipelineData, PipelineDataType};
 
-use super::{StorageBackend, Uid};
-use crate::model::{
-	Attribute, AttributeType, AttributeValue, Class, ClassInstance, Item, ItemReader, ItemType,
-};
+use super::api::{Dataset, DatasetHandle};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MemItemUid(u32);
+pub struct MemItemIdx(u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MemClassUid(u32);
+pub struct MemClassIdx(u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MemAttrUid(u32);
-impl Uid for MemItemUid {}
-impl Uid for MemClassUid {}
-impl Uid for MemAttrUid {}
+pub struct MemAttrIdx(u32);
+impl DatasetHandle for MemItemIdx {}
+impl DatasetHandle for MemClassIdx {}
+impl DatasetHandle for MemAttrIdx {}
+
+struct MemAttr {
+	name: String,
+	class: MemClassIdx,
+	data_type: PipelineDataType,
+}
+
+struct MemClass {
+	name: String,
+}
 
 struct MemItem {
-	pub uid: MemItemUid,
-	pub data_type: ItemType,
-	pub data: Vec<u8>,
-	pub class: MemClassUid,
-	pub attrs: HashMap<MemAttrUid, AttributeValue>,
+	class: MemClassIdx,
+	data: HashMap<MemAttrIdx, Option<PipelineData>>,
 }
 
-struct MemReader<'a> {
-	data: Cursor<&'a Vec<u8>>,
-}
-
-impl Read for MemReader<'_> {
-	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-		self.data.read(buf)
-	}
-}
-
-impl Seek for MemReader<'_> {
-	fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-		self.data.seek(pos)
-	}
-}
-
-impl<'a> ItemReader<'a> for MemReader<'a> {}
-
-pub struct MemStorageBackend {
+pub struct MemDataset {
 	id_counter: u32,
 
-	// Data structure
-	classes: HashMap<MemClassUid, Class<MemClassUid, MemAttrUid>>,
-	attrs: HashMap<MemAttrUid, Attribute<MemAttrUid>>,
-
-	// Data
-	items: HashMap<MemItemUid, MemItem>,
+	classes: HashMap<MemClassIdx, MemClass>,
+	attrs: HashMap<MemAttrIdx, MemAttr>,
+	items: HashMap<MemItemIdx, MemItem>,
 }
 
-impl MemStorageBackend {
-	pub fn new() -> Self {
-		MemStorageBackend {
-			id_counter: 0,
-			classes: Default::default(),
-			attrs: Default::default(),
-			items: Default::default(),
-		}
+impl MemDataset {
+	fn new_id_item(&mut self) -> MemItemIdx {
+		let id = MemItemIdx(self.id_counter);
+		self.id_counter += 1;
+		return id;
 	}
 
-	fn new_item_uid(&mut self) -> MemItemUid {
-		let uid = MemItemUid(self.id_counter);
+	fn new_id_class(&mut self) -> MemClassIdx {
+		let id = MemClassIdx(self.id_counter);
 		self.id_counter += 1;
-		return uid;
+		return id;
 	}
 
-	fn new_class_uid(&mut self) -> MemClassUid {
-		let uid = MemClassUid(self.id_counter);
+	fn new_id_attr(&mut self) -> MemAttrIdx {
+		let id = MemAttrIdx(self.id_counter);
 		self.id_counter += 1;
-		return uid;
-	}
-
-	fn new_attr_uid(&mut self) -> MemAttrUid {
-		let uid = MemAttrUid(self.id_counter);
-		self.id_counter += 1;
-		return uid;
+		return id;
 	}
 }
 
-impl<'a> StorageBackend<'a> for MemStorageBackend {
-	type ClassUid = MemClassUid;
-	type AttrUid = MemAttrUid;
-	type ItemUid = MemItemUid;
+impl Dataset for MemDataset {
+	type AttrHandle = MemAttrIdx;
+	type ClassHandle = MemClassIdx;
+	type ItemHandle = MemItemIdx;
 
-	fn add_class(&mut self, name: &str) -> Option<Self::ClassUid> {
-		let uid = self.new_class_uid();
-
+	fn add_class(&mut self, name: &str) -> Result<Self::ClassHandle, ()> {
+		let id = self.new_id_class();
 		self.classes.insert(
-			uid,
-			Class {
-				uid,
-				name: name.into(),
-				attributes: Default::default(),
+			id,
+			MemClass {
+				name: name.to_string(),
 			},
 		);
-		return Some(uid);
-	}
-
-	fn del_class(&mut self, doc: Self::ClassUid) -> Option<()> {
-		self.classes.remove(&doc);
-		return Some(());
-	}
-
-	fn get_class(&self, doc: Self::ClassUid) -> Option<Class<Self::ClassUid, Self::AttrUid>> {
-		let d = self.classes.get(&doc);
-
-		d.map(|d| Class {
-			uid: d.uid,
-			name: d.name.clone(),
-			attributes: d.attributes.clone(),
-		})
+		return Ok(id);
 	}
 
 	fn add_attr(
 		&mut self,
-		doc: Self::ClassUid,
+		class: Self::ClassHandle,
 		name: &str,
-		attr: AttributeType,
-	) -> Option<Self::AttrUid> {
-		// This class doesn't exist
-		if !self.classes.contains_key(&doc) {
-			return None;
-		}
-
-		let uid = self.new_attr_uid();
-		let dt = self.classes.get_mut(&doc).unwrap();
-		dt.attributes.push(uid);
+		data_type: PipelineDataType,
+	) -> Result<Self::AttrHandle, ()> {
+		let id = self.new_id_attr();
 		self.attrs.insert(
-			uid,
-			Attribute {
-				uid,
-				name: name.into(),
-				attr_type: attr,
-			},
-		);
-
-		return Some(uid);
-	}
-
-	fn del_attr(&mut self, _doc: Self::ClassUid, attr: Self::AttrUid) -> Option<()> {
-		self.attrs.remove(&attr);
-		return Some(());
-	}
-
-	fn add_item(
-		&mut self,
-		doc: Self::ClassUid,
-		data_type: ItemType,
-		data_read: &mut dyn ItemReader,
-	) -> Option<Self::ItemUid> {
-		let uid = self.new_item_uid();
-
-		let mut data: Vec<u8> = Vec::new();
-		data_read.read_to_end(&mut data).unwrap();
-
-		self.items.insert(
-			uid,
-			MemItem {
-				uid,
-				data,
+			id,
+			MemAttr {
+				name: name.to_string(),
+				class: class,
 				data_type,
-				class: doc,
-				attrs: HashMap::new(),
 			},
 		);
-
-		return Some(uid);
+		return Ok(id);
 	}
 
-	fn del_item(&mut self, item: Self::ItemUid) -> Option<()> {
-		self.items.remove(&item);
-		return Some(());
-	}
-
-	fn get_item(
-		&'a self,
-		item: Self::ItemUid,
-	) -> Option<Item<'a, Self::ItemUid, Self::ClassUid, Self::AttrUid>> {
-		let d = self.items.get(&item);
-
-		d.map(|d| Item {
-			uid: d.uid,
-			data_type: d.data_type,
-			data: Box::new(MemReader {
-				data: Cursor::new(&d.data),
-			}),
-			class: ClassInstance {
-				class: d.class,
-				values: {
-					let mut x = HashMap::new();
-					let dt = self.classes.get(&d.class).unwrap();
-					for a in &dt.attributes {
-						x.insert(*a, d.attrs.get(a).cloned());
-					}
-					x
-				},
+	fn add_item(&mut self, class: Self::ClassHandle) -> Result<Self::ItemHandle, ()> {
+		let id = self.new_id_item();
+		self.items.insert(
+			id,
+			MemItem {
+				class,
+				data: HashMap::new(),
 			},
-		})
+		);
+		return Ok(id);
 	}
 
-	fn set_item_attr(
+	fn del_attr(&mut self, attr: Self::AttrHandle) -> Result<(), ()> {
+		// TODO: delete all instances of this attr
+		self.attrs.remove(&attr).unwrap();
+		Ok(())
+	}
+
+	fn del_class(&mut self, class: Self::ClassHandle) -> Result<(), ()> {
+		// TODO: remove all items with class
+		self.classes.remove(&class);
+		Ok(())
+	}
+
+	fn del_item(&mut self, item: Self::ItemHandle) -> Result<(), ()> {
+		self.items.remove(&item);
+		Ok(())
+	}
+
+	fn iter_items(&self) -> impl Iterator<Item = Self::ItemHandle> {
+		self.items.keys().cloned()
+	}
+
+	fn iter_attrs(&self) -> impl Iterator<Item = Self::AttrHandle> {
+		self.attrs.keys().cloned()
+	}
+
+	fn iter_classes(&self) -> impl Iterator<Item = Self::ClassHandle> {
+		self.classes.keys().cloned()
+	}
+
+	fn item_get_attr(
+		&self,
+		item: Self::ItemHandle,
+		attr: Self::AttrHandle,
+	) -> Result<Option<PipelineData>, ()> {
+		Ok(self
+			.items
+			.get(&item)
+			.unwrap()
+			.data
+			.get(&attr)
+			.unwrap()
+			.clone())
+	}
+
+	fn item_get_class(&self, item: Self::ItemHandle) -> Self::ClassHandle {
+		self.items.get(&item).unwrap().class
+	}
+
+	fn item_set_attr(
 		&mut self,
-		item: Self::ItemUid,
-		attr: Self::AttrUid,
-		value: AttributeValue,
-	) -> Option<()> {
-		let it = self.items.get_mut(&item);
+		item: Self::ItemHandle,
+		attr: Self::AttrHandle,
+		data: Option<&PipelineData>,
+	) -> Result<(), ()> {
+		*self
+			.items
+			.get_mut(&item)
+			.unwrap()
+			.data
+			.get_mut(&attr)
+			.unwrap() = data.cloned();
+		Ok(())
+	}
 
-		// If this item does not exist, return None
-		it.as_ref()?;
+	fn class_set_name(&mut self, class: Self::ClassHandle, name: &str) -> Result<(), ()> {
+		self.classes.get_mut(&class).unwrap().name = name.to_string();
+		Ok(())
+	}
 
-		let it = it.unwrap();
-		let dt = self.classes.get(&it.class).unwrap();
+	fn class_get_name(&self, class: Self::ClassHandle) -> &str {
+		&self.classes.get(&class).unwrap().name
+	}
 
-		// If this attribute does not apply to this item
-		if !dt.attributes.contains(&attr) {
-			return None;
-		}
+	fn class_get_attrs(&self, class: Self::ClassHandle) -> impl Iterator<Item = Self::AttrHandle> {
+		self.attrs
+			.iter()
+			.filter_map(move |(id, attr)| if attr.class == class { Some(*id) } else { None })
+	}
 
-		it.attrs.insert(attr, value);
-		return Some(());
+	fn attr_set_name(&mut self, attr: Self::AttrHandle, name: &str) -> Result<(), ()> {
+		self.attrs.get_mut(&attr).unwrap().name = name.to_string();
+		Ok(())
+	}
+
+	fn attr_get_name(&self, attr: Self::AttrHandle) -> &str {
+		&self.attrs.get(&attr).unwrap().name
+	}
+
+	fn attr_get_type(&self, attr: Self::AttrHandle) -> PipelineDataType {
+		self.attrs.get(&attr).unwrap().data_type
 	}
 }

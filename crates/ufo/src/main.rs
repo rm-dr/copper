@@ -3,21 +3,13 @@ use std::{fs::File, io::Read};
 use anyhow::Result;
 
 mod ingest;
-mod model;
 mod storage;
-
-use storage::StorageBackend;
 
 use crate::ingest::{file::FileInjest, Ingest};
 
 use ufo_pipeline::syntax::{prepareresult::PipelinePrepareResult, spec::PipelineSpec};
 
 fn main() -> Result<()> {
-	let mut x = storage::MemStorageBackend::new();
-
-	let d = x.add_class("Class").unwrap();
-	x.add_attr(d, "test attr", model::AttributeType::String);
-
 	// Load pipeline
 	let mut f = File::open("pipeline.toml").unwrap();
 	let mut s: String = Default::default();
@@ -31,10 +23,12 @@ fn main() -> Result<()> {
 
 	// Run pipeline
 	let f = FileInjest::new("data/freeze.flac".into());
-	println!("{:#?}\n\n", p.run(f.injest().unwrap())?);
+	let o = p.run(f.injest().unwrap())?;
+	println!("{:#?}\n\n", o);
 
 	let f = FileInjest::new("data/top.mp3".into());
-	println!("{:#?}", p.run(f.injest().unwrap())?);
+	let o = p.run(f.injest().unwrap())?;
+	println!("{:#?}", o);
 
 	Ok(())
 }
