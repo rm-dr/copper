@@ -31,6 +31,10 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## 📦 Fixes
 - [ ] Server deadlocks with two parallel clients
 - [ ] Show item idx in list
+- [ ] lychee action
+- [ ] Remove allow dead code
+- [ ] Add ts lints & tests
+- [ ] Script to run actions manually
 
 ## 📦 API endpoints
 - [ ] Change user password
@@ -49,7 +53,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Many metadata blocks
   - [ ] Many streaminfo blocks
 - [ ] IDv3 complete implementation
-- [ ] Early exit if we don't need audio
+- [ ] Early exit if we don't need audio data
 
 ## 📦 Better uploads
 - [ ] Upload in parallel
