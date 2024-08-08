@@ -47,7 +47,7 @@ impl PipelineInfoInput {
 	get,
 	path = "/{dataset_name}/pipelines",
 	responses(
-		(status = 200, description = "Pipeline names", body = Vec<PipelineInfoShort>),
+		(status = 200, description = "Pipeline info", body = Vec<PipelineInfoShort>),
 		(status = 500, description = "Could not load pipeline", body = String),
 	),
 )]

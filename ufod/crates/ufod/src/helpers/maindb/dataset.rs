@@ -1,21 +1,23 @@
 use futures::executor::block_on;
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{Connection, Row};
 use std::{fmt::Display, path::PathBuf, str::FromStr, sync::Arc};
 use ufo_ds_core::api::Dataset;
 use ufo_ds_impl::local::LocalDataset;
 use ufo_pipeline_nodes::nodetype::UFONodeType;
+use utoipa::ToSchema;
 
 use super::{errors::CreateDatasetError, MainDB};
 
 #[derive(Debug)]
 pub struct DatasetEntry {
-	name: SmartString<LazyCompact>,
-	ds_type: DatasetType,
-	path: PathBuf,
+	pub name: SmartString<LazyCompact>,
+	pub ds_type: DatasetType,
+	pub path: PathBuf,
 }
 
-#[derive(Debug)]
+#[derive(Debug, SerializeDisplay, DeserializeFromStr, ToSchema)]
 pub enum DatasetType {
 	Local,
 }
@@ -29,11 +31,11 @@ impl Display for DatasetType {
 }
 
 impl FromStr for DatasetType {
-	type Err = ();
+	type Err = String;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		Ok(match s {
 			"Local" => Self::Local,
-			_ => return Err(()),
+			_ => return Err(format!("Unknown dataset type `{s}`")),
 		})
 	}
 }

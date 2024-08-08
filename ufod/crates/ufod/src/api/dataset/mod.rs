@@ -1,4 +1,4 @@
-use crate::RouterState;
+use crate::{helpers::maindb::dataset::DatasetType, RouterState};
 use axum::{
 	routing::{get, post},
 	Router,
@@ -37,7 +37,9 @@ use run::*;
 		PipelineInfoInput,
 		AddJobResult,
 		AddJobParams,
-		AddJobInput
+		AddJobInput,
+		DatasetInfoShort,
+		DatasetType,
 	))
 )]
 pub(super) struct DatasetApi;
