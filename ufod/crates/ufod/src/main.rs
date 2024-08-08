@@ -65,7 +65,7 @@ async fn main() {
 	// TODO: clone fewer arcs
 	let state = RouterState {
 		main_db: Arc::new(main_db),
-		config: config,
+		config,
 		runner: Arc::new(Mutex::new(runner)),
 		uploader: Arc::new(uploader),
 	};

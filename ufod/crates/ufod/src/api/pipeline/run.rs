@@ -82,7 +82,7 @@ pub(super) async fn run_pipeline(
 
 	let context = Arc::new(UFOContext {
 		dataset: dataset.clone(),
-		blob_fragment_size: 1_000_000,
+		blob_fragment_size: state.config.blob_fragment_size,
 	});
 
 	let pipe = match dataset.load_pipeline(&pipeline_name, context.clone()) {

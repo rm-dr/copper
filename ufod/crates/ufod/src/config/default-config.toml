@@ -1,3 +1,8 @@
+# The maximum size, in bytes, of a blob channel fragment
+# larger fragments make the runner use more memory, but make it run faster.
+# fragments should not be absurdly large, diminishing returns.
+blob_fragment_size = 2097152
+
 [network]
 # Address and port to bind to
 server_addr = "127.0.0.1:3030"

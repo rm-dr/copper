@@ -8,10 +8,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## 📦 CRUD datasets
 - [ ] Rename set, class, attr endpoint
-- [ ] Loading state for modals
-
-## 📦 Server.toml
-- [ ] read blob size
 
 ## 📦 Better dataset names
 - Store name in db, use idx as fs path?
@@ -78,6 +74,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Fade bottom of all scrolls
   - dataset tree
   - upload queue
+- [ ] Loading state for modals
 
 
 ## 📦 Better uploads
