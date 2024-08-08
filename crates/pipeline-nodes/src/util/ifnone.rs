@@ -11,14 +11,14 @@ use crate::{
 #[derive(Clone)]
 pub struct IfNone {
 	ifnone: Option<UFOData>,
-	input: Option<UFOData>,
+	has_input: bool,
 }
 
 impl IfNone {
 	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext) -> Self {
 		Self {
 			ifnone: None,
-			input: None,
+			has_input: false,
 		}
 	}
 }
@@ -35,14 +35,20 @@ impl PipelineNode for IfNone {
 	fn take_input<F>(
 		&mut self,
 		(port, data): (usize, UFOData),
-		_send_data: F,
+		send_data: F,
 	) -> Result<(), PipelineError>
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		match port {
 			0 => {
-				self.input = Some(data);
+				match data {
+					UFOData::None(_) => self.has_input = true,
+					x => {
+						send_data(0, x)?;
+						return Ok(());
+					}
+				};
 			}
 			1 => {
 				self.ifnone = Some(data);
@@ -60,19 +66,10 @@ impl PipelineNode for IfNone {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		if self.input.is_none() || self.ifnone.is_none() {
-			return Ok(PipelineNodeState::Pending("args not ready"));
+		if self.has_input || self.ifnone.is_some() {
+			send_data(0, self.ifnone.take().unwrap())?;
 		}
-
-		send_data(
-			0,
-			match self.input.take().unwrap() {
-				UFOData::None(_) => self.ifnone.take().unwrap(),
-				x => x,
-			},
-		)?;
-
-		Ok(PipelineNodeState::Done)
+		Ok(PipelineNodeState::Pending("args not ready"))
 	}
 }
 

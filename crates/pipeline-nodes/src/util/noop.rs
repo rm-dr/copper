@@ -10,7 +10,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Noop {
-	inputs: Vec<(PipelinePortLabel, MetaDbDataStub, bool)>,
+	received_input: Vec<bool>,
 }
 
 impl Noop {
@@ -19,7 +19,7 @@ impl Noop {
 		inputs: Vec<(PipelinePortLabel, MetaDbDataStub)>,
 	) -> Self {
 		Self {
-			inputs: inputs.into_iter().map(|(a, b)| (a, b, false)).collect(),
+			received_input: inputs.into_iter().map(|_| false).collect(),
 		}
 	}
 }
@@ -41,9 +41,9 @@ impl PipelineNode for Noop {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		assert!(port < self.inputs.len());
-		assert!(!self.inputs[port].2);
-		self.inputs[port].2 = true;
+		assert!(port < self.received_input.len());
+		assert!(!self.received_input[port]);
+		self.received_input[port] = true;
 		send_data(port, data)?;
 		return Ok(());
 	}
@@ -56,12 +56,10 @@ impl PipelineNode for Noop {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		for (_, _, b) in &self.inputs {
-			if !b {
-				return Ok(PipelineNodeState::Pending("args not ready"));
-			}
+		if self.received_input.iter().all(|x| *x) {
+			return Ok(PipelineNodeState::Done);
 		}
-		return Ok(PipelineNodeState::Done);
+		return Ok(PipelineNodeState::Pending("args not ready"));
 	}
 }
 
