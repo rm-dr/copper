@@ -17,9 +17,9 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
+# TODO: remove this dep
 ufo-storage = { workspace = true }
 ufo-util = { workspace = true }
-ufo-audiofile = { workspace = true }
 
 serde = { workspace = true }
 smartstring = { workspace = true }
@@ -29,4 +29,3 @@ toml = { workspace = true }
 itertools = { workspace = true }
 threadpool = { workspace = true }
 crossbeam = { workspace = true }
-sha2 = { workspace = true }

@@ -1,10 +1,10 @@
 use smartstring::{LazyCompact, SmartString};
 use std::fmt::Debug;
-use ufo_util::graph::FinalizedGraph;
 
 use crate::{
-	nodes::nodetype::PipelineNodeType,
-	syntax::{labels::PipelineNodeLabel, spec::PipelineConfig},
+	graph::{finalized::FinalizedGraph, util::GraphNodeIdx},
+	node::PipelineNodeStub,
+	syntax::{labels::PipelineNodeLabel, spec::InternalNodeStub},
 };
 
 /// An edge in a pipeline
@@ -53,21 +53,14 @@ impl PipelineEdge {
 /// This is guaranteed to be correct:
 /// no dependency cycles, no port type mismatch, etc.
 #[derive(Debug)]
-pub struct Pipeline {
+pub struct Pipeline<NodeType: PipelineNodeStub> {
 	/// This pipeline's name.
 	/// Must be unique.
 	pub(crate) name: SmartString<LazyCompact>,
 
-	/// This pipeline's configuration
-	pub(crate) config: PipelineConfig,
+	pub(crate) input_node_idx: GraphNodeIdx,
+	pub(crate) output_node_idx: GraphNodeIdx,
 
 	/// This pipeline's node graph
-	pub(crate) graph: FinalizedGraph<(PipelineNodeLabel, PipelineNodeType), PipelineEdge>,
-}
-
-impl Pipeline {
-	/// Get this pipeline's configuration
-	pub fn get_config(&self) -> &PipelineConfig {
-		&self.config
-	}
+	pub(crate) graph: FinalizedGraph<(PipelineNodeLabel, InternalNodeStub<NodeType>), PipelineEdge>,
 }

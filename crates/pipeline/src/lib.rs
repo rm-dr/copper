@@ -2,9 +2,8 @@
 
 pub mod data;
 pub mod errors;
-pub mod input;
-pub mod nodes;
-pub mod output;
+mod graph;
+pub mod node;
 #[allow(clippy::module_inception)]
 pub mod pipeline;
 pub mod portspec;

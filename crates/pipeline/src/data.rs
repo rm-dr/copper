@@ -7,7 +7,10 @@ use std::{
 	str::FromStr,
 	sync::Arc,
 };
-use ufo_storage::{StorageData, StorageDataType};
+use ufo_storage::{
+	api::{ClassHandle, ItemHandle},
+	StorageData, StorageDataType,
+};
 use ufo_util::mime::MimeType;
 
 // TODO: no clone vec
@@ -22,6 +25,11 @@ pub enum PipelineData {
 
 	/// A block of text
 	Text(Arc<String>),
+
+	Reference {
+		class: ClassHandle,
+		item: ItemHandle,
+	},
 
 	/// Binary data
 	Binary {
@@ -39,6 +47,7 @@ impl Debug for PipelineData {
 			Self::None(t) => write!(f, "None({})", t),
 			Self::Text(s) => write!(f, "Text({})", s),
 			Self::Binary { format, .. } => write!(f, "Binary({:?})", format),
+			Self::Reference { class, item } => write!(f, "Reference({class:?} {item:?})"),
 		}
 	}
 }
@@ -50,6 +59,9 @@ impl PipelineData {
 			Self::None(t) => *t,
 			Self::Text(_) => PipelineDataType::Text,
 			Self::Binary { .. } => PipelineDataType::Binary,
+			Self::Reference { class, .. } => PipelineDataType::Reference {
+				class: class.clone(),
+			},
 		}
 	}
 
@@ -60,6 +72,10 @@ impl PipelineData {
 			Self::Binary { format, data } => StorageData::Binary {
 				format: format.clone(),
 				data: data.clone(),
+			},
+			Self::Reference { class, item } => StorageData::Reference {
+				class: class.clone(),
+				item: item.clone(),
 			},
 		}
 	}
@@ -74,6 +90,10 @@ pub enum PipelineDataType {
 
 	/// Binary data, in any format
 	Binary,
+
+	Reference {
+		class: ClassHandle,
+	},
 }
 
 impl Display for PipelineDataType {
@@ -81,6 +101,7 @@ impl Display for PipelineDataType {
 		match self {
 			Self::Text => write!(f, "Text"),
 			Self::Binary => write!(f, "Binary"),
+			Self::Reference { class } => write!(f, "Reference({class:?})"),
 		}
 	}
 }
@@ -114,6 +135,9 @@ impl PipelineDataType {
 		match self {
 			Self::Binary => StorageDataType::Binary,
 			Self::Text => StorageDataType::Text,
+			Self::Reference { class } => StorageDataType::Reference {
+				class: class.clone(),
+			},
 		}
 	}
 }
