@@ -1,3 +1,5 @@
+//! All pipeline file-parsing logic
+
 pub mod errors;
 pub mod labels;
 pub mod ports;

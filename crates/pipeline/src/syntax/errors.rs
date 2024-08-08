@@ -1,3 +1,5 @@
+//! Error helpers for pipeline spec parsing
+
 use std::{error::Error, fmt::Display};
 use ufo_util::data::PipelineDataType;
 
@@ -6,56 +8,79 @@ use super::{
 	ports::{NodeInput, NodeOutput},
 };
 
+/// A node specification in a [`PipelinePrepareError`]
 #[derive(Debug)]
 pub enum PipelineErrorNode {
+	/// The pipeline's external interface node
 	Pipeline,
+
+	/// A named node created by the user
 	Named(PipelineNodeLabel),
 }
 
+/// An error we encounter when a pipeline spec is invalid
 #[derive(Debug)]
 pub enum PipelinePrepareError {
 	/// We could not open a pipeline spec file
-	CouldNotOpenFile { error: std::io::Error },
+	CouldNotOpenFile {
+		/// The error we encountered
+		error: std::io::Error,
+	},
 
 	/// We could not read a pipeline spec file
-	CouldNotReadFile { error: std::io::Error },
+	CouldNotReadFile {
+		/// The error we encountered
+		error: std::io::Error,
+	},
 
 	/// We could not parse a pipeline spec file
-	CouldNotParseFile { error: toml::de::Error },
+	CouldNotParseFile {
+		/// The error we encountered
+		error: toml::de::Error,
+	},
 
-	/// There is no node named `node` in this pipeline
-	/// We tried to connect this node from `caused_by`.
+	/// There is no node named `node` in this pipeline.
 	NoNode {
+		/// The node label that doesn't exist
 		node: PipelineNodeLabel,
+		/// We tried to connect to `node` from this input.
 		caused_by: NodeInput,
 	},
 
 	/// `node` has no input named `input`.
 	/// This is triggered when we specify an input that doesn't exist.
 	NoNodeInput {
+		/// The node we tried to reference
 		node: PipelineErrorNode,
+		/// The input name that doesn't exist
 		input: PipelinePortLabel,
 	},
 
 	/// `node` has no output named `output`.
-	/// We tried to connect this output from `caused_by`.
 	NoNodeOutput {
+		/// The node we tried to connect to
 		node: PipelineErrorNode,
+		/// The output name that doesn't exist
 		output: PipelinePortLabel,
+		/// The node input we tried to connect to `output`
 		caused_by: NodeInput,
 	},
 
 	/// We tried to connect `input` to `output`,
 	/// but their types don't match.
 	TypeMismatch {
+		/// The output we tried to connect
 		output: NodeOutput,
+		/// The input we tried to connect
 		input: NodeInput,
 	},
 
 	/// We tried to connect an inline type to `input`,
 	/// but their types don't match.
 	InlineTypeMismatch {
+		/// The type our inline data has
 		inline_type: PipelineDataType,
+		/// The input we tried to connect it to
 		input: NodeInput,
 	},
 

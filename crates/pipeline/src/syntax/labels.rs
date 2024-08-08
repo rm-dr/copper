@@ -1,3 +1,5 @@
+//! Helpful types for node and port labels
+
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::fmt::Display;

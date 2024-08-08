@@ -1,3 +1,5 @@
+//! Helper structs for node inputs and outputs
+
 use serde::Deserialize;
 use std::{fmt::Debug, str::FromStr};
 
@@ -10,20 +12,26 @@ use super::labels::{PipelineNodeLabel, PipelinePortLabel};
 pub enum NodeOutput {
 	/// An output port of the pipeline
 	Pipeline {
+		/// The port's name
 		#[serde(rename = "pipeline")]
 		port: PipelinePortLabel,
 	},
 
 	/// An output port of a node
 	Node {
+		/// The node that provides this output
 		node: PipelineNodeLabel,
 
+		/// The output's name
 		#[serde(rename = "output")]
 		port: PipelinePortLabel,
 	},
 
 	/// Inline static text
-	InlineText { text: String },
+	InlineText {
+		/// The text to provide
+		text: String,
+	},
 }
 
 // TODO: better error
@@ -56,13 +64,16 @@ pub enum NodeInput {
 	/// An output port of the pipeline
 	Pipeline {
 		#[serde(rename = "pipeline")]
+		/// The port's name
 		port: PipelinePortLabel,
 	},
 
 	/// An input port of a node
 	Node {
+		/// The node that provides this input
 		node: PipelineNodeLabel,
 
+		/// The port's name
 		#[serde(rename = "input")]
 		port: PipelinePortLabel,
 	},
