@@ -20,6 +20,8 @@ use tokio::sync::Mutex;
 use ufo_api::upload::{
 	UploadFinish, UploadFragmentMetadata, UploadNewFileResult, UploadStartInfo, UploadStartResult,
 };
+use ufo_pipeline::runner::runner::PipelineRunner;
+use ufo_pipeline_nodes::nodetype::UFONodeType;
 use ufo_util::mime::MimeType;
 
 use crate::RouterState;
@@ -33,6 +35,7 @@ const UPLOAD_ID_LENGTH: usize = 8;
 struct UploadJob {
 	id: SmartString<LazyCompact>,
 	dir: PathBuf,
+	bound_to_pipeline_job: Option<u128>,
 
 	started_at: Instant,
 	last_activity: Instant,
@@ -60,7 +63,7 @@ impl Uploader {
 		Self {
 			tmp_dir,
 			jobs: Mutex::new(Vec::new()),
-			delete_job_after: Duration::from_secs(10 * 60),
+			delete_job_after: Duration::from_secs(5),
 		}
 	}
 
@@ -102,6 +105,68 @@ impl Uploader {
 			.map(char::from)
 			.collect()
 	}
+
+	pub async fn check_jobs(&self, runner: &PipelineRunner<UFONodeType>) {
+		let mut jobs = self.jobs.lock().await;
+
+		let now = Instant::now();
+		let mut i = 0;
+		while i < jobs.len() {
+			let j = &jobs[i];
+
+			if let Some(p) = j.bound_to_pipeline_job {
+				println!("{} is bound", j.id);
+			} else {
+				if j.last_activity + self.delete_job_after < now {
+					println!("Removing job {} (timeout)", j.id);
+					jobs.swap_remove(i);
+					continue;
+				}
+			}
+		}
+	}
+}
+
+impl Uploader {
+	/// Get a path to the given file
+	pub async fn get_job_file_path(
+		&self,
+		job_id: &SmartString<LazyCompact>,
+		file_name: &SmartString<LazyCompact>,
+	) -> Option<PathBuf> {
+		let jobs = self.jobs.lock().await;
+
+		// Try to find the given job
+		let job = jobs.iter().find(|us| us.id == *job_id)?;
+
+		// Try to find the given file
+		let file = job.files.iter().find(|f| f.name == *file_name)?;
+
+		return Some(file.path.clone());
+	}
+
+	pub async fn bind_job_to_pipeline(
+		&self,
+		job_id: &SmartString<LazyCompact>,
+		pipeline_id: u128,
+	) -> bool {
+		let mut jobs = self.jobs.lock().await;
+
+		// Try to find the given job
+		let job = if let Some(x) = jobs.iter_mut().find(|us| us.id == *job_id) {
+			x
+		} else {
+			return false;
+		};
+
+		if job.bound_to_pipeline_job.is_some() {
+			return false;
+		}
+
+		job.bound_to_pipeline_job = Some(pipeline_id);
+
+		return true;
+	}
 }
 
 impl Uploader {
@@ -135,6 +200,7 @@ impl Uploader {
 			started_at: now.clone(),
 			last_activity: now,
 			files: Vec::new(),
+			bound_to_pipeline_job: None,
 		});
 
 		return (StatusCode::OK, Json(UploadStartResult { job_id: id })).into_response();
