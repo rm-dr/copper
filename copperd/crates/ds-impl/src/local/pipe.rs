@@ -1,4 +1,3 @@
-use sqlx::Row;
 use copper_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
 use copper_pipeline::{
 	api::{PipelineData, PipelineJobContext},
@@ -6,6 +5,7 @@ use copper_pipeline::{
 	labels::PipelineName,
 	pipeline::pipeline::Pipeline,
 };
+use sqlx::Row;
 
 use super::LocalDataset;
 

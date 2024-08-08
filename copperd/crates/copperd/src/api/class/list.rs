@@ -6,13 +6,13 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use serde::{Deserialize, Serialize};
-use smartstring::{LazyCompact, SmartString};
-use tracing::error;
 use copper_ds_core::{
 	api::meta::{AttrInfo, Metastore},
 	handles::ClassHandle,
 };
+use serde::{Deserialize, Serialize};
+use smartstring::{LazyCompact, SmartString};
+use tracing::error;
 use utoipa::{IntoParams, ToSchema};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, IntoParams)]

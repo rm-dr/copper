@@ -5,9 +5,6 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use tracing::error;
 use copper_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
 use copper_ds_impl::local::LocalDataset;
 use copper_node_base::{
@@ -15,6 +12,9 @@ use copper_node_base::{
 	CopperContext,
 };
 use copper_pipeline::labels::PipelineName;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use tracing::error;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::RouterState;
@@ -87,7 +87,8 @@ pub(super) async fn list_pipelines(
 	// TODO: this is ugly, fix it!
 	// (do while implementing generic datasets)
 	let all_pipes =
-		match <LocalDataset as Pipestore<CopperData, CopperContext>>::all_pipelines(&dataset).await {
+		match <LocalDataset as Pipestore<CopperData, CopperContext>>::all_pipelines(&dataset).await
+		{
 			Ok(x) => x,
 			Err(e) => {
 				error!(

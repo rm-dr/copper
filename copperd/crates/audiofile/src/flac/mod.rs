@@ -8,8 +8,8 @@ pub mod proc;
 #[cfg(test)]
 mod tests {
 
-	use itertools::Itertools;
 	use copper_util::mime::MimeType;
+	use itertools::Itertools;
 
 	use super::errors::FlacDecodeError;
 	use crate::common::{picturetype::PictureType, vorbiscomment::VorbisCommentDecodeError};

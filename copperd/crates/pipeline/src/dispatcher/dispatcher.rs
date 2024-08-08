@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, marker::PhantomData};
 
 use super::{NodeParameterSpec, NodeParameterValue, RegisterNodeError};
 use crate::{
-	api::{InitNodeError, NodeInfo, PipelineData, PipelineJobContext, Node},
+	api::{InitNodeError, Node, NodeInfo, PipelineData, PipelineJobContext},
 	nodes::input::{Input, InputInfo, INPUT_NODE_TYPE_NAME},
 };
 

@@ -6,9 +6,9 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
+use copper_ds_core::api::meta::Metastore;
 use serde::{Deserialize, Serialize};
 use tracing::error;
-use copper_ds_core::api::meta::Metastore;
 use utoipa::{IntoParams, ToSchema};
 
 use super::ExtendedClassInfo;

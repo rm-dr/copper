@@ -1,5 +1,5 @@
-use std::{collections::VecDeque, sync::Arc};
 use copper_util::mime::MimeType;
+use std::{collections::VecDeque, sync::Arc};
 
 use crate::data::BytesSource;
 

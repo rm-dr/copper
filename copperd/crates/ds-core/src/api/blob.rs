@@ -1,7 +1,7 @@
+use copper_util::mime::MimeType;
 use serde::{Deserialize, Serialize};
 use std::{fs::File, io::Write, path::PathBuf, pin::Pin};
 use tokio::io::AsyncRead;
-use copper_util::mime::MimeType;
 use utoipa::ToSchema;
 
 use crate::errors::BlobstoreError;

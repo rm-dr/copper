@@ -1,8 +1,8 @@
 use std::{error::Error, fmt::Display};
 
-use smartstring::{LazyCompact, SmartString};
 use copper_pipeline::{api::PipelineData, pipeline::syntax::errors::PipelinePrepareError};
 use copper_util::names::NameError;
+use smartstring::{LazyCompact, SmartString};
 
 #[derive(Debug)]
 pub enum MetastoreError {

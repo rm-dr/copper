@@ -7,10 +7,10 @@ pub mod helpers;
 pub mod nodes;
 
 use copper_ds_impl::local::LocalDataset;
+use copper_pipeline::api::PipelineJobContext;
 use data::CopperData;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use copper_pipeline::api::PipelineJobContext;
 
 #[derive(Clone)]
 pub struct CopperContext {

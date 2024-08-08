@@ -5,11 +5,11 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use serde::{Deserialize, Serialize};
 use copper_pipeline::{
 	api::NodeState,
 	labels::{PipelineName, PipelineNodeID},
 };
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::RouterState;

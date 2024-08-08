@@ -5,10 +5,10 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
+use copper_ds_core::{api::meta::Metastore, errors::MetastoreError, handles::ClassHandle};
 use itertools::Itertools;
 use serde::Deserialize;
 use tracing::error;
-use copper_ds_core::{api::meta::Metastore, errors::MetastoreError, handles::ClassHandle};
 use utoipa::ToSchema;
 
 use crate::api::RouterState;

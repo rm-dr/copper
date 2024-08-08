@@ -2,20 +2,20 @@ use crate::{
 	common::tagtype::TagType,
 	flac::blockread::{FlacBlock, FlacBlockReader, FlacBlockSelector},
 };
-use copper_pipeline::{
-	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
-	dispatcher::NodeParameterValue,
-	labels::PipelinePortID,
-};
-use itertools::Itertools;
-use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, io::Read, sync::Arc};
 use copper_node_base::{
 	data::{CopperData, CopperDataStub},
 	helpers::DataSource,
 	CopperContext,
 };
+use copper_pipeline::{
+	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
+	dispatcher::NodeParameterValue,
+	labels::PipelinePortID,
+};
 use copper_util::mime::MimeType;
+use itertools::Itertools;
+use smartstring::{LazyCompact, SmartString};
+use std::{collections::BTreeMap, io::Read, sync::Arc};
 
 /// Info for a [`ExtractTags`] node
 pub struct ExtractTagsInfo {

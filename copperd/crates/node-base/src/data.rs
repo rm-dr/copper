@@ -2,10 +2,10 @@ use copper_ds_core::{
 	data::{HashType, MetastoreData, MetastoreDataStub},
 	handles::{ClassHandle, ItemIdx},
 };
-use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use copper_pipeline::api::{PipelineData, PipelineDataStub};
 use copper_util::mime::MimeType;
+use serde::{Deserialize, Serialize};
+use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use utoipa::ToSchema;
 
 /// Immutable bits of data inside a pipeline.

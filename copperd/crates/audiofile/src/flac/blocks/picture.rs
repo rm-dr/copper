@@ -1,8 +1,8 @@
+use copper_util::mime::MimeType;
 use std::{
 	fmt::Debug,
 	io::{Cursor, Read},
 };
-use copper_util::mime::MimeType;
 
 use crate::{
 	common::picturetype::PictureType,
