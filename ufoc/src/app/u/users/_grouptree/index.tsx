@@ -14,29 +14,12 @@ import {
 	IconUsersGroup,
 	IconX,
 } from "@tabler/icons-react";
+import { APIclient } from "@/app/_util/api";
+import { components } from "@/app/_util/api/openapi";
 
 type TreeState = {
 	error: boolean;
 	loading: boolean;
-};
-
-export type GroupId = { type: "RootGroup" } | { type: "Group"; id: number };
-
-export type UserInfo = {
-	id: number;
-	name: string;
-	group: GroupInfo;
-};
-
-export type GroupInfo = {
-	name: string;
-	id: GroupId;
-	parent: GroupId | null;
-};
-
-export type GroupData = {
-	group_info: GroupInfo;
-	users: UserInfo[];
 };
 
 const Wrapper = (params: { children: ReactNode }) => {
@@ -75,7 +58,7 @@ export function useGroupTreePanel() {
 		data: treeData,
 		setTreeData,
 		selected,
-	} = useTree<GroupData>({ defaultOpen: true });
+	} = useTree<components["schemas"]["ListgroupInfo"]>({ defaultOpen: true });
 
 	const update_tree = useCallback(() => {
 		setTreeState((td) => {
@@ -85,22 +68,42 @@ export function useGroupTreePanel() {
 			};
 		});
 
-		fetch("/api/auth/group/list")
-			.then((res) => res.json())
-			.then((data: GroupData[]) => {
-				const out: TreeNode<GroupData>[] = [];
+		APIclient.GET("/auth/group/list")
+			.then(({ data, error }) => {
+				if (error !== undefined) {
+					throw error;
+				}
+
+				const out: TreeNode<components["schemas"]["ListgroupInfo"]>[] = [];
 				for (let i = 0; i < data.length; i++) {
 					const g = data[i];
+
+					// Not possible
+					if (g === undefined) {
+						continue;
+					}
+
 					const id =
 						g.group_info.id.type === "RootGroup"
 							? "RootGroup"
 							: `${g.group_info.id.id}`;
+
 					const parent =
-						g.group_info.parent === null
+						g.group_info.parent === undefined || g.group_info.parent === null
 							? "RootGroup"
-							: g.group_info.parent.type === "RootGroup"
+							: // apiclient has odd behavior, these `as` are a hack
+							(
+									g.group_info.parent as {
+										type: string;
+									}
+							  ).type === "RootGroup"
 							? "RootGroup"
-							: `${g.group_info.parent.id}`;
+							: (
+									g.group_info.parent as {
+										id: number;
+										type: string;
+									}
+							  ).id.toString();
 
 					let parent_idx = out.findIndex((x) => x.uid === parent);
 
@@ -179,7 +182,7 @@ export function useGroupTreePanel() {
 
 	const node = (
 		<Panel
-			panel_id={styles.panel_grouptree}
+			panel_id={styles.panel_grouptree as string}
 			icon={<XIcon icon={IconUsersGroup} />}
 			title={"Manage Groups"}
 		>
@@ -191,7 +194,10 @@ export function useGroupTreePanel() {
 	return { node, selected, treeData, reloadTree: update_tree };
 }
 
-function GroupMenu(params: { group: GroupInfo; onChange: () => void }) {
+function GroupMenu(params: {
+	group: components["schemas"]["GroupInfo"];
+	onChange: () => void;
+}) {
 	const { open: openAddGroupModal, modal: addGroupModal } = useAddGroupModal({
 		group: params.group,
 		onChange: params.onChange,

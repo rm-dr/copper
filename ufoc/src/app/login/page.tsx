@@ -1,11 +1,11 @@
 "use client";
-import { cookies } from "next/headers";
 import { Button, PasswordInput, Text, TextInput } from "@mantine/core";
 import styles from "./page.module.scss";
 import { useState } from "react";
 
 import Banner from "../../../public/banner.svg";
 import { useForm } from "@mantine/form";
+import { APIclient } from "../_util/api";
 
 export default function Page() {
 	let [loading, setLoading] = useState(false);
@@ -25,23 +25,15 @@ export default function Page() {
 				onSubmit={form.onSubmit((values) => {
 					setLoading(true);
 					setError(null);
-					fetch("/api/auth/login", {
-						method: "post",
-						headers: {
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify(values),
-					})
-						.then((res) => {
-							if (res.status === 400) {
+					APIclient.POST("/auth/login", { body: values })
+						.then(({ data, error }) => {
+							if (error !== undefined) {
 								setLoading(false);
 								setError("Login failed");
 							} else {
-								return res.text().then((text) => {
-									// Middleware will redirect to main page
-									location.reload();
-									//setLoading(false);
-								});
+								// Middleware will redirect to main page
+								location.reload();
+								//setLoading(false);
 							}
 						})
 						.catch((err) => {

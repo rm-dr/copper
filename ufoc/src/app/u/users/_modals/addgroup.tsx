@@ -2,13 +2,14 @@ import { Button, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { useForm } from "@mantine/form";
-import { GroupInfo } from "../_grouptree";
 import { ModalBase } from "@/app/components/modal_base";
 import { XIcon } from "@/app/components/icons";
 import { IconFolderPlus } from "@tabler/icons-react";
+import { APIclient } from "@/app/_util/api";
+import { components } from "@/app/_util/api/openapi";
 
 export function useAddGroupModal(params: {
-	group?: GroupInfo;
+	group: components["schemas"]["GroupInfo"];
 	onChange: () => void;
 }) {
 	const [opened, { open, close }] = useDisclosure(false);
@@ -58,30 +59,24 @@ export function useAddGroupModal(params: {
 						setLoading(true);
 						setErrorMessage(null);
 
-						fetch(`/api/auth/group/add`, {
-							method: "POST",
-							headers: {
-								"Content-Type": "application/json",
-							},
-							body: JSON.stringify({
+						APIclient.POST("/auth/group/add", {
+							body: {
 								parent: params.group?.id,
 								name: values.name,
-							}),
+							},
 						})
-							.then((res) => {
-								setLoading(false);
-								if (!res.ok) {
-									res.text().then((text) => {
-										setErrorMessage(text);
-									});
-								} else {
-									params.onChange();
-									reset();
+
+							.then(({ data, error }) => {
+								if (error !== undefined) {
+									throw error;
 								}
+
+								params.onChange();
+								reset();
 							})
 							.catch((e) => {
 								setLoading(false);
-								setErrorMessage(`Error: ${e}`);
+								setErrorMessage(e);
 							});
 					})}
 				>

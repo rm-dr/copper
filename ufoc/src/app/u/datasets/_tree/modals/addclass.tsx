@@ -6,6 +6,7 @@ import { ModalBase } from "@/app/components/modal_base";
 import { useForm } from "@mantine/form";
 import { XIcon } from "@/app/components/icons";
 import { IconFolderPlus } from "@tabler/icons-react";
+import { APIclient } from "@/app/_util/api";
 
 export function useAddClassModal(params: {
 	dataset_name: string;
@@ -59,27 +60,19 @@ export function useAddClassModal(params: {
 						setLoading(true);
 						setErrorMessage(null);
 
-						fetch(`/api/class/add`, {
-							method: "POST",
-							headers: {
-								"Content-Type": "application/json",
-							},
-							body: JSON.stringify(values),
-						})
-							.then((res) => {
-								setLoading(false);
-								if (!res.ok) {
-									res.text().then((text) => {
-										setErrorMessage(text);
-									});
-								} else {
-									params.onSuccess();
-									reset();
+						APIclient.POST("/class/add", { body: values })
+							.then(({ data, error }) => {
+								if (error !== undefined) {
+									throw error;
 								}
+
+								setLoading(false);
+								params.onSuccess();
+								reset();
 							})
 							.catch((e) => {
 								setLoading(false);
-								setErrorMessage(`Error: ${e}`);
+								setErrorMessage(e);
 							});
 					})}
 				>

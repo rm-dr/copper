@@ -14,6 +14,8 @@ import {
 	IconUpload,
 } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
+import { APIclient } from "@/app/_util/api";
+import { paths } from "@/app/_util/api/openapi";
 
 type RunnerState = {
 	queued_jobs: number;
@@ -29,10 +31,16 @@ export function useStatusPanel(params: {
 	clearQueue: () => void;
 	stopUpload: () => void;
 }) {
-	const [runnerstate, setRunnerState] = useState<RunnerState>({
-		queued_jobs: 0,
-		finished_jobs: 0,
-		failed_jobs: 0,
+	const [runnerstate, setRunnerState] = useState<{
+		status: paths["/status/runner"]["get"]["responses"][200]["content"]["application/json"];
+		error: boolean;
+	}>({
+		status: {
+			running_jobs: [],
+			queued_jobs: 0,
+			finished_jobs: 0,
+			failed_jobs: 0,
+		},
 		error: false,
 	});
 
@@ -49,48 +57,20 @@ export function useStatusPanel(params: {
 	// Status auto-update
 	useEffect(() => {
 		const update_status = async () => {
-			let res;
-			try {
-				res = await fetch("/api/status/runner");
-			} catch {
+			let { data, error } = await APIclient.GET("/status/runner");
+			if (data !== undefined) {
+				setRunnerState({ status: data, error: false });
+			} else {
 				setRunnerState({
-					queued_jobs: 0,
-					finished_jobs: 0,
-					failed_jobs: 0,
+					status: {
+						running_jobs: [],
+						queued_jobs: 0,
+						finished_jobs: 0,
+						failed_jobs: 0,
+					},
 					error: true,
 				});
-				return;
 			}
-
-			if (!res.ok) {
-				setRunnerState({
-					queued_jobs: 0,
-					finished_jobs: 0,
-					failed_jobs: 0,
-					error: true,
-				});
-				return;
-			}
-
-			let json;
-			try {
-				json = await res.json();
-			} catch {
-				setRunnerState({
-					queued_jobs: 0,
-					finished_jobs: 0,
-					failed_jobs: 0,
-					error: true,
-				});
-				return;
-			}
-
-			setRunnerState({
-				queued_jobs: json.queued_jobs,
-				finished_jobs: json.finished_jobs,
-				failed_jobs: json.failed_jobs,
-				error: false,
-			});
 		};
 
 		update_status();
@@ -101,7 +81,7 @@ export function useStatusPanel(params: {
 	return (
 		<>
 			<Panel
-				panel_id={styles.panel_id_status}
+				panel_id={styles.panel_id_status as string}
 				icon={<XIcon icon={IconServer2} />}
 				title={"System status"}
 			>
@@ -114,9 +94,9 @@ export function useStatusPanel(params: {
 						/>
 						<div className={styles.status_subpanel_content}>
 							<JobTable
-								pending_count={runnerstate.queued_jobs}
-								complete_count={runnerstate.finished_jobs}
-								failed_count={runnerstate.failed_jobs}
+								pending_count={runnerstate.status.queued_jobs}
+								complete_count={runnerstate.status.finished_jobs}
+								failed_count={runnerstate.status.failed_jobs}
 								error={runnerstate.error}
 							/>
 						</div>

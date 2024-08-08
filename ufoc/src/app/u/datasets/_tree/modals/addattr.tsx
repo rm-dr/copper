@@ -12,6 +12,8 @@ import { ModalBase } from "@/app/components/modal_base";
 import { attrTypes } from "@/app/_util/attrs";
 import { IconPlus } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
+import { APIclient } from "@/app/_util/api";
+import { paths } from "@/app/_util/api/openapi";
 
 // TODO: make this a form
 
@@ -31,11 +33,14 @@ export function useAddAttrModal(params: {
 	}>({ name: null, type: null, response: null, extra_params: null });
 
 	const [newAttrName, setNewAttrName] = useState("");
-	const [newAttrType, setNewAttrType] = useState<string | null>(null);
+	const [newAttrType, setNewAttrType] = useState<
+		| paths["/attr/add"]["post"]["requestBody"]["content"]["application/json"]["data_type"]["type"]
+		| null
+	>(null);
 
 	// This is an object set by an attributes's "extra params" node.
 	// This is expanded directly into the new attr POST, see `add_attr` below.
-	const [newAttrParams, setNewAttrParams] = useState<null | Object>(null);
+	const [newAttrParams, setNewAttrParams] = useState<null | any>(null);
 
 	// Get input ui for attr-specific parameters
 	let NewAttrParamsInput: null | any = null;
@@ -93,47 +98,42 @@ export function useAddAttrModal(params: {
 			extra_params: null,
 		});
 
-		let extra_params = {};
-		if (newAttrParams !== null) {
-			extra_params = newAttrParams;
+		let data_type: paths["/attr/add"]["post"]["requestBody"]["content"]["application/json"]["data_type"];
+		if (newAttrType === "Hash") {
+			data_type = {
+				type: newAttrType,
+				hash_type: newAttrParams.hash_type,
+			};
+		} else if (newAttrType === "Reference") {
+			data_type = {
+				type: newAttrType,
+				class: newAttrParams.class,
+			};
+		} else {
+			data_type = {
+				type: newAttrType,
+			};
 		}
 
-		fetch("/api/attr/add", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
+		APIclient.POST("/attr/add", {
+			body: {
 				class: params.class_name,
 				dataset: params.dataset_name,
 				attr: newAttrName,
-				data_type: {
-					type: newAttrType,
-					...extra_params,
-				},
+				data_type,
 				options: {
 					unique: false,
 				},
-			}),
-		}).then((res) => {
+			},
+		}).then(({ data, error }) => {
 			setLoading(false);
-			if (res.status == 400) {
-				res.text().then((text) => {
-					setErrorMessage((m) => {
-						return {
-							...m,
-							response: text,
-						};
-					});
-				});
-			} else if (!res.ok) {
-				res.text().then((text) => {
-					setErrorMessage((m) => {
-						return {
-							...m,
-							response: `Error ${res.status}: ${text}`,
-						};
-					});
+
+			if (error !== undefined) {
+				setErrorMessage((m) => {
+					return {
+						...m,
+						response: error,
+					};
 				});
 			} else {
 				params.onSuccess();
@@ -236,7 +236,9 @@ export function useAddAttrModal(params: {
 					}))}
 					error={errorMessage.type !== null}
 					onChange={(val) => {
-						setNewAttrType(val);
+						setNewAttrType(
+							val as paths["/attr/add"]["post"]["requestBody"]["content"]["application/json"]["data_type"]["type"],
+						);
 						setErrorMessage((m) => {
 							return {
 								...m,

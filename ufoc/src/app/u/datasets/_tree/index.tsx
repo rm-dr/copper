@@ -25,6 +25,7 @@ import {
 	IconX,
 } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
+import { APIclient } from "@/app/_util/api";
 
 type TreeState = {
 	error: boolean;
@@ -72,9 +73,12 @@ export function TreePanel(params: {}) {
 			};
 		});
 
-		fetch("/api/dataset/list")
-			.then((res) => res.json())
-			.then((data: { ds_type: string; name: string }[]) => {
+		APIclient.GET("/dataset/list")
+			.then(({ data, error }) => {
+				if (error !== undefined) {
+					throw error;
+				}
+
 				return Promise.all(
 					data.map(async ({ ds_type, name: dataset }) => {
 						const res = await fetch(
@@ -110,8 +114,7 @@ export function TreePanel(params: {}) {
 				console.log(data);
 
 				const tree_data: TreeNode<null>[] = [];
-				for (let di = 0; di < data.length; di++) {
-					const d = data[di];
+				for (const d of data) {
 					let d_type = datasetTypes.find((x) => x.serialize_as === d.type);
 					const d_node = tree_data.push({
 						icon: d_type?.icon,
@@ -130,8 +133,7 @@ export function TreePanel(params: {}) {
 						data: null,
 					});
 
-					for (let ci = 0; ci < d.classes.length; ci++) {
-						const c = d.classes[ci];
+					for (const c of d.classes) {
 						const c_node = tree_data.push({
 							icon: <XIcon icon={IconFolder} />,
 							text: c.name,
@@ -149,8 +151,7 @@ export function TreePanel(params: {}) {
 							data: null,
 						});
 
-						for (let ai = 0; ai < c.attrs.length; ai++) {
-							const a = c.attrs[ai];
+						for (const a of c.attrs) {
 							let a_type = attrTypes.find((x) => x.serialize_as === a.type);
 							tree_data.push({
 								icon: a_type?.icon,
@@ -254,7 +255,7 @@ export function TreePanel(params: {}) {
 		<>
 			{newDsModal}
 			<Panel
-				panel_id={styles.panel_tree}
+				panel_id={styles.panel_tree as string}
 				icon={<XIcon icon={IconDatabaseX} />}
 				title={"Manage datasets"}
 			>

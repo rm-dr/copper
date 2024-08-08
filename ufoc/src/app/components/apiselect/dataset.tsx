@@ -1,8 +1,11 @@
+import { APIclient } from "@/app/_util/api";
 import { ApiSelector } from "./api";
 
 async function update_datasets(_: null) {
-	const res = await fetch("/api/dataset/list");
-	const data: { name: string; ds_type: string }[] = await res.json();
+	const { data, error } = await APIclient.GET("/dataset/list");
+	if (error !== undefined) {
+		throw error;
+	}
 
 	return data.map(({ name }) => {
 		return {

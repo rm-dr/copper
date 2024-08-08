@@ -2,22 +2,17 @@
 
 import { Dispatch, SetStateAction } from "react";
 import { UploadQueuedFile, UploadState } from "./util";
+import { APIclient } from "@/app/_util/api";
 
 /// On success, calls `then()` with the new job id.
 export async function startUploadJob(ac: AbortController): Promise<string> {
-	const res = await fetch("/api/upload/new", {
-		method: "POST",
-	});
+	const { data, error } = await APIclient.POST("/upload/new");
 
-	if (res.ok) {
-		const j = await res.json();
-		return j.job_id;
-	} else {
-		throw {
-			status: res.status,
-			text: await res.text(),
-		};
+	if (error !== undefined) {
+		throw error;
 	}
+
+	return data.job_id;
 }
 
 /// Start a new file upload for the given job.
@@ -28,25 +23,20 @@ async function start_new_file(
 	upload_job_id: string,
 	file_extension: string,
 ): Promise<string> {
-	const res = await fetch(`/api/upload/${upload_job_id}/newfile`, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({
+	const { data, error } = await APIclient.POST("/upload/{job_id}/newfile", {
+		body: {
 			file_extension,
-		}),
+		},
+		params: {
+			path: { job_id: upload_job_id },
+		},
 	});
 
-	if (res.ok) {
-		const j = await res.json();
-		return j.file_name;
-	} else {
-		throw {
-			status: res.status,
-			text: await res.text(),
-		};
+	if (error !== undefined) {
+		throw error;
 	}
+
+	return data.file_name;
 }
 
 // Upload the given `Blob`
@@ -148,7 +138,7 @@ export function startUploadingFiles(params: {
 		params.setUploadState((us) => {
 			var new_queue = [...us.queue];
 			for (var i = 0; i < new_queue.length; i++) {
-				if (new_queue[i].uid === file.uid) {
+				if ((new_queue[i] as UploadQueuedFile).uid === file.uid) {
 					new_queue.splice(i, 1);
 				} else {
 					++i;
@@ -165,8 +155,7 @@ export function startUploadingFiles(params: {
 	};
 
 	const do_upload = async () => {
-		for (let i = 0; i < params.files.length; i++) {
-			let file = params.files[i];
+		for (const file of params.files) {
 			let upload_job_id;
 			try {
 				upload_job_id = await startUploadJob(upload_ac);
@@ -193,9 +182,9 @@ export function startUploadingFiles(params: {
 					// Whenever we make progress on any file
 					onProgress: (uploaded_bytes) => {
 						params.setUploadState((us) => {
-							for (var i = 0; i < us.queue.length; i++) {
-								if (us.queue[i].uid === file.uid) {
-									us.queue[i].uploaded_bytes = uploaded_bytes;
+							for (const q of us.queue) {
+								if (q.uid === file.uid) {
+									q.uploaded_bytes = uploaded_bytes;
 								}
 							}
 
@@ -220,7 +209,7 @@ export function startUploadingFiles(params: {
 			params.setUploadState((us) => {
 				var new_queue = [...us.queue];
 				for (var i = 0; i < new_queue.length; i++) {
-					if (new_queue[i].uid === file.uid) {
+					if ((new_queue[i] as UploadQueuedFile).uid === file.uid) {
 						new_queue.splice(i, 1);
 					} else {
 						++i;
@@ -263,8 +252,8 @@ export function startUploadingFiles(params: {
 
 			params.setUploadState((us) => {
 				// Clean up partially-completed jobs
-				for (var i = 0; i < us.queue.length; i++) {
-					us.queue[i].uploaded_bytes = 0;
+				for (const q of us.queue) {
+					q.uploaded_bytes = 0;
 				}
 
 				return {

@@ -2,13 +2,14 @@ import { Button, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { useForm } from "@mantine/form";
-import { UserInfo } from "../_grouptree";
 import { ModalBase } from "@/app/components/modal_base";
 import { XIcon } from "@/app/components/icons";
 import { IconTrash } from "@tabler/icons-react";
+import { APIclient } from "@/app/_util/api";
+import { components } from "@/app/_util/api/openapi";
 
 export function useDeleteUserModal(params: {
-	user: UserInfo;
+	user: components["schemas"]["UserInfo"];
 	onChange: () => void;
 }) {
 	const [opened, { open, close }] = useDisclosure(false);
@@ -70,29 +71,23 @@ export function useDeleteUserModal(params: {
 						setLoading(true);
 						setErrorMessage(null);
 
-						fetch("/api/auth/user/del", {
-							method: "delete",
-							headers: {
-								"Content-Type": "application/json",
+						APIclient.DELETE("/auth/user/del", {
+							body: {
+								user: params.user.id.id,
 							},
-							body: JSON.stringify({
-								user: params.user.id,
-							}),
 						})
-							.then((res) => {
-								setLoading(false);
-								if (!res.ok) {
-									res.text().then((text) => {
-										setErrorMessage(text);
-									});
-								} else {
-									params.onChange();
-									reset();
+							.then(({ data, error }) => {
+								if (error !== undefined) {
+									throw error;
 								}
+
+								setLoading(false);
+								params.onChange();
+								reset();
 							})
 							.catch((err) => {
 								setLoading(false);
-								setErrorMessage(`Error: ${err}`);
+								setErrorMessage(err);
 							});
 					})}
 				>

@@ -12,15 +12,22 @@ import {
 	IconUser,
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-import { UserInfo } from "@/app/u/users/_grouptree";
+import { APIclient } from "@/app/_util/api";
+import { components } from "@/app/_util/api/openapi";
 
 const Navbar = () => {
-	const [userInfo, setUserInfo] = useState<UserInfo | null | string>(null);
+	const [userInfo, setUserInfo] = useState<
+		components["schemas"]["UserInfo"] | null | string
+	>(null);
 
 	useEffect(() => {
-		fetch("/api/auth/me")
-			.then((res) => res.json())
-			.then(setUserInfo)
+		APIclient.GET("/auth/me")
+			.then(({ data, error }) => {
+				if (error !== undefined) {
+					throw error;
+				}
+				setUserInfo(data);
+			})
 			.catch((e) => {
 				setUserInfo("error");
 			});
@@ -73,7 +80,7 @@ const Navbar = () => {
 								/>
 							}
 							onClick={() => {
-								fetch("/api/auth/logout", { method: "POST" }).then(() => {
+								APIclient.POST("/auth/logout").then(() => {
 									window.location.replace("/login");
 								});
 							}}

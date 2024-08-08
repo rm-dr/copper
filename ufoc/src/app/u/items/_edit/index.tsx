@@ -15,7 +15,11 @@ import {
 import { XIcon } from "@/app/components/icons";
 
 export function EditPanel(params: { data: ItemData; select: Selected }) {
-	const selectedItem = params.data.data[params.select.selected[0]];
+	const selectedItem =
+		params.select.selected[0] === undefined
+			? undefined
+			: params.data.data[params.select.selected[0]];
+
 	const [panelAttr, setPanelAttr] = useState<{
 		name: string;
 		value: any;
@@ -30,7 +34,6 @@ export function EditPanel(params: { data: ItemData; select: Selected }) {
 	});
 
 	const panel_data =
-		selectedItem === null ||
 		selectedItem === undefined ||
 		selected_attr_spec === undefined ||
 		panelAttr === null ||
@@ -99,7 +102,7 @@ export function EditPanel(params: { data: ItemData; select: Selected }) {
 	return (
 		<>
 			<Panel
-				panel_id={styles.panel_edititem}
+				panel_id={styles.panel_edititem as string}
 				icon={<XIcon icon={IconEdit} />}
 				title={"Edit items"}
 			>

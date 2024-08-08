@@ -2,13 +2,14 @@ import { Button, PasswordInput, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { useForm } from "@mantine/form";
-import { GroupInfo } from "../_grouptree";
 import { ModalBase } from "@/app/components/modal_base";
 import { IconUserPlus } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
+import { APIclient } from "@/app/_util/api";
+import { components } from "@/app/_util/api/openapi";
 
 export function useAddUserModal(params: {
-	group?: GroupInfo;
+	group: components["schemas"]["GroupInfo"];
 	onChange: () => void;
 }) {
 	const [opened, { open, close }] = useDisclosure(false);
@@ -69,31 +70,26 @@ export function useAddUserModal(params: {
 							setErrorMessage("Passwords do not match");
 						}
 
-						fetch(`/api/auth/user/add`, {
-							method: "POST",
-							headers: {
-								"Content-Type": "application/json",
-							},
-							body: JSON.stringify({
+						APIclient.POST("/auth/user/add", {
+							body: {
 								group: params.group?.id,
 								username: values.username,
 								password: values.password,
-							}),
+							},
 						})
-							.then((res) => {
-								setLoading(false);
-								if (!res.ok) {
-									res.text().then((text) => {
-										setErrorMessage(text);
-									});
-								} else {
-									params.onChange();
-									reset();
+
+							.then(({ data, error }) => {
+								if (error !== undefined) {
+									throw error;
 								}
+
+								setLoading(false);
+								params.onChange();
+								reset();
 							})
 							.catch((e) => {
 								setLoading(false);
-								setErrorMessage(`Error: ${e}`);
+								setErrorMessage(e);
 							});
 					})}
 				>

@@ -1,0 +1,7 @@
+# Run `npx openapi-typescript` from `./ufoc`
+apis:
+    core:
+		# Address of `ufod` dev server
+        root: http://localhost:3030/docs/openapi.json
+        x-openapi-ts:
+            output: ./src/app/_util/api/openapi.ts

@@ -6,6 +6,7 @@ import { ModalBase } from "@/app/components/modal_base";
 import { datasetTypes } from "@/app/_util/datasets";
 import { XIcon } from "@/app/components/icons";
 import { IconDatabasePlus } from "@tabler/icons-react";
+import { APIclient } from "@/app/_util/api";
 
 export function useNewDsModal(onSuccess: () => void) {
 	const [opened, { open, close }] = useDisclosure(false);
@@ -50,25 +51,21 @@ export function useNewDsModal(onSuccess: () => void) {
 						setLoading(true);
 						setErrorMessage(null);
 
-						fetch(`/api/dataset/add`, {
-							method: "POST",
-							headers: {
-								"Content-Type": "application/json",
+						APIclient.POST("/dataset/add", {
+							body: {
+								name: values.name,
+								params: {
+									type: values.params.type as unknown as "Local",
+								},
 							},
-							body: JSON.stringify(values),
-						}).then((res) => {
+						}).then(({ data, error }) => {
 							setLoading(false);
-							if (!res.ok) {
-								if (res.status == 401) {
-									setErrorMessage("Not authorized");
-								} else {
-									res.text().then(setErrorMessage);
-								}
-							} else {
-								// Successfully created new dataset
-								onSuccess();
-								reset();
+							if (error !== undefined) {
+								setErrorMessage(error);
 							}
+
+							onSuccess();
+							reset();
 						});
 					})}
 				>

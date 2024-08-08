@@ -3,12 +3,13 @@ import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { useForm } from "@mantine/form";
 import { ModalBase } from "@/app/components/modal_base";
-import { GroupInfo } from "../_grouptree";
 import { XIcon } from "@/app/components/icons";
 import { IconTrash } from "@tabler/icons-react";
+import { APIclient } from "@/app/_util/api";
+import { components } from "@/app/_util/api/openapi";
 
 export function useDeleteGroupModal(params: {
-	group: GroupInfo;
+	group: components["schemas"]["GroupInfo"];
 	onChange: () => void;
 }) {
 	const [opened, { open, close }] = useDisclosure(false);
@@ -77,29 +78,23 @@ export function useDeleteGroupModal(params: {
 							return;
 						}
 
-						fetch("/api/auth/group/del", {
-							method: "delete",
-							headers: {
-								"Content-Type": "application/json",
-							},
-							body: JSON.stringify({
+						APIclient.DELETE("/auth/group/del", {
+							body: {
 								group: params.group.id.id,
-							}),
+							},
 						})
-							.then((res) => {
-								setLoading(false);
-								if (!res.ok) {
-									res.text().then((text) => {
-										setErrorMessage(text);
-									});
-								} else {
-									params.onChange();
-									reset();
+							.then(({ data, error }) => {
+								if (error !== undefined) {
+									throw error;
 								}
+
+								setLoading(false);
+								params.onChange();
+								reset();
 							})
 							.catch((err) => {
 								setLoading(false);
-								setErrorMessage(`Error: ${err}`);
+								setErrorMessage(err);
 							});
 					})}
 				>

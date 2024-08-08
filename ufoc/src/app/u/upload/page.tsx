@@ -8,6 +8,7 @@ import { usePipelinePanel } from "./_panel_pipeline";
 import { useStatusPanel } from "./_panel_status";
 import { useInputPanel } from "./_panel_input";
 import { UploadState } from "./util";
+import { APIclient } from "@/app/_util/api";
 
 export default function Page() {
 	const [uploadState, setUploadState] = useState<UploadState>({
@@ -69,20 +70,16 @@ export default function Page() {
 			const [ac, _promise] = startUploadingFiles({
 				setUploadState,
 				onFinishFile: (upload_job, file_name) => {
-					fetch("/api/pipeline/run", {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify({
-							dataset: selectedDataset,
-							pipeline: selectedPipeline,
+					APIclient.POST("/pipeline/run", {
+						body: {
+							dataset: selectedDataset as string,
+							pipeline: selectedPipeline as string,
 							input: {
 								type: "File",
 								file_name,
 								upload_job,
 							},
-						}),
+						},
 					});
 				},
 				files: uploadState.queue,

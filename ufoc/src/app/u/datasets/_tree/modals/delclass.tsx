@@ -5,6 +5,7 @@ import { ModalBase } from "@/app/components/modal_base";
 import { useForm } from "@mantine/form";
 import { IconTrash } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
+import { APIclient } from "@/app/_util/api";
 
 export function useDeleteClassModal(params: {
 	dataset_name: string;
@@ -80,23 +81,15 @@ export function useDeleteClassModal(params: {
 						setLoading(true);
 						setErrorMessage(null);
 
-						fetch("/api/class/del", {
-							method: "delete",
-							headers: {
-								"Content-Type": "application/json",
-							},
-							body: JSON.stringify(values),
-						})
-							.then((res) => {
-								setLoading(false);
-								if (!res.ok) {
-									res.text().then((text) => {
-										setErrorMessage(text);
-									});
-								} else {
-									params.onSuccess();
-									reset();
+						APIclient.DELETE("/class/del", { body: values })
+							.then(({ data, error }) => {
+								if (error !== undefined) {
+									throw error;
 								}
+
+								setLoading(false);
+								params.onSuccess();
+								reset();
 							})
 							.catch((err) => {
 								setLoading(false);
