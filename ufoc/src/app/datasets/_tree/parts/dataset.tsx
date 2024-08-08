@@ -2,12 +2,11 @@ import {
 	XIconDots,
 	XIconEdit,
 	XIconFolderPlus,
-	XIconServer,
 	XIconTrash,
 } from "@/app/components/icons";
 import { ActionIcon, Button, Menu, Text, TextInput, rem } from "@mantine/core";
 
-import { TreeData } from "..";
+import { TreeData, dsTypes } from "..";
 import { Dispatch, SetStateAction, useState } from "react";
 
 import styles from "../tree.module.scss";
@@ -45,6 +44,17 @@ export function DatasetList(params: {
 					},
 					idx,
 				) => {
+					// Find dataset icon
+					let d = dsTypes.find((x) => {
+						return x.serialize_as === dataset_type;
+					});
+					let icon;
+					if (d === undefined) {
+						icon = <></>;
+					} else {
+						icon = d.icon;
+					}
+
 					return (
 						<div
 							key={`dataset-${dataset_name}`}
@@ -65,7 +75,7 @@ export function DatasetList(params: {
 										return t;
 									});
 								}}
-								icon={<XIconServer />}
+								icon={icon}
 								icon_text={dataset_name}
 								left_width={"6rem"}
 								text={""}

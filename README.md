@@ -4,13 +4,11 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
 
 
 ## 📦 CRUD datasets
-- [x] Create set, class, attr
-- [x] Delete set, class, attr
 - [ ] Rename set, class, attr
 - [ ] Dataset & class descriptions?
-- [ ] Load set and attr from api
-  - [ ] clean up set and attr type definitions in daemon
-- [ ] Show icon for set and attr types
+- [ ] Load attr from api
+  - [ ] clean up attr type definitions in daemon
+- [ ] Show icon for attr types
 - [ ] Show dataset metadata
   - [ ] size, item count
   - requires dashboard & item CRUD
@@ -119,7 +117,7 @@ Projects marked with a 📦 are prerequisites for `v0.1.0` release. This is a *m
 - [ ] Enum for api errors (consistent response & log message)
 - [ ] Check serializations
 - [ ] Force nonempty set, attr, class names
-
+- [ ] Error if full db path doesn't exist (no panic)
 
 ## 📦 Distribution
 - [ ] Docker file & compose

@@ -27,3 +27,5 @@ smartstring = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 serde_json = { workspace = true }
+serde = { workspace = true }
+utoipa = { workspace = true }

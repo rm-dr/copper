@@ -6,6 +6,7 @@ use ufo_ds_core::{
 	api::meta::AttributeOptions,
 	data::{HashType, MetastoreDataStub},
 };
+use ufo_ds_impl::DatasetType;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -46,10 +47,12 @@ pub struct RouterState {
 	tags(
 		(name = "ufod", description = "UFO backend daemon")
 	),
+	// All schema structs defined outside `crate::api` go here
 	components(schemas(
 		MetastoreDataStub,
 		HashType,
-		AttributeOptions
+		AttributeOptions,
+		DatasetType
 	))
 )]
 struct ApiDoc;

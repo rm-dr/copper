@@ -6,12 +6,10 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error};
+use ufo_ds_impl::DatasetType;
 use utoipa::ToSchema;
 
-use crate::{
-	api::RouterState,
-	helpers::maindb::{dataset::DatasetType, errors::CreateDatasetError},
-};
+use crate::{api::RouterState, helpers::maindb::errors::CreateDatasetError};
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 pub(super) struct NewDatasetRequest {
@@ -24,7 +22,7 @@ pub(super) struct NewDatasetRequest {
 #[serde(tag = "type")]
 pub(super) enum NewDatasetParams {
 	/// A dataset stored locally
-	LocalDataset,
+	Local,
 }
 
 /// Create a new dataset
@@ -44,7 +42,7 @@ pub(super) async fn add_dataset(
 	debug!(message = "Making new dataset", payload = ?payload);
 
 	match payload.params {
-		NewDatasetParams::LocalDataset => {
+		NewDatasetParams::Local => {
 			let res = state.main_db.new_dataset(&payload.name, DatasetType::Local);
 
 			match res {

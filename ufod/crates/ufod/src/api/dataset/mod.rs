@@ -1,4 +1,4 @@
-use crate::{helpers::maindb::dataset::DatasetType, RouterState};
+use crate::RouterState;
 use axum::{
 	routing::{delete, get, post},
 	Router,
@@ -21,7 +21,6 @@ use list::*;
 		NewDatasetRequest,
 		NewDatasetParams,
 		DatasetInfoShort,
-		DatasetType,
 		DeleteDatasetRequest,
 	))
 )]

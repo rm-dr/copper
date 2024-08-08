@@ -1,4 +1,4 @@
-use crate::{helpers::maindb::dataset::DatasetType, RouterState};
+use crate::RouterState;
 use axum::{
 	extract::State,
 	http::StatusCode,
@@ -7,6 +7,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::error;
+use ufo_ds_impl::DatasetType;
 use utoipa::ToSchema;
 
 /// Dataset info

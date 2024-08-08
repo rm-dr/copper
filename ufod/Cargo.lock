@@ -3082,12 +3082,14 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "itertools",
+ "serde",
  "serde_json",
  "smartstring",
  "sqlx",
  "ufo-ds-core",
  "ufo-pipeline",
  "ufo-util",
+ "utoipa",
  "walkdir",
 ]
 

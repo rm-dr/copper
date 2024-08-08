@@ -5,14 +5,32 @@ import {
 	XIconDatabase,
 	XIconDatabasePlus,
 	XIconDatabaseX,
+	XIconServer,
 	XIconSettings,
 	XIconX,
 } from "@/app/components/icons";
-import { Button, Loader, Select, Text, TextInput } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { Button, Loader, Text } from "@mantine/core";
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { DatasetList } from "./parts/dataset";
-import { TreeModal } from "./tree_modal";
+import { useNewDsModal } from "./parts/newdsmodal";
+
+// Dataset types the server supports.
+export const dsTypes = [
+	{
+		// Pretty name to display to user
+		pretty_name: "Local",
+
+		// The name of this type in ufo's api
+		serialize_as: "Local",
+
+		// Icon to use for datasets of this type
+		icon: <XIconServer />,
+
+		// Extra parameter elements for this dataset
+		// (Currently unused. We'll need this later.)
+		extra_params: <></>,
+	},
+];
 
 export type TreeData = {
 	error: boolean;
@@ -280,138 +298,4 @@ export function TreePanel(params: {}) {
 			</Panel>
 		</>
 	);
-}
-
-export function useNewDsModal(onSuccess: () => void) {
-	const [opened, { open, close }] = useDisclosure(false);
-	const [isLoading, setLoading] = useState(false);
-
-	const [errorMessage, setErrorMessage] = useState<string | null>(null);
-	const [errorReason, setErrorReason] = useState<string | null>(null);
-
-	const [newDsName, setNewDsName] = useState("");
-	const [newDsType, setNewDsType] = useState<null | string>(null);
-
-	return {
-		open,
-		modal: (
-			<TreeModal
-				opened={opened}
-				close={close}
-				title="Create new dataset"
-				keepOpen={isLoading}
-			>
-				<TextInput
-					data-autofocus
-					placeholder="dataset name..."
-					required={true}
-					disabled={isLoading}
-					error={errorReason == "name"}
-					onChange={(e) => {
-						if (errorReason == "name") {
-							setErrorReason(null);
-							setErrorMessage(null);
-						}
-						setNewDsName(e.currentTarget.value);
-					}}
-				/>
-				<Select
-					required={true}
-					style={{ marginTop: "1rem" }}
-					placeholder={"select dataset type..."}
-					data={["LocalDataset"]}
-					error={errorReason == "type"}
-					onChange={(value, _option) => {
-						if (errorReason == "type") {
-							setErrorReason(null);
-							setErrorMessage(null);
-						}
-						setNewDsType(value);
-					}}
-					disabled={isLoading}
-					comboboxProps={{
-						transitionProps: { transition: "fade-down", duration: 200 },
-					}}
-					clearable
-				/>
-				<Button.Group style={{ marginTop: "1rem" }}>
-					<Button
-						variant="light"
-						fullWidth
-						color="red"
-						onMouseDown={close}
-						disabled={isLoading}
-					>
-						Cancel
-					</Button>
-					<Button
-						variant="filled"
-						fullWidth
-						color="green"
-						loading={isLoading}
-						onMouseDown={() => {
-							setLoading(true);
-							if (newDsName == "" || newDsName === null) {
-								setLoading(false);
-								setErrorReason("name");
-								setErrorMessage("Name cannot be empty");
-								return;
-							} else if (newDsType === null) {
-								setLoading(false);
-								setErrorReason("type");
-								setErrorMessage("This field is required");
-								return;
-							}
-
-							setErrorReason(null);
-							setErrorMessage(null);
-
-							fetch(`/api/dataset/add`, {
-								method: "POST",
-								headers: {
-									"Content-Type": "application/json",
-								},
-								body: JSON.stringify({
-									name: newDsName,
-									params: {
-										type: newDsType,
-									},
-								}),
-							}).then((res) => {
-								setLoading(false);
-								if (res.status == 400) {
-									res.text().then((text) => {
-										setErrorMessage(text);
-									});
-								} else if (!res.ok) {
-									res.text().then((text) => {
-										setErrorMessage(`Error ${res.status}: ${text}`);
-									});
-								} else {
-									// Successfully created new dataset
-									onSuccess();
-									close();
-								}
-							});
-						}}
-					>
-						Create
-					</Button>
-				</Button.Group>
-				{errorMessage !== null ? (
-					<div
-						style={{
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-						}}
-					>
-						<Text c="red">{errorMessage}</Text>
-					</div>
-				) : (
-					<></>
-				)}
-			</TreeModal>
-		),
-	};
 }
