@@ -95,7 +95,7 @@ pub enum FlacBlock {
 	SeekTable(FlacSeektableBlock),
 	VorbisComment(FlacCommentBlock),
 	CueSheet(FlacCuesheetBlock),
-	AudioFrame(Vec<u8>),
+	AudioFrame(FlacAudioFrame),
 }
 
 /// An error produced by a [`FlacBlockReader`]
@@ -297,7 +297,7 @@ impl FlacBlockReader {
 						// Look for a frame sync header in the data we read
 
 						let first_byte = if data.len() - last_read_size < 2 {
-							2
+							3
 						} else {
 							(data.len() - last_read_size) + 2
 						};
@@ -314,10 +314,9 @@ impl FlacBlockReader {
 							{
 								// We found another frame sync header. Split at this index.
 								if self.selector.pick_audio {
-									self.output_blocks
-										.push_back(FlacBlock::AudioFrame(Vec::from(
-											&data[0..i - 2],
-										)));
+									self.output_blocks.push_back(FlacBlock::AudioFrame(
+										FlacAudioFrame::decode(&data[0..i - 2])?,
+									));
 								}
 
 								// Backtrack to the first bit AFTER this new sync sequence
@@ -360,7 +359,8 @@ impl FlacBlockReader {
 				}
 
 				if self.selector.pick_audio {
-					self.output_blocks.push_back(FlacBlock::AudioFrame(data));
+					self.output_blocks
+						.push_back(FlacBlock::AudioFrame(FlacAudioFrame::decode(&data)?));
 				}
 
 				self.current_block = None;
@@ -388,6 +388,43 @@ mod tests {
 
 	use super::*;
 	use crate::{common::picturetype::PictureType, flac::blocks::FlacMetablockEncode};
+
+	/*
+	enum FlacTestFile {
+		Success {
+			/// The file to use for this test
+			file_path: PathBuf,
+
+			/// The hash of the input files
+			in_hash: &'static str,
+
+			/// The flac metablocks we expect to find in this file, in order.
+			blocks: &'static [FlacBlockOutput],
+
+			/// The hash of the audio frames in this file
+			///
+			/// Get this hash by running `metaflac --remove-all --dont-use-padding`,
+			/// then by manually deleting remaining headers in a hex editor
+			/// (Remember that the sync sequence is 0xFF 0xF8)
+			audio_hash: &'static str,
+
+			/// The hash we should get when we strip this file's tags.
+			///
+			/// A stripped flac file has unmodified STREAMINFO, SEEKTABLE,
+			/// CUESHEET, and audio data blocks; and nothing else (not even padding).
+			///
+			/// Reference implementation:
+			/// ```notrust
+			/// metaflac \
+			/// 	--remove \
+			/// 	--block-type=PADDING,APPLICATION,VORBIS_COMMENT,PICTURE \
+			/// 	--dont-use-padding \
+			/// 	<file>
+			/// ```
+			stripped_hash: &'static str,
+		},
+	}
+	*/
 
 	enum FlacBlockOutput {
 		Application {
@@ -520,7 +557,7 @@ mod tests {
 				FlacBlock::Padding(p) => p.encode(is_last, &mut out).unwrap(),
 				FlacBlock::Picture(p) => p.encode(is_last, &mut out).unwrap(),
 				FlacBlock::VorbisComment(v) => v.encode(is_last, &mut out).unwrap(),
-				FlacBlock::AudioFrame(a) => out.extend(a),
+				FlacBlock::AudioFrame(a) => a.encode(&mut out).unwrap(),
 			}
 		}
 
@@ -568,7 +605,7 @@ mod tests {
 				FlacBlock::Streaminfo(i) => i.encode(is_last, &mut out).unwrap(),
 				FlacBlock::CueSheet(c) => c.encode(is_last, &mut out).unwrap(),
 				FlacBlock::SeekTable(s) => s.encode(is_last, &mut out).unwrap(),
-				FlacBlock::AudioFrame(a) => out.extend(a),
+				FlacBlock::AudioFrame(a) => a.encode(&mut out).unwrap(),
 				_ => unreachable!(),
 			}
 		}
@@ -727,7 +764,7 @@ mod tests {
 				FlacBlock::VorbisComment(_) => {}
 
 				FlacBlock::AudioFrame(data) => {
-					audio_data_hasher.update(data);
+					data.encode(&mut audio_data_hasher).unwrap();
 
 					if result_i != result.len() {
 						panic!("There are metadata blocks betwen audio frames!")
