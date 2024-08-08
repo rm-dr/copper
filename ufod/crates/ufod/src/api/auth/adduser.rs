@@ -24,7 +24,7 @@ pub(super) struct AdduserRequest {
 /// Create a new user
 #[utoipa::path(
 	post,
-	path = "/user",
+	path = "/user/add",
 	responses(
 		(status = 200, description = "Successfully created user"),
 		(status = 400, description = "Could not create user"),

@@ -19,7 +19,7 @@ pub(super) struct DelgroupRequest {
 /// Delete a group
 #[utoipa::path(
 	delete,
-	path = "/group",
+	path = "/group/del",
 	responses(
 		(status = 200, description = "Successfully deleted group"),
 		(status = 400, description = "Could not delete group"),

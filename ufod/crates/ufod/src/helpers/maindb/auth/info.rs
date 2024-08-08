@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 use super::GroupPermissions;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(untagged)]
+#[serde(tag = "type")]
 pub enum GroupId {
 	RootGroup,
 	Group { id: u32 },
@@ -29,6 +29,7 @@ impl From<u32> for GroupId {
 #[derive(Debug, Clone)]
 pub struct GroupInfo {
 	pub id: GroupId,
+	pub parent: Option<GroupId>,
 	pub name: SmartString<LazyCompact>,
 	pub permissions: GroupPermissions,
 }

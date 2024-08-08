@@ -23,7 +23,7 @@ pub(super) struct AddgroupRequest {
 /// Create a new group
 #[utoipa::path(
 	post,
-	path = "/group",
+	path = "/group/add",
 	responses(
 		(status = 200, description = "Successfully created group"),
 		(status = 400, description = "Could not create group"),

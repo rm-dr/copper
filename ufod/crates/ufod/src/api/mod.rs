@@ -26,7 +26,10 @@ mod upload;
 
 use crate::{
 	config::UfodConfig,
-	helpers::{maindb::MainDB, uploader::Uploader},
+	helpers::{
+		maindb::{auth::GroupId, MainDB},
+		uploader::Uploader,
+	},
 };
 
 #[derive(Clone)]
@@ -78,7 +81,8 @@ impl Modify for BearerSecurityAddon {
 		DatasetType,
 		ItemIdx,
 		MimeType,
-		BlobHandle
+		BlobHandle,
+		GroupId
 	))
 )]
 struct ApiDoc;

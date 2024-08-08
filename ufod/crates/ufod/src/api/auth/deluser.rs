@@ -19,7 +19,7 @@ pub(super) struct DeluserRequest {
 /// Delete a user
 #[utoipa::path(
 	delete,
-	path = "/user",
+	path = "/user/del",
 	responses(
 		(status = 200, description = "Successfully deleted user"),
 		(status = 400, description = "Could not delete user"),

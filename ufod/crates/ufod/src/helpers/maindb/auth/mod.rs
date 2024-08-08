@@ -336,6 +336,7 @@ impl AuthProvider {
 			return Ok(GroupInfo {
 				id: group,
 				name: "Root Group".into(),
+				parent: None,
 				permissions: GroupPermissions::new_root(),
 			});
 		}
@@ -345,44 +346,55 @@ impl AuthProvider {
 		)
 		.bind(group.get_id())
 		.fetch_one(&mut *self.conn.lock().await)
-		.await;
+		.await?;
+		let first_parent: Option<GroupId> =
+			res.get::<Option<u32>, _>("group_parent").map(|x| x.into());
 
-		match res {
-			Err(e) => return Err(e),
-			Ok(res) => {
-				// Collect permissions from all parents
-				let mut permissions: Vec<(GroupId, SerializedGroupPermissions)> = Vec::new();
-				let mut parent: Option<GroupId> =
-					res.get::<Option<u32>, _>("group_parent").map(|x| x.into());
-				while let Some(p) = parent {
-					let r = sqlx::query(
-						"SELECT group_parent, group_permissions FROM groups WHERE id=?;",
-					)
-					.bind(p.get_id())
-					.fetch_one(&mut *self.conn.lock().await)
-					.await?;
+		// Collect permissions from all parents
+		let mut permissions: Vec<(GroupId, SerializedGroupPermissions)> = Vec::new();
+		let mut parent = first_parent;
+		while let Some(p) = parent {
+			let r = sqlx::query("SELECT group_parent, group_permissions FROM groups WHERE id=?;")
+				.bind(p.get_id())
+				.fetch_one(&mut *self.conn.lock().await)
+				.await?;
 
-					permissions.push((
-						p,
-						serde_json::from_str(r.get::<&str, _>("group_permissions")).unwrap(),
-					));
-					parent = r.get::<Option<u32>, _>("group_parent").map(|x| x.into());
-				}
+			permissions.push((
+				p,
+				serde_json::from_str(r.get::<&str, _>("group_permissions")).unwrap(),
+			));
+			parent = r.get::<Option<u32>, _>("group_parent").map(|x| x.into());
+		}
 
-				// Resolve permissions from the bottom-up
-				let permissions = permissions
-					.into_iter()
-					.fold(GroupPermissions::new_root(), |a, (group, perms)| {
-						a.overlay(&perms, group)
-					});
+		// Resolve permissions from the bottom up
+		let permissions = permissions
+			.into_iter()
+			.fold(GroupPermissions::new_root(), |a, (group, perms)| {
+				a.overlay(&perms, group)
+			});
 
-				return Ok(GroupInfo {
-					id: group,
-					name: res.get::<&str, _>("group_name").into(),
-					permissions,
-				});
+		return Ok(GroupInfo {
+			id: group,
+			name: res.get::<&str, _>("group_name").into(),
+			permissions,
+			parent: first_parent,
+		});
+	}
+
+	pub async fn list_groups(&self, starting_from: GroupId) -> Result<Vec<GroupInfo>, sqlx::Error> {
+		let res = sqlx::query("SELECT id, group_parent FROM groups ORDER BY id;")
+			.fetch_all(&mut *self.conn.lock().await)
+			.await?;
+
+		let mut out = Vec::new();
+		for row in res {
+			let group: GroupId = row.get::<u32, _>("id").into();
+			if group == starting_from || self.is_group_parent(starting_from, group).await? {
+				out.push(self.get_group(group).await?)
 			}
 		}
+
+		return Ok(out);
 	}
 
 	pub async fn is_group_parent(
