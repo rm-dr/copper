@@ -4,21 +4,25 @@ use lofty::{
 	tag::{Accessor, Tag},
 };
 use std::{
-	collections::HashMap,
 	io::{Cursor, Read, Seek},
+	sync::Arc,
 };
 
 use crate::pipeline::{
-	components::labels::PipelinePortLabel,
-	data::{AudioFormat, BinaryFormat, PipelineData, PipelineDataType},
+	data::{AudioFormat, BinaryFormat, PipelineData},
 	errors::PipelineError,
+	PipelineStatelessRunner,
 };
 
-use super::PipelineNodeType;
+pub struct ExtractTags {}
 
-pub struct ExtractTag {}
+impl ExtractTags {
+	pub fn new() -> Self {
+		Self {}
+	}
+}
 
-impl ExtractTag {
+impl ExtractTags {
 	fn parse_flac<R>(mut data_read: &mut R) -> Result<Option<Tag>, PipelineError>
 	where
 		R: Read + Seek,
@@ -59,56 +63,14 @@ impl ExtractTag {
 	}
 }
 
-impl PipelineNodeType for ExtractTag {
-	fn get_input(input: &PipelinePortLabel) -> Option<PipelineDataType> {
-		match AsRef::as_ref(input) {
-			"data" => Some(PipelineDataType::Binary),
-			_ => None,
-		}
-	}
+impl PipelineStatelessRunner for ExtractTags {
+	fn run(
+		&self,
+		data_packet: Vec<Option<Arc<PipelineData>>>,
+	) -> Result<Vec<Option<Arc<PipelineData>>>, PipelineError> {
+		let data = data_packet.first().unwrap();
 
-	fn get_output(input: &PipelinePortLabel) -> Option<PipelineDataType> {
-		match AsRef::as_ref(input) {
-			"title" => Some(PipelineDataType::Text),
-			"album" => Some(PipelineDataType::Text),
-			"artist" => Some(PipelineDataType::Text),
-			"genre" => Some(PipelineDataType::Text),
-			"comment" => Some(PipelineDataType::Text),
-			"track" => Some(PipelineDataType::Text),
-			"disk" => Some(PipelineDataType::Text),
-			"disk_total" => Some(PipelineDataType::Text),
-			"year" => Some(PipelineDataType::Text),
-			_ => None,
-		}
-	}
-
-	fn get_inputs() -> impl Iterator<Item = PipelinePortLabel> {
-		["data"].iter().map(|x| (*x).into())
-	}
-
-	fn get_outputs() -> impl Iterator<Item = PipelinePortLabel> {
-		[
-			"title",
-			"album",
-			"artist",
-			"genre",
-			"comment",
-			"track",
-			"disk",
-			"disk_total",
-			"year",
-		]
-		.iter()
-		.map(|x| (*x).into())
-	}
-
-	fn run<F>(get_input: F) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError>
-	where
-		F: Fn(&PipelinePortLabel) -> Option<PipelineData>,
-	{
-		let data = get_input(&"data".into()).unwrap();
-
-		let (data_type, data) = match &data {
+		let (data_type, data) = match data.as_ref().unwrap().as_ref() {
 			PipelineData::Binary {
 				format: data_type,
 				data,
@@ -141,29 +103,19 @@ impl PipelineNodeType for ExtractTag {
 			let disk_total = t.disk_total().map(|x| PipelineData::Text(x.to_string()));
 			let year = t.year().map(|x| PipelineData::Text(x.to_string()));
 
-			HashMap::from([
-				("title".into(), title),
-				("album".into(), album),
-				("artist".into(), artist),
-				("genre".into(), genre),
-				("comment".into(), comment),
-				("track".into(), track),
-				("disk".into(), disk),
-				("disk_total".into(), disk_total),
-				("year".into(), year),
-			])
+			vec![
+				title.map(Arc::new),
+				album.map(Arc::new),
+				artist.map(Arc::new),
+				genre.map(Arc::new),
+				comment.map(Arc::new),
+				track.map(Arc::new),
+				disk.map(Arc::new),
+				disk_total.map(Arc::new),
+				year.map(Arc::new),
+			]
 		} else {
-			HashMap::from([
-				("title".into(), None),
-				("album".into(), None),
-				("artist".into(), None),
-				("genre".into(), None),
-				("comment".into(), None),
-				("track".into(), None),
-				("disk".into(), None),
-				("disk_total".into(), None),
-				("year".into(), None),
-			])
+			vec![None, None, None, None, None, None, None, None, None]
 		};
 
 		return Ok(h);

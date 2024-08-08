@@ -1,50 +1,27 @@
-use std::collections::HashMap;
+use std::sync::Arc;
 
-use super::PipelineNodeType;
-use crate::pipeline::{
-	components::labels::PipelinePortLabel,
-	data::{PipelineData, PipelineDataType},
-	errors::PipelineError,
-};
+use crate::pipeline::{data::PipelineData, errors::PipelineError, PipelineStatelessRunner};
 
 pub struct IfNone {}
 
-impl PipelineNodeType for IfNone {
-	fn get_input(input: &PipelinePortLabel) -> Option<PipelineDataType> {
-		match AsRef::as_ref(input) {
-			"data" | "ifnone" => Some(PipelineDataType::Text),
-			_ => None,
-		}
+impl IfNone {
+	pub fn new() -> Self {
+		Self {}
 	}
+}
 
-	fn get_output(input: &PipelinePortLabel) -> Option<PipelineDataType> {
-		match AsRef::as_ref(input) {
-			"out" => Some(PipelineDataType::Text),
-			_ => None,
-		}
-	}
-
-	fn get_inputs() -> impl Iterator<Item = PipelinePortLabel> {
-		["data", "ifnone"].iter().map(|x| (*x).into())
-	}
-
-	fn get_outputs() -> impl Iterator<Item = PipelinePortLabel> {
-		["out"].iter().map(|x| (*x).into())
-	}
-
-	fn run<F>(
-		get_input: F,
-	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError>
-	where
-		F: Fn(&PipelinePortLabel) -> Option<PipelineData>,
-	{
-		// TODO: don't clone, link (replace Option<>)
-		let ifnone = get_input(&"ifnone".into()).unwrap();
-		let data = get_input(&"data".into());
-		return Ok(HashMap::from([(
-			"out".into(),
-			//Some(data.cloned().unwrap_or(ifnone.clone())),
-			Some(data.unwrap_or(ifnone)),
-		)]));
+impl PipelineStatelessRunner for IfNone {
+	fn run(
+		&self,
+		data_packet: Vec<Option<Arc<PipelineData>>>,
+	) -> Result<Vec<Option<Arc<PipelineData>>>, PipelineError> {
+		let data = data_packet.first().unwrap();
+		let ifnone = data_packet.get(1).unwrap();
+		return Ok(vec![{
+			match data {
+				Some(x) => Some(x.clone()),
+				None => ifnone.clone(),
+			}
+		}]);
 	}
 }

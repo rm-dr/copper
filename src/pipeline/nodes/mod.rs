@@ -1,111 +1,133 @@
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::HashMap, str::FromStr};
+use std::{fmt::Debug, str::FromStr, sync::Arc};
 
 use super::{
-	components::labels::PipelinePortLabel,
 	data::{PipelineData, PipelineDataType},
 	errors::PipelineError,
+	PipelineStatelessRunner,
 };
 
 pub mod ifnone;
 pub mod tags;
 
-// TODO: node test mode (check inputs, outputs, etc)
-pub trait PipelineNodeType {
-	/// Run this pipeline node.
-	///
-	/// `get_input` is a function that returns the pipeline data this node should get
-	/// for each of its inputs. Returns `None` for nonexistent inputs, or for inputs
-	/// which are not attached to anything.
-	///
-	/// Returns a map of "output label" -> "output data"
-	fn run<F>(
-		get_input: F,
-	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError>
-	where
-		F: Fn(&PipelinePortLabel) -> Option<PipelineData>;
-
-	/// List the inputs this node provides.
-	/// Input names MUST be unique. This is not enforced!
-	fn get_inputs() -> impl Iterator<Item = PipelinePortLabel>;
-
-	/// List the outputs this node provides.
-	/// Output names MUST be unique. This is not enforced!
-	fn get_outputs() -> impl Iterator<Item = PipelinePortLabel>;
-
-	/// Does this pipeline provide the given input port?
-	/// If it does, return its type. If it doesn't, return None.
-	fn get_input(input: &PipelinePortLabel) -> Option<PipelineDataType>;
-
-	/// Does this pipeline provide the given output port?
-	/// If it does, return its type. If it doesn't, return None.
-	fn get_output(output: &PipelinePortLabel) -> Option<PipelineDataType>;
-}
-
 #[derive(Debug, Clone, Copy)]
-pub enum PipelineNodeTypes {
-	ExtractTag,
+pub enum PipelineNodeType {
+	ExtractTags,
 	IfNone,
 }
 
-impl PipelineNodeTypes {
-	pub fn run<F>(
-		&self,
-		get_input: F,
-	) -> Result<HashMap<PipelinePortLabel, Option<PipelineData>>, PipelineError>
-	where
-		F: Fn(&PipelinePortLabel) -> Option<PipelineData>,
-	{
+impl PipelineNodeType {
+	pub fn build(self, name: &str) -> PipelineNodeInstance {
 		match self {
-			Self::ExtractTag => tags::ExtractTag::run(get_input),
-			Self::IfNone => ifnone::IfNone::run(get_input),
+			PipelineNodeType::IfNone => PipelineNodeInstance::IfNone {
+				name: name.into(),
+				node: ifnone::IfNone::new(),
+			},
+			PipelineNodeType::ExtractTags => PipelineNodeInstance::ExtractTags {
+				name: name.into(),
+				node: tags::ExtractTags::new(),
+			},
+		}
+	}
+}
+
+impl PipelineNodeType {
+	pub fn n_outputs(&self) -> usize {
+		match self {
+			PipelineNodeType::ExtractTags => 9,
+			PipelineNodeType::IfNone => 1,
 		}
 	}
 
-	pub fn get_inputs(&self) -> Box<dyn Iterator<Item = PipelinePortLabel>> {
+	pub fn output_name(&self, output: usize) -> String {
 		match self {
-			Self::ExtractTag => Box::new(tags::ExtractTag::get_inputs()),
-			Self::IfNone => Box::new(ifnone::IfNone::get_inputs()),
+			PipelineNodeType::ExtractTags => [
+				"title",
+				"album",
+				"artist",
+				"genre",
+				"comment",
+				"track",
+				"disk",
+				"disk_total",
+				"year",
+			]
+			.get(output),
+
+			PipelineNodeType::IfNone => ["out"].get(output),
+		}
+		.unwrap()
+		.to_string()
+	}
+
+	pub fn output_type(&self, output: usize) -> PipelineDataType {
+		*match self {
+			PipelineNodeType::ExtractTags => [
+				PipelineDataType::Text,
+				PipelineDataType::Text,
+				PipelineDataType::Text,
+				PipelineDataType::Text,
+				PipelineDataType::Text,
+				PipelineDataType::Text,
+				PipelineDataType::Text,
+				PipelineDataType::Text,
+				PipelineDataType::Text,
+			]
+			.get(output),
+
+			PipelineNodeType::IfNone => [PipelineDataType::Text].get(output),
+		}
+		.unwrap()
+	}
+
+	pub fn output_with_name(&self, name: &str) -> Option<usize> {
+		(0..self.n_outputs()).find(|x| self.output_name(*x) == name)
+	}
+
+	pub fn n_inputs(&self) -> usize {
+		match self {
+			Self::ExtractTags => 1,
+			Self::IfNone => 2,
 		}
 	}
 
-	pub fn get_outputs(&self) -> Box<dyn Iterator<Item = PipelinePortLabel>> {
+	pub fn input_name(&self, input: usize) -> String {
 		match self {
-			Self::ExtractTag => Box::new(tags::ExtractTag::get_outputs()),
-			Self::IfNone => Box::new(ifnone::IfNone::get_outputs()),
+			Self::ExtractTags => ["data"].get(input),
+			Self::IfNone => ["data", "ifnone"].get(input),
 		}
+		.unwrap()
+		.to_string()
 	}
 
-	pub fn get_input(&self, input: &PipelinePortLabel) -> Option<PipelineDataType> {
-		match self {
-			Self::ExtractTag => tags::ExtractTag::get_input(input),
-			Self::IfNone => ifnone::IfNone::get_input(input),
+	pub fn input_type(&self, input: usize) -> PipelineDataType {
+		*match self {
+			Self::ExtractTags => [PipelineDataType::Binary].get(input),
+			Self::IfNone => [PipelineDataType::Text, PipelineDataType::Text].get(input),
 		}
+		.unwrap()
 	}
 
-	pub fn get_output(&self, output: &PipelinePortLabel) -> Option<PipelineDataType> {
-		match self {
-			Self::ExtractTag => tags::ExtractTag::get_output(output),
-			Self::IfNone => ifnone::IfNone::get_output(output),
-		}
+	pub fn input_with_name(&self, name: &str) -> Option<usize> {
+		(0..self.n_inputs()).find(|x| self.input_name(*x) == name)
 	}
 }
 
 // TODO: better error
-impl FromStr for PipelineNodeTypes {
+impl FromStr for PipelineNodeType {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		match s {
-			"ExtractTag" => Ok(Self::ExtractTag),
+			"ExtractTag" => Ok(Self::ExtractTags),
 			"IfNone" => Ok(Self::IfNone),
 			_ => Err("bad node type".to_string()),
 		}
 	}
 }
 
-impl<'de> Deserialize<'de> for PipelineNodeTypes {
+impl<'de> Deserialize<'de> for PipelineNodeType {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
 		D: serde::Deserializer<'de>,
@@ -113,5 +135,54 @@ impl<'de> Deserialize<'de> for PipelineNodeTypes {
 		let addr_str = SmartString::<LazyCompact>::deserialize(deserializer)?;
 		let s = Self::from_str(&addr_str);
 		s.map_err(serde::de::Error::custom)
+	}
+}
+
+pub enum PipelineNodeInstance {
+	ExternalNode,
+	ConstantNode(Arc<PipelineData>),
+	ExtractTags {
+		name: SmartString<LazyCompact>,
+		node: tags::ExtractTags,
+	},
+	IfNone {
+		name: SmartString<LazyCompact>,
+		node: ifnone::IfNone,
+	},
+}
+
+impl Debug for PipelineNodeInstance {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::ExternalNode => write!(f, "ExternalNode"),
+			Self::ConstantNode(_) => write!(f, "ConstantNode"),
+			Self::ExtractTags { name, .. } => write!(f, "ExtractTags({name})"),
+			Self::IfNone { name, .. } => write!(f, "IfNone({name})"),
+		}
+	}
+}
+
+impl PipelineStatelessRunner for PipelineNodeInstance {
+	fn run(
+		&self,
+		data_packet: Vec<Option<Arc<PipelineData>>>,
+	) -> Result<Vec<Option<Arc<PipelineData>>>, PipelineError> {
+		match self {
+			Self::ExternalNode => Ok(Default::default()),
+			Self::ConstantNode(x) => Ok(vec![Some(x.clone())]),
+			Self::ExtractTags { node, .. } => node.run(data_packet),
+			Self::IfNone { node, .. } => node.run(data_packet),
+		}
+	}
+}
+
+impl PipelineNodeInstance {
+	pub fn get_type(&self) -> Option<PipelineNodeType> {
+		match self {
+			Self::ExternalNode => None,
+			Self::ConstantNode(_) => None,
+			Self::ExtractTags { .. } => Some(PipelineNodeType::ExtractTags),
+			Self::IfNone { .. } => Some(PipelineNodeType::IfNone),
+		}
 	}
 }
