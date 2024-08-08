@@ -49,3 +49,13 @@ input."data" = { pipeline = "data" }
 node.type = "Pipeline"
 node.pipeline = "cover"
 input."cover_data" = { node = "extract_cover", output = "cover_data" }
+
+[node."find"]
+node.type = "FindItem"
+node.class = "AudioFile"
+node.by_attr = "artist"
+input."attr_value" = { type = "Constant", value = "Echosmith" }
+
+[node.print]
+node.type = "Print"
+input."data" = { node = "find", output = "found_item" }

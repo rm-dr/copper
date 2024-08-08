@@ -131,11 +131,15 @@ where
 
 	// TODO: take &[(_, _)] instead of single data
 	fn item_set_attr(&mut self, attr: AttrHandle, data: MetaDbData) -> Result<(), MetaDbError>;
-	fn item_get_attr(&self, item: ItemHandle, attr: AttrHandle) -> Result<MetaDbData, MetaDbError>;
-	fn item_get_class(&self, item: ItemHandle) -> Result<ClassHandle, MetaDbError>;
+	fn item_get_attr(
+		&mut self,
+		item: ItemHandle,
+		attr: AttrHandle,
+	) -> Result<MetaDbData, MetaDbError>;
+	fn item_get_class(&mut self, item: ItemHandle) -> Result<ClassHandle, MetaDbError>;
 
 	fn class_set_name(&mut self, class: ClassHandle, name: &str) -> Result<(), MetaDbError>;
-	fn class_get_name(&self, class: ClassHandle) -> Result<&str, MetaDbError>;
+	fn class_get_name(&mut self, class: ClassHandle) -> Result<&str, MetaDbError>;
 
 	/// Get all attributes in the given class.
 	/// Returns (attr handle, attr name, attr type)
@@ -145,10 +149,16 @@ where
 		&mut self,
 		class: ClassHandle,
 	) -> Result<Vec<(AttrHandle, SmartString<LazyCompact>, MetaDbDataStub)>, MetaDbError>;
-	fn class_num_attrs(&self, class: ClassHandle) -> Result<usize, MetaDbError>;
+	fn class_num_attrs(&mut self, class: ClassHandle) -> Result<usize, MetaDbError>;
 
 	fn attr_set_name(&mut self, attr: AttrHandle, name: &str) -> Result<(), MetaDbError>;
-	fn attr_get_name(&self, attr: AttrHandle) -> Result<&str, MetaDbError>;
-	fn attr_get_type(&self, attr: AttrHandle) -> Result<MetaDbDataStub, MetaDbError>;
-	fn attr_get_class(&self, attr: AttrHandle) -> ClassHandle;
+	fn attr_get_name(&mut self, attr: AttrHandle) -> Result<&str, MetaDbError>;
+	fn attr_get_type(&mut self, attr: AttrHandle) -> Result<MetaDbDataStub, MetaDbError>;
+	fn attr_get_class(&mut self, attr: AttrHandle) -> ClassHandle;
+
+	fn find_item_with_attr(
+		&mut self,
+		attr: AttrHandle,
+		attr_value: MetaDbData,
+	) -> Result<Option<ItemHandle>, MetaDbError>;
 }

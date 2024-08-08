@@ -8,7 +8,7 @@ mod helpers;
 mod traits;
 
 pub mod input;
-pub mod output;
+pub mod database;
 pub mod tags;
 pub mod util;
 

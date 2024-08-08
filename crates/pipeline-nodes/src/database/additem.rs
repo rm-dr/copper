@@ -125,27 +125,7 @@ impl PipelineNode for AddItem {
 		let mut attrs = Vec::new();
 		for ((attr, _, _), data) in self.attrs.iter().zip(self.data.iter_mut()) {
 			let data = match data.as_ref().unwrap() {
-				DataHold::Static(x) => match x {
-					UFOData::Blob { .. } => unreachable!(),
-					UFOData::None(x) => MetaDbData::None(*x),
-					UFOData::Text(x) => MetaDbData::Text(x.clone()),
-					UFOData::Float(x) => MetaDbData::Float(*x),
-					UFOData::Path(x) => MetaDbData::Path(x.clone()),
-					UFOData::Hash { format, data } => MetaDbData::Hash {
-						format: *format,
-						data: data.clone(),
-					},
-					UFOData::Binary { format, data } => MetaDbData::Binary {
-						format: format.clone(),
-						data: data.clone(),
-					},
-					UFOData::Integer(x) => MetaDbData::Integer(*x),
-					UFOData::PositiveInteger(x) => MetaDbData::PositiveInteger(*x),
-					UFOData::Reference { class, item } => MetaDbData::Reference {
-						class: *class,
-						item: *item,
-					},
-				},
+				DataHold::Static(x) => x.as_db_data().unwrap(),
 				DataHold::BlobDone(handle) => MetaDbData::Blob {
 					handle: handle.clone(),
 				},

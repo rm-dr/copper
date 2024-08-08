@@ -365,7 +365,6 @@ impl MetaDb<FsBlobStore> for SQLiteMetaDB {
 		class: ClassHandle,
 		attr_name: &str,
 	) -> Result<Option<AttrHandle>, MetaDbError> {
-		// Start transaction
 		let conn = if let Some(ref mut conn) = self.conn {
 			conn
 		} else {
@@ -408,14 +407,14 @@ impl MetaDb<FsBlobStore> for SQLiteMetaDB {
 	}
 
 	fn item_get_attr(
-		&self,
+		&mut self,
 		_item: ItemHandle,
 		_attr: AttrHandle,
 	) -> Result<MetaDbData, MetaDbError> {
 		unimplemented!()
 	}
 
-	fn item_get_class(&self, _item: ItemHandle) -> Result<ClassHandle, MetaDbError> {
+	fn item_get_class(&mut self, _item: ItemHandle) -> Result<ClassHandle, MetaDbError> {
 		unimplemented!()
 	}
 
@@ -499,11 +498,11 @@ impl MetaDb<FsBlobStore> for SQLiteMetaDB {
 		unimplemented!()
 	}
 
-	fn class_get_name(&self, _class: ClassHandle) -> Result<&str, MetaDbError> {
+	fn class_get_name(&mut self, _class: ClassHandle) -> Result<&str, MetaDbError> {
 		unimplemented!()
 	}
 
-	fn class_num_attrs(&self, _class: ClassHandle) -> Result<usize, MetaDbError> {
+	fn class_num_attrs(&mut self, _class: ClassHandle) -> Result<usize, MetaDbError> {
 		unimplemented!()
 	}
 
@@ -556,15 +555,87 @@ impl MetaDb<FsBlobStore> for SQLiteMetaDB {
 		unimplemented!()
 	}
 
-	fn attr_get_name(&self, _attr: AttrHandle) -> Result<&str, MetaDbError> {
+	fn attr_get_name(&mut self, _attr: AttrHandle) -> Result<&str, MetaDbError> {
 		unimplemented!()
 	}
 
-	fn attr_get_type(&self, _attr: AttrHandle) -> Result<MetaDbDataStub, MetaDbError> {
-		todo!()
+	fn attr_get_type(&mut self, attr: AttrHandle) -> Result<MetaDbDataStub, MetaDbError> {
+		let conn = if let Some(ref mut conn) = self.conn {
+			conn
+		} else {
+			return Err(MetaDbError::NotConnected);
+		};
+
+		let res = block_on(
+			sqlx::query("SELECT data_type FROM meta_attributes WHERE id=?;")
+				.bind(u32::from(attr))
+				.fetch_one(conn),
+		);
+
+		return match res {
+			Err(e) => Err(e.into()),
+			Ok(res) => {
+				let type_string = res.get::<String, _>("data_type");
+				Ok(MetaDbDataStub::from_db_str(&type_string).unwrap())
+			}
+		};
 	}
 
-	fn attr_get_class(&self, _attr: AttrHandle) -> ClassHandle {
+	fn attr_get_class(&mut self, _attr: AttrHandle) -> ClassHandle {
 		unimplemented!()
+	}
+
+	fn find_item_with_attr(
+		&mut self,
+		attr: AttrHandle,
+		mut attr_value: MetaDbData,
+	) -> Result<Option<ItemHandle>, MetaDbError> {
+		let conn = if let Some(ref mut conn) = self.conn {
+			conn
+		} else {
+			return Err(MetaDbError::NotConnected);
+		};
+
+		// Find table and column name to modify
+		let (table_name, column_name): (String, String) = {
+			let res = block_on(
+				sqlx::query(
+					"
+					SELECT meta_classes.id AS class_id,
+					meta_attributes.id AS attr_id
+					FROM meta_attributes
+					INNER JOIN meta_classes ON meta_classes.id = meta_attributes.class_id
+					WHERE meta_attributes.id=?;
+					",
+				)
+				.bind(u32::from(attr))
+				.fetch_one(&mut *conn),
+			);
+
+			match res {
+				Err(sqlx::Error::RowNotFound) => Err(MetaDbError::BadAttrHandle),
+				Err(e) => Err(e.into()),
+				Ok(res) => {
+					let class_id: u32 = res.get("class_id");
+					let attr_id: u32 = res.get("attr_id");
+
+					Ok((format!("class_{class_id}"), format!("attr_{attr_id}")))
+				}
+			}
+		}?;
+
+		let query_str = format!("SELECT id FROM \"{table_name}\" WHERE \"{column_name}\"=?;");
+		let mut q = sqlx::query(&query_str);
+		q = Self::bind_storage(q, &mut attr_value);
+
+		let res = block_on(q.bind(u32::from(attr)).fetch_one(conn));
+		return match res {
+			Err(sqlx::Error::RowNotFound) => Ok(None),
+			Err(e) => Err(e.into()),
+			Ok(res) => {
+				let id = res.get::<u32, _>("data_type");
+				Ok(Some(id.into()))
+			}
+		};
 	}
 }

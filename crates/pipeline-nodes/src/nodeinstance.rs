@@ -6,9 +6,9 @@ use ufo_pipeline::{
 
 use crate::{
 	data::UFOData,
+	database::{additem::AddItem, finditem::FindItem},
 	errors::PipelineError,
 	input::file::FileReader,
-	output::additem::AddItem,
 	tags::{extractcovers::ExtractCovers, striptags::StripTags},
 	util::hash::Hash,
 	UFOContext,
@@ -75,6 +75,11 @@ pub enum UFONodeInstance {
 		name: PipelineNodeLabel,
 		node: AddItem,
 	},
+	FindItem {
+		node_type: UFONodeType,
+		name: PipelineNodeLabel,
+		node: FindItem,
+	},
 }
 
 impl Debug for UFONodeInstance {
@@ -90,6 +95,7 @@ impl Debug for UFONodeInstance {
 			Self::ExtractCovers { name, .. } => write!(f, "ExtractCovers({name})"),
 			Self::AddItem { name, .. } => write!(f, "AddItem({name})"),
 			Self::File { name, .. } => write!(f, "File({name})"),
+			Self::FindItem { name, .. } => write!(f, "FindItem({name})"),
 		}
 	}
 }
@@ -102,6 +108,7 @@ impl PipelineNode for UFONodeInstance {
 	fn quick_run(&self) -> bool {
 		match self {
 			Self::AddItem { node, .. } => node.quick_run(),
+			Self::FindItem { node, .. } => node.quick_run(),
 			Self::File { node, .. } => node.quick_run(),
 
 			// Utility
@@ -128,6 +135,7 @@ impl PipelineNode for UFONodeInstance {
 	{
 		match self {
 			Self::AddItem { node, .. } => node.take_input(portdata, send_data),
+			Self::FindItem { node, .. } => node.take_input(portdata, send_data),
 			Self::File { node, .. } => node.take_input(portdata, send_data),
 
 			// Utility
@@ -154,6 +162,7 @@ impl PipelineNode for UFONodeInstance {
 	{
 		match self {
 			Self::AddItem { node, .. } => node.run(ctx, send_data),
+			Self::FindItem { node, .. } => node.run(ctx, send_data),
 			Self::File { node, .. } => node.run(ctx, send_data),
 
 			// Utility
@@ -175,6 +184,7 @@ impl UFONodeInstance {
 	pub fn get_type(&self) -> &UFONodeType {
 		match self {
 			| Self::AddItem { node_type, .. }
+			| Self::FindItem { node_type, .. }
 			| Self::File { node_type, .. }
 
 			// Utility

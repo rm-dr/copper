@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use ufo_metadb::{
 	api::{ClassHandle, ItemHandle},
-	data::{HashType, MetaDbDataStub},
+	data::{HashType, MetaDbData, MetaDbDataStub},
 };
 use ufo_pipeline::api::PipelineData;
 use ufo_util::mime::MimeType;
@@ -113,5 +113,30 @@ impl UFOData {
 
 	pub fn is_blob(&self) -> bool {
 		matches!(self, Self::Blob { .. })
+	}
+
+	pub fn as_db_data(&self) -> Option<MetaDbData> {
+		Some(match self {
+			UFOData::Blob { .. } => return None,
+
+			UFOData::None(x) => MetaDbData::None(*x),
+			UFOData::Text(x) => MetaDbData::Text(x.clone()),
+			UFOData::Float(x) => MetaDbData::Float(*x),
+			UFOData::Path(x) => MetaDbData::Path(x.clone()),
+			UFOData::Hash { format, data } => MetaDbData::Hash {
+				format: *format,
+				data: data.clone(),
+			},
+			UFOData::Binary { format, data } => MetaDbData::Binary {
+				format: format.clone(),
+				data: data.clone(),
+			},
+			UFOData::Integer(x) => MetaDbData::Integer(*x),
+			UFOData::PositiveInteger(x) => MetaDbData::PositiveInteger(*x),
+			UFOData::Reference { class, item } => MetaDbData::Reference {
+				class: *class,
+				item: *item,
+			},
+		})
 	}
 }
