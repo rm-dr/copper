@@ -41,6 +41,9 @@ license = ""
 documentation = ""
 readme = ""
 
+[workspace.lints.rust]
+unused_crate_dependencies = "warn"
+
 [workspace.lints.clippy]
 needless_return = "allow"
 new_without_default = "allow"

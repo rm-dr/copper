@@ -21,7 +21,6 @@ ufo-util = { workspace = true }
 ufo-pipeline = { workspace = true }
 ufo-node-base = { workspace = true }
 
-serde = { workspace = true }
 smartstring = { workspace = true }
 itertools = { workspace = true }
 serde_with = { workspace = true }
