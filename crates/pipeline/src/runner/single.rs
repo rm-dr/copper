@@ -309,28 +309,46 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 			return Ok(());
 		}
 
+		// Do nothing if there are no free workers
 		if self.workers.iter().all(|x| x.is_some()) {
 			return Ok(());
 		}
 
-		// Skip nodes we can't run
+		// Send all pending input to node
+		{
+			let node_instance_container = &mut self.node_instances[node.as_usize()];
+			let node_instance = node_instance_container.node.clone();
+			let mut locked_node = node_instance.lock().unwrap();
+
+			while !node_instance_container
+				.input_queue
+				.as_ref()
+				.unwrap()
+				.is_empty()
+			{
+				let data = node_instance_container
+					.input_queue
+					.as_mut()
+					.unwrap()
+					.pop_front()
+					.unwrap();
+				locked_node.as_mut().unwrap().take_input(data)?;
+			}
+		}
+
+		// Nodes that are blocked by an "after" edge receive input, but are not started.
 		if self
 			.pipeline
 			.graph
 			.edges_ending_at(node)
 			.iter()
-			.any(|edge_idx| {
-				match self.edge_values.get(edge_idx.as_usize()).unwrap() {
-					// We don't care about theseend_input,
+			.any(
+				|edge_idx| match self.edge_values.get(edge_idx.as_usize()).unwrap() {
 					EdgeState::Data => false,
-					// If any `after` edges are waiting, we can't start.
-					// Be careful with these, they can cause a deadlock when
-					// used with `Blob` data.
 					EdgeState::AfterWaiting => true,
-					// All `after` edges are ready => good to go!
 					EdgeState::AfterReady => false,
-				}
-			}) {
+				},
+			) {
 			return Ok(());
 		}
 
@@ -338,29 +356,8 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleJob<StubType> {
 		let node_instance_container = &mut self.node_instances[node.as_usize()];
 		let node_instance = node_instance_container.node.clone();
 		let node_label = node_instance_container.label.clone();
-
 		let send_data = self.send_data.clone();
 		let send_status = self.send_status.clone();
-
-		let mut locked_node = node_instance.lock().unwrap();
-
-		// Send new input to node
-		while !node_instance_container
-			.input_queue
-			.as_ref()
-			.unwrap()
-			.is_empty()
-		{
-			let data = node_instance_container
-				.input_queue
-				.as_mut()
-				.unwrap()
-				.pop_front()
-				.unwrap();
-			locked_node.as_mut().unwrap().take_input(data)?;
-		}
-		self.handle_all_messages()?;
-		drop(locked_node);
 
 		if node_instance
 			.try_lock()

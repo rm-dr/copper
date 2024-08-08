@@ -27,7 +27,6 @@ UFO's goal is to be "[Paperless] for everything," with...
 - Stop reading file when all dependents are done
 - Nodes ask for other nodes (ifnone)
 - Remove/rework print node
-- Buffer ALL input (even if not running)
 
 - Clean up pipeline error handling (search for unwrap, assert, and panic)
   - db errors in pipeline run & build
@@ -39,7 +38,6 @@ UFO's goal is to be "[Paperless] for everything," with...
       - final node should error if output is none\
 
 - Deadlock detection
-- Do "after"s cause deadlocks? (probably)
 
 
 
