@@ -55,11 +55,8 @@ impl LocalDataset {
 		// Initialize blob store
 		let blob_storage_dir_absolute = db_root.join(blob_storage_dir);
 		std::fs::create_dir(blob_storage_dir_absolute).unwrap();
-		block_on(sqlx::query(include_str!("./init.sql")).execute(&mut conn)).unwrap();
 		block_on(
-			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?,?), (?,?), (?,?);")
-				.bind("ufo_version")
-				.bind(env!("CARGO_PKG_VERSION"))
+			sqlx::query("INSERT INTO meta_meta (var, val) VALUES (?,?), (?,?);")
 				.bind("idx_counter")
 				.bind(0)
 				.bind("blob_dir")
