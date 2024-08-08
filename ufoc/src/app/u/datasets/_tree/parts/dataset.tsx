@@ -12,7 +12,7 @@ import { Dispatch, SetStateAction, useState } from "react";
 import styles from "../tree.module.scss";
 import { ClassList } from "./class";
 import { TreeEntry } from "../tree_entry";
-import { datasetTypes } from "../datasets";
+import { datasetTypes } from "@/app/_util/datasets";
 import { useDeleteDatasetModal } from "./modals/delds";
 import { useAddClassModal } from "./modals/addclass";
 

@@ -4,7 +4,7 @@ import { useDisclosure } from "@mantine/hooks";
 import { XIconDatabasePlus } from "@/app/components/icons";
 import { useForm } from "@mantine/form";
 import { ModalBase } from "./modal_base";
-import { datasetTypes } from "../../datasets";
+import { datasetTypes } from "@/app/_util/datasets";
 
 export function useNewDsModal(onSuccess: () => void) {
 	const [opened, { open, close }] = useDisclosure(false);

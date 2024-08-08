@@ -12,7 +12,7 @@ import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Loader, Text } from "@mantine/core";
 import { ColumnHeader } from "./parts/columnheader";
 import { ItemData, Selected } from "../page";
-import { attrTypes } from "../../datasets/_tree/attrs";
+import { attrTypes } from "@/app/_util/attrs";
 
 export function ItemTablePanel(params: { data: ItemData; select: Selected }) {
 	return (

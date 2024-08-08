@@ -1,7 +1,9 @@
 import { XIconServer } from "@/app/components/icons";
 import { ReactNode } from "react";
 
-// Server-compatible dataset type definitions
+/*
+	Definitions of all dataset types we support
+*/
 
 export const datasetTypes: {
 	// Pretty name to display to user

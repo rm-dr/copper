@@ -3,7 +3,7 @@ import { Panel } from "@/app/components/panel";
 
 import { XIconArrowRight, XIconEdit } from "@/app/components/icons";
 import { ItemData, Selected } from "../page";
-import { attrTypes } from "../../datasets/_tree/attrs";
+import { attrTypes } from "@/app/_util/attrs";
 import { Button } from "@mantine/core";
 
 export function EditPanel(params: { data: ItemData; select: Selected }) {

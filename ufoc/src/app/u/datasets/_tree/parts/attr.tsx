@@ -1,7 +1,7 @@
 import { XIconDots, XIconEdit, XIconTrash } from "@/app/components/icons";
 import { ActionIcon, Menu, rem } from "@mantine/core";
 import { TreeEntry } from "../tree_entry";
-import { attrTypes } from "../attrs";
+import { attrTypes } from "@/app/_util/attrs";
 import { useDeleteAttrModal } from "./modals/delattr";
 
 export function AttrList(params: {
