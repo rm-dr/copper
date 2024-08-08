@@ -4,8 +4,8 @@ import { Button, PasswordInput, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { useForm } from "@mantine/form";
-import { ModalBase } from "./modal_base";
-import { GroupInfo } from "../../_grouptree";
+import { GroupInfo } from "../_grouptree";
+import { ModalBase } from "@/app/components/modal_base";
 
 export function useAddUserModal(params: {
 	group?: GroupInfo;

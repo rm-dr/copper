@@ -2,7 +2,7 @@ import { XIconTrash } from "@/app/components/icons";
 import { Button, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
-import { ModalBase } from "./modal_base";
+import { ModalBase } from "@/app/components/modal_base";
 import { useForm } from "@mantine/form";
 
 export function useDeleteAttrModal(params: {

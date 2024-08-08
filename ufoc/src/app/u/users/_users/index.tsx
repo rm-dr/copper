@@ -18,8 +18,8 @@ import { ActionIcon, Button, Menu, Switch, Text, rem } from "@mantine/core";
 import { TreeNode } from "@/app/components/tree";
 import { GroupData, UserInfo } from "../_grouptree";
 import { ReactNode } from "react";
-import { useAddUserModal } from "./modals/adduser";
-import { useDeleteUserModal } from "./modals/deluser";
+import { useAddUserModal } from "../_modals/adduser";
+import { useDeleteUserModal } from "../_modals/deluser";
 
 const Wrapper = (params: { children: ReactNode }) => {
 	return (

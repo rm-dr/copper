@@ -1,36 +1,29 @@
-import { XIconTrash } from "@/app/components/icons";
+import { XIconFolderPlus } from "@/app/components/icons";
 import { Button, Text, TextInput } from "@mantine/core";
+
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
-import { ModalBase } from "./modal_base";
 import { useForm } from "@mantine/form";
-import { UserInfo } from "../../_grouptree";
+import { GroupInfo } from "../_grouptree";
+import { ModalBase } from "@/app/components/modal_base";
 
-export function useDeleteUserModal(params: {
-	user: UserInfo;
+export function useAddGroupModal(params: {
+	group?: GroupInfo;
 	onChange: () => void;
 }) {
 	const [opened, { open, close }] = useDisclosure(false);
+
 	const [isLoading, setLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			user: "",
+			name: "",
 		},
 		validate: {
-			user: (value) => {
-				if (value.trim().length === 0) {
-					return "This field is required";
-				}
-
-				if (value !== params.user.name) {
-					return "Username doesn't match";
-				}
-
-				return null;
-			},
+			name: (value) =>
+				value.trim().length === 0 ? "Group name cannot be empty" : null,
 		},
 	});
 
@@ -47,7 +40,7 @@ export function useDeleteUserModal(params: {
 			<ModalBase
 				opened={opened}
 				close={reset}
-				title="Delete attribute"
+				title="Create a group"
 				keepOpen={isLoading}
 			>
 				<div
@@ -55,13 +48,9 @@ export function useDeleteUserModal(params: {
 						marginBottom: "1rem",
 					}}
 				>
-					<Text c="red" size="sm">
-						This action will irreversably delete a user.
-					</Text>
-					<Text c="red" size="sm">
-						Enter
-						<Text c="orange" span>{` ${params.user.name} `}</Text>
-						below to confirm.
+					<Text c="dimmed" size="sm">
+						Add a user in the group
+						<Text c="gray" span>{` ${params.group?.name}`}</Text>:
 					</Text>
 				</div>
 				<form
@@ -69,13 +58,14 @@ export function useDeleteUserModal(params: {
 						setLoading(true);
 						setErrorMessage(null);
 
-						fetch("/api/auth/user/del", {
-							method: "delete",
+						fetch(`/api/auth/group/add`, {
+							method: "POST",
 							headers: {
 								"Content-Type": "application/json",
 							},
 							body: JSON.stringify({
-								user: params.user.id,
+								parent: params.group?.id,
+								name: values.name,
 							}),
 						})
 							.then((res) => {
@@ -89,18 +79,21 @@ export function useDeleteUserModal(params: {
 									reset();
 								}
 							})
-							.catch((err) => {
+							.catch((e) => {
 								setLoading(false);
-								setErrorMessage(`Error: ${err}`);
+								setErrorMessage(`Error: ${e}`);
 							});
 					})}
 				>
 					<TextInput
 						data-autofocus
-						placeholder="Enter username"
+						placeholder="group name"
 						disabled={isLoading}
-						key={form.key("user")}
-						{...form.getInputProps("user")}
+						key={form.key("name")}
+						{...form.getInputProps("name")}
+						style={{
+							margin: "0.5rem",
+						}}
 					/>
 
 					<Button.Group style={{ marginTop: "1rem" }}>
@@ -115,17 +108,17 @@ export function useDeleteUserModal(params: {
 						</Button>
 						<Button
 							variant="filled"
-							color="red"
 							fullWidth
-							leftSection={<XIconTrash />}
+							color={errorMessage === null ? "green" : "red"}
+							loading={isLoading}
+							leftSection={<XIconFolderPlus />}
 							type="submit"
 						>
-							Confirm
+							Create group
 						</Button>
 					</Button.Group>
-
 					<Text c="red" ta="center">
-						{errorMessage}
+						{errorMessage ? errorMessage : ""}
 					</Text>
 				</form>
 			</ModalBase>

@@ -9,7 +9,7 @@ import {
 } from "@mantine/core";
 import { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
-import { ModalBase } from "./modal_base";
+import { ModalBase } from "@/app/components/modal_base";
 import { attrTypes } from "@/app/_util/attrs";
 
 // TODO: make this a form

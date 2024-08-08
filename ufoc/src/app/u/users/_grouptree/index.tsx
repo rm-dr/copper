@@ -13,6 +13,8 @@ import {
 import { useTree, TreeNode } from "@/app/components/tree";
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { ActionIcon, Loader, Menu, Text, rem } from "@mantine/core";
+import { useAddGroupModal } from "../_modals/addgroup";
+import { useDeleteGroupModal } from "../_modals/delgroup";
 
 type TreeState = {
 	error: boolean;
@@ -106,7 +108,7 @@ export function useGroupTreePanel() {
 					out.push({
 						icon: <XIconGroup />,
 						text: g.group_info.name,
-						right: <GroupMenu group_id={g.group_info.id} />,
+						right: <GroupMenu group={g.group_info} onChange={update_tree} />,
 						selectable: true,
 						uid: id,
 						parent: parent_idx === -1 ? null : parent_idx,
@@ -189,9 +191,23 @@ export function useGroupTreePanel() {
 	return { node, selected, treeData, reloadTree: update_tree };
 }
 
-function GroupMenu(params: { group_id: GroupId }) {
+function GroupMenu(params: { group: GroupInfo; onChange: () => void }) {
+	const { open: openAddGroupModal, modal: addGroupModal } = useAddGroupModal({
+		group: params.group,
+		onChange: params.onChange,
+	});
+
+	const { open: openDelGroupModal, modal: delGroupModal } = useDeleteGroupModal(
+		{
+			group: params.group,
+			onChange: params.onChange,
+		},
+	);
+
 	return (
 		<>
+			{addGroupModal}
+			{delGroupModal}
 			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
@@ -202,7 +218,7 @@ function GroupMenu(params: { group_id: GroupId }) {
 				<Menu.Dropdown>
 					<Menu.Label>Edit group</Menu.Label>
 					<Menu.Item
-						disabled={params.group_id.type === "RootGroup"}
+						disabled={params.group.id.type === "RootGroup"}
 						leftSection={
 							<XIconEdit style={{ width: rem(14), height: rem(14) }} />
 						}
@@ -213,6 +229,7 @@ function GroupMenu(params: { group_id: GroupId }) {
 						leftSection={
 							<XIconPlus style={{ width: rem(14), height: rem(14) }} />
 						}
+						onClick={openAddGroupModal}
 					>
 						Add subgroup
 					</Menu.Item>
@@ -222,10 +239,11 @@ function GroupMenu(params: { group_id: GroupId }) {
 					<Menu.Label>Danger zone</Menu.Label>
 					<Menu.Item
 						color="red"
-						disabled={params.group_id.type === "RootGroup"}
+						disabled={params.group.id.type === "RootGroup"}
 						leftSection={
 							<XIconTrash style={{ width: rem(14), height: rem(14) }} />
 						}
+						onClick={openDelGroupModal}
 					>
 						Delete this group
 					</Menu.Item>

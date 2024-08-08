@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
 import { XIconDatabasePlus } from "@/app/components/icons";
 import { useForm } from "@mantine/form";
-import { ModalBase } from "./modal_base";
+import { ModalBase } from "@/app/components/modal_base";
 import { datasetTypes } from "@/app/_util/datasets";
 
 export function useNewDsModal(onSuccess: () => void) {

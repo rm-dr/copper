@@ -4,7 +4,7 @@ import { Button, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useForm } from "@mantine/form";
 import { useState } from "react";
-import { ModalBase } from "./modal_base";
+import { ModalBase } from "@/app/components/modal_base";
 
 export function useDeleteDatasetModal(params: {
 	dataset_name: string;

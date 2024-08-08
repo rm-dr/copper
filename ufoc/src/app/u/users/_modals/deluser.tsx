@@ -1,29 +1,36 @@
-import { XIconFolderPlus } from "@/app/components/icons";
+import { XIconTrash } from "@/app/components/icons";
 import { Button, Text, TextInput } from "@mantine/core";
-
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
-import { ModalBase } from "@/app/components/modal_base";
 import { useForm } from "@mantine/form";
+import { UserInfo } from "../_grouptree";
+import { ModalBase } from "@/app/components/modal_base";
 
-export function useAddClassModal(params: {
-	dataset_name: string;
-	onSuccess: () => void;
+export function useDeleteUserModal(params: {
+	user: UserInfo;
+	onChange: () => void;
 }) {
 	const [opened, { open, close }] = useDisclosure(false);
-
 	const [isLoading, setLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			class: "",
-			dataset: params.dataset_name,
+			user: "",
 		},
 		validate: {
-			class: (value) =>
-				value.trim().length === 0 ? "Name cannot be empty" : null,
+			user: (value) => {
+				if (value.trim().length === 0) {
+					return "This field is required";
+				}
+
+				if (value !== params.user.name) {
+					return "Username doesn't match";
+				}
+
+				return null;
+			},
 		},
 	});
 
@@ -40,7 +47,7 @@ export function useAddClassModal(params: {
 			<ModalBase
 				opened={opened}
 				close={reset}
-				title="Add a class"
+				title="Delete attribute"
 				keepOpen={isLoading}
 			>
 				<div
@@ -48,9 +55,13 @@ export function useAddClassModal(params: {
 						marginBottom: "1rem",
 					}}
 				>
-					<Text c="dimmed" size="sm">
-						Add a class to the dataset
-						<Text c="gray" span>{` ${params.dataset_name}`}</Text>:
+					<Text c="red" size="sm">
+						This action will irreversably delete a user.
+					</Text>
+					<Text c="red" size="sm">
+						Enter
+						<Text c="orange" span>{` ${params.user.name} `}</Text>
+						below to confirm.
 					</Text>
 				</div>
 				<form
@@ -58,12 +69,14 @@ export function useAddClassModal(params: {
 						setLoading(true);
 						setErrorMessage(null);
 
-						fetch(`/api/class/add`, {
-							method: "POST",
+						fetch("/api/auth/user/del", {
+							method: "delete",
 							headers: {
 								"Content-Type": "application/json",
 							},
-							body: JSON.stringify(values),
+							body: JSON.stringify({
+								user: params.user.id,
+							}),
 						})
 							.then((res) => {
 								setLoading(false);
@@ -72,23 +85,24 @@ export function useAddClassModal(params: {
 										setErrorMessage(text);
 									});
 								} else {
-									params.onSuccess();
+									params.onChange();
 									reset();
 								}
 							})
-							.catch((e) => {
+							.catch((err) => {
 								setLoading(false);
-								setErrorMessage(`Error: ${e}`);
+								setErrorMessage(`Error: ${err}`);
 							});
 					})}
 				>
 					<TextInput
 						data-autofocus
-						placeholder="New class name"
+						placeholder="Enter username"
 						disabled={isLoading}
-						key={form.key("class")}
-						{...form.getInputProps("class")}
+						key={form.key("user")}
+						{...form.getInputProps("user")}
 					/>
+
 					<Button.Group style={{ marginTop: "1rem" }}>
 						<Button
 							variant="light"
@@ -101,17 +115,17 @@ export function useAddClassModal(params: {
 						</Button>
 						<Button
 							variant="filled"
+							color="red"
 							fullWidth
-							color={errorMessage === null ? "green" : "red"}
-							loading={isLoading}
-							leftSection={<XIconFolderPlus />}
+							leftSection={<XIconTrash />}
 							type="submit"
 						>
-							Create class
+							Confirm
 						</Button>
 					</Button.Group>
+
 					<Text c="red" ta="center">
-						{errorMessage ? errorMessage : ""}
+						{errorMessage}
 					</Text>
 				</form>
 			</ModalBase>
