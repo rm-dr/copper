@@ -1,11 +1,10 @@
 use ufo_pipeline::{
-	api::{PipelineNode, PipelineNodeState},
+	api::{PipelineNode, PipelineNodeError, PipelineNodeState},
 	labels::PipelinePortID,
 };
 
 use crate::{
 	data::{UFOData, UFODataStub},
-	errors::PipelineError,
 	nodetype::{UFONodeType, UFONodeTypeError},
 	traits::UFONode,
 	UFOContext,
@@ -29,13 +28,12 @@ impl IfNone {
 impl PipelineNode for IfNone {
 	type NodeContext = UFOContext;
 	type DataType = UFOData;
-	type ErrorType = PipelineError;
 
 	fn quick_run(&self) -> bool {
 		true
 	}
 
-	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineNodeError> {
 		match port {
 			0 => {
 				self.input = Some(data);
@@ -48,9 +46,9 @@ impl PipelineNode for IfNone {
 		return Ok(());
 	}
 
-	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineNodeError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineNodeError>,
 	{
 		if self.input.is_none() || self.ifnone.is_none() {
 			return Ok(PipelineNodeState::Pending("args not ready"));

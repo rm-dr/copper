@@ -1,13 +1,12 @@
 use std::fmt::Debug;
 use ufo_pipeline::{
-	api::{PipelineNode, PipelineNodeState},
+	api::{PipelineNode, PipelineNodeError, PipelineNodeState},
 	labels::PipelineNodeID,
 };
 
 use crate::{
 	data::UFOData,
 	database::{additem::AddItem, finditem::FindItem},
-	errors::PipelineError,
 	input::file::FileReader,
 	tags::{extractcovers::ExtractCovers, striptags::StripTags},
 	util::hash::Hash,
@@ -97,7 +96,6 @@ impl Debug for UFONodeInstance {
 impl PipelineNode for UFONodeInstance {
 	type NodeContext = UFOContext;
 	type DataType = UFOData;
-	type ErrorType = PipelineError;
 
 	fn quick_run(&self) -> bool {
 		match self {
@@ -118,7 +116,7 @@ impl PipelineNode for UFONodeInstance {
 		}
 	}
 
-	fn take_input(&mut self, portdata: (usize, UFOData)) -> Result<(), PipelineError> {
+	fn take_input(&mut self, portdata: (usize, UFOData)) -> Result<(), PipelineNodeError> {
 		match self {
 			Self::AddItem { node, .. } => node.take_input(portdata),
 			Self::FindItem { node, .. } => node.take_input(portdata),
@@ -137,9 +135,9 @@ impl PipelineNode for UFONodeInstance {
 		}
 	}
 
-	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineNodeError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineNodeError>,
 	{
 		match self {
 			Self::AddItem { node, .. } => node.run(send_data),

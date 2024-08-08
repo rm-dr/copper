@@ -20,7 +20,7 @@ pub struct UfodConfig {
 	pub paths: UfodPathConfig,
 
 	/// The maximum size, in bytes, of a blob channel fragment
-	pub blob_fragment_size: usize,
+	pub blob_fragment_size: u64,
 
 	/// Uploader settings
 	#[serde(default)]

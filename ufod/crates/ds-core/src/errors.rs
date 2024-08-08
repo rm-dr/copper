@@ -6,7 +6,7 @@ use ufo_pipeline::{api::PipelineNodeStub, pipeline::syntax::errors::PipelinePrep
 #[derive(Debug)]
 pub enum MetastoreError {
 	/// Database error
-	DbError(Box<dyn Error>),
+	DbError(Box<dyn Error + Send + Sync>),
 
 	/// We tried to delete a class, but another class stores
 	/// references to its items.
@@ -126,7 +126,7 @@ impl<NodeStubType: PipelineNodeStub + 'static> Error for PipestoreError<NodeStub
 #[derive(Debug)]
 pub enum BlobstoreError {
 	/// Database error
-	DbError(Box<dyn Error>),
+	DbError(Box<dyn Error + Send + Sync>),
 
 	/// Filesystem I/O error
 	IOError(std::io::Error),

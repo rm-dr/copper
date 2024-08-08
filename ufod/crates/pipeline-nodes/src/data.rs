@@ -37,11 +37,6 @@ pub enum UFOData {
 	#[serde(skip)]
 	Integer { value: i64, is_non_negative: bool },
 
-	/// A filesystem path.
-	/// This cannot be stored inside a metastore.
-	#[serde(skip)]
-	Path(PathBuf),
-
 	/// A boolean
 	#[serde(skip)]
 	Boolean(bool),
@@ -57,29 +52,15 @@ pub enum UFOData {
 		data: Arc<Vec<u8>>,
 	},
 
-	/// Small binary data.
+	/// Arbitrary binary data.
 	/// This will be stored in the metadata db.
 	#[serde(skip)]
-	Binary {
+	Bytes {
 		/// This data's media type
 		mime: MimeType,
 
 		/// The data
-		data: Arc<Vec<u8>>,
-	},
-
-	/// Big binary data.
-	/// This will be stored in the blob store.
-	#[serde(skip)]
-	Blob {
-		/// This data's media type
-		mime: MimeType,
-
-		/// A receiver that provides data
-		fragment: Arc<Vec<u8>>,
-
-		/// Is this the last fragment?
-		is_last: bool,
+		source: BytesSource,
 	},
 
 	#[serde(skip)]
@@ -92,6 +73,17 @@ pub enum UFOData {
 	},
 }
 
+#[derive(Debug, Clone)]
+pub enum BytesSource {
+	Array {
+		fragment: Arc<Vec<u8>>,
+		is_last: bool,
+	},
+	File {
+		path: PathBuf,
+	},
+}
+
 impl PipelineData for UFOData {
 	type DataStubType = UFODataStub;
 
@@ -99,7 +91,6 @@ impl PipelineData for UFOData {
 		match self {
 			Self::None(t) => *t,
 			Self::Text(_) => UFODataStub::Text,
-			Self::Path(_) => UFODataStub::Path,
 			Self::Integer {
 				is_non_negative, ..
 			} => UFODataStub::Integer {
@@ -112,8 +103,7 @@ impl PipelineData for UFOData {
 				is_non_negative: *is_non_negative,
 			},
 			Self::Hash { format, .. } => UFODataStub::Hash { hash_type: *format },
-			Self::Binary { .. } => UFODataStub::Binary,
-			Self::Blob { .. } => UFODataStub::Blob,
+			Self::Bytes { .. } => UFODataStub::Bytes,
 			Self::Reference { class, .. } => UFODataStub::Reference { class: *class },
 		}
 	}
@@ -128,17 +118,15 @@ impl UFOData {
 		matches!(self, Self::None(_))
 	}
 
-	pub fn is_blob(&self) -> bool {
-		matches!(self, Self::Blob { .. })
-	}
-
 	pub fn as_db_data(&self) -> Option<MetastoreData> {
 		Some(match self {
 			// These may not be converted to MetastoreData directly.
 			// - Blobs must first be written to the blobstore
 			// - Paths may not be stored in a metastore at all.
-			UFOData::Blob { .. } => return None,
-			UFOData::Path(_) => return None,
+			UFOData::Bytes { .. } => return None,
+
+			UFOData::Text(x) => MetastoreData::Text(x.clone()),
+			UFOData::Boolean(x) => MetastoreData::Boolean(*x),
 
 			UFOData::None(x) => {
 				if let Some(stub) = x.as_metastore_stub() {
@@ -147,14 +135,8 @@ impl UFOData {
 					return None;
 				}
 			}
-			UFOData::Text(x) => MetastoreData::Text(x.clone()),
-			UFOData::Boolean(x) => MetastoreData::Boolean(*x),
 			UFOData::Hash { format, data } => MetastoreData::Hash {
 				format: *format,
-				data: data.clone(),
-			},
-			UFOData::Binary { mime: format, data } => MetastoreData::Binary {
-				mime: format.clone(),
 				data: data.clone(),
 			},
 			UFOData::Integer {
@@ -179,19 +161,14 @@ impl UFOData {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum UFODataStub {
 	/// Plain text
 	Text,
 
-	/// A filesystem path
-	Path,
-
-	/// Small binary data, in any format
-	Binary,
-
-	/// Big binary data
-	Blob,
+	/// A binary blob
+	Bytes,
 
 	/// An integer
 	Integer { is_non_negative: bool },
@@ -216,11 +193,8 @@ impl UFODataStub {
 	/// Not all [`UFODataStub`]s may be stored in a metastore.
 	fn as_metastore_stub(&self) -> Option<MetastoreDataStub> {
 		Some(match self {
-			Self::Path => return None,
-
 			Self::Text => MetastoreDataStub::Text,
-			Self::Binary => MetastoreDataStub::Binary,
-			Self::Blob => MetastoreDataStub::Blob,
+			Self::Bytes => todo!(),
 			Self::Integer { is_non_negative } => MetastoreDataStub::Integer {
 				is_non_negative: *is_non_negative,
 			},
@@ -242,8 +216,8 @@ impl From<MetastoreDataStub> for UFODataStub {
 	fn from(value: MetastoreDataStub) -> Self {
 		match value {
 			MetastoreDataStub::Text => Self::Text,
-			MetastoreDataStub::Binary => Self::Binary,
-			MetastoreDataStub::Blob => Self::Blob,
+			MetastoreDataStub::Binary => Self::Bytes,
+			MetastoreDataStub::Blob => Self::Bytes,
 			MetastoreDataStub::Integer { is_non_negative } => Self::Integer { is_non_negative },
 			MetastoreDataStub::Boolean => Self::Boolean,
 			MetastoreDataStub::Float { is_non_negative } => Self::Float { is_non_negative },
@@ -253,108 +227,12 @@ impl From<MetastoreDataStub> for UFODataStub {
 	}
 }
 
-impl<'de> Deserialize<'de> for UFODataStub {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where
-		D: serde::Deserializer<'de>,
-	{
-		// Make sure this matches `Serialize`!
-		let s = String::deserialize(deserializer)?;
-
-		let stub = 'block: {
-			// Static strings
-			let q = match &s[..] {
-				"text" => Some(Self::Text),
-				"binary" => Some(Self::Binary),
-				"blob" => Some(Self::Blob),
-				"boolan" => Some(Self::Boolean),
-				"integer" => Some(Self::Integer {
-					is_non_negative: false,
-				}),
-				"integer::nonnegative" => Some(Self::Integer {
-					is_non_negative: true,
-				}),
-				"float" => Some(Self::Float {
-					is_non_negative: false,
-				}),
-				"float::nonnegative" => Some(Self::Float {
-					is_non_negative: true,
-				}),
-				"hash::MD5" => Some(Self::Hash {
-					hash_type: HashType::MD5,
-				}),
-				"hash::SHA256" => Some(Self::Hash {
-					hash_type: HashType::SHA256,
-				}),
-				"hash::SHA512" => Some(Self::Hash {
-					hash_type: HashType::SHA512,
-				}),
-				_ => None,
-			};
-
-			if q.is_some() {
-				break 'block q;
-			}
-
-			if let Some(c) = s.strip_prefix("reference::") {
-				let n: u32 = if let Ok(n) = c.parse() {
-					n
-				} else {
-					break 'block None;
-				};
-				break 'block Some(Self::Reference { class: n.into() });
-			}
-
-			None
-		};
-
-		stub.ok_or(serde::de::Error::custom(format!("bad type string {}", s)))
-	}
-}
-
-impl Serialize for UFODataStub {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where
-		S: serde::Serializer,
-	{
-		// Make sure this matches `Deserialize`!
-		let s = match self {
-			Self::Text => "text".into(),
-			Self::Path => "path".into(),
-			Self::Binary => "binary".into(),
-			Self::Blob => "blob".into(),
-			Self::Boolean => "boolean".into(),
-			Self::Integer {
-				is_non_negative: false,
-			} => "integer".into(),
-			Self::Integer {
-				is_non_negative: true,
-			} => "integer::nonnegative".into(),
-			Self::Float {
-				is_non_negative: false,
-			} => "float".into(),
-			Self::Float {
-				is_non_negative: true,
-			} => "float::nonnegative".into(),
-			Self::Hash { hash_type: format } => match format {
-				HashType::MD5 => "hash::MD5".into(),
-				HashType::SHA256 => "hash::SHA256".into(),
-				HashType::SHA512 => "hash::SHA512".into(),
-			},
-			Self::Reference { class } => format!("reference::{}", u32::from(*class)),
-		};
-		s.serialize(serializer)
-	}
-}
-
 impl UFODataStub {
 	/// Iterate over all possible stubs
 	pub fn iter_all() -> impl Iterator<Item = &'static Self> {
 		[
 			Self::Text,
-			Self::Binary,
-			Self::Blob,
-			Self::Path,
+			Self::Bytes,
 			Self::Integer {
 				is_non_negative: false,
 			},

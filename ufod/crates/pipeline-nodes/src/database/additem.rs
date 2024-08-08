@@ -1,26 +1,28 @@
-use core::panic;
-use std::{collections::VecDeque, fmt::Debug, io::Write, sync::Arc};
-
 use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
+use std::{
+	fmt::Debug,
+	io::{Read, Write},
+	sync::Arc,
+};
 use ufo_ds_core::{
 	api::{
 		blob::{BlobHandle, Blobstore, BlobstoreTmpWriter},
 		meta::{AttrInfo, Metastore},
 	},
-	data::MetastoreData,
+	data::{MetastoreData, MetastoreDataStub},
 	errors::MetastoreError,
 	handles::ClassHandle,
 };
 use ufo_ds_impl::local::LocalDataset;
 use ufo_pipeline::{
-	api::{PipelineNode, PipelineNodeState},
+	api::{PipelineNode, PipelineNodeError, PipelineNodeState},
 	labels::PipelinePortID,
 };
 
 use crate::{
 	data::{UFOData, UFODataStub},
-	errors::PipelineError,
+	helpers::DataSource,
 	nodetype::{UFONodeType, UFONodeTypeError},
 	traits::UFONode,
 	UFOContext,
@@ -28,22 +30,12 @@ use crate::{
 
 enum DataHold {
 	Static(UFOData),
+	Binary(DataSource),
 	BlobWriting {
-		buffer: VecDeque<Arc<Vec<u8>>>,
+		reader: DataSource,
 		writer: Option<BlobstoreTmpWriter>,
-		is_done: bool,
 	},
 	BlobDone(BlobHandle),
-}
-
-impl Debug for DataHold {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-		match self {
-			DataHold::Static(data) => write!(f, "Static: {:?}", data),
-			DataHold::BlobWriting { .. } => write!(f, "Writing blob"),
-			DataHold::BlobDone(h) => write!(f, "Blob done: {h:?}"),
-		}
-	}
 }
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
@@ -84,31 +76,48 @@ impl AddItem {
 impl PipelineNode for AddItem {
 	type NodeContext = UFOContext;
 	type DataType = UFOData;
-	type ErrorType = PipelineError;
 
-	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineNodeError> {
 		assert!(port < self.attrs.len());
 		match data {
-			UFOData::Blob {
-				mime: format,
-				fragment,
-				is_last,
-			} => match &mut self.data[port] {
-				None => {
-					self.data[port] = Some(DataHold::BlobWriting {
-						buffer: VecDeque::from([fragment]),
-						writer: Some(block_on(self.dataset.new_blob(&format))?),
-						is_done: is_last,
-					})
+			UFOData::Bytes { mime, source } => {
+				let x = &self.attrs[port];
+				match x.data_type {
+					MetastoreDataStub::Binary => {
+						if self.data[port].is_none() {
+							self.data[port] = Some(DataHold::Binary(DataSource::Uninitialized));
+						}
+
+						match &mut self.data[port] {
+							Some(DataHold::Binary(reader)) => {
+								reader.consume(mime, source);
+							}
+							_ => unreachable!(),
+						}
+					}
+
+					MetastoreDataStub::Blob => {
+						if self.data[port].is_none() {
+							self.data[port] = Some(DataHold::BlobWriting {
+								reader: DataSource::Uninitialized,
+								writer: Some(
+									block_on(self.dataset.new_blob(&mime))
+										.map_err(|e| PipelineNodeError::Other(Box::new(e)))?,
+								),
+							});
+						}
+
+						match &mut self.data[port] {
+							Some(DataHold::BlobWriting { reader, .. }) => {
+								reader.consume(mime, source);
+							}
+							_ => unreachable!(),
+						}
+					}
+					_ => unreachable!(),
 				}
-				Some(DataHold::BlobWriting {
-					buffer, is_done, ..
-				}) => {
-					buffer.push_back(fragment);
-					*is_done = is_last;
-				}
-				x => panic!("bad input {x:?}"),
-			},
+			}
+
 			x => {
 				self.data[port] = Some(DataHold::Static(x));
 			}
@@ -116,38 +125,72 @@ impl PipelineNode for AddItem {
 		return Ok(());
 	}
 
-	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineNodeError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineNodeError>,
 	{
-		let mut exit = false;
 		for i in &mut self.data {
 			match i {
-				Some(DataHold::BlobWriting {
-					buffer,
-					writer,
-					is_done,
-				}) => {
-					while let Some(data) = buffer.pop_front() {
-						writer.as_mut().unwrap().write_all(&data[..])?;
+				Some(DataHold::BlobWriting { reader, writer }) => match reader {
+					DataSource::Uninitialized => {
+						unreachable!()
 					}
-					if *is_done {
-						let x = block_on(self.dataset.finish_blob(writer.take().unwrap()))?;
+
+					DataSource::Binary { data, is_done, .. } => {
+						while let Some(data) = data.pop_front() {
+							writer.as_mut().unwrap().write_all(&data[..])?;
+						}
+
+						if *is_done {
+							let x = block_on(self.dataset.finish_blob(writer.take().unwrap()))
+								.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+							std::mem::swap(i, &mut Some(DataHold::BlobDone(x)));
+						}
+					}
+
+					DataSource::File { file, .. } => {
+						std::io::copy(file, writer.as_mut().unwrap())?;
+						let x = block_on(self.dataset.finish_blob(writer.take().unwrap()))
+							.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
 						std::mem::swap(i, &mut Some(DataHold::BlobDone(x)));
 					}
-				}
+				},
 				Some(_) => {}
-				None => exit = true,
+				None => return Ok(PipelineNodeState::Pending("waiting for data")),
 			}
-		}
-
-		if exit {
-			return Ok(PipelineNodeState::Pending("waiting for data"));
 		}
 
 		let mut attrs = Vec::new();
 		for (attr, data) in self.attrs.iter().zip(self.data.iter_mut()) {
-			let data = match data.as_ref().unwrap() {
+			let data = match data.as_mut().unwrap() {
+				DataHold::Binary(x) => match x {
+					DataSource::Binary {
+						mime,
+						data,
+						is_done: true,
+					} => MetastoreData::Binary {
+						mime: mime.clone(),
+						data: {
+							let mut v = Vec::new();
+							for d in data {
+								v.extend(&**d);
+							}
+							Arc::new(v)
+						},
+					},
+
+					DataSource::File { mime, file } => MetastoreData::Binary {
+						mime: mime.clone(),
+						data: {
+							let mut v = Vec::new();
+							file.read_to_end(&mut v)?;
+							Arc::new(v)
+						},
+					},
+
+					_ => unreachable!(),
+				},
+
 				DataHold::Static(x) => x.as_db_data().unwrap(),
 				DataHold::BlobDone(handle) => MetastoreData::Blob { handle: *handle },
 				_ => unreachable!(),
@@ -174,10 +217,10 @@ impl PipelineNode for AddItem {
 							UFOData::None(UFODataStub::Reference { class: self.class }),
 						)?;
 					} else {
-						return Err(err.into());
+						return Err(PipelineNodeError::Other(Box::new(err)));
 					}
 				}
-				_ => return Err(err.into()),
+				_ => return Err(PipelineNodeError::Other(Box::new(err))),
 			},
 		}
 

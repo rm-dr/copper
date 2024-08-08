@@ -31,7 +31,7 @@ node.tags = [
 	"ISRC",
 	"Lyrics",
 ]
-input.data = { "pipeline" = "data" }
+input.data = { pipeline = "data" }
 
 [node.strip]
 node.type = "StripTags"

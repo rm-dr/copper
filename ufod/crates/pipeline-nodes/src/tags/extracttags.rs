@@ -1,19 +1,18 @@
 use itertools::Itertools;
-use std::{
-	io::{Seek, SeekFrom},
-	sync::Arc,
+use std::{io::Read, sync::Arc};
+use ufo_audiofile::{
+	common::tagtype::TagType,
+	flac::blockread::{FlacBlock, FlacBlockReader, FlacBlockSelector},
 };
-use ufo_audiofile::{common::tagtype::TagType, flac::flac_read_tags};
 use ufo_pipeline::{
-	api::{PipelineNode, PipelineNodeState},
+	api::{PipelineNode, PipelineNodeError, PipelineNodeState},
 	labels::PipelinePortID,
 };
 use ufo_util::mime::MimeType;
 
 use crate::{
 	data::{UFOData, UFODataStub},
-	errors::PipelineError,
-	helpers::ArcVecBuffer,
+	helpers::DataSource,
 	nodetype::{UFONodeType, UFONodeTypeError},
 	traits::UFONode,
 	UFOContext,
@@ -22,18 +21,21 @@ use crate::{
 // TODO: fail after max buffer size
 pub struct ExtractTags {
 	tags: Vec<TagType>,
-	mime: Option<MimeType>,
-	fragments: ArcVecBuffer,
-	is_done: bool,
+	blob_fragment_size: u64,
+	data: DataSource,
+	reader: FlacBlockReader,
 }
 
 impl ExtractTags {
-	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext, tags: Vec<TagType>) -> Self {
+	pub fn new(ctx: &<Self as PipelineNode>::NodeContext, tags: Vec<TagType>) -> Self {
 		Self {
+			blob_fragment_size: ctx.blob_fragment_size,
 			tags: tags.into_iter().unique().collect(),
-			fragments: ArcVecBuffer::new(),
-			is_done: false,
-			mime: None,
+			data: DataSource::Uninitialized,
+			reader: FlacBlockReader::new(FlacBlockSelector {
+				pick_vorbiscomment: true,
+				..Default::default()
+			}),
 		}
 	}
 }
@@ -41,82 +43,100 @@ impl ExtractTags {
 impl PipelineNode for ExtractTags {
 	type NodeContext = UFOContext;
 	type DataType = UFOData;
-	type ErrorType = PipelineError;
 
-	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineNodeError> {
 		match port {
-			0 => {
-				let (format, fragment, is_last) = match data {
-					UFOData::Blob {
-						mime: format,
-						fragment,
-						is_last,
-					} => (format, fragment, is_last),
-					_ => panic!(),
-				};
+			0 => match data {
+				UFOData::Bytes { source, mime } => {
+					if mime != MimeType::Flac {
+						return Err(PipelineNodeError::UnsupportedFormat(format!(
+							"cannot read tags from `{}`",
+							mime
+						)));
+					}
 
-				assert!(!self.is_done);
-
-				if let Some(f) = &self.mime {
-					assert!(*f == format);
-				} else {
-					self.mime = Some(format);
+					self.data.consume(mime, source);
 				}
 
-				self.fragments.push_back(fragment);
-				self.is_done = is_last;
-			}
+				_ => panic!("bad input type"),
+			},
+
 			_ => unreachable!(),
 		}
 		return Ok(());
 	}
 
-	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineNodeError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineNodeError>,
 	{
-		if self.mime.is_none() {
-			return Ok(PipelineNodeState::Pending("args not ready"));
-		}
+		// Push latest data into tag reader
+		match &mut self.data {
+			DataSource::Uninitialized => {
+				return Ok(PipelineNodeState::Pending("No data received"));
+			}
 
-		self.fragments.seek(SeekFrom::Start(0))?;
-		let tagger = match self.mime.as_ref().unwrap() {
-			MimeType::Flac => {
-				let r = flac_read_tags(&mut self.fragments);
-				if r.is_err() {
-					return Ok(PipelineNodeState::Pending("malformed block"));
+			DataSource::Binary { data, is_done, .. } => {
+				while let Some(d) = data.pop_front() {
+					self.reader
+						.push_data(&d)
+						.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
 				}
-				r.unwrap()
+				if *is_done {
+					self.reader
+						.finish()
+						.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+				}
 			}
-			MimeType::Mp3 => unimplemented!(),
-			_ => {
-				return Err(PipelineError::UnsupportedDataType(format!(
-					"cannot extract tags from `{}`",
-					self.mime.as_ref().unwrap()
-				)))
-			}
-		};
 
-		if tagger.is_none() {
-			return Ok(PipelineNodeState::Pending("no comment block found"));
+			DataSource::File { file, .. } => {
+				let mut v = Vec::new();
+				let n = file
+					.by_ref()
+					.take(self.blob_fragment_size)
+					.read_to_end(&mut v)?;
+				self.reader
+					.push_data(&v)
+					.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+
+				if n == 0 {
+					self.reader
+						.finish()
+						.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
+				}
+			}
 		}
-		let tagger = tagger.unwrap();
 
-		for (i, tag_type) in self.tags.iter().enumerate() {
-			if let Some((_, tag_value)) = tagger.comments.iter().find(|x| x.0 == *tag_type) {
-				send_data(i, UFOData::Text(Arc::new(tag_value.clone())))?;
-			} else {
-				send_data(i, UFOData::None(UFODataStub::Text))?;
+		// Read and send tags
+		if self.reader.has_block() {
+			let b = self.reader.pop_block().unwrap();
+			match b {
+				FlacBlock::VorbisComment(comment) => {
+					for (i, tag_type) in self.tags.iter().enumerate() {
+						if let Some((_, tag_value)) =
+							comment.comment.comments.iter().find(|x| x.0 == *tag_type)
+						{
+							send_data(i, UFOData::Text(Arc::new(tag_value.clone())))?;
+						} else {
+							send_data(i, UFOData::None(UFODataStub::Text))?;
+						}
+					}
+				}
+				_ => unreachable!(),
 			}
+
+			// We should only have one comment block
+			assert!(!self.reader.has_block());
+			return Ok(PipelineNodeState::Done);
 		}
 
-		return Ok(PipelineNodeState::Done);
+		return Ok(PipelineNodeState::Pending("Waiting for data"));
 	}
 }
 
 impl ExtractTags {
 	fn inputs() -> &'static [(&'static str, UFODataStub)] {
-		&[("data", UFODataStub::Blob)]
+		&[("data", UFODataStub::Bytes)]
 	}
 }
 

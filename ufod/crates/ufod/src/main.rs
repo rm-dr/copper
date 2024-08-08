@@ -98,7 +98,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 async fn run_pipes(state: RouterState) -> Result<(), Box<dyn Error>> {
 	loop {
 		let mut runner = state.runner.lock().await;
-		runner.run()?;
+		runner.run();
 		state.uploader.check_jobs(&runner).await;
 		drop(runner);
 

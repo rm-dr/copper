@@ -1,6 +1,8 @@
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::{
 	collections::VecDeque,
+	error::Error,
+	fmt::Display,
 	marker::PhantomData,
 	sync::{Arc, Mutex},
 	thread::JoinHandle,
@@ -13,12 +15,33 @@ use super::{
 	util::{EdgeState, NodeRunState},
 };
 use crate::{
-	api::{PipelineData, PipelineNode, PipelineNodeState, PipelineNodeStub},
+	api::{PipelineData, PipelineNode, PipelineNodeError, PipelineNodeState, PipelineNodeStub},
 	graph::util::GraphNodeIdx,
 	labels::PipelineNodeID,
 	pipeline::pipeline::{Pipeline, PipelineEdgeData},
-	SDataType, SNodeErrorType, SNodeType,
+	SDataType, SNodeType,
 };
+
+#[derive(Debug)]
+pub struct PipelineSingleJobError {
+	// Prevent creation of this error outside this module
+	_private: (),
+
+	pub node: PipelineNodeID,
+	pub error: PipelineNodeError,
+}
+
+impl Display for PipelineSingleJobError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "Error in node `{}`: `{}`", self.node, self.error)
+	}
+}
+
+impl Error for PipelineSingleJobError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		Some(&self.error)
+	}
+}
 
 /// The state of a [`PipelineSingleRunner`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,7 +118,7 @@ pub struct PipelineSingleJob<NodeStubType: PipelineNodeStub> {
 		// The node that sent this status
 		GraphNodeIdx,
 		// The status that was sent
-		Result<PipelineNodeState, SNodeErrorType<NodeStubType>>,
+		Result<PipelineNodeState, PipelineNodeError>,
 	)>,
 
 	/// A receiver for node status messages
@@ -103,7 +126,7 @@ pub struct PipelineSingleJob<NodeStubType: PipelineNodeStub> {
 		// The node that sent this status
 		GraphNodeIdx,
 		// The status that was sent
-		Result<PipelineNodeState, SNodeErrorType<NodeStubType>>,
+		Result<PipelineNodeState, PipelineNodeError>,
 	)>,
 
 	// TODO: remove and write better scheduler
@@ -235,14 +258,8 @@ impl<'a, NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 		// Contents are (node index, result of `node.run()`)
 		#[allow(clippy::type_complexity)]
 		let (send_status, receive_status): (
-			Sender<(
-				GraphNodeIdx,
-				Result<PipelineNodeState, SNodeErrorType<NodeStubType>>,
-			)>,
-			Receiver<(
-				GraphNodeIdx,
-				Result<PipelineNodeState, SNodeErrorType<NodeStubType>>,
-			)>,
+			Sender<(GraphNodeIdx, Result<PipelineNodeState, PipelineNodeError>)>,
+			Receiver<(GraphNodeIdx, Result<PipelineNodeState, PipelineNodeError>)>,
 		) = unbounded();
 
 		Self {
@@ -268,7 +285,7 @@ impl<NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 	/// This method should be called often, but not too often.
 	/// All computation is done in a thread pool, `run()`'s responsibility
 	/// is to update state and schedule new nodes.
-	pub(super) fn run(&mut self) -> Result<SingleJobState, SNodeErrorType<NodeStubType>> {
+	pub(super) fn run(&mut self) -> Result<SingleJobState, PipelineSingleJobError> {
 		// Run nodes in a better order, and maybe skip a few.
 
 		// Handle all changes that occured since we last called `run()`
@@ -306,9 +323,10 @@ impl<NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 
 	/// Helper function, written here only for convenience.
 	/// If we can add the node with index `n` to the thread pool, do so.
-	fn try_start_node(&mut self, node: GraphNodeIdx) -> Result<(), SNodeErrorType<NodeStubType>> {
+	fn try_start_node(&mut self, node: GraphNodeIdx) -> Result<(), PipelineSingleJobError> {
 		// Skip nodes we've already run and nodes that are running right now.
 		let n = self.node_instances[node.as_usize()].state;
+		let node_id = self.node_instances[node.as_usize()].id.clone();
 		if n.is_running() || n.is_done() {
 			return Ok(());
 		}
@@ -336,7 +354,16 @@ impl<NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 					.unwrap()
 					.pop_front()
 					.unwrap();
-				locked_node.as_mut().unwrap().take_input(data)?;
+
+				locked_node
+					.as_mut()
+					.unwrap()
+					.take_input(data)
+					.map_err(|error| PipelineSingleJobError {
+						_private: (),
+						node: node_id.clone(),
+						error,
+					})?;
 			}
 		}
 
@@ -439,7 +466,7 @@ impl<NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 	/// Handle all messages nodes have sent up to this point.
 	/// This MUST be done between successive calls of
 	/// `run()` on any one node.
-	fn handle_all_messages(&mut self) -> Result<(), SNodeErrorType<NodeStubType>> {
+	fn handle_all_messages(&mut self) -> Result<(), PipelineSingleJobError> {
 		for (node, port, data) in self.receive_data.try_iter() {
 			// Send data to all inputs connected to this output
 			for edge_idx in self.pipeline.graph.edges_starting_at(node) {
@@ -462,7 +489,11 @@ impl<NodeStubType: PipelineNodeStub> PipelineSingleJob<NodeStubType> {
 		for (node, res) in self.receive_status.try_iter() {
 			match res {
 				Err(x) => {
-					return Err(x);
+					return Err(PipelineSingleJobError {
+						_private: (),
+						node: self.node_instances[node.as_usize()].id.clone(),
+						error: x,
+					});
 				}
 				Ok(status) => {
 					self.node_instances[node.as_usize()].state = NodeRunState::NotRunning(status);

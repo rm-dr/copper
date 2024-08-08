@@ -10,7 +10,11 @@ use std::sync::Arc;
 use tracing::error;
 use ufo_ds_core::{api::pipe::Pipestore, errors::PipestoreError};
 use ufo_pipeline::labels::PipelineName;
-use ufo_pipeline_nodes::{data::UFOData, UFOContext};
+use ufo_pipeline_nodes::{
+	data::{BytesSource, UFOData},
+	UFOContext,
+};
+use ufo_util::mime::MimeType;
 use utoipa::ToSchema;
 
 use super::PipelineSelect;
@@ -155,7 +159,17 @@ pub(super) async fn run_pipeline(
 				.await;
 
 			let path = if let Some(path) = path {
-				UFOData::Path(path)
+				UFOData::Bytes {
+					mime: {
+						path.extension()
+							.map(|x| {
+								MimeType::from_extension(x.to_str().unwrap())
+									.unwrap_or(MimeType::Blob)
+							})
+							.unwrap_or(MimeType::Blob)
+					},
+					source: BytesSource::File { path },
+				}
 			} else {
 				// This shouldn't ever happen, since we checked for existence above
 				error!(

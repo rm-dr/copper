@@ -1,11 +1,10 @@
 use ufo_pipeline::{
-	api::{PipelineData, PipelineNode, PipelineNodeState},
+	api::{PipelineData, PipelineNode, PipelineNodeError, PipelineNodeState},
 	labels::PipelinePortID,
 };
 
 use crate::{
 	data::{UFOData, UFODataStub},
-	errors::PipelineError,
 	nodetype::{UFONodeType, UFONodeTypeError},
 	traits::UFONode,
 	UFOContext,
@@ -25,19 +24,18 @@ impl Constant {
 impl PipelineNode for Constant {
 	type NodeContext = UFOContext;
 	type DataType = UFOData;
-	type ErrorType = PipelineError;
 
 	fn quick_run(&self) -> bool {
 		true
 	}
 
-	fn take_input(&mut self, (_port, _data): (usize, UFOData)) -> Result<(), PipelineError> {
+	fn take_input(&mut self, (_port, _data): (usize, UFOData)) -> Result<(), PipelineNodeError> {
 		unreachable!()
 	}
 
-	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineNodeError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineNodeError>,
 	{
 		send_data(0, self.value.clone())?;
 		Ok(PipelineNodeState::Done)

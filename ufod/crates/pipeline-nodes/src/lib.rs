@@ -12,7 +12,6 @@ pub mod input;
 pub mod tags;
 pub mod util;
 
-pub mod errors;
 pub mod nodeinstance;
 pub mod nodetype;
 
@@ -29,5 +28,5 @@ pub struct UFOContext {
 	pub dataset: Arc<LocalDataset>,
 
 	/// The maximum size, in bytes, of a blob channel fragment
-	pub blob_fragment_size: usize,
+	pub blob_fragment_size: u64,
 }

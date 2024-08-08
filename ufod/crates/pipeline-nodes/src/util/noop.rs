@@ -1,11 +1,10 @@
 use ufo_pipeline::{
-	api::{PipelineNode, PipelineNodeState},
+	api::{PipelineNode, PipelineNodeError, PipelineNodeState},
 	labels::PipelinePortID,
 };
 
 use crate::{
 	data::{UFOData, UFODataStub},
-	errors::PipelineError,
 	nodetype::{UFONodeType, UFONodeTypeError},
 	traits::UFONode,
 	UFOContext,
@@ -38,13 +37,12 @@ impl Noop {
 impl PipelineNode for Noop {
 	type NodeContext = UFOContext;
 	type DataType = UFOData;
-	type ErrorType = PipelineError;
 
 	fn quick_run(&self) -> bool {
 		true
 	}
 
-	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineNodeError> {
 		assert!(port < self.received_input.len());
 		assert!(matches!(
 			self.received_input[port],
@@ -54,9 +52,9 @@ impl PipelineNode for Noop {
 		return Ok(());
 	}
 
-	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineNodeError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineNodeError>,
 	{
 		let mut is_done = false;
 		for i in 0..self.received_input.len() {

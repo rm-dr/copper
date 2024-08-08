@@ -1,6 +1,9 @@
 //! Traits that allow external code to defune pipeline nodes
 use serde::de::DeserializeOwned;
-use std::{error::Error, fmt::Debug};
+use std::{
+	error::Error,
+	fmt::{Debug, Display},
+};
 
 use crate::{labels::PipelinePortID, NDataStub};
 
@@ -31,6 +34,50 @@ impl PipelineNodeState {
 	}
 }
 
+/// An error a pipeline node can produce
+#[derive(Debug)]
+pub enum PipelineNodeError {
+	/// A generic I/O error
+	IoError(std::io::Error),
+
+	/// We tried to process data we don't know how to handle
+	/// (e.g, we tried to process binary data with a format we don't support)
+	///
+	/// Comes with a helpful message
+	UnsupportedFormat(String),
+
+	/// An arbitrary error
+	Other(Box<dyn Error + Sync + Send>),
+}
+
+unsafe impl Send for PipelineNodeError {}
+unsafe impl Sync for PipelineNodeError {}
+
+impl Display for PipelineNodeError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::IoError(_) => write!(f, "I/O error"),
+			Self::UnsupportedFormat(msg) => write!(f, "Unsupported format: {msg}"),
+			Self::Other(_) => write!(f, "Generic error"),
+		}
+	}
+}
+
+impl Error for PipelineNodeError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::Other(x) => Some(x.as_ref()),
+			_ => return None,
+		}
+	}
+}
+
+impl From<std::io::Error> for PipelineNodeError {
+	fn from(value: std::io::Error) -> Self {
+		PipelineNodeError::IoError(value)
+	}
+}
+
 /// An instance of a pipeline node, with some state.
 ///
 /// When a pipeline is run, a [`PipelineNode`] is created for each of its nodes.
@@ -43,9 +90,6 @@ pub trait PipelineNode {
 
 	/// The kind of data this node handles
 	type DataType: PipelineData;
-
-	/// The kind of error this node can produce when running
-	type ErrorType: Error + Send + Sync;
 
 	/// If true, run this node in the main loop instead of starting a thread.
 	///
@@ -61,12 +105,12 @@ pub trait PipelineNode {
 		&mut self,
 		// (target port, data)
 		input: (usize, Self::DataType),
-	) -> Result<(), Self::ErrorType>;
+	) -> Result<(), PipelineNodeError>;
 	/// Run this node.
 	/// This is always run in a worker thread.
-	fn run<F>(&mut self, _send_data: F) -> Result<PipelineNodeState, Self::ErrorType>
+	fn run<F>(&mut self, _send_data: F) -> Result<PipelineNodeState, PipelineNodeError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), Self::ErrorType>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineNodeError>,
 	{
 		Ok(PipelineNodeState::Done)
 	}

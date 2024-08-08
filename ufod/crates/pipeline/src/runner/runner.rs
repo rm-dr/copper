@@ -5,12 +5,12 @@ use std::{collections::VecDeque, marker::PhantomData, sync::Arc};
 
 use tracing::{debug, warn};
 
-use super::single::{PipelineSingleJob, SingleJobState};
+use super::single::{PipelineSingleJob, PipelineSingleJobError, SingleJobState};
 use crate::{
 	api::{PipelineNode, PipelineNodeState, PipelineNodeStub},
 	labels::PipelineName,
 	pipeline::pipeline::Pipeline,
-	SDataType, SNodeErrorType,
+	SDataType,
 };
 
 /// Pipeline runner configuration
@@ -55,7 +55,7 @@ pub struct FailedJob<NodeStubType: PipelineNodeStub> {
 	pub node_states: Vec<(bool, PipelineNodeState)>,
 
 	/// The reason this pipeline failed.
-	pub error: SNodeErrorType<NodeStubType>,
+	pub error: PipelineSingleJobError,
 }
 
 /// A prepared data processing pipeline.
@@ -164,7 +164,7 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 	}
 
 	/// Update this runner: process all changes that occured since we last called `run()`,
-	pub fn run(&mut self) -> Result<(), SNodeErrorType<NodeStubType>> {
+	pub fn run(&mut self) {
 		for r in &mut self.active_jobs {
 			if let Some((id, x)) = r {
 				// Update running jobs
@@ -196,8 +196,10 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 							message = "Job failed",
 							job_id = id,
 							pipeline = ?x.get_pipeline().name,
-							error = ?err
+							in_node = ?err.node,
+							error = ?err.error,
 						);
+
 						// Drop failed jobs
 						self.failed_jobs.push_back(FailedJob {
 							job_id: *id,
@@ -229,7 +231,5 @@ impl<NodeStubType: PipelineNodeStub> PipelineRunner<NodeStubType> {
 				);
 			}
 		}
-
-		Ok(())
 	}
 }

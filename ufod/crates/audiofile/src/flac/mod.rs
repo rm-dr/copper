@@ -1,58 +1,9 @@
 //! Parse FLAC metadata.
 
-use std::io::{Read, Seek, SeekFrom};
-
-use self::errors::FlacDecodeError;
-use crate::common::vorbiscomment::VorbisComment;
-
 pub mod blockread;
 pub mod blocks;
 pub mod errors;
 pub mod proc;
-
-use blocks::{FlacMetablockHeader, FlacMetablockType};
-
-/// Try to extract a vorbis comment block from the given reader.
-/// `read` should provide a complete FLAC file.
-pub fn flac_read_tags<R>(mut read: R) -> Result<Option<VorbisComment>, FlacDecodeError>
-where
-	R: Read + Seek,
-{
-	let mut block = [0u8; 4];
-	read.read_exact(&mut block)?;
-	if block != [0x66, 0x4C, 0x61, 0x43] {
-		return Err(FlacDecodeError::BadMagicBytes);
-	};
-
-	// TODO: what if we have multiple vorbis blocks?
-	let mut header = [0u8; 4];
-
-	loop {
-		read.read_exact(&mut header)?;
-		let h = FlacMetablockHeader::decode(&header)?;
-
-		match h.block_type {
-			FlacMetablockType::VorbisComment => {
-				let comment_block = {
-					let mut v = Vec::new();
-					read.by_ref().take(h.length.into()).read_to_end(&mut v)?;
-					v
-				};
-				return Ok(Some(VorbisComment::decode(&comment_block)?));
-			}
-
-			_ => {
-				read.seek(SeekFrom::Current(h.length.into()))?;
-			}
-		};
-
-		if h.is_last {
-			break;
-		}
-	}
-
-	return Ok(None);
-}
 
 #[cfg(test)]
 mod tests {

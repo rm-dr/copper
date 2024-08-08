@@ -1,14 +1,17 @@
 use sha2::{Digest, Sha256, Sha512};
-use std::{collections::VecDeque, sync::Arc};
+use std::{
+	io::{Cursor, Read},
+	sync::Arc,
+};
 use ufo_ds_core::data::HashType;
 use ufo_pipeline::{
-	api::{PipelineNode, PipelineNodeState},
+	api::{PipelineNode, PipelineNodeError, PipelineNodeState},
 	labels::PipelinePortID,
 };
 
 use crate::{
 	data::{UFOData, UFODataStub},
-	errors::PipelineError,
+	helpers::DataSource,
 	nodetype::{UFONodeType, UFONodeTypeError},
 	traits::UFONode,
 	UFOContext,
@@ -35,18 +38,20 @@ impl HashComputer {
 		}
 	}
 
-	fn update(&mut self, buf: &[u8]) {
+	fn update(&mut self, data: &mut dyn Read) -> Result<(), std::io::Error> {
 		match self {
 			Self::MD5 { context } => {
-				context.consume(buf);
+				std::io::copy(data, context)?;
 			}
 			Self::SHA256 { hasher } => {
-				hasher.update(buf);
+				std::io::copy(data, hasher)?;
 			}
 			Self::SHA512 { hasher } => {
-				hasher.update(buf);
+				std::io::copy(data, hasher)?;
 			}
 		}
+
+		return Ok(());
 	}
 
 	fn hash_type(&self) -> HashType {
@@ -72,23 +77,15 @@ impl HashComputer {
 	}
 }
 
-enum HashData {
-	Blob {
-		fragments: VecDeque<Arc<Vec<u8>>>,
-		is_done: bool,
-	},
-	Binary(Arc<Vec<u8>>),
-}
-
 pub struct Hash {
-	data: Option<HashData>,
+	data: DataSource,
 	hasher: Option<HashComputer>,
 }
 
 impl Hash {
 	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext, hash_type: HashType) -> Self {
 		Self {
-			data: None,
+			data: DataSource::Uninitialized,
 			hasher: Some(HashComputer::new(hash_type)),
 		}
 	}
@@ -97,55 +94,45 @@ impl Hash {
 impl PipelineNode for Hash {
 	type NodeContext = UFOContext;
 	type DataType = UFOData;
-	type ErrorType = PipelineError;
 
-	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineNodeError> {
 		match port {
 			0 => match data {
-				UFOData::Binary { data, .. } => {
-					self.data = Some(HashData::Binary(data));
+				UFOData::Bytes { source, mime } => {
+					self.data.consume(mime, source);
 				}
-				UFOData::Blob {
-					fragment, is_last, ..
-				} => match &mut self.data {
-					None => {
-						self.data = Some(HashData::Blob {
-							fragments: VecDeque::from([fragment]),
-							is_done: is_last,
-						})
-					}
-					Some(HashData::Blob { fragments, is_done }) => {
-						assert!(!*is_done);
-						fragments.push_back(fragment);
-						*is_done = is_last;
-					}
-					Some(_) => panic!(),
-				},
-				_ => todo!(),
+
+				_ => panic!("bad input type"),
 			},
+
 			_ => unreachable!("bad input port {port}"),
 		}
 		return Ok(());
 	}
 
-	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineNodeError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineNodeError>,
 	{
-		if self.data.is_none() {
-			return Ok(PipelineNodeState::Pending("args not ready"));
-		}
+		match &mut self.data {
+			DataSource::Uninitialized => {
+				return Ok(PipelineNodeState::Pending("args not ready"));
+			}
 
-		match self.data.as_mut().unwrap() {
-			HashData::Binary(data) => {
-				self.hasher.as_mut().unwrap().update(data);
+			DataSource::File { file, .. } => {
+				self.hasher.as_mut().unwrap().update(file)?;
 				send_data(0, self.hasher.take().unwrap().finish())?;
 				return Ok(PipelineNodeState::Done);
 			}
-			HashData::Blob { fragments, is_done } => {
-				while let Some(data) = fragments.pop_front() {
-					self.hasher.as_mut().unwrap().update(&data)
+
+			DataSource::Binary { data, is_done, .. } => {
+				while let Some(data) = data.pop_front() {
+					self.hasher
+						.as_mut()
+						.unwrap()
+						.update(&mut Cursor::new(&*data))?
 				}
+
 				if *is_done {
 					send_data(0, self.hasher.take().unwrap().finish())?;
 					return Ok(PipelineNodeState::Done);
@@ -174,7 +161,7 @@ impl UFONode for Hash {
 		Ok(match stub {
 			UFONodeType::Hash { .. } => {
 				assert!(input_idx < 1);
-				matches!(input_type, UFODataStub::Blob | UFODataStub::Binary)
+				matches!(input_type, UFODataStub::Bytes)
 			}
 			_ => unreachable!(),
 		})
@@ -202,7 +189,7 @@ impl UFONode for Hash {
 		Ok(match stub {
 			UFONodeType::Hash { .. } => {
 				assert!(input_idx < 1);
-				UFODataStub::Binary
+				UFODataStub::Bytes
 			}
 			_ => unreachable!(),
 		})

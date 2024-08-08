@@ -7,13 +7,12 @@ use ufo_ds_core::{
 };
 use ufo_ds_impl::local::LocalDataset;
 use ufo_pipeline::{
-	api::{PipelineData, PipelineNode, PipelineNodeState},
+	api::{PipelineData, PipelineNode, PipelineNodeError, PipelineNodeState},
 	labels::PipelinePortID,
 };
 
 use crate::{
 	data::{UFOData, UFODataStub},
-	errors::PipelineError,
 	nodetype::{UFONodeType, UFONodeTypeError},
 	traits::UFONode,
 	UFOContext,
@@ -49,18 +48,17 @@ impl FindItem {
 impl PipelineNode for FindItem {
 	type NodeContext = UFOContext;
 	type DataType = UFOData;
-	type ErrorType = PipelineError;
 
-	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineError> {
+	fn take_input(&mut self, (port, data): (usize, UFOData)) -> Result<(), PipelineNodeError> {
 		assert!(port == 0);
 		assert!(data.as_stub() == self.attr_type);
 		self.attr_value = Some(data);
 		return Ok(());
 	}
 
-	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineError>
+	fn run<F>(&mut self, send_data: F) -> Result<PipelineNodeState, PipelineNodeError>
 	where
-		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
+		F: Fn(usize, Self::DataType) -> Result<(), PipelineNodeError>,
 	{
 		if self.attr_value.is_none() {
 			return Ok(PipelineNodeState::Pending("waiting for input"));
@@ -69,7 +67,8 @@ impl PipelineNode for FindItem {
 		let found = block_on(self.dataset.find_item_with_attr(
 			self.by_attr,
 			self.attr_value.as_ref().unwrap().as_db_data().unwrap(),
-		))?;
+		))
+		.map_err(|e| PipelineNodeError::Other(Box::new(e)))?;
 
 		if let Some(item) = found {
 			send_data(
