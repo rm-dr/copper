@@ -26,13 +26,14 @@ UFO's goal is to be "[Paperless] for everything," with...
 ## TODO:
 
 ### Current:
-- Load and check db metadata
 - elegantly handle duplicate album art
 
-- async binary readers
-  - args to node one by one
-  - handle channel errors (Pending when full?)
-  - limit channel size
+- no channel for take_input
+- pipeline node logging
+- handle channel errors (Pending when full?)
+- limit channel size
+- rework flac methods, better errors (when incomplete data)
+- flac strip stream (internal buffer, read & write?)
 
 - Clean up all error handling (search for unwrap, assert, and panic)
   - db errors in pipeline run & build
@@ -58,12 +59,9 @@ UFO's goal is to be "[Paperless] for everything," with...
   - Write toposort algo, provide whole cycle in errors
 
 ### Dataset
-- Store big files on fs, not in db
-  - Incremental write to storage file
-  - Configurable path
-  - Configurable backend: fs, object, etc
-  - Store mime with binary data
-  - upload large files incrementally
+- Load and check db metadata
+- Clean up blobstore
+- Store mime with binary data
 - Dataset caching
 - Async database
 - automatic attributes (computed by a pipeline, like hash of album art)
