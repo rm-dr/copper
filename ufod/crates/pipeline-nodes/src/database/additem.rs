@@ -90,7 +90,7 @@ impl PipelineNode for AddItem {
 		assert!(port < self.attrs.len());
 		match data {
 			UFOData::Blob {
-				format,
+				mime: format,
 				fragment,
 				is_last,
 			} => match &mut self.data[port] {

@@ -44,7 +44,7 @@ impl LocalDataset {
 			MetastoreData::Boolean(x) => q.bind(*x),
 			MetastoreData::Float(x) => q.bind(&*x),
 			MetastoreData::Hash { data, .. } => q.bind(&**data),
-			MetastoreData::Binary { data, format } => {
+			MetastoreData::Binary { data, mime: format } => {
 				let s = format.to_string();
 				let l = u32::try_from(s.len()).unwrap();
 
@@ -124,7 +124,7 @@ impl LocalDataset {
 					let data = Arc::new(data[len + 4..].into());
 
 					MetastoreData::Binary {
-						format: MimeType::from_str(&mime).unwrap(),
+						mime: MimeType::from_str(&mime).unwrap(),
 						data,
 					}
 				} else {

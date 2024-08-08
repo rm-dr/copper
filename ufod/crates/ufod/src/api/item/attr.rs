@@ -144,9 +144,9 @@ pub(super) async fn get_item_attr(
 			.map(|x| format!("{:X?}", x))
 			.join("")
 			.into_response(),
-		MetastoreData::Binary { format, data } => {
+		MetastoreData::Binary { mime, data } => {
 			let body = Body::from((*data).clone());
-			let headers = AppendHeaders([(header::CONTENT_TYPE, format.to_string())]);
+			let headers = AppendHeaders([(header::CONTENT_TYPE, mime.to_string())]);
 			(headers, body).into_response()
 		}
 		MetastoreData::Blob { handle } => {
@@ -170,7 +170,7 @@ pub(super) async fn get_item_attr(
 			};
 
 			let body = Body::from_stream(ReaderStream::new(blob.data));
-			let headers = AppendHeaders([(header::CONTENT_TYPE, blob.data_type.to_string())]);
+			let headers = AppendHeaders([(header::CONTENT_TYPE, blob.mime.to_string())]);
 			(headers, body).into_response()
 		}
 

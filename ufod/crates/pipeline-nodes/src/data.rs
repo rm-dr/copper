@@ -66,7 +66,7 @@ pub enum UFOData {
 	#[serde(skip)]
 	Binary {
 		/// This data's media type
-		format: MimeType,
+		mime: MimeType,
 
 		/// The data
 		data: Arc<Vec<u8>>,
@@ -77,7 +77,7 @@ pub enum UFOData {
 	#[serde(skip)]
 	Blob {
 		/// This data's media type
-		format: MimeType,
+		mime: MimeType,
 
 		/// A receiver that provides data
 		fragment: Arc<Vec<u8>>,
@@ -151,8 +151,8 @@ impl UFOData {
 				format: *format,
 				data: data.clone(),
 			},
-			UFOData::Binary { format, data } => MetastoreData::Binary {
-				format: format.clone(),
+			UFOData::Binary { mime: format, data } => MetastoreData::Binary {
+				mime: format.clone(),
 				data: data.clone(),
 			},
 			UFOData::Integer(x) => MetastoreData::Integer(*x),

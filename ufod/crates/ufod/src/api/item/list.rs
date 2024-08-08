@@ -74,11 +74,11 @@ pub(super) enum ItemListData {
 		value: Option<String>,
 	},
 	Binary {
-		format: Option<MimeType>,
+		mime: Option<MimeType>,
 		size: Option<u64>,
 	},
 	Blob {
-		format: Option<MimeType>,
+		mime: Option<MimeType>,
 		handle: Option<BlobHandle>,
 		size: Option<u64>,
 	},
@@ -213,11 +213,11 @@ pub(super) async fn list_item(
 					// These must match the serialized tags of `ItemListData`
 					MetastoreDataStub::Text => ItemListData::Text { value: None },
 					MetastoreDataStub::Binary => ItemListData::Binary {
-						format: None,
+						mime: None,
 						size: None,
 					},
 					MetastoreDataStub::Blob => ItemListData::Blob {
-						format: None,
+						mime: None,
 						handle: None,
 						size: None,
 					},
@@ -277,7 +277,7 @@ pub(super) async fn list_item(
 					};
 
 					ItemListData::Blob {
-						format: Some(MimeType::Flac),
+						mime: Some(MimeType::Flac),
 						handle: Some(*handle),
 						size: Some(size),
 					}
@@ -285,8 +285,8 @@ pub(super) async fn list_item(
 				MetastoreData::Integer(x) => ItemListData::Integer { value: Some(*x) },
 				MetastoreData::Boolean(x) => ItemListData::Boolean { value: Some(*x) },
 				MetastoreData::Float(x) => ItemListData::Float { value: Some(*x) },
-				MetastoreData::Binary { format, data } => ItemListData::Binary {
-					format: Some(format.clone()),
+				MetastoreData::Binary { mime, data } => ItemListData::Binary {
+					mime: Some(mime.clone()),
 					size: Some(data.len().try_into().unwrap()),
 				},
 				MetastoreData::Text(t) => ItemListData::Text {

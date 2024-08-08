@@ -22,7 +22,7 @@ use crate::{
 // TODO: fail after max buffer size
 pub struct ExtractTags {
 	tags: Vec<TagType>,
-	format: Option<MimeType>,
+	mime: Option<MimeType>,
 	fragments: ArcVecBuffer,
 	is_done: bool,
 }
@@ -33,7 +33,7 @@ impl ExtractTags {
 			tags: tags.into_iter().unique().collect(),
 			fragments: ArcVecBuffer::new(),
 			is_done: false,
-			format: None,
+			mime: None,
 		}
 	}
 }
@@ -48,7 +48,7 @@ impl PipelineNode for ExtractTags {
 			0 => {
 				let (format, fragment, is_last) = match data {
 					UFOData::Blob {
-						format,
+						mime: format,
 						fragment,
 						is_last,
 					} => (format, fragment, is_last),
@@ -57,10 +57,10 @@ impl PipelineNode for ExtractTags {
 
 				assert!(!self.is_done);
 
-				if let Some(f) = &self.format {
+				if let Some(f) = &self.mime {
 					assert!(*f == format);
 				} else {
-					self.format = Some(format);
+					self.mime = Some(format);
 				}
 
 				self.fragments.push_back(fragment);
@@ -75,12 +75,12 @@ impl PipelineNode for ExtractTags {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		if self.format.is_none() {
+		if self.mime.is_none() {
 			return Ok(PipelineNodeState::Pending("args not ready"));
 		}
 
 		self.fragments.seek(SeekFrom::Start(0))?;
-		let tagger = match self.format.as_ref().unwrap() {
+		let tagger = match self.mime.as_ref().unwrap() {
 			MimeType::Flac => {
 				let r = flac_read_tags(&mut self.fragments);
 				if r.is_err() {
@@ -92,7 +92,7 @@ impl PipelineNode for ExtractTags {
 			_ => {
 				return Err(PipelineError::UnsupportedDataType(format!(
 					"cannot extract tags from `{}`",
-					self.format.as_ref().unwrap()
+					self.mime.as_ref().unwrap()
 				)))
 			}
 		};

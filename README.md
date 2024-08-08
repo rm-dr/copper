@@ -20,7 +20,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 
 ## Small jobs
 - Trim all names
-- Consistent mime format & name (api & rust)
 
 ## 📦 CRUD items
 - [ ] Hash files when uploading (incremental)
@@ -43,12 +42,14 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] Better reference panel
 
 ## 📦 Authentication
-- [ ] CRUD users and groups from ui
-  - group permission to create users and set groups
+- [ ] Rename users & groups
+- [ ] Change user password
+- [ ] Change self password
+- [ ] Navbar user info
+- [ ] Edit permissions
 - [ ] Dataset permissions (per group)
 - [ ] Hide datasets/groups (view permission)
 - [ ] Clean up permission model
-- [ ] UI Account menu
 - [ ] Login lifetimes
 - [ ] Permissions everywhere (api)
 

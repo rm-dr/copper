@@ -85,7 +85,7 @@ pub(super) async fn start_file(
 
 	job.files.push(UploadJobFile {
 		name: file_name.clone().into(),
-		file_type: file_mime.clone(),
+		mime: file_mime.clone(),
 		is_done: false,
 	});
 

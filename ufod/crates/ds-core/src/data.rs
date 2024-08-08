@@ -38,7 +38,7 @@ pub enum MetastoreData {
 	/// This will be stored in the metadata db.
 	Binary {
 		/// This data's media type
-		format: MimeType,
+		mime: MimeType,
 
 		/// The data
 		data: Arc<Vec<u8>>,

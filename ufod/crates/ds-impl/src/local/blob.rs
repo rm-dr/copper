@@ -185,7 +185,7 @@ impl Blobstore for LocalDataset {
 
 		return Ok(BlobInfo {
 			handle: blob,
-			data_type,
+			mime: data_type,
 			data: Box::pin(file),
 		});
 	}

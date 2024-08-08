@@ -77,7 +77,7 @@ impl PipelineNode for FileReader {
 		send_data(
 			1,
 			UFOData::Blob {
-				format: {
+				mime: {
 					self.path
 						.as_ref()
 						.unwrap()

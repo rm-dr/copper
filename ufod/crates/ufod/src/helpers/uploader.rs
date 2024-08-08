@@ -24,7 +24,7 @@ pub struct UploadJob {
 #[derive(Clone)]
 pub struct UploadJobFile {
 	pub name: SmartString<LazyCompact>,
-	pub file_type: MimeType,
+	pub mime: MimeType,
 	pub is_done: bool,
 }
 

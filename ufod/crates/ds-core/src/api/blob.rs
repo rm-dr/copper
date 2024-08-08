@@ -74,7 +74,7 @@ impl Drop for BlobstoreTmpWriter {
 
 pub struct BlobInfo {
 	pub handle: BlobHandle,
-	pub data_type: MimeType,
+	pub mime: MimeType,
 	pub data: Pin<Box<dyn AsyncRead + Send>>,
 }
 

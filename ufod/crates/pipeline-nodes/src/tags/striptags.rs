@@ -47,7 +47,7 @@ impl PipelineNode for StripTags {
 				// Read latest data from receiver
 				let (format, fragment, is_last) = match data {
 					UFOData::Blob {
-						format,
+						mime: format,
 						fragment,
 						is_last,
 					} => (format, fragment, is_last),
@@ -97,7 +97,7 @@ impl PipelineNode for StripTags {
 			send_data(
 				0,
 				UFOData::Blob {
-					format: MimeType::Flac,
+					mime: MimeType::Flac,
 					fragment: Arc::new(read_buf),
 					is_last: self.is_done && empty,
 				},

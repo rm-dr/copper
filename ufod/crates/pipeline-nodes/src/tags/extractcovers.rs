@@ -15,7 +15,7 @@ use crate::{
 };
 
 pub struct ExtractCovers {
-	format: Option<MimeType>,
+	mime: Option<MimeType>,
 	fragments: ArcVecBuffer,
 	is_done: bool,
 }
@@ -23,7 +23,7 @@ pub struct ExtractCovers {
 impl ExtractCovers {
 	pub fn new(_ctx: &<Self as PipelineNode>::NodeContext) -> Self {
 		Self {
-			format: None,
+			mime: None,
 			fragments: ArcVecBuffer::new(),
 			is_done: false,
 		}
@@ -40,7 +40,7 @@ impl PipelineNode for ExtractCovers {
 			0 => {
 				let (format, fragment, is_last) = match data {
 					UFOData::Blob {
-						format,
+						mime: format,
 						fragment,
 						is_last,
 					} => (format, fragment, is_last),
@@ -49,10 +49,10 @@ impl PipelineNode for ExtractCovers {
 
 				assert!(!self.is_done);
 
-				if let Some(f) = &self.format {
+				if let Some(f) = &self.mime {
 					assert!(*f == format);
 				} else {
-					self.format = Some(format);
+					self.mime = Some(format);
 				}
 
 				self.fragments.push_back(fragment);
@@ -67,12 +67,12 @@ impl PipelineNode for ExtractCovers {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		if self.format.is_none() {
+		if self.mime.is_none() {
 			return Ok(PipelineNodeState::Pending("args not ready"));
 		}
 
 		self.fragments.seek(SeekFrom::Start(0))?;
-		let picture = match self.format.as_ref().unwrap() {
+		let picture = match self.mime.as_ref().unwrap() {
 			MimeType::Flac => {
 				let pictures = flac_read_pictures(&mut self.fragments);
 				if pictures.is_err() {
@@ -85,7 +85,7 @@ impl PipelineNode for ExtractCovers {
 			_ => {
 				return Err(PipelineError::UnsupportedDataType(format!(
 					"cannot extract pictures from `{}`",
-					self.format.as_ref().unwrap()
+					self.mime.as_ref().unwrap()
 				)))
 			}
 		};
@@ -94,7 +94,7 @@ impl PipelineNode for ExtractCovers {
 			send_data(
 				0,
 				UFOData::Binary {
-					format: picture.get_mime().clone(),
+					mime: picture.get_mime().clone(),
 					data: Arc::new(picture.take_img_data()),
 				},
 			)?;
