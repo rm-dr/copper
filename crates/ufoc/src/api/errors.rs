@@ -6,6 +6,7 @@ pub enum UfoApiError {
 	IoError(std::io::Error),
 	NetworkError(reqwest::Error),
 	ServerError(String),
+	BadRequest(String),
 }
 
 impl Display for UfoApiError {
@@ -15,6 +16,7 @@ impl Display for UfoApiError {
 			Self::BadJson(_) => write!(f, "bad json from server"),
 			Self::IoError(_) => write!(f, "i/o error while manipulating local file"),
 			Self::ServerError(s) => write!(f, "internal server error: `{s}`"),
+			Self::BadRequest(s) => write!(f, "bad request: `{s}`"),
 		}
 	}
 }
