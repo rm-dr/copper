@@ -99,7 +99,7 @@ fn main() -> Result<()> {
 	)?;
 
 	for p in ["data/freeze.flac"] {
-		runner.run("audio".into(), vec![StorageData::Path(Arc::new(p.into()))])?;
+		runner.run(&"audio".into(), vec![StorageData::Path(Arc::new(p.into()))])?;
 	}
 
 	Ok(())

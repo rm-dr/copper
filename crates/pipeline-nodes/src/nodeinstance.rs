@@ -1,8 +1,8 @@
-use smartstring::{LazyCompact, SmartString};
 use std::fmt::Debug;
 use ufo_pipeline::{
 	api::{PipelineNode, PipelineNodeState},
 	errors::PipelineError,
+	labels::PipelineNodeLabel,
 };
 use ufo_storage::data::StorageData;
 
@@ -22,51 +22,51 @@ pub enum UFONodeInstance {
 	},
 	IfNone {
 		node_type: UFONodeType,
-		name: SmartString<LazyCompact>,
+		name: PipelineNodeLabel,
 		node: IfNone,
 	},
 	Noop {
 		node_type: UFONodeType,
-		name: SmartString<LazyCompact>,
+		name: PipelineNodeLabel,
 		node: Noop,
 	},
 	Print {
 		node_type: UFONodeType,
-		name: SmartString<LazyCompact>,
+		name: PipelineNodeLabel,
 		node: Print,
 	},
 	Hash {
 		node_type: UFONodeType,
-		name: SmartString<LazyCompact>,
+		name: PipelineNodeLabel,
 		node: Hash,
 	},
 
 	// Audio nodes
 	ExtractTags {
 		node_type: UFONodeType,
-		name: SmartString<LazyCompact>,
+		name: PipelineNodeLabel,
 		node: ExtractTags,
 	},
 	StripTags {
 		node_type: UFONodeType,
-		name: SmartString<LazyCompact>,
+		name: PipelineNodeLabel,
 		node: StripTags,
 	},
 	ExtractCovers {
 		node_type: UFONodeType,
-		name: SmartString<LazyCompact>,
+		name: PipelineNodeLabel,
 		node: ExtractCovers,
 	},
 
 	File {
 		node_type: UFONodeType,
-		name: SmartString<LazyCompact>,
+		name: PipelineNodeLabel,
 		node: FileInput,
 	},
 
 	Dataset {
 		node_type: UFONodeType,
-		name: SmartString<LazyCompact>,
+		name: PipelineNodeLabel,
 		node: StorageOutput,
 	},
 }

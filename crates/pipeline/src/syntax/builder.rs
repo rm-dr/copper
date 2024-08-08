@@ -1,7 +1,6 @@
 //! A user-provided pipeline specification
 
 use itertools::Itertools;
-use smartstring::{LazyCompact, SmartString};
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use super::{
@@ -13,13 +12,13 @@ use super::{
 use crate::{
 	api::{PipelineData, PipelineNode, PipelineNodeStub},
 	graph::{graph::Graph, util::GraphNodeIdx},
-	labels::{PipelineNodeLabel, PipelinePortLabel},
+	labels::{PipelineLabel, PipelineNodeLabel, PipelinePortLabel},
 	pipeline::{Pipeline, PipelineEdge},
 };
 
 pub(crate) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
 	/// The name of the pipeline we're building
-	name: SmartString<LazyCompact>,
+	name: PipelineLabel,
 
 	/// The context with which to build this pipeline
 	context: <StubType::NodeType as PipelineNode>::NodeContext,
@@ -28,7 +27,7 @@ pub(crate) struct PipelineBuilder<'a, StubType: PipelineNodeStub> {
 	spec: PipelineSpec<StubType>,
 
 	/// Other pipelines we've already built
-	pipelines: &'a Vec<(SmartString<LazyCompact>, Arc<Pipeline<StubType>>)>,
+	pipelines: &'a Vec<Arc<Pipeline<StubType>>>,
 
 	/// The pipeline graph we're building
 	graph: RefCell<Graph<(PipelineNodeLabel, InternalNodeStub<StubType>), PipelineEdge>>,
@@ -62,7 +61,7 @@ type DataStub<StubType> = <<<StubType as PipelineNodeStub>::NodeType as Pipeline
 impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 	pub fn build(
 		context: <StubType::NodeType as PipelineNode>::NodeContext,
-		pipelines: &'a Vec<(SmartString<LazyCompact>, Arc<Pipeline<StubType>>)>,
+		pipelines: &'a Vec<Arc<Pipeline<StubType>>>,
 		name: &str,
 		spec: PipelineSpec<StubType>,
 	) -> Result<Pipeline<StubType>, PipelinePrepareError<DataStub<StubType>>> {
@@ -228,11 +227,11 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 				let p = self
 					.pipelines
 					.iter()
-					.find(|(x, _)| x == pipeline)
-					.map(|(_, x)| x.clone())
+					.find(|x| x.name == *pipeline)
+					.cloned()
 					.ok_or(PipelinePrepareError::NoSuchPipeline {
 						node: node_label.clone(),
-						pipeline: pipeline.into(),
+						pipeline: pipeline.clone(),
 					})?;
 				p.graph
 					.get_node(p.input_node_idx)
@@ -266,11 +265,11 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 				let p = self
 					.pipelines
 					.iter()
-					.find(|(x, _)| x == pipeline)
-					.map(|(_, x)| x.clone())
+					.find(|x| x.name == *pipeline)
+					.cloned()
 					.ok_or(PipelinePrepareError::NoSuchPipeline {
 						node: node_label.clone(),
-						pipeline: pipeline.into(),
+						pipeline: pipeline.clone(),
 					})?;
 				p.graph
 					.get_node(p.output_node_idx)
@@ -457,13 +456,13 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 	fn add_pipeline(
 		&self,
 		node_name: &PipelineNodeLabel,
-		pipeline_name: SmartString<LazyCompact>,
+		pipeline_name: &PipelineLabel,
 	) -> Result<(), PipelinePrepareError<DataStub<StubType>>> {
 		let p = self
 			.pipelines
 			.iter()
-			.find(|(x, _)| *x == pipeline_name)
-			.map(|(_, x)| x.clone())
+			.find(|x| x.name == *pipeline_name)
+			.cloned()
 			.ok_or(PipelinePrepareError::NoSuchPipeline {
 				node: node_name.clone(),
 				pipeline: pipeline_name.clone(),

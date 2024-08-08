@@ -1,10 +1,9 @@
-use smartstring::{LazyCompact, SmartString};
 use std::fmt::Debug;
 
 use crate::{
 	api::PipelineNodeStub,
 	graph::{finalized::FinalizedGraph, util::GraphNodeIdx},
-	labels::PipelineNodeLabel,
+	labels::{PipelineLabel, PipelineNodeLabel},
 	syntax::internalnode::InternalNodeStub,
 };
 
@@ -57,7 +56,7 @@ impl PipelineEdge {
 pub(crate) struct Pipeline<StubType: PipelineNodeStub> {
 	/// This pipeline's name.
 	/// Must be unique.
-	pub(crate) name: SmartString<LazyCompact>,
+	pub(crate) name: PipelineLabel,
 
 	pub(crate) input_node_idx: GraphNodeIdx,
 	pub(crate) output_node_idx: GraphNodeIdx,

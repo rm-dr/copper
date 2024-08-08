@@ -1,14 +1,11 @@
 //! Error helpers for pipeline spec parsing
-
-use smartstring::{LazyCompact, SmartString};
 use std::{error::Error, fmt::Display};
 
+use super::ports::NodeInput;
 use crate::{
 	api::PipelineDataStub,
-	labels::{PipelineNodeLabel, PipelinePortLabel},
+	labels::{PipelineLabel, PipelineNodeLabel, PipelinePortLabel},
 };
-
-use super::ports::NodeInput;
 
 /// A node specification in a [`PipelinePrepareError`]
 #[derive(Debug)]
@@ -107,7 +104,7 @@ pub enum PipelinePrepareError<DataStub: PipelineDataStub> {
 		/// The Pipeline node with a bad pipeline
 		node: PipelineNodeLabel,
 		/// The bad pipeline
-		pipeline: SmartString<LazyCompact>,
+		pipeline: PipelineLabel,
 	},
 }
 

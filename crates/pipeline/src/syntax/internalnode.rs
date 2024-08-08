@@ -3,6 +3,7 @@ use std::fmt::Debug;
 
 use crate::{
 	api::{PipelineData, PipelineNode, PipelineNodeStub},
+	labels::PipelineLabel,
 	portspec::PipelinePortSpec,
 };
 
@@ -12,7 +13,7 @@ use crate::{
 #[serde(bound = "StubType: DeserializeOwned")]
 pub(crate) enum InternalNodeStub<StubType: PipelineNodeStub> {
 	Pipeline {
-		pipeline: String,
+		pipeline: PipelineLabel,
 	},
 
 	#[serde(untagged)]

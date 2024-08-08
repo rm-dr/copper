@@ -1,10 +1,10 @@
-use smartstring::{LazyCompact, SmartString};
 use std::{fs::File, io::Read, marker::PhantomData, path::Path, sync::Arc};
 
 use super::single::{PipelineSingleRunner, SingleRunnerState};
 use crate::{
 	api::{PipelineData, PipelineNode, PipelineNodeStub},
 	errors::PipelineError,
+	labels::PipelineLabel,
 	pipeline::Pipeline,
 	syntax::{builder::PipelineBuilder, errors::PipelinePrepareError, spec::PipelineSpec},
 };
@@ -14,7 +14,7 @@ use crate::{
 /// no dependency cycles, no port type mismatch, etc
 pub struct PipelineRunner<StubType: PipelineNodeStub> {
 	_p: PhantomData<StubType>,
-	pipelines: Vec<(SmartString<LazyCompact>, Arc<Pipeline<StubType>>)>,
+	pipelines: Vec<Arc<Pipeline<StubType>>>,
 	node_runners: usize,
 	context: Arc<<StubType::NodeType as PipelineNode>::NodeContext>,
 }
@@ -51,23 +51,20 @@ impl<StubType: PipelineNodeStub> PipelineRunner<StubType> {
 
 		let built = PipelineBuilder::build(ctx, &self.pipelines, &pipeline_name[..], spec)?;
 
-		self.pipelines.push((pipeline_name.into(), Arc::new(built)));
+		self.pipelines.push(Arc::new(built));
 		return Ok(());
 	}
 
-	fn get_pipeline(
-		&self,
-		pipeline_name: SmartString<LazyCompact>,
-	) -> Option<Arc<Pipeline<StubType>>> {
+	fn get_pipeline(&self, pipeline_name: &PipelineLabel) -> Option<Arc<Pipeline<StubType>>> {
 		self.pipelines
 			.iter()
-			.find(|(x, _)| x == &pipeline_name)
-			.map(|(_, x)| x.clone())
+			.find(|x| x.name == *pipeline_name)
+			.cloned()
 	}
 
 	pub fn run(
 		&self,
-		pipeline_name: SmartString<LazyCompact>,
+		pipeline_name: &PipelineLabel,
 		pipeline_inputs: Vec<<StubType::NodeType as PipelineNode>::DataType>,
 	) -> Result<(), PipelineError> {
 		let pipeline = self.get_pipeline(pipeline_name).unwrap();

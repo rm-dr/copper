@@ -107,3 +107,55 @@ impl<'a> From<&'a PipelinePortLabel> for &'a str {
 		&value.0
 	}
 }
+
+/// A pipeline's name
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Deserialize)]
+pub struct PipelineLabel(SmartString<LazyCompact>);
+
+impl Display for PipelineLabel {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		self.0.fmt(f)
+	}
+}
+
+impl AsRef<str> for PipelineLabel {
+	fn as_ref(&self) -> &str {
+		&self.0
+	}
+}
+
+impl From<SmartString<LazyCompact>> for PipelineLabel {
+	fn from(s: SmartString<LazyCompact>) -> Self {
+		PipelineLabel(s)
+	}
+}
+
+impl From<PipelineLabel> for SmartString<LazyCompact> {
+	fn from(value: PipelineLabel) -> Self {
+		value.0
+	}
+}
+
+impl From<&PipelineLabel> for SmartString<LazyCompact> {
+	fn from(value: &PipelineLabel) -> Self {
+		value.0.clone()
+	}
+}
+
+impl From<&str> for PipelineLabel {
+	fn from(s: &str) -> Self {
+		PipelineLabel(s.into())
+	}
+}
+
+impl From<String> for PipelineLabel {
+	fn from(s: String) -> Self {
+		PipelineLabel(s.into())
+	}
+}
+
+impl<'a> From<&'a PipelineLabel> for &'a str {
+	fn from(value: &'a PipelineLabel) -> Self {
+		&value.0
+	}
+}
