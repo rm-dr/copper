@@ -83,22 +83,22 @@ export function NewClassButton(params: {
 									class: newClassName,
 									dataset: params.dataset_name,
 								}),
-							}).then((res) => {
-								setLoading(false);
-								if (res.status == 400) {
-									res.text().then((text) => {
-										setErrorMessage(text);
-									});
-								} else if (!res.ok) {
-									res.text().then((text) => {
-										setErrorMessage(`Error ${res.status}: ${text}`);
-									});
-								} else {
-									params.onSuccess();
+							})
+								.then((res) => {
 									setLoading(false);
-									setOpened(false);
-								}
-							});
+									if (!res.ok) {
+										res.text().then((text) => {
+											setErrorMessage(text);
+										});
+									} else {
+										params.onSuccess();
+										setOpened(false);
+									}
+								})
+								.catch((e) => {
+									setLoading(false);
+									setErrorMessage(`Error: ${e}`);
+								});
 						}}
 					>
 						Create new class
