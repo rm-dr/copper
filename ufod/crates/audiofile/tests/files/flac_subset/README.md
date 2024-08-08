@@ -1,20 +1,22 @@
-This README is for the subset files of the FLAC decoder
-testbench. Please read the README in the top level directory
-first.
+# Group subset
 
-On Hydrogenaud.io there is a wikipage and a forum discussion
-devoted to these files. The wikipage might be useful for
-comparison to other decoders, and the forum is a good place to
-ask questions. See:
-https://wiki.hydrogenaud.io/index.php?title=FLAC_decoder_testbench
-https://hydrogenaud.io/index.php?topic=121478.0
+The FLAC format specifies a subset of itself to ensure
+streamability and limits the decoding requirements for hardware
+implementations. The reference FLAC encoder will enforce this
+subset unless specifically disabled.
 
----------------------------------------------------------------
-                       Files # 1 - # 27
-      Stereo audio with samplerates no larger than 44.1kHz
-             and bit-depths no larger than 16-bit
-                  All features within subset
----------------------------------------------------------------
+The files in this group are considered a baseline for general
+decoders: these files should be properly decoded or properly
+rejected before playback is attempted by any decoder. A
+decoder can choose to reject certain files, for example
+multichannel files, files with high or unusual samplerates,
+files with a high bit depth. Crashing or mangled playback of
+these files is probably going to be noticed by unsuspecting
+users of a decoder. Read the README.txt in the directory
+subset for details on each file.
+
+
+## Files \#1 - \#27
 
 The first 10 files tests 44.1kHz, 16-bit audio with various
 blocksizes that are within subset.
@@ -29,10 +31,8 @@ often.
 - File 14 uses wasted bits
 - File 15 uses only 'verbatim' frames
 - File 16 uses rice escape codes and partition order 8
-- File 17 uses all possible fixed orders (especially order 0
-      which isn't used often)
-- File 18 is encoded with precision search, using qlp
-      precisions between 3 and 15
+- File 17 uses all possible fixed orders (especially order 0 which isn't used often)
+- File 18 is encoded with precision search, using qlp precisions between 3 and 15
 - File 19 uses a samplerate of 35467Hz
 - File 20 uses a samplerate of 39kHz
 - File 21 uses a samplerate of 22050Hz
@@ -51,16 +51,11 @@ File 24, 25 and 26 use this format. File 27 follows the old
 specification, which is much harder to detect
 
 - File 24 uses the current format and is created by flake r264
-- File 25 uses the current format and is created by a modified
-      flake r264 creating smaller blocks
-- File 26 uses the current format and is created by
-      CUETools.Flake 2.1.6
+- File 25 uses the current format and is created by a modified flake r264 creating smaller blocks
+- File 26 uses the current format and is created by CUETools.Flake 2.1.6
 - File 27 uses the old format and is created by flake 0.11
 
----------------------------------------------------------------
-                       Files # 28 - # 37
-      'High-resolution' audio, all features within subset
----------------------------------------------------------------
+## Files \#28 - \#37
 
 Files 28 through 37 test the ability to decode various
 high-resolution FLAC file (96kHz, 24-bit)
@@ -78,10 +73,7 @@ high-resolution FLAC file (96kHz, 24-bit)
 - File 36 is upsampled to 384kHz
 - File 37 has 20 bits per sample
 
----------------------------------------------------------------
-                       Files # 38 - # 44
-           Surround sound, all features within subset
----------------------------------------------------------------
+## Files \#38 - \#44
 
 Files 38 through 43 test the ability to decode various
 multichannel FLAC files. Each file contains a voice description
@@ -102,10 +94,7 @@ at the highest possible predictor precision and the largest
 blocksize allowed within the FLAC subset making it especially
 challenging to decode.
 
----------------------------------------------------------------
-                       Files # 45 - # 59
-                       Metadata extremes
----------------------------------------------------------------
+## Files \#45 - \#59
 
 Files 45 through 59 test the ability to handle various streams
 with valid but rather unusual or extreme metadata.
@@ -126,10 +115,10 @@ with valid but rather unusual or extreme metadata.
 - File 58 has a PICTURE with mimetype image/gif
 - File 59 has a PICTURE with mimetype image/avif
 
----------------------------------------------------------------
-                       Files # 60 - # 64
-                Miscellaneous, later additions
----------------------------------------------------------------
+## Files \#60 - \#64
+
+Miscellaneous, later additions
+
 - File 60 is mono audio
 - File 61, 62 and 63 are signals with rather extreme
     characteristics that might trigger overflow if a decoder

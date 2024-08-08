@@ -1,6 +1,12 @@
 # Custom FLAC test files
 
-- `01 - many images.flac`: This is `files/flac_subset/50` with images from `56`, `57`, `58`, and `59` added, in that order.
+These are flac files created specifically for Copper, and test cases that the flac test toolkit doesn't cover.
+Most of these are modified copies of files in `flac_subset`, `flac_faulty`, or `flac_uncommon`
+
+
+## Manifest
+
+- `01 - many images.flac`: This is `flac_subset/50` with additional images from `56`, `57`, `58`, and `59`, in that order.
   - Image 0: from file `50`, type is `3`, description is empty.
   - Image 1: from file `56`, type is `17`, description is `lorem`.
   - Image 2: from file `57`, type is `2`, description is `ipsum`.

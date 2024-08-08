@@ -1,6 +1,12 @@
-This README is for the 'faulty' files of the FLAC decoder
-testbench. Please read the README in the top level directory
-first.
+# Group faulty
+
+This group contains files with invalid data and corrupted files
+that might trigger crashes in a decoder. A decoder should not
+crash or freeze reading these files. Read the README.txt in
+the directory faulty for details on each file.
+
+
+## Manifest
 
 - File 01 has a streaminfo metadata block that lists the wrong
   maximum blocksize for the file. The file has a fixed

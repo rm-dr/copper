@@ -1,6 +1,16 @@
-This README is for the 'uncommon' files of the FLAC decoder
-testbench. Please read the README in the top level directory
-first.
+# Group uncommon
+
+Certain features of the FLAC format are non-subset or otherwise
+uncommonly used. Decoders might not be able to playback these
+files, but they should detect this inability and preferably
+notify the user rather than crash of freeze. Read the
+README.txt in the directory uncommon for details on each file.
+
+Note that despite the features being used are uncommon, these
+files are still valid FLAC files.
+
+
+## Manifest
 
 - File 01 has a sample rate that changes mid-stream. The file
   starts with a sample rate of 32kHz and switches to 24kHz,
