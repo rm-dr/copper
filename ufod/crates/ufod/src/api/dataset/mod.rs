@@ -31,7 +31,6 @@ use new::*;
 		new_itemclass_attr
 	),
 	components(schemas(
-		NewDataset,
 		NewDatasetParams,
 		NewDatasetError,
 		PipelineInfo,
@@ -42,7 +41,6 @@ use new::*;
 		AddJobInput,
 		DatasetInfoShort,
 		DatasetType,
-		NewItemclassParams,
 		ItemclassInfo,
 		AttrInfo,
 		NewItemclassAttrParams
@@ -54,10 +52,10 @@ pub(super) fn router() -> Router<RouterState> {
 	Router::new()
 		// Datasets
 		.route("/", get(list_datasets))
-		.route("/", post(new_dataset))
+		.route("/:dataset_name", post(new_dataset))
 		// Item classes
 		.route("/:dataset_name/classes", get(list_itemclasses))
-		.route("/:dataset_name/classes", post(new_itemclass))
+		.route("/:dataset_name/classes/:class_id", post(new_itemclass))
 		.route(
 			"/:dataset_name/classes/:class_id/new_attr",
 			post(new_itemclass_attr),

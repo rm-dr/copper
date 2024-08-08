@@ -2,28 +2,20 @@ use axum::{
 	extract::{Path, State},
 	http::StatusCode,
 	response::{IntoResponse, Response},
-	Json,
 };
-use serde::{Deserialize, Serialize};
 use tracing::error;
 use ufo_ds_core::errors::MetastoreError;
-use utoipa::ToSchema;
 
 use crate::api::RouterState;
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub(in crate::api) struct NewItemclassParams {
-	/// The new item class name
-	pub name: String,
-}
 
 /// Create a new itemclass
 #[utoipa::path(
 	post,
-	path = "/{dataset_name}/classes",
+	path = "/{dataset_name}/classes/{class_name}",
 	tag = "Itemclass",
 	params(
-		("dataset_name" = String, description = "Dataset name")
+		("dataset_name" = String, description = "Dataset name"),
+		("class_name" = String, description = "New class name")
 	),
 	responses(
 		(status = 200, description = "Successfully created new item class"),
@@ -32,12 +24,11 @@ pub(in crate::api) struct NewItemclassParams {
 	),
 )]
 pub(in crate::api) async fn new_itemclass(
-	Path(dataset_name): Path<String>,
+	Path((dataset_name, class_name)): Path<(String, String)>,
 	State(state): State<RouterState>,
-	Json(new_params): Json<NewItemclassParams>,
 ) -> Response {
 	let dataset = state.main_db.get_dataset(&dataset_name).unwrap().unwrap();
-	let res = dataset.add_class(&new_params.name);
+	let res = dataset.add_class(&class_name);
 
 	match res {
 		Ok(_) => return StatusCode::OK.into_response(),

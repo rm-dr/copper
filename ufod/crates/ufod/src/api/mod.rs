@@ -38,7 +38,7 @@ pub struct RouterState {
 	nest(
 		(path = "/status", api = status::StatusApi),
 		(path = "/upload", api = upload::UploadApi),
-		(path = "/dataset", api = dataset::DatasetApi)
+		(path = "/datasets", api = dataset::DatasetApi)
 	),
 	tags(
 		(name = "ufod", description = "UFO backend daemon")
@@ -58,7 +58,7 @@ pub(super) fn router(state: RouterState) -> Router {
 		//
 		.nest("/upload", upload::router(state.uploader.clone()))
 		.nest("/status", status::router())
-		.nest("/dataset", dataset::router())
+		.nest("/datasets", dataset::router())
 		//
 		.layer(TraceLayer::new_for_http())
 		.layer(DefaultBodyLimit::max(state.config.request_body_limit))

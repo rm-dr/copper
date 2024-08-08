@@ -16,9 +16,6 @@ use crate::api::RouterState;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub(in crate::api) struct NewItemclassAttrParams {
-	/// The new attribute's name
-	pub name: String,
-
 	/// The new attribute's data type
 	pub data_type: MetastoreDataStub,
 
@@ -29,29 +26,75 @@ pub(in crate::api) struct NewItemclassAttrParams {
 /// Create a new attribute in this itemclass
 #[utoipa::path(
 	post,
-	path = "/{dataset_name}/classes/{class_id}/new_attr",
+	path = "/{dataset_name}/classes/{class_name}/attr/{attr_name}",
 	tag = "Itemclass",
 	params(
 		("dataset_name" = String, description = "Dataset name"),
-		("class_id" = u32, description = "Itemclass id"),
+		("class_name" = String, description = "Itemclass name"),
+		("attr_name" = String, description = "New attribute name"),
 	),
 	responses(
 		(status = 200, description = "Successfully created new attribute"),
 		(status = 400, description = "Could not create new attribute, bad parameters", body=String),
+		(status = 404, description = "Unknown dataset or class name", body=String),
 		(status = 500, description = "Internal server error", body=String),
 	),
 )]
 pub(in crate::api) async fn new_itemclass_attr(
-	Path((dataset_name, class_id)): Path<(String, u32)>,
+	Path((dataset_name, class_name, attr_name)): Path<(String, String, String)>,
 	State(state): State<RouterState>,
 	Json(new_params): Json<NewItemclassAttrParams>,
 ) -> Response {
-	let class_id: ClassHandle = class_id.into();
+	let dataset = match state.main_db.get_dataset(&dataset_name) {
+		Ok(Some(x)) => x,
+		Ok(None) => {
+			return (
+				StatusCode::NOT_FOUND,
+				format!("Dataset `{dataset_name}` does not exist"),
+			)
+				.into_response()
+		}
+		Err(e) => {
+			error!(
+				message = "Could not get dataset by name",
+				dataset = dataset_name,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not get dataset by name"),
+			)
+				.into_response();
+		}
+	};
 
-	let dataset = state.main_db.get_dataset(&dataset_name).unwrap().unwrap();
+	let class_id: ClassHandle = match dataset.get_class(&class_name) {
+		Ok(Some(x)) => x,
+		Ok(None) => {
+			return (
+				StatusCode::NOT_FOUND,
+				format!("Class `{class_name}` does not exist"),
+			)
+				.into_response()
+		}
+		Err(e) => {
+			error!(
+				message = "Could not get item class by name",
+				dataset = dataset_name,
+				item_class_name = ?class_name,
+				error = ?e
+			);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Could not get item class by name"),
+			)
+				.into_response();
+		}
+	};
+
 	let res = dataset.add_attr(
 		class_id,
-		&new_params.name,
+		&attr_name,
 		new_params.data_type,
 		new_params.options,
 	);
