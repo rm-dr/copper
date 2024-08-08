@@ -4,7 +4,7 @@ import { ItemData, Selected, selectedClass } from "../page";
 import { attrTypeInfo, attrTypes } from "@/app/_util/attrs";
 import { Button, Text } from "@mantine/core";
 import { Fragment, useCallback, useMemo, useState } from "react";
-import { IconArrowRight, IconEdit } from "@tabler/icons-react";
+import { IconArrowRight, IconEdit, IconEyeOff } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
 import { components } from "@/app/_util/api/openapi";
 
@@ -233,8 +233,27 @@ function EditSubPanel(params: {
 			: params.attrValues[params.panelAttr.handle.toString()];
 
 	const body =
-		selected_attr_value === null || selected_attr_spec === undefined ? null : (
-			<div className={styles.panelimage}>
+		selected_attr_value === null ? (
+			<div className={styles.panelbody_inner}>
+				<div
+					style={{
+						display: "flex",
+						flexDirection: "column",
+						justifyContent: "center",
+						alignItems: "center",
+						height: "100%",
+					}}
+				>
+					<div style={{ textAlign: "center" }}>
+						<Text fs="italic" c="dimmed">
+							<XIcon icon={IconEyeOff} style={{ height: "5rem" }} />
+							Value differs among {params.selectedItems.length} selected items
+						</Text>
+					</div>
+				</div>
+			</div>
+		) : selected_attr_spec === undefined ? null : (
+			<div className={styles.panelbody_inner}>
 				{selected_attr_spec.editor.panel_body({
 					dataset: params.dataset,
 					class: params.class,
