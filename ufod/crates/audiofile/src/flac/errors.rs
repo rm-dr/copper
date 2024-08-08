@@ -1,10 +1,6 @@
 //! FLAC parsing errors
-
+use crate::common::{picturetype::PictureTypeError, vorbiscomment::VorbisCommentError};
 use std::{error::Error, fmt::Display, string::FromUtf8Error};
-
-use crate::common::vorbiscomment::VorbisCommentError;
-
-use super::picture::FlacPictureError;
 
 // TODO: refactor errors?
 
@@ -32,6 +28,9 @@ pub enum FlacError {
 
 	/// We tried to read a block, but it was out of spec.
 	MalformedBlock,
+
+	/// We tried to decode a bad picture type
+	PictureTypeError(PictureTypeError),
 }
 
 impl Display for FlacError {
@@ -44,6 +43,7 @@ impl Display for FlacError {
 			Self::VorbisComment(_) => write!(f, "error while decoding vorbis comment"),
 			Self::FailedStringDecode(_) => write!(f, "error while decoding string"),
 			Self::MalformedBlock => write!(f, "malformed flac block"),
+			Self::PictureTypeError(_) => write!(f, "bad picture type"),
 		}
 	}
 }
@@ -54,6 +54,7 @@ impl Error for FlacError {
 			Self::IoError(e) => e,
 			Self::VorbisComment(e) => e,
 			Self::FailedStringDecode(e) => e,
+			Self::PictureTypeError(e) => e,
 			_ => return None,
 		})
 	}
@@ -71,13 +72,14 @@ impl From<VorbisCommentError> for FlacError {
 	}
 }
 
-impl From<FlacPictureError> for FlacError {
-	fn from(value: FlacPictureError) -> Self {
-		match value {
-			FlacPictureError::IoError(x) => Self::IoError(x),
-			FlacPictureError::FailedStringDecode(x) => Self::FailedStringDecode(x),
-			FlacPictureError::MalformedBlock => Self::MalformedBlock,
-			FlacPictureError::BadPictureType(_) => Self::MalformedBlock,
-		}
+impl From<FromUtf8Error> for FlacError {
+	fn from(value: FromUtf8Error) -> Self {
+		Self::FailedStringDecode(value)
+	}
+}
+
+impl From<PictureTypeError> for FlacError {
+	fn from(value: PictureTypeError) -> Self {
+		Self::PictureTypeError(value)
 	}
 }

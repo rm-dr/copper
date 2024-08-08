@@ -2,14 +2,15 @@
 
 use std::io::{Read, Seek, SeekFrom};
 
-use self::{errors::FlacError, metablocktype::FlacMetablockType};
-use crate::common::vorbiscomment::VorbisComment;
+use self::errors::FlacError;
+use crate::{common::vorbiscomment::VorbisComment, FileBlockDecode};
 
+pub mod blocks;
 pub mod errors;
-pub mod metablocktype;
 pub mod metastrip;
 pub mod picture;
-pub mod streaminfo;
+
+use blocks::{FlacMetablockHeader, FlacMetablockType};
 
 /// Try to extract a vorbis comment block from the given reader.
 /// `read` should provide a complete FLAC file.
@@ -24,24 +25,24 @@ where
 	};
 
 	// TODO: what if we have multiple vorbis blocks?
-	loop {
-		let (block_type, length, is_last) = FlacMetablockType::parse_header(&mut read)?;
+	let mut header = [0u8; 4];
 
-		match block_type {
+	loop {
+		read.read_exact(&mut header)?;
+		let h = FlacMetablockHeader::decode(&header)?;
+
+		match h.block_type {
 			FlacMetablockType::VorbisComment => {
-				return Ok(Some(VorbisComment::decode(read.take(length.into()))?));
+				return Ok(Some(VorbisComment::decode(read.take(h.length.into()))?));
 			}
 			_ => {
-				if is_last {
-					break;
-				} else {
-					// Skip without seek:
-					// io::copy(&mut file.by_ref().take(27), &mut io::sink());
-					read.seek(SeekFrom::Current(length.into()))?;
-					continue;
-				}
+				read.seek(SeekFrom::Current(h.length.into()))?;
 			}
 		};
+
+		if h.is_last {
+			break;
+		}
 	}
 
 	return Ok(None);

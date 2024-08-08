@@ -5,7 +5,12 @@ use std::{
 	io::{Cursor, Read, Seek},
 };
 
-use super::{errors::FlacError, metablocktype::FlacMetablockType};
+use crate::{FileBlockDecode, FileBlockEncode};
+
+use super::{
+	blocks::{FlacMetablockHeader, FlacMetablockType},
+	errors::FlacError,
+};
 
 // TODO: tests
 // TODO: detect end of file using STREAMINFO
@@ -223,10 +228,9 @@ impl FlacMetaStrip {
 							// We just read the last metadata block.
 							// Append last_kept_block and prepare to read audio data
 							if let Some((header, block)) = self.last_kept_block.take() {
-								let (block_type, length, _) =
-									FlacMetablockType::parse_header(&header[..])?;
-								self.output_buffer
-									.extend(block_type.make_header(true, length));
+								let mut h = FlacMetablockHeader::decode(&header)?;
+								h.is_last = true;
+								self.output_buffer.extend(h.encode().unwrap());
 								self.output_buffer.extend(block);
 							}
 							self.current_block_total_length = 0;
@@ -255,18 +259,17 @@ impl FlacMetaStrip {
 					FlacMetaStripBlockType::BlockHeader { is_first } => {
 						assert!(self.current_block.len() == 4);
 						assert!(self.current_block_length == 4);
-						let (block_type, length, is_last) =
-							FlacMetablockType::parse_header(&self.current_block[..])?;
+						let h = FlacMetablockHeader::decode(&self.current_block[0..4])?;
 
-						if is_first && block_type != FlacMetablockType::Streaminfo {
+						if is_first && h.block_type != FlacMetablockType::Streaminfo {
 							return Err(FlacError::BadFirstBlock);
 						}
 
-						self.done_with_meta = is_last;
-						self.current_block_total_length = length.try_into().unwrap();
+						self.done_with_meta = h.is_last;
+						self.current_block_total_length = h.length.try_into().unwrap();
 						self.current_block_type = FlacMetaStripBlockType::MetaBlock {
 							header: self.current_block[..].try_into().unwrap(),
-							keep_this_block: self.selector.select(block_type),
+							keep_this_block: self.selector.select(h.block_type),
 						};
 					}
 

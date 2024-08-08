@@ -94,8 +94,8 @@ impl PipelineNode for ExtractCovers {
 			send_data(
 				0,
 				UFOData::Binary {
-					mime: picture.get_mime().clone(),
-					data: Arc::new(picture.take_img_data()),
+					mime: picture.mime.clone(),
+					data: Arc::new(picture.img_data),
 				},
 			)?;
 		} else {
