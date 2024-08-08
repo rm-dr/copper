@@ -38,6 +38,10 @@ pub enum UFOData {
 	#[serde(skip)]
 	PositiveInteger(u64),
 
+	/// A boolean
+	#[serde(skip)]
+	Boolean(bool),
+
 	/// A float
 	#[serde(skip)]
 	Float(f64),
@@ -93,6 +97,7 @@ impl PipelineData for UFOData {
 			Self::Path(_) => MetaDbDataStub::Path,
 			Self::Integer(_) => MetaDbDataStub::Integer,
 			Self::PositiveInteger(_) => MetaDbDataStub::PositiveInteger,
+			Self::Boolean(_) => MetaDbDataStub::Boolean,
 			Self::Float(_) => MetaDbDataStub::Float,
 			Self::Hash { format, .. } => MetaDbDataStub::Hash { hash_type: *format },
 			Self::Binary { .. } => MetaDbDataStub::Binary,
@@ -123,6 +128,7 @@ impl UFOData {
 			UFOData::Text(x) => MetaDbData::Text(x.clone()),
 			UFOData::Float(x) => MetaDbData::Float(*x),
 			UFOData::Path(x) => MetaDbData::Path(x.clone()),
+			UFOData::Boolean(x) => MetaDbData::Boolean(*x),
 			UFOData::Hash { format, data } => MetaDbData::Hash {
 				format: *format,
 				data: data.clone(),

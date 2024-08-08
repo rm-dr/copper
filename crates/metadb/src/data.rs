@@ -25,6 +25,9 @@ pub enum MetaDbData {
 	/// A positive integer
 	PositiveInteger(u64),
 
+	/// A boolean
+	Boolean(bool),
+
 	/// A float
 	Float(f64),
 
@@ -66,6 +69,7 @@ impl PipelineData for MetaDbData {
 			Self::Path(_) => MetaDbDataStub::Path,
 			Self::Integer(_) => MetaDbDataStub::Integer,
 			Self::PositiveInteger(_) => MetaDbDataStub::PositiveInteger,
+			Self::Boolean(_) => MetaDbDataStub::Boolean,
 			Self::Float(_) => MetaDbDataStub::Float,
 			Self::Hash { format, .. } => MetaDbDataStub::Hash { hash_type: *format },
 			Self::Binary { .. } => MetaDbDataStub::Binary,
@@ -116,6 +120,9 @@ pub enum MetaDbDataStub {
 	/// A positive integer
 	PositiveInteger,
 
+	/// A boolean
+	Boolean,
+
 	/// A float
 	Float,
 
@@ -149,6 +156,7 @@ impl MetaDbDataStub {
 			Self::Text => "text".into(),
 			Self::Binary => "binary".into(),
 			Self::Blob => "blob".into(),
+			Self::Boolean => "boolean".into(),
 			Self::Path => "path".into(),
 			Self::Integer => "integer".into(),
 			Self::PositiveInteger => "positiveinteger".into(),
@@ -170,6 +178,7 @@ impl MetaDbDataStub {
 			"binary" => Some(Self::Binary),
 			"path" => Some(Self::Path),
 			"blob" => Some(Self::Blob),
+			"boolan" => Some(Self::Boolean),
 			"integer" => Some(Self::Integer),
 			"positiveinteger" => Some(Self::PositiveInteger),
 			"float" => Some(Self::Float),
