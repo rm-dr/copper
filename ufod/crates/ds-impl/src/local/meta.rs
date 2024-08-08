@@ -55,7 +55,7 @@ impl LocalDataset {
 			MetastoreData::Hash { data, .. } => q.bind(&**data),
 			MetastoreData::Binary { data, .. } => q.bind(&**data),
 			MetastoreData::Reference { item, .. } => q.bind(u32::from(*item)),
-			MetastoreData::Blob { handle } => q.bind(handle.to_db_str()),
+			MetastoreData::Blob { handle } => q.bind(serde_json::to_string(handle).unwrap()),
 		}
 	}
 }
@@ -238,7 +238,7 @@ impl Metastore for LocalDataset {
 				.map(|(h, _)| format!("\"attr_{}\"", u32::from(*h)))
 				.join(", ");
 
-			let attr_values = iter::repeat('?').take(attr_names.len()).join(", ");
+			let attr_values = iter::repeat('?').take(attrs.len()).join(", ");
 
 			let q_str =
 				format!("INSERT INTO \"{table_name}\" ({attr_names}) VALUES ({attr_values});",);
