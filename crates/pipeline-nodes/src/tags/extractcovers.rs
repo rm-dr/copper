@@ -60,7 +60,7 @@ impl PipelineNode for ExtractCovers {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		if self.data.is_none() {
-			return Ok(PipelineNodeState::Pending);
+			return Ok(PipelineNodeState::Pending("args not ready"));
 		}
 
 		let (data_type, data) = match self.data.as_mut().unwrap() {
@@ -80,7 +80,7 @@ impl PipelineNode for ExtractCovers {
 				send_data(0, MetaDbData::None(MetaDbDataStub::Binary))?;
 				return Ok(PipelineNodeState::Done);
 			}
-			(false, false) => return Ok(PipelineNodeState::Pending),
+			(false, false) => return Ok(PipelineNodeState::Pending("no new data")),
 			(true, true) | (true, false) => {}
 		}
 
@@ -90,7 +90,7 @@ impl PipelineNode for ExtractCovers {
 				let pictures = flac_read_pictures(&mut self.buffer);
 				if pictures.is_err() {
 					println!("{pictures:?}");
-					return Ok(PipelineNodeState::Pending);
+					return Ok(PipelineNodeState::Pending("malformed pictures"));
 				}
 				let mut pictures = pictures.unwrap();
 				pictures.pop()

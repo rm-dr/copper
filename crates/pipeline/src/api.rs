@@ -11,7 +11,10 @@ use crate::{labels::PipelinePortLabel, NDataStub};
 pub enum PipelineNodeState {
 	/// This node has more work to do
 	/// and is waiting to be `run()`.
-	Pending,
+	///
+	/// This status always comes with a message, telling us
+	/// why this node isn't `Done` yet.
+	Pending(&'static str),
 
 	/// This node has output all its data
 	/// and will not be run again.
@@ -21,7 +24,7 @@ pub enum PipelineNodeState {
 impl PipelineNodeState {
 	/// Is this [`PipelineNodeState::Pending`]?
 	pub fn is_pending(&self) -> bool {
-		matches!(self, Self::Pending)
+		matches!(self, Self::Pending(_))
 	}
 
 	/// Is this [`PipelineNodeState::Done`]?

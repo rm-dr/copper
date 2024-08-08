@@ -64,7 +64,7 @@ impl PipelineNode for IfNone {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		if self.input.is_none() || self.ifnone.is_none() {
-			return Ok(PipelineNodeState::Pending);
+			return Ok(PipelineNodeState::Pending("args not ready"));
 		}
 
 		send_data(

@@ -104,7 +104,7 @@ impl PipelineNode for FileReader {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		if self.path.is_none() {
-			return Ok(PipelineNodeState::Pending);
+			return Ok(PipelineNodeState::Pending("args not ready"));
 		}
 
 		// If we're holding a message, try to send it
@@ -141,7 +141,7 @@ impl PipelineNode for FileReader {
 			} else {
 				if self.sender.as_ref().unwrap().is_holding() {
 					// We still have a message to send
-					return Ok(PipelineNodeState::Pending);
+					return Ok(PipelineNodeState::Pending("done; holding message"));
 				} else {
 					return Ok(PipelineNodeState::Done);
 				}

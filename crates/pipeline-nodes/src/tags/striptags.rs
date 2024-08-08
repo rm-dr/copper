@@ -102,7 +102,7 @@ impl PipelineNode for StripTags {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		if self.data.is_none() {
-			return Ok(PipelineNodeState::Pending);
+			return Ok(PipelineNodeState::Pending("args not ready"));
 		}
 
 		// If we're holding a message, try to send it
@@ -119,7 +119,7 @@ impl PipelineNode for StripTags {
 		let (changed, done) = self.buffer.recv_all(self.data.as_mut().unwrap());
 		self.is_done = done;
 		match (changed, done) {
-			(false, false) => return Ok(PipelineNodeState::Pending),
+			(false, false) => return Ok(PipelineNodeState::Pending("no new data")),
 			(false, true) | (true, true) | (true, false) => {}
 		}
 		match std::io::copy(&mut self.buffer, &mut self.strip) {
@@ -160,7 +160,7 @@ impl PipelineNode for StripTags {
 			} else {
 				if self.sender.as_ref().unwrap().is_holding() {
 					// We still have a message to send
-					return Ok(PipelineNodeState::Pending);
+					return Ok(PipelineNodeState::Pending("done; holding message"));
 				} else {
 					return Ok(PipelineNodeState::Done);
 				}

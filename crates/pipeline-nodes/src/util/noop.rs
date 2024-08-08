@@ -61,7 +61,7 @@ impl PipelineNode for Noop {
 	{
 		for (_, _, b) in &self.inputs {
 			if !b {
-				return Ok(PipelineNodeState::Pending);
+				return Ok(PipelineNodeState::Pending("args not ready"));
 			}
 		}
 		return Ok(PipelineNodeState::Done);

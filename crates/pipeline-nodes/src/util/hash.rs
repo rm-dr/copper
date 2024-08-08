@@ -10,14 +10,67 @@ use ufo_pipeline::{
 
 use crate::{errors::PipelineError, nodetype::UFONodeType, traits::UFONode, UFOContext};
 
-#[derive(Clone)]
+enum HashComputer {
+	MD5 { context: md5::Context },
+	SHA256 { hasher: Sha256 },
+	SHA512 { hasher: Sha512 },
+}
+
+impl HashComputer {
+	fn new(hash_type: HashType) -> Self {
+		match hash_type {
+			HashType::MD5 => Self::MD5 {
+				context: md5::Context::new(),
+			},
+			HashType::SHA256 => Self::SHA256 {
+				hasher: Sha256::new(),
+			},
+			HashType::SHA512 => Self::SHA512 {
+				hasher: Sha512::new(),
+			},
+		}
+	}
+
+	fn update(&mut self, buf: &[u8]) {
+		match self {
+			Self::MD5 { context } => {
+				context.consume(buf);
+			}
+			Self::SHA256 { hasher } => {
+				hasher.update(buf);
+			}
+			Self::SHA512 { hasher } => {
+				hasher.update(buf);
+			}
+		}
+	}
+
+	fn hash_type(&self) -> HashType {
+		match self {
+			Self::MD5 { .. } => HashType::MD5,
+			Self::SHA256 { .. } => HashType::SHA256,
+			Self::SHA512 { .. } => HashType::SHA512,
+		}
+	}
+
+	fn finish(self) -> MetaDbData {
+		let format = self.hash_type();
+		let v = match self {
+			Self::MD5 { context } => context.compute().to_vec(),
+			Self::SHA256 { hasher } => hasher.finalize().to_vec(),
+			Self::SHA512 { hasher } => hasher.finalize().to_vec(),
+		};
+
+		MetaDbData::Hash {
+			format,
+			data: Arc::new(v),
+		}
+	}
+}
+
 pub struct Hash {
 	data: Option<MetaDbData>,
-	hash_type: HashType,
-
-	// TODO: write directly to hasher
-	buffer: Vec<u8>,
-
+	hasher: Option<HashComputer>,
 	input_receiver: Receiver<(usize, MetaDbData)>,
 }
 
@@ -29,8 +82,7 @@ impl Hash {
 	) -> Self {
 		Self {
 			data: None,
-			hash_type,
-			buffer: Vec::new(),
+			hasher: Some(HashComputer::new(hash_type)),
 			input_receiver,
 		}
 	}
@@ -70,85 +122,31 @@ impl PipelineNode for Hash {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		if self.data.is_none() {
-			return Ok(PipelineNodeState::Pending);
+			return Ok(PipelineNodeState::Pending("args not ready"));
 		}
 
-		let result = match self.data.as_mut().unwrap() {
-			MetaDbData::Binary { data, .. } => match self.hash_type {
-				HashType::MD5 => md5::compute(&**data).to_vec(),
-				HashType::SHA256 => {
-					let mut hasher = Sha256::new();
-					hasher.update(&**data);
-					hasher.finalize().to_vec()
-				}
-				HashType::SHA512 => {
-					let mut hasher = Sha512::new();
-					hasher.update(&**data);
-					hasher.finalize().to_vec()
+		match self.data.as_mut().unwrap() {
+			MetaDbData::Binary { data, .. } => {
+				self.hasher.as_mut().unwrap().update(&**data);
+				send_data(0, self.hasher.take().unwrap().finish())?;
+				return Ok(PipelineNodeState::Done);
+			}
+			MetaDbData::Blob { data, .. } => loop {
+				match data.try_recv() {
+					Err(TryRecvError::Closed) => {
+						send_data(0, self.hasher.take().unwrap().finish())?;
+						return Ok(PipelineNodeState::Done);
+					}
+					Err(TryRecvError::Empty) => {
+						return Ok(PipelineNodeState::Pending("not all data received"));
+					}
+					Err(_) => panic!(),
+					Ok(x) => self.hasher.as_mut().unwrap().update(&**x),
 				}
 			},
-			MetaDbData::Blob { data, .. } => match self.hash_type {
-				HashType::MD5 => loop {
-					match data.try_recv() {
-						Err(TryRecvError::Closed) => {
-							let mut context = md5::Context::new();
-							context.consume(&self.buffer);
-							break context.compute().to_vec();
-						}
-						Err(TryRecvError::Empty) => {
-							return Ok(PipelineNodeState::Pending);
-						}
-						Err(_) => panic!(),
-						Ok(x) => {
-							self.buffer.extend(&*x);
-						}
-					}
-				},
-				HashType::SHA256 => loop {
-					match data.try_recv() {
-						Err(TryRecvError::Closed) => {
-							let mut hasher = Sha256::new();
-							hasher.update(&self.buffer);
-							break hasher.finalize().to_vec();
-						}
-						Err(TryRecvError::Empty) => {
-							return Ok(PipelineNodeState::Pending);
-						}
-						Err(_) => panic!(),
-						Ok(x) => {
-							self.buffer.extend(&*x);
-						}
-					}
-				},
-				HashType::SHA512 => loop {
-					match data.try_recv() {
-						Err(TryRecvError::Closed) => {
-							let mut hasher = Sha256::new();
-							hasher.update(&self.buffer);
-							break hasher.finalize().to_vec();
-						}
-						Err(TryRecvError::Empty) => {
-							return Ok(PipelineNodeState::Pending);
-						}
-						Err(_) => panic!(),
-						Ok(x) => {
-							self.buffer.extend(&*x);
-						}
-					}
-				},
-			},
+
 			_ => todo!(),
 		};
-
-		send_data(
-			0,
-			MetaDbData::Hash {
-				format: self.hash_type,
-				data: Arc::new(result),
-			},
-		)?;
-
-		return Ok(PipelineNodeState::Done);
 	}
 }
 

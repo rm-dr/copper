@@ -44,13 +44,11 @@ pub(super) struct PipelineSingleRunner<StubType: PipelineNodeStub> {
 		PipelineNodeLabel,
 		// Where to send this node's inputs
 		Sender<(usize, SDataType<StubType>)>,
+		// This node's status
+		NodeRunState,
 		// The node
 		Arc<Mutex<Option<SNodeType<StubType>>>>,
 	)>,
-
-	/// Each node's status
-	/// (indices match `node_instances`)
-	node_status: Vec<NodeRunState>,
 
 	/// The value each edge in this pipeline carries
 	edge_values: Vec<EdgeState>,
@@ -152,6 +150,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 				(
 					name.clone(),
 					send_input,
+					NodeRunState::NotRunning(PipelineNodeState::Pending("not started")),
 					Arc::new(Mutex::new(Some(x.build(
 						&context,
 						name.into(),
@@ -173,14 +172,6 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 				})
 				.collect::<Vec<_>>()
 		};
-
-		// Keep track of nodes we have already run.
-		// We already initialized all input edges, so mark that node `true`.
-		let node_status = pipeline
-			.graph
-			.iter_nodes_idx()
-			.map(|_| NodeRunState::NotRunning(PipelineNodeState::Pending))
-			.collect::<Vec<_>>();
 
 		// Threadpool we'll use to run nodes
 		let pool = threadpool::Builder::new()
@@ -217,7 +208,6 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 			pipeline,
 			context,
 			node_instances,
-			node_status,
 			edge_values,
 			pool,
 			send_data,
@@ -242,7 +232,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 		// run in the same cycle.
 		let mut all_nodes_done = true;
 		for (node, (_, _)) in self.pipeline.clone().graph.iter_nodes_idx() {
-			if !self.node_status[node.as_usize()].is_done() {
+			if !self.node_instances[node.as_usize()].2.is_done() {
 				all_nodes_done = false;
 			}
 
@@ -260,7 +250,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 	/// If we can add the node with index `n` to the thread pool, do so.
 	fn try_start_node(&mut self, node: GraphNodeIdx) -> Result<(), SErrorType<StubType>> {
 		// Skip nodes we've already run and nodes that are running right now.
-		let n = self.node_status.get(node.as_usize()).unwrap();
+		let n = self.node_instances[node.as_usize()].2;
 		if n.is_running() || n.is_done() {
 			return Ok(());
 		}
@@ -286,11 +276,11 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 			return Ok(());
 		}
 
-		let (n, _, node_instance) = &self.node_instances.get(node.as_usize()).unwrap();
+		let (n, _, _, node_instance) = &self.node_instances[node.as_usize()];
 		let node_instance = node_instance.clone();
 		let n = n.clone();
 
-		*self.node_status.get_mut(node.as_usize()).unwrap() = NodeRunState::Running;
+		self.node_instances[node.as_usize()].2 = NodeRunState::Running;
 		let ctx = self.context.clone();
 		let send_data = self.send_data.clone();
 		let send_status = self.send_status.clone();
@@ -368,8 +358,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 					return Err(x);
 				}
 				Ok(status) => {
-					*self.node_status.get_mut(node.as_usize()).unwrap() =
-						NodeRunState::NotRunning(status);
+					self.node_instances[node.as_usize()].2 = NodeRunState::NotRunning(status);
 
 					if status.is_done() {
 						// When a node finishes successfully, mark all
@@ -394,7 +383,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineSingleRunner<StubType> {
 						// This intentionally panics if the mutex is already locked.
 						// That should never happen!
 						println!("drop {}", self.node_instances[node.as_usize()].0);
-						let mut x = self.node_instances[node.as_usize()].2.try_lock().unwrap();
+						let mut x = self.node_instances[node.as_usize()].3.try_lock().unwrap();
 						drop(x.take());
 					}
 				}

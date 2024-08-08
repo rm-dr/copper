@@ -40,7 +40,7 @@ impl HoldSender {
 				Err(TrySendError::Full(x)) => {
 					// We can't send this message now, try next time.
 					self.held_message = Some(x);
-					return Some(PipelineNodeState::Pending);
+					return Some(PipelineNodeState::Pending("holdsender: full"));
 				}
 				Err(TrySendError::Inactive(_)) => {
 					// This should never happen, we don't deactivate readers
@@ -76,7 +76,7 @@ impl HoldSender {
 		match self.sender.try_broadcast(buf) {
 			Err(TrySendError::Inactive(x)) | Err(TrySendError::Full(x)) => {
 				self.held_message = Some(x);
-				Some(PipelineNodeState::Pending)
+				Some(PipelineNodeState::Pending("holdsender: full"))
 			}
 			Err(TrySendError::Closed(_)) => Some(PipelineNodeState::Done),
 			Ok(_) => None,

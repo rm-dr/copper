@@ -71,7 +71,7 @@ impl PipelineNode for ExtractTags {
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
 		if self.data.is_none() {
-			return Ok(PipelineNodeState::Pending);
+			return Ok(PipelineNodeState::Pending("args not ready"));
 		}
 
 		let (data_type, data) = match self.data.as_mut().unwrap() {
@@ -85,7 +85,7 @@ impl PipelineNode for ExtractTags {
 		let (changed, done) = self.buffer.recv_all(data);
 		match (changed, done) {
 			(false, true) => unreachable!(),
-			(false, false) => return Ok(PipelineNodeState::Pending),
+			(false, false) => return Ok(PipelineNodeState::Pending("no new data")),
 			(true, true) | (true, false) => {}
 		}
 
@@ -94,7 +94,7 @@ impl PipelineNode for ExtractTags {
 			MimeType::Flac => {
 				let r = flac_read_tags(&mut self.buffer);
 				if r.is_err() {
-					return Ok(PipelineNodeState::Pending);
+					return Ok(PipelineNodeState::Pending("malformed block"));
 				}
 				r.unwrap()
 			}
@@ -103,7 +103,7 @@ impl PipelineNode for ExtractTags {
 		};
 
 		if tagger.is_none() {
-			return Ok(PipelineNodeState::Pending);
+			return Ok(PipelineNodeState::Pending("no comment block found"));
 		}
 		let tagger = tagger.unwrap();
 

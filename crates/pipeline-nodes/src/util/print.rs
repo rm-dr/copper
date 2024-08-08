@@ -60,7 +60,7 @@ impl PipelineNode for Print {
 		if self.has_received {
 			Ok(PipelineNodeState::Done)
 		} else {
-			Ok(PipelineNodeState::Pending)
+			Ok(PipelineNodeState::Pending("args not ready"))
 		}
 	}
 }
