@@ -3,15 +3,18 @@ use crate::{
 	data::{MetaDbData, MetaDbDataStub},
 	errors::MetaDbError,
 };
-use async_broadcast::RecvError;
+
 use futures::executor::block_on;
 use itertools::Itertools;
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{
 	query::Query, sqlite::SqliteArguments, Connection, Executor, Row, Sqlite, SqliteConnection,
 };
-use std::{io::Write, iter, path::Path};
-use ufo_blobstore::{api::BlobStore, fs::store::FsBlobStore};
+use std::{iter, path::Path};
+use ufo_blobstore::{
+	api::{BlobHandle, BlobStore},
+	fs::store::{FsBlobStore, FsBlobWriter},
+};
 
 pub struct SQLiteMetaDB {
 	/// The "large binary storage" backend
@@ -101,27 +104,23 @@ impl SQLiteMetaDB {
 			MetaDbData::Hash { data, .. } => q.bind(&**data),
 			MetaDbData::Binary { data, .. } => q.bind(&**data),
 			MetaDbData::Reference { item, .. } => q.bind(u32::from(*item)),
-			MetaDbData::Blob { format, data } => {
-				let mut b = blobstore.new_blob(&format);
-
-				loop {
-					match block_on(data.recv()) {
-						Err(RecvError::Closed) => break,
-						Err(_) => panic!(),
-						Ok(x) => {
-							b.write(&x).unwrap();
-						}
-					}
-				}
-
-				let h = blobstore.finish_blob(b).unwrap();
-				q.bind(h.to_db_str())
-			}
+			MetaDbData::Blob { handle } => q.bind(handle.to_db_str()),
 		}
 	}
 }
 
-impl MetaDb for SQLiteMetaDB {
+impl MetaDb<FsBlobStore> for SQLiteMetaDB {
+	fn new_blob(&mut self, mime: &ufo_util::mime::MimeType) -> FsBlobWriter {
+		self.blobstore.new_blob(mime)
+	}
+
+	fn finish_blob(
+		&mut self,
+		blob: <FsBlobStore as BlobStore>::Writer,
+	) -> <FsBlobStore as BlobStore>::Handle {
+		self.blobstore.finish_blob(blob)
+	}
+
 	fn add_attr(
 		&mut self,
 		class: ClassHandle,

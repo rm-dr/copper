@@ -1,5 +1,7 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, hash::Hash};
+use ufo_blobstore::api::BlobStore;
+use ufo_util::mime::MimeType;
 
 use crate::{
 	data::{MetaDbData, MetaDbDataStub},
@@ -88,10 +90,16 @@ impl From<u32> for AttrHandle {
 	}
 }
 
-pub trait MetaDb
+pub trait MetaDb<BlobStoreType: BlobStore>
 where
 	Self: Send,
 {
+	fn new_blob(&mut self, mime: &MimeType) -> <BlobStoreType as BlobStore>::Writer;
+	fn finish_blob(
+		&mut self,
+		blob: <BlobStoreType as BlobStore>::Writer,
+	) -> <BlobStoreType as BlobStore>::Handle;
+
 	fn add_class(&mut self, name: &str) -> Result<ClassHandle, MetaDbError>;
 	fn add_item(
 		&mut self,
