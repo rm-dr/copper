@@ -119,7 +119,7 @@ impl PipelineNodeStub for UFONodeType {
 				UFONodeInstance::Dataset {
 					node_type: self.clone(),
 					name: name.into(),
-					node: StorageOutput::new(class.clone(), attrs),
+					node: StorageOutput::new(class, attrs),
 				}
 			}
 		}

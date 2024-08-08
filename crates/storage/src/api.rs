@@ -11,6 +11,7 @@ pub struct AttributeOptions {
 	pub(crate) not_null: bool,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for AttributeOptions {
 	fn default() -> Self {
 		Self {

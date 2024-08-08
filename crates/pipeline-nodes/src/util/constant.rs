@@ -30,7 +30,7 @@ impl PipelineNode for Constant {
 	where
 		F: Fn(usize, Self::DataType) -> Result<(), PipelineError>,
 	{
-		assert!(input.len() == 0);
+		assert!(input.is_empty());
 		send_data(0, self.value.clone())?;
 		Ok(PipelineNodeState::Done)
 	}

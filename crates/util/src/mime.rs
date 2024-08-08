@@ -64,7 +64,7 @@ impl MimeType {
 			Self::Jpg => "image/jpeg",
 			Self::Flac => "audio/flac",
 			Self::Mp3 => "audio/mp3",
-			Self::Unknown(x) => &x,
+			Self::Unknown(x) => x,
 		}
 	}
 

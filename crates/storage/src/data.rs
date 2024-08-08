@@ -81,9 +81,7 @@ impl PipelineData for StorageData {
 			Self::Float(_) => StorageDataStub::Float,
 			Self::Hash { format, .. } => StorageDataStub::Hash { format: *format },
 			Self::Binary { .. } => StorageDataStub::Binary,
-			Self::Reference { class, .. } => StorageDataStub::Reference {
-				class: class.clone(),
-			},
+			Self::Reference { class, .. } => StorageDataStub::Reference { class: *class },
 		}
 	}
 
@@ -104,9 +102,7 @@ impl StorageData {
 			Self::PositiveInteger(_) => StorageDataStub::PositiveInteger,
 			Self::Float(_) => StorageDataStub::Float,
 			Self::Hash { format, .. } => StorageDataStub::Hash { format: *format },
-			Self::Reference { class, .. } => StorageDataStub::Reference {
-				class: class.clone(),
-			},
+			Self::Reference { class, .. } => StorageDataStub::Reference { class: *class },
 		}
 	}
 
@@ -221,14 +217,9 @@ impl StorageDataStub {
 			return q;
 		}
 
-		if s.starts_with("reference::") {
-			let n: Option<u32> = s[11..].parse().ok();
-			if n.is_none() {
-				return None;
-			}
-			return Some(Self::Reference {
-				class: n.unwrap().into(),
-			});
+		if let Some(c) = s.strip_prefix("reference::") {
+			let n: u32 = c.parse().ok()?;
+			return Some(Self::Reference { class: n.into() });
 		}
 
 		return None;

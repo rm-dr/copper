@@ -156,7 +156,7 @@ impl Dataset for SQLiteDataset {
 				)
 				.bind(u32::from(class))
 				.bind(&column_name)
-				.bind(&attr_name)
+				.bind(attr_name)
 				.bind(data_type.to_db_str())
 				.bind(options.unique)
 				.bind(options.not_null)
@@ -295,7 +295,7 @@ impl Dataset for SQLiteDataset {
 		let table_name = Self::get_table_name(&mut *t, class)?;
 
 		// Add new row with data
-		let res = if attrs.len() == 0 {
+		let res = if attrs.is_empty() {
 			// If we were given no attributes
 			block_on(
 				sqlx::query(&format!("INSERT INTO \"{table_name}\" DEFAULT VALUES;",))

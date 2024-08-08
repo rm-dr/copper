@@ -10,7 +10,7 @@ use super::{
 	spec::PipelineSpec,
 };
 use crate::{
-	api::{PipelineData, PipelineNode, PipelineNodeStub},
+	api::{PipelineNode, PipelineNodeStub},
 	graph::{graph::Graph, util::GraphNodeIdx},
 	labels::{PipelineLabel, PipelineNodeLabel, PipelinePortLabel},
 	pipeline::{Pipeline, PipelineEdge},
@@ -117,7 +117,7 @@ impl<'a, StubType: PipelineNodeStub> PipelineBuilder<'a, StubType> {
 			match &node_spec.node_type {
 				InternalNodeStub::Pipeline { pipeline } => {
 					// If this is a `Pipeline` node, add the pipeline's contents
-					builder.add_pipeline(node_name, pipeline.into())?;
+					builder.add_pipeline(node_name, pipeline)?;
 				}
 
 				_ => {

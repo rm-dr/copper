@@ -1,4 +1,5 @@
 //#![warn(missing_docs)]
+#![allow(clippy::new_without_default)]
 
 use std::sync::{Arc, Mutex};
 use ufo_storage::api::Dataset;
