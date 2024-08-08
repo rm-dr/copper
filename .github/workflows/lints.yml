@@ -54,4 +54,5 @@ jobs:
       - name: Check links
         id: lychee
         uses: lycheeverse/lychee-action@v1
-        args: --config lychee.toml
+        with:
+          args: --config lychee.toml
