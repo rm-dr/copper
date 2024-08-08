@@ -1,4 +1,5 @@
 use api::RouterState;
+use config::UfodConfig;
 use futures::executor::block_on;
 use std::{path::PathBuf, sync::Arc, thread};
 use tokio::sync::Mutex;
@@ -31,7 +32,7 @@ async fn main() {
 	//let mut config_string = String::new();
 	//f.read_to_string(&mut config_string).unwrap();
 	//let config = toml::from_str(&config_string).unwrap();
-	let config = Default::default();
+	let config: UfodConfig = Default::default();
 
 	let database = Arc::new(LocalDataset::open(&PathBuf::from("./db")).unwrap());
 
@@ -50,12 +51,13 @@ async fn main() {
 	);
 
 	// TODO: clone fewer arcs
+	let uploader = Uploader::new(config.upload_dir.clone());
 	let state = RouterState {
 		config: Arc::new(config),
 		runner: Arc::new(Mutex::new(runner)),
 		database: database.clone(),
 		context: Arc::new(ctx),
-		uploader: Arc::new(Uploader::new("./tmp".into())),
+		uploader: Arc::new(uploader),
 	};
 
 	let listener = tokio::net::TcpListener::bind(state.config.server_addr.to_string())
