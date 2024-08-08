@@ -5,76 +5,73 @@ import styles from "./page.module.scss";
 import { useState } from "react";
 
 import Banner from "../../../public/banner.svg";
+import { useForm } from "@mantine/form";
 
 export default function Page() {
-	let [user, setUser] = useState("");
-	let [password, setPassword] = useState("");
-	let [error, setError] = useState<null | string>(null);
 	let [loading, setLoading] = useState(false);
+	let [error, setError] = useState<null | string>(null);
+
+	const form = useForm({
+		mode: "uncontrolled",
+		initialValues: {
+			username: "",
+			password: "",
+		},
+	});
 
 	return (
 		<main className={styles.main}>
-			<div className={styles.login_div}>
-				<Banner />
-				<TextInput
-					onChange={(e) => {
-						setError(null);
-						setUser(e.currentTarget.value);
-					}}
-					error={error !== null}
-					disabled={loading}
-					placeholder="User"
-					style={{ width: "100%" }}
-				/>
-				<PasswordInput
-					onChange={(e) => {
-						setError(null);
-						setPassword(e.currentTarget.value);
-					}}
-					error={error !== null}
-					disabled={loading}
-					placeholder="Password"
-					style={{ width: "100%" }}
-				/>
-				<Button
-					color={error === null ? undefined : "red"}
-					onClick={() => {
-						setLoading(true);
-						fetch("/api/auth/login", {
-							method: "post",
-							headers: {
-								"Content-Type": "application/json",
-							},
-							body: JSON.stringify({
-								username: user,
-								password,
-							}),
-						})
-							.then((res) => {
-								if (res.status === 400) {
-									setLoading(false);
-									setError("Invalid username or password");
-								} else {
-									return res.text().then((text) => {
-										setLoading(false);
-
-										// Middleware will redirect to main page
-										location.reload();
-									});
-								}
-							})
-							.catch((err) => {
+			<form
+				onSubmit={form.onSubmit((values) => {
+					setLoading(true);
+					setError(null);
+					fetch("/api/auth/login", {
+						method: "post",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify(values),
+					})
+						.then((res) => {
+							if (res.status === 400) {
 								setLoading(false);
-								setError(err.text);
-							});
-					}}
-					loading={loading}
-					fullWidth
-				>
-					Sign in
-				</Button>
-				<Text c="red">{error}</Text>
-			</div>
+								setError("Login failed");
+							} else {
+								return res.text().then((text) => {
+									// Middleware will redirect to main page
+									location.reload();
+									//setLoading(false);
+								});
+							}
+						})
+						.catch((err) => {
+							setError(`Login failed: ${err}`);
+							setLoading(false);
+						});
+				})}
+			>
+				<div className={styles.login_div}>
+					<Banner />
+					<TextInput
+						disabled={loading}
+						placeholder="User"
+						style={{ width: "100%" }}
+						key={form.key("username")}
+						{...form.getInputProps("username")}
+					/>
+					<PasswordInput
+						disabled={loading}
+						placeholder="Password"
+						style={{ width: "100%" }}
+						key={form.key("password")}
+						{...form.getInputProps("password")}
+					/>
+					<Button type="submit" loading={loading} fullWidth>
+						Sign in
+					</Button>
+					<Text c="red">{error}</Text>
+				</div>
+			</form>
 		</main>
 	);
 }
