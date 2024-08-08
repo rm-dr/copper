@@ -4,7 +4,7 @@ import Link from "next/link";
 import React, { useState } from "react";
 
 import styles from "./sidebar.module.scss";
-import { XIconCpu, XIconDatabaseCog, XIconList, XIconUpload } from "../icons";
+import { XIconCpu, XIconDatabaseCog, XIconUpload } from "../icons";
 import { useDisclosure } from "@mantine/hooks";
 import { Burger, Tooltip } from "@mantine/core";
 import clsx from "clsx";

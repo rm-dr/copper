@@ -1,0 +1,9 @@
+#panel_id_list {
+	grid-row: 1 / 2;
+	grid-column: 1 / 2;
+
+	.dataset_list {
+		height: 30rem;
+		overflow-y: scroll;
+	}
+}
