@@ -68,7 +68,6 @@ export function TreePanel(params: {}) {
 
 	const { node: DatasetTree, data: treeData, setTreeData } = useTree({});
 
-	// TODO: move to function
 	const update_tree = useCallback(() => {
 		setTreeState((td) => {
 			return {

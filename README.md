@@ -26,16 +26,12 @@ later (part of writing a better scheduler).
 The list below is a minimal issue tracker.
 
 Projects marked with a 📦 are prerequisites for `v0.1.0` release.
-The goal is a *minimal* working version: robust, usable, but possibly slow and missing fancy features.
+The goal is a minimal working version: robust and usable, but possibly slow and missing fancy features.
 
 ## 📦 Fixes
 - [ ] Server deadlocks with two parallel clients
 - [ ] Show item idx in list
-- [ ] Remove allow dead code
 - [ ] Script to run actions manually
-
-## 📦 API endpoints
-- [ ] Change self password
 
 ## 📦 View items
 - [ ] Manage ui items
@@ -60,42 +56,41 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## 📦 Pipeline ui
 - Redo input ui for new input arch
 - Pipeline editor
-- Node docs
+- Node docs (inside ui)
 
 ## 📦 UI Cleanup
 - [ ] show errors in ui when fetch fails (upload)
 - [ ] tab all interactables
-- [ ] Prettier errors from server
 - [ ] Fade bottom of all scrolls (component? overscroll?)
-- [ ] Loading state for modals
-- Top bar shadow
-- [ ] Icons in attr & dataset dropdown (component)
-- [ ] Show menu on right-click in trees
-- [ ] Infinite scroll when item table doesn't fill view
 - [ ] Image preview on hover in table
 - [ ] Image placeholder while loading
-- Rename (and redesign) `upload` page
-- Better dataset tree (open/close spacing, background, etc)
 - Show running pipeline node count & progress
-- Use JS maps instead of objects
-- Fix sidebar shadow
-- Do not open sidebar
+
+## 📦 Upload page
+- Rename (and redesign) `upload` page
+  - Panel for every input?
 
 ## 📦 Edit items
 - [ ] Edit items even if they differ
 - [ ] Show "changed" indicator
 - [ ] "Commit" button
 - [ ] Edit panel items
-- [ ] Reorder attributes (ui + logic)
-- [ ] Fix attribute index on delete
 
 ## 📦 Daemon cleanup
 - [ ] remove panics/unwraps
 - [ ] Minor TODOs in code (search all files)
-- [ ] enforce nonempty set, attr, class names
 - [ ] Error if full db path doesn't exist (no panic)
 - [ ] What if we panic when an unfinished blob is dropped? (log)
 - [ ] stream big files in `/items/attr`
+- [ ] Remove allow dead code (after implementing features)
+
+## 📦 User settings
+- [ ] Change self password
+- [ ] Email (send notifications)
+- [ ] Set primary color
+- [ ] Settings page
+- [ ] Disable no-permission buttons in group tree
+- [ ] Disable edit self in group tree
 
 ## 📦 Distribution
 - [ ] Docker file & compose
@@ -135,11 +130,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Generic datasets, other dataset types
 - [ ] Remove petgraph (write cycle detection algo)
 
-## More async
-- [ ] asyncify blobstore
-- [ ] asyncify pipestore
-- [ ] should pipelinenodetype methods be async?
-
 ## Security
 - [ ] Rate-limit api
 - [ ] Log request ips
@@ -174,11 +164,10 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - [ ] filter and sort jobs
 - [ ] Cancel pending and running jobs
 
-## Queue jobs (TrueNAS-style)
+## Queue tasks (TrueNAS-style)
 - dataset deletion could take a while
 - attr deletion could take a while
 - Keep a background task queue for long-running jobs so ui doesn't hang.
-
 
 ## Arrays in pipelines
 - Some nodes could return multiple elements (music with many covers). How should we handle this?
@@ -210,9 +199,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
   - now what?
 - Stop producing binary if next node is done
 
-## Better logging
-- Different events to different files?
-
 ## More nodes:
 - [ ] node tests
 - [ ] hash additional types
@@ -237,16 +223,23 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Time
 
 ## Ui Polish v2
-- [ ] Better errors in modals
+- [ ] Better errors in modals (format on server)
 - [ ] Better `ApiSelector` loading state
 - [ ] Status update shouldn't trigger `ApiSelector` update in upload page
-- [ ] Reorder attributes & classes
-- [ ] Close dataset menu when dropdown closed
+- [ ] Reorder attributes
+  - fix index on delete
+  - classes always alphabetical
 - [ ] Preview panel data on hover
 - [ ] Better audio player (center, fill, waveform)
 - [ ] More panel types: video, pdf
 - [ ] Go to item in reference panel (how?)
 - [ ] Reference panel backlinks
+- [ ] Icons in attr & dataset dropdown
+- [ ] Infinite scroll when item table doesn't fill view
+  - just use a big enough page size?
+- [ ] Show menu on right-click in trees
+
+
 
 ---------------------------------------------------------------------
 
