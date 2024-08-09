@@ -33,6 +33,8 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Show item idx in list
 - [ ] Remove allow dead code
 - [ ] Script to run actions manually
+- [ ] Font
+
 
 ## 📦 API endpoints
 - [ ] Change self password
@@ -45,17 +47,17 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## 📦 Database migrations
 - old dbs should not be destroyed
 
+## 📦 Better uploads
+- [ ] Upload in parallel
+- [ ] Warn when closing window if uploading
+- [ ] View and edit queue (?)
+
 ## 📦 Audiofile library
 - [ ] Tests
   - [ ] Many metadata blocks
   - [ ] Many streaminfo blocks
 - [ ] IDv3 complete implementation
 - [ ] Early exit if we don't need audio data
-
-## 📦 Better uploads
-- [ ] Upload in parallel
-- [ ] Warn when closing window if uploading
-- [ ] View and edit queue (?)
 
 ## 📦 Pipeline ui
 - Redo input ui for new input arch
@@ -65,17 +67,15 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 ## 📦 UI Cleanup
 - [ ] show errors in ui when fetch fails (upload)
 - [ ] tab all interactables
-- [ ] Font
-- [ ] Panel width. Center, or change page background?
 - [ ] Prettier errors from server
 - [ ] Fade bottom of all scrolls (component? overscroll?)
 - [ ] Loading state for modals
-- [ ] Modal builder
-- [ ] Sidebar & top bar shadow
+- Top bar shadow
 - [ ] Icons in attr & dataset dropdown (component)
 - [ ] Show menu on right-click in trees
 - [ ] Infinite scroll when item table doesn't fill view
-- [ ] Image preview
+- [ ] Image preview on hover in table
+- [ ] Image placeholder while loading
 - Rename `upload` page
 - Find all console.log
 - Better dataset tree (open/close spacing, background, etc)
