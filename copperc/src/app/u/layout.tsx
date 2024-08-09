@@ -9,10 +9,16 @@ export default function Layout({
 }>) {
 	return (
 		<>
-			<div className={styles.navbarContainer}>
+			<div
+				className={styles.navbarContainer}
+				style={{
+					zIndex: 50,
+					position: "relative",
+				}}
+			>
 				<NavBar />
 			</div>
-			<div className={styles.lowercontent}>
+			<div className={styles.lowercontent} style={{ zIndex: 20 }}>
 				<div className={styles.sidebarContainer}>
 					<SideBar />
 				</div>
