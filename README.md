@@ -35,7 +35,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Script to run actions manually
 
 ## 📦 API endpoints
-- [ ] Change user password
 - [ ] Change self password
 
 ## 📦 View items
@@ -75,9 +74,15 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Sidebar & top bar shadow
 - [ ] Icons in attr & dataset dropdown (component)
 - [ ] Show menu on right-click in trees
-- [ ] Always sort classes alphabetically
 - [ ] Infinite scroll when item table doesn't fill view
 - [ ] Image preview
+- Rename `upload` page
+- Find all console.log
+- Better dataset tree (open/close spacing, background, etc)
+- Show running pipeline node count & progress
+- Use JS maps instead of objects
+- Fix sidebar shadow
+- Do not open sidebar
 
 ## 📦 Edit items
 - [ ] Edit items even if they differ
@@ -95,24 +100,10 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] What if we panic when an unfinished blob is dropped? (log)
 - [ ] stream big files in `/items/attr`
 
-## 📦 UI Cleanup
-- Rename `upload` page
-- Find all console.log
-- Better dataset tree (open/close spacing, background, etc)
-- Show running pipeline node count & progress
-- Use JS maps instead of objects
-- Fix all type definitions
-  - Replace `any`
-  - Generate api?
-- Fix sidebar shadow
-- Do not open sidebar
-- Navbar shadow
-
 ## 📦 Distribution
 - [ ] Docker file & compose
 - [ ] `crates.io`
 - [ ] CI:
-  - [ ] lychee
   - [ ] cargo build
   - [ ] docker build
 - [ ] Git config, rules (docs), and rebase
