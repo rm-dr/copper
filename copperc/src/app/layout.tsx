@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.scss";
-import { GeistSans } from "geist/font/sans";
-//import { GeistMono } from "geist/font/mono";
 
 // Mantine setup
 import Provider from "./provider";
@@ -22,7 +20,7 @@ export default function RootLayout({
 			<head>
 				<ColorSchemeScript />
 			</head>
-			<body className={GeistSans.className}>
+			<body>
 				<Provider>{children}</Provider>
 			</body>
 		</html>

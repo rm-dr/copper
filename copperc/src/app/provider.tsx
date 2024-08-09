@@ -2,9 +2,12 @@
 
 import "@mantine/core/styles.css";
 import { MantineProvider, createTheme } from "@mantine/core";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 
 const theme = createTheme({
-	fontFamily: "Open Sans, sans-serif",
+	fontFamily: GeistSans.style.fontFamily,
+	fontFamilyMonospace: GeistMono.style.fontFamily,
 	primaryColor: "blue",
 });
 

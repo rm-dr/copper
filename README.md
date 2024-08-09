@@ -33,8 +33,6 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Show item idx in list
 - [ ] Remove allow dead code
 - [ ] Script to run actions manually
-- [ ] Font
-
 
 ## 📦 API endpoints
 - [ ] Change self password
