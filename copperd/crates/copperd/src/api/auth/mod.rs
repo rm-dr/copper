@@ -7,7 +7,6 @@ use utoipa::OpenApi;
 
 mod addgroup;
 mod adduser;
-mod setpassword;
 mod delgroup;
 mod deluser;
 mod listgroup;
@@ -16,10 +15,10 @@ mod logout;
 mod me;
 mod renamegroup;
 mod renameuser;
+mod setpassword;
 
 use addgroup::*;
 use adduser::*;
-use setpassword::*;
 use delgroup::*;
 use deluser::*;
 use listgroup::*;
@@ -28,6 +27,7 @@ use logout::*;
 use me::*;
 use renamegroup::*;
 use renameuser::*;
+use setpassword::*;
 
 #[derive(OpenApi)]
 #[openapi(
