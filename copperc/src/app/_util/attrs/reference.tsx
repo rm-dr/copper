@@ -87,12 +87,6 @@ function RefPanelPreview(params: {
 			return;
 		}
 
-		console.log({
-			dataset: params.dataset,
-			class: params.attr_value.class,
-			item: params.attr_value.item,
-		});
-
 		Promise.all([
 			APIclient.GET("/item/get", {
 				params: {
@@ -396,12 +390,6 @@ function RefPanel(params: {
 		) {
 			return;
 		}
-
-		console.log({
-			dataset: params.dataset,
-			class: params.attr_value.class,
-			item: params.attr_value.item,
-		});
 
 		Promise.all([
 			APIclient.GET("/item/get", {

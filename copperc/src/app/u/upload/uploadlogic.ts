@@ -301,7 +301,8 @@ export function startUploadingFiles(params: {
 		})
 		// Other errors
 		.catch((err) => {
-			console.log(err);
+			// TODO: show error in ui
+			console.error(err);
 		});
 
 	return [upload_ac, promise];

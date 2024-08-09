@@ -18,15 +18,15 @@ export type ItemData = {
 export type selectedClass =
 	| { dataset: null; class_idx: null; attrs: null }
 	| {
-			dataset: string;
-			class_idx: null;
-			attrs: null;
-	  }
+		dataset: string;
+		class_idx: null;
+		attrs: null;
+	}
 	| {
-			dataset: string;
-			class_idx: number;
-			attrs: components["schemas"]["AttrInfo"][];
-	  };
+		dataset: string;
+		class_idx: number;
+		attrs: components["schemas"]["AttrInfo"][];
+	};
 
 export default function Page() {
 	const [selectedClass, setSelectedClass] = useState<selectedClass>({
@@ -44,7 +44,6 @@ export default function Page() {
 
 	const load_items = useCallback(
 		(maxPage: number, sel: Omit<selectedClass, "attrs">) => {
-			console.log("load", maxPage, sel);
 			if (sel.dataset === null || sel.class_idx === null) {
 				return { data: [], attrs: [] };
 			}
@@ -93,9 +92,9 @@ export default function Page() {
 						class={(
 							v:
 								| {
-										dataset: string;
-										class_idx: number | null;
-								  }
+									dataset: string;
+									class_idx: number | null;
+								}
 								| { dataset: null; class_idx: null },
 						) => {
 							if (v.class_idx !== null) {

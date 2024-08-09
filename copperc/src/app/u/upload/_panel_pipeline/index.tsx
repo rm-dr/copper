@@ -34,11 +34,11 @@ export function usePipelinePanel(params: {
 					icon={<XIcon icon={IconAdjustments} />}
 					title={"Configure arguments"}
 				/>
-				<PanelSwitch name={"Save album art?"} onChange={console.log} />
+				<PanelSwitch name={"Save album art?"} onChange={() => console.log("TODO")} />
 				<PanelText
 					name={"Genre"}
 					placeholder={"Genre..."}
-					onChange={console.log}
+					onChange={() => console.log("TODO")}
 				/>
 			</Panel>
 		</>

@@ -74,8 +74,7 @@ The goal is a *minimal* working version: robust, usable, but possibly slow and m
 - [ ] Infinite scroll when item table doesn't fill view
 - [ ] Image preview on hover in table
 - [ ] Image placeholder while loading
-- Rename `upload` page
-- Find all console.log
+- Rename (and redesign) `upload` page
 - Better dataset tree (open/close spacing, background, etc)
 - Show running pipeline node count & progress
 - Use JS maps instead of objects

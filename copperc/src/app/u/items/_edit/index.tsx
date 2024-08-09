@@ -201,7 +201,7 @@ function EditRow(params: {
 				dataset: params.dataset,
 				item_idx: params.item.idx,
 				attr_value: params.value_new,
-				onChange: console.log,
+				onChange: () => console.log("TODO"),
 			})
 		) : null;
 
