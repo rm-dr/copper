@@ -259,6 +259,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/auth/user/set_password": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Create a new user */
+		post: operations["set_user_password"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/class/add": {
 		parameters: {
 			query?: never;
@@ -648,7 +665,7 @@ export interface components {
 		};
 		AddJobParams: components["schemas"]["PipelineSelect"] & {
 			input: {
-				[key: string]: components["schemas"]["AddJobInput"] | undefined;
+				[key: string]: components["schemas"]["AddJobInput"];
 			};
 		};
 		AddgroupRequest: {
@@ -932,7 +949,7 @@ export interface components {
 			  };
 		ItemListItem: {
 			attrs: {
-				[key: string]: components["schemas"]["ItemListData"] | undefined;
+				[key: string]: components["schemas"]["ItemListData"];
 			};
 			/** Format: int32 */
 			idx: number;
@@ -1038,7 +1055,7 @@ export interface components {
 			has_error: boolean;
 			/** @description The input this pipeline takes */
 			inputs: {
-				[key: string]: components["schemas"]["CopperDataStub"] | undefined;
+				[key: string]: components["schemas"]["CopperDataStub"];
 			};
 			/** @description This pipeline's name */
 			name: string;
@@ -1132,6 +1149,14 @@ export interface components {
 			 * @example 0.1.0
 			 */
 			version: string;
+		};
+		SetPasswordRequest: {
+			/** @description The setting user's password.
+			 *     we re-authenticate here, just in case. */
+			my_password: string;
+			/** @description The new password to set */
+			new_password: string;
+			user: components["schemas"]["UserId"];
 		};
 		/** @description Parameters to finish an uploading file */
 		UploadFinish: {
@@ -1845,6 +1870,51 @@ export interface operations {
 				content?: never;
 			};
 			/** @description Could not rename user */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+		};
+	};
+	set_user_password: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["SetPasswordRequest"];
+			};
+		};
+		responses: {
+			/** @description Successfully set user password */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Could not change password */
 			400: {
 				headers: {
 					[name: string]: unknown;

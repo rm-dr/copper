@@ -190,44 +190,31 @@ impl AuthProvider {
 			password = password,
 		);
 
-		let mut conn = self.pool.acquire().await?;
-		let (user_id, pw_hash): (UserId, String) = {
-			let res = sqlx::query("SELECT id, pw_hash FROM users WHERE user_name=?;")
-				.bind(user_name)
-				.fetch_one(&mut *conn)
-				.await;
+		let res = self.test_password(user_name, password).await;
+		let user_id = match res {
+			Ok(x) => x,
+			Err(sqlx::Error::RowNotFound) => {
+				info!(
+					message = "Login failed: user not found",
+					user = user_name,
+					password = password,
+				);
 
-			match res {
-				Err(sqlx::Error::RowNotFound) => {
-					info!(
-						message = "Login failed: user not found",
-						user = user_name,
-						password = password,
-					);
+				return Ok(None);
+			}
+			Err(e) => {
+				error!(
+					message = "Login failed: error",
+					user = user_name,
+					password = password,
+					error = ?e,
+				);
 
-					return Ok(None);
-				}
-				Err(e) => {
-					error!(
-						message = "Login failed: error",
-						user = user_name,
-						password = password,
-						error = ?e,
-					);
-
-					return Err(e);
-				}
-				Ok(res) => (
-					res.get::<u32, _>("id").into(),
-					res.get::<String, _>("pw_hash"),
-				),
+				return Err(e);
 			}
 		};
 
-		let parsed_hash = PasswordHash::new(&pw_hash).unwrap();
-		let verify = Argon2::default().verify_password(password.as_bytes(), &parsed_hash);
-
-		if verify.is_ok() {
+		if let Some(user_id) = user_id {
 			let t = self.generate_token(user_id).await;
 			self.active_tokens.lock().await.push(t.clone());
 
@@ -239,14 +226,38 @@ impl AuthProvider {
 			);
 
 			return Ok(Some(t));
+		} else {
+			info!(
+				message = "Login failed: did not pass verification",
+				user = user_name,
+				password = password,
+			);
+			return Ok(None);
 		}
+	}
 
-		info!(
-			message = "Login failed: did not pass verification",
-			user = user_name,
-			password = password,
-		);
-		return Ok(None);
+	pub async fn test_password(
+		&self,
+		user_name: &str,
+		password: &str,
+	) -> Result<Option<UserId>, sqlx::Error> {
+		let mut conn = self.pool.acquire().await?;
+		let (user_id, pw_hash): (UserId, String) = {
+			let res = sqlx::query("SELECT id, pw_hash FROM users WHERE user_name=?;")
+				.bind(user_name)
+				.fetch_one(&mut *conn)
+				.await?;
+
+			(
+				res.get::<u32, _>("id").into(),
+				res.get::<String, _>("pw_hash"),
+			)
+		};
+
+		let parsed_hash = PasswordHash::new(&pw_hash).unwrap();
+		let verify = Argon2::default().verify_password(password.as_bytes(), &parsed_hash);
+
+		return Ok(verify.is_ok().then_some(user_id));
 	}
 
 	pub async fn new_group(&self, name: &str, parent: GroupId) -> Result<(), CreateGroupError> {
@@ -422,6 +433,32 @@ impl AuthProvider {
 				return Err(CreateUserError::DbError(Box::new(e)));
 			}
 		}
+	}
+
+	pub async fn set_user_password(
+		&self,
+		user: UserId,
+		password: &str,
+	) -> Result<(), CreateUserError> {
+		info!(message = "Changing user password", ?user);
+
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| CreateUserError::DbError(Box::new(e)))?;
+
+		let pw_hash = Self::hash_password(password);
+
+		sqlx::query("UPDATE users SET pw_hash=? WHERE id=?;")
+			.bind(&pw_hash)
+			.bind(u32::from(user))
+			.bind(serde_json::to_string(&SerializedGroupPermissions::default()).unwrap())
+			.execute(&mut *conn)
+			.await
+			.map_err(|e| CreateUserError::DbError(Box::new(e)))?;
+
+		return Ok(());
 	}
 
 	pub async fn rename_user(&self, user: UserId, name: &str) -> Result<(), CreateUserError> {

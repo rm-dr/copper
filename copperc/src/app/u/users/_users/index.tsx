@@ -21,6 +21,7 @@ import {
 } from "@tabler/icons-react";
 import { components } from "@/app/_util/api/openapi";
 import { useRenameUserModal } from "../_modals/renameuser";
+import { useSetPasswordModal } from "../_modals/setpassword";
 
 const Wrapper = (params: { children: ReactNode }) => {
 	return (
@@ -214,10 +215,17 @@ function UserMenu(params: {
 		onChange: params.onChange,
 	});
 
+	const { open: openSetPasswordModal, modal: setPasswordModal } =
+		useSetPasswordModal({
+			user: params.user,
+			onChange: params.onChange,
+		});
+
 	return (
 		<>
 			{deleteModal}
 			{renameModal}
+			{setPasswordModal}
 			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
@@ -245,6 +253,7 @@ function UserMenu(params: {
 								style={{ width: rem(14), height: rem(14) }}
 							/>
 						}
+						onClick={openSetPasswordModal}
 					>
 						Change password
 					</Menu.Item>

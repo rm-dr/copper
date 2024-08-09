@@ -7,6 +7,7 @@ use utoipa::OpenApi;
 
 mod addgroup;
 mod adduser;
+mod setpassword;
 mod delgroup;
 mod deluser;
 mod listgroup;
@@ -18,6 +19,7 @@ mod renameuser;
 
 use addgroup::*;
 use adduser::*;
+use setpassword::*;
 use delgroup::*;
 use deluser::*;
 use listgroup::*;
@@ -40,7 +42,8 @@ use renameuser::*;
 		list_group,
 		get_me,
 		rename_user,
-		rename_group
+		rename_group,
+		set_user_password
 	),
 	components(schemas(
 		LoginRequest,
@@ -50,7 +53,8 @@ use renameuser::*;
 		DelgroupRequest,
 		ListgroupInfo,
 		RenameGroupRequest,
-		RenameUserRequest
+		RenameUserRequest,
+		SetPasswordRequest
 	))
 )]
 pub(super) struct AuthApi;
@@ -63,6 +67,7 @@ pub(super) fn router() -> Router<RouterState> {
 		.route("/user/add", post(add_user))
 		.route("/user/del", delete(del_user))
 		.route("/user/rename", post(rename_user))
+		.route("/user/set_password", post(set_user_password))
 		.route("/group/rename", post(rename_group))
 		.route("/group/add", post(add_group))
 		.route("/group/del", delete(del_group))

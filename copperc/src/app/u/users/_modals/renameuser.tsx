@@ -51,7 +51,7 @@ export function useRenameUserModal(params: {
 			<ModalBase
 				opened={opened}
 				close={reset}
-				title="Rename attribute"
+				title="Rename user"
 				keepOpen={isLoading}
 			>
 				<div
