@@ -8,11 +8,9 @@
 	justify-content: space-between;
 	background-color: var(--mantine-color-dark-8);
 
-	border-color: color-mix(
-		in srgb,
-		var(--mantine-primary-color-9),
-		var(--mantine-color-dark-9) 30%
-	);
+	border-color: color-mix(in srgb,
+			var(--mantine-primary-color-9),
+			var(--mantine-color-dark-9) 30%);
 	border-style: solid;
 	border-width: 0px 0px 4px 0px;
 }
@@ -33,4 +31,15 @@
 .usermenu {
 	padding: 1rem;
 	cursor: pointer;
+}
+
+.usercontainer {
+	display: flex;
+	flex-direction: row;
+	gap: 0.5rem;
+	transition: 150ms;
+
+	&:hover {
+		color: var(--mantine-primary-color-2)
+	}
 }

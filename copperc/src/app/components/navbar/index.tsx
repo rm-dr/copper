@@ -10,6 +10,8 @@ import {
 	IconLogout,
 	IconSettings,
 	IconUser,
+	IconUserCancel,
+	IconUserCircle,
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { APIclient } from "@/app/_util/api";
@@ -45,9 +47,15 @@ const Navbar = () => {
 						{typeof userInfo === "string" ? (
 							<Text c="red">{userInfo}</Text>
 						) : userInfo === null ? (
-							<Text c="dimmed">Loading...</Text>
+							<div className={styles.usercontainer}>
+								<XIcon icon={IconUserCircle} />
+								<Text c="dimmed">Loading...</Text>
+							</div>
 						) : (
-							<Text>{userInfo.name}</Text>
+							<div className={styles.usercontainer}>
+								<XIcon icon={IconUserCircle} />
+								<Text>{userInfo.name}</Text>
+							</div>
 						)}
 					</Menu.Target>
 
