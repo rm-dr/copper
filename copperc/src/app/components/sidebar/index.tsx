@@ -17,8 +17,6 @@ import {
 import { XIcon } from "../icons";
 
 const SideBar = () => {
-	const [opened, { toggle }] = useDisclosure();
-	const [menuHover, setMenuHover] = useState(false);
 	const currentRoute = usePathname();
 
 	const links = [
@@ -45,36 +43,7 @@ const SideBar = () => {
 	];
 
 	return (
-		<div
-			className={
-				opened ? `${styles.sidebar}` : `${styles.sidebar} ${styles.sidebarhide}`
-			}
-		>
-			<div
-				className={styles.menubutton}
-				onMouseDown={(e) => {
-					if (e.button === 0) {
-						toggle();
-					}
-				}}
-				onMouseEnter={() => {
-					setMenuHover(true);
-				}}
-				onMouseLeave={() => {
-					setMenuHover(false);
-				}}
-			>
-				<div className={styles.menuicon}>
-					{/* Sizing here is broken, fix! */}
-					<Burger
-						opened={opened}
-						//color={menuHover ? "var(--mantine-color-red-5)" : "white"}
-					/>
-				</div>
-			</div>
-
-			<hr className={styles.break}></hr>
-
+		<div className={styles.sidebar}>
 			{links.map(({ name, icon, link }, idx) => {
 				return (
 					<Tooltip
@@ -83,7 +52,6 @@ const SideBar = () => {
 						position="right"
 						offset={10}
 						color="gray"
-						disabled={opened}
 					>
 						<Link href={link}>
 							<div
@@ -93,14 +61,6 @@ const SideBar = () => {
 								)}
 							>
 								<div className={styles.itemicon}>{icon}</div>
-								<div
-									className={clsx(
-										styles.itemtext,
-										!opened && styles.itemtexthide,
-									)}
-								>
-									{name}
-								</div>
 							</div>
 						</Link>
 					</Tooltip>
