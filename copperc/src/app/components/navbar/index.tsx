@@ -8,14 +8,13 @@ import { XIcon } from "../icons";
 import {
 	IconBook2,
 	IconLogout,
-	IconSettings,
 	IconUser,
-	IconUserCancel,
 	IconUserCircle,
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { APIclient } from "@/app/_util/api";
 import { components } from "@/app/_util/api/openapi";
+import Link from "next/link";
 
 const Navbar = () => {
 	const [userInfo, setUserInfo] = useState<
@@ -61,6 +60,8 @@ const Navbar = () => {
 
 					<Menu.Dropdown>
 						<Menu.Item
+							component={Link}
+							href={"/u/profile"}
 							leftSection={
 								<XIcon
 									icon={IconUser}
@@ -69,16 +70,6 @@ const Navbar = () => {
 							}
 						>
 							Profile
-						</Menu.Item>
-						<Menu.Item
-							leftSection={
-								<XIcon
-									icon={IconSettings}
-									style={{ width: rem(16), height: rem(16) }}
-								/>
-							}
-						>
-							Settings
 						</Menu.Item>
 						<Menu.Item
 							leftSection={
