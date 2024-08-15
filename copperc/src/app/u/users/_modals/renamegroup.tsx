@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ModalBase } from "@/app/components/modal_base";
 import { useForm } from "@mantine/form";
 import { XIcon } from "@/app/components/icons";
-import { IconTrash } from "@tabler/icons-react";
+import { IconPencil } from "@tabler/icons-react";
 import { APIclient } from "@/app/_util/api";
 import { components } from "@/app/_util/api/openapi";
 
@@ -122,7 +122,7 @@ export function useRenameGroupModal(params: {
 							variant="filled"
 							color="green"
 							fullWidth
-							leftSection={<XIcon icon={IconTrash} />}
+							leftSection={<XIcon icon={IconPencil} />}
 							type="submit"
 							loading={isLoading}
 						>
