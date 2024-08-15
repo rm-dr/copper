@@ -78,7 +78,6 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] remove panics/unwraps
 - [ ] Minor TODOs in code (search all files)
 - [ ] Error if full db path doesn't exist (no panic)
-- [ ] What if we panic when an unfinished blob is dropped? (log)
 - [ ] stream big files in `/items/attr`
 - [ ] Remove allow dead code (after implementing features)
 
@@ -97,22 +96,21 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
   - [ ] cargo build
   - [ ] docker build
 - [ ] Git config, rules (docs), and rebase
-- [ ] MD docs for devs?
-  - [ ] When should nodes panic?
-
-## 📦 Branding
-- [ ] Better name
-- [ ] Better logo
-- [ ] Website (main page & user docs)
+- [ ] MD docs for devs
 
 ## 📦 Dev docs
 - [ ] How to make nodes (cmd api & rust api)
-  - never panic
+  - [ ] When should nodes panic?
 - [ ] glossary of terms
 - [ ] Finalize node api (traits, cmd later)
 - Notes
   - Pipeline = one-off job. No streams!
   - Nodes take input even when not ready
+
+## 📦 Branding
+- [ ] Better name
+- [ ] Better logo
+- [ ] Website (main page & user docs)
 
 ## 📦 Inline documentation
 - UI should be usable without a manual (info hovers)
