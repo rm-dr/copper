@@ -41,11 +41,6 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 ## 📦 Database migrations
 - old dbs should not be destroyed
 
-## 📦 Better uploads
-- [ ] Upload in parallel
-- [ ] Warn when closing window if uploading
-- [ ] View and edit queue (?)
-
 ## 📦 Audiofile library
 - [ ] Tests
   - [ ] Many metadata blocks
@@ -69,6 +64,9 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 ## 📦 Upload page
 - Rename (and redesign) `upload` page
   - Panel for every input?
+- [ ] Upload in parallel
+- [ ] Warn when closing window if uploading
+- [ ] View and edit queue (?)
 
 ## 📦 Edit items
 - [ ] Edit items even if they differ

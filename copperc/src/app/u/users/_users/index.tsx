@@ -2,7 +2,7 @@ import styles from "./users.module.scss";
 import { Panel, PanelTitle } from "@/app/components/panel";
 import { ActionIcon, Button, Menu, Text, rem } from "@mantine/core";
 import { TreeNode } from "@/app/components/tree";
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { useAddUserModal } from "../_modals/adduser";
 import { useDeleteUserModal } from "../_modals/deluser";
 import { XIcon } from "@/app/components/icons";
@@ -226,7 +226,13 @@ function UserMenu(params: {
 			{deleteModal}
 			{renameModal}
 			{setPasswordModal}
-			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
+			<Menu
+				shadow="md"
+				position="right-start"
+				withArrow
+				arrowPosition="center"
+				trigger="click-hover"
+			>
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
 						<XIcon icon={IconDots} style={{ width: "70%", height: "70%" }} />

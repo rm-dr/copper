@@ -42,7 +42,7 @@ const Navbar = () => {
 			</div>
 
 			<div className={styles.usermenu}>
-				<Menu shadow="md">
+				<Menu trigger="click-hover" shadow="md">
 					<Menu.Target>
 						{typeof userInfo === "string" ? (
 							<Text c="red">{userInfo}</Text>

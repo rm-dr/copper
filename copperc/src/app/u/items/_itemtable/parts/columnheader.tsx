@@ -76,6 +76,7 @@ function ColumnMenu(params: {
 		<>
 			<Menu
 				shadow="md"
+				trigger="click-hover"
 				position="right-start"
 				withArrow
 				arrowPosition="center"

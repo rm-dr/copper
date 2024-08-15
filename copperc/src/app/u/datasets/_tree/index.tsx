@@ -299,7 +299,13 @@ function DatasetMenu(params: { dataset_name: string; onSuccess: () => void }) {
 			{modalDelete}
 			{modalAddClass}
 			{modalRename}
-			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
+			<Menu
+				trigger="click-hover"
+				shadow="md"
+				position="right-start"
+				withArrow
+				arrowPosition="center"
+			>
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
 						<XIcon icon={IconDots} style={{ width: "70%", height: "70%" }} />
@@ -379,7 +385,13 @@ function ClassMenu(params: {
 			{modalDelete}
 			{modalRename}
 			{modalAddAttr}
-			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
+			<Menu
+				trigger="click-hover"
+				shadow="md"
+				position="right-start"
+				withArrow
+				arrowPosition="center"
+			>
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
 						<XIcon icon={IconDots} style={{ width: "70%", height: "70%" }} />
@@ -454,7 +466,13 @@ function AttrMenu(params: {
 		<>
 			{modalRename}
 			{modalDelete}
-			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
+			<Menu
+				trigger="click-hover"
+				shadow="md"
+				position="right-start"
+				withArrow
+				arrowPosition="center"
+			>
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
 						<XIcon icon={IconDots} style={{ width: "70%", height: "70%" }} />

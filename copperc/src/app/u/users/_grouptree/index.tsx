@@ -221,7 +221,13 @@ function GroupMenu(params: {
 			{addGroupModal}
 			{delGroupModal}
 			{renameModal}
-			<Menu shadow="md" position="right-start" withArrow arrowPosition="center">
+			<Menu
+				trigger="click-hover"
+				shadow="md"
+				position="right-start"
+				withArrow
+				arrowPosition="center"
+			>
 				<Menu.Target>
 					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
 						<XIcon icon={IconDots} style={{ width: "70%", height: "70%" }} />
