@@ -169,23 +169,25 @@ impl<'a> Migrator<'a> {
 			if mig.applied {
 				debug!(
 					message = "Skipping migration, already applied",
-					database = self.name_of_db,
-					migration = mig.migration.name()
+					migration = mig.migration.name(),
+					database = self.name_of_db
 				);
+
+				if entered_new_migrations {
+					return Err(MigrationError::BadExistingMigrations);
+				}
 
 				continue;
 			}
 
-			if entered_new_migrations {
-				return Err(MigrationError::BadExistingMigrations);
-			} else {
+			if !entered_new_migrations {
 				entered_new_migrations = true;
 			}
 
 			info!(
 				message = "Applying migration",
-				database = self.name_of_db,
-				migration = mig.migration.name()
+				migration = mig.migration.name(),
+				database = self.name_of_db
 			);
 
 			mig.migration.up(&mut self.conn).await?;
