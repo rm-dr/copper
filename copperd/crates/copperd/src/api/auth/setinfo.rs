@@ -39,7 +39,7 @@ impl EmailAction {
 		match self {
 			Self::Unchanged => panic!(),
 			Self::Clear => None,
-			Self::Set { value } => Some(&value),
+			Self::Set { value } => Some(value),
 		}
 	}
 }

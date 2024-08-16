@@ -85,7 +85,7 @@ pub(super) async fn add_user(
 		.auth
 		.new_user(
 			&payload.username,
-			payload.email.as_ref().map(|x| x.as_str()),
+			payload.email.as_deref(),
 			&payload.password,
 			payload.group,
 		)

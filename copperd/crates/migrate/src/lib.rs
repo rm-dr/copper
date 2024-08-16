@@ -151,7 +151,7 @@ impl<'a> Migrator<'a> {
 		}
 
 		// If this is not zero, there is an applied migration we did not expect.
-		if ap_migs.len() != 0 {
+		if !ap_migs.is_empty() {
 			return Err(MigrationError::BadExistingMigrations);
 		}
 
@@ -190,7 +190,7 @@ impl<'a> Migrator<'a> {
 				database = self.name_of_db
 			);
 
-			mig.migration.up(&mut self.conn).await?;
+			mig.migration.up(self.conn).await?;
 			mig.applied = true;
 
 			sqlx::query("INSERT INTO copper_migrations (var, val) VALUES (?, ?);")
