@@ -32,14 +32,13 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Server deadlocks with two parallel clients
 - [ ] Show item idx in list
 - [ ] Script to run actions manually
+- [ ] fs checks create race condition---use errors instead
+- [ ] Backup db when migrating
 
 ## 📦 View items
 - [ ] Manage ui items
   - [ ] Delete items
   - [ ] Sort by attrs
-
-## 📦 Database migrations
-- old dbs should not be destroyed
 
 ## 📦 Audiofile library
 - [ ] Tests
