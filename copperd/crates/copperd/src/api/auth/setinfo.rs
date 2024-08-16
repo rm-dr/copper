@@ -31,7 +31,7 @@ pub(super) struct SetUserInfoRequest {
 pub(super) enum EmailAction {
 	Unchanged,
 	Clear,
-	Set(String),
+	Set { value: String },
 }
 
 impl EmailAction {
@@ -39,7 +39,7 @@ impl EmailAction {
 		match self {
 			Self::Unchanged => panic!(),
 			Self::Clear => None,
-			Self::Set(x) => Some(&x),
+			Self::Set { value } => Some(&value),
 		}
 	}
 }
@@ -48,7 +48,7 @@ impl EmailAction {
 #[serde(tag = "action")]
 pub(super) enum ColorAction {
 	Unchanged,
-	Set(String),
+	Set { color: String },
 }
 
 /// Create a new user
@@ -127,7 +127,7 @@ pub(super) async fn set_user_info(
 		}
 	}
 
-	if let ColorAction::Set(color) = &payload.color {
+	if let ColorAction::Set { color } = &payload.color {
 		match state.main_db.auth.set_user_color(payload.user, color).await {
 			Ok(()) => {}
 

@@ -11,6 +11,7 @@ use copper_util::names::clean_name;
 use errors::{CreateGroupError, CreateUserError, DeleteGroupError};
 use rand::{distributions::Alphanumeric, rngs::OsRng, Rng};
 use sqlx::{Row, SqlitePool};
+use std::str::FromStr;
 use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
@@ -566,10 +567,12 @@ impl AuthProvider {
 
 	pub async fn get_user(&self, user: UserId) -> Result<UserInfo, sqlx::Error> {
 		let mut conn = self.pool.acquire().await?;
-		let res = sqlx::query("SELECT id, user_name, user_group FROM users WHERE id=?;")
-			.bind(u32::from(user))
-			.fetch_one(&mut *conn)
-			.await;
+		let res = sqlx::query(
+			"SELECT id, user_name, user_group, user_email, user_color FROM users WHERE id=?;",
+		)
+		.bind(u32::from(user))
+		.fetch_one(&mut *conn)
+		.await;
 
 		match res {
 			Err(e) => return Err(e),
@@ -584,7 +587,9 @@ impl AuthProvider {
 					.await?;
 				return Ok(UserInfo {
 					id: user,
-					name: res.get::<&str, _>("user_name").into(),
+					name: res.get("user_name"),
+					email: res.get("user_email"),
+					color: UserColor::from_str(res.get("user_color")).unwrap(),
 					group,
 				});
 			}
