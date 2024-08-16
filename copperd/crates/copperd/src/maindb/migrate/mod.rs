@@ -1,5 +1,5 @@
 use copper_migrate::Migration;
 
-mod init;
+mod m_0_init;
 
-pub const MIGRATE_STEPS: &'static [&'static dyn Migration] = &[&init::InitMigration {}];
+pub const MIGRATE_STEPS: &'static [&'static dyn Migration] = &[&m_0_init::MigrationStep {}];
