@@ -15,6 +15,7 @@ mod logout;
 mod me;
 mod renamegroup;
 mod renameuser;
+mod setinfo;
 mod setpassword;
 
 use addgroup::*;
@@ -27,6 +28,7 @@ use logout::*;
 use me::*;
 use renamegroup::*;
 use renameuser::*;
+use setinfo::*;
 use setpassword::*;
 
 #[derive(OpenApi)]
@@ -43,7 +45,8 @@ use setpassword::*;
 		get_me,
 		rename_user,
 		rename_group,
-		set_user_password
+		set_user_password,
+		set_user_info,
 	),
 	components(schemas(
 		LoginRequest,
@@ -54,7 +57,10 @@ use setpassword::*;
 		ListgroupInfo,
 		RenameGroupRequest,
 		RenameUserRequest,
-		SetPasswordRequest
+		SetPasswordRequest,
+		SetUserInfoRequest,
+		EmailAction,
+		ColorAction
 	))
 )]
 pub(super) struct AuthApi;
@@ -68,6 +74,7 @@ pub(super) fn router() -> Router<RouterState> {
 		.route("/user/del", delete(del_user))
 		.route("/user/rename", post(rename_user))
 		.route("/user/set_password", post(set_user_password))
+		.route("/user/set_info", post(set_user_info))
 		.route("/group/rename", post(rename_group))
 		.route("/group/add", post(add_group))
 		.route("/group/del", delete(del_group))

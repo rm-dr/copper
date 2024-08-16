@@ -259,6 +259,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/auth/user/set_info": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Create a new user */
+		post: operations["set_user_info"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/auth/user/set_password": {
 		parameters: {
 			query?: never;
@@ -673,6 +690,7 @@ export interface components {
 			parent: components["schemas"]["GroupId"];
 		};
 		AdduserRequest: {
+			email?: string | null;
 			group: components["schemas"]["GroupId"];
 			password: string;
 			username: string;
@@ -704,6 +722,15 @@ export interface components {
 			handle: number;
 			name: string;
 		};
+		ColorAction:
+			| {
+					/** @enum {string} */
+					action: "Unchanged";
+			  }
+			| {
+					/** @enum {string} */
+					action: "Set";
+			  };
 		/** @description Completed pipeline job status */
 		CompletedJobStatus: {
 			/** @description A pretty string that identifies this job by its input */
@@ -838,6 +865,19 @@ export interface components {
 			/** Format: int32 */
 			user: number;
 		};
+		EmailAction:
+			| {
+					/** @enum {string} */
+					action: "Unchanged";
+			  }
+			| {
+					/** @enum {string} */
+					action: "Clear";
+			  }
+			| {
+					/** @enum {string} */
+					action: "Set";
+			  };
 		ExtendedClassInfo: {
 			/** @description This class' attributes */
 			attrs: components["schemas"]["AttrInfo"][];
@@ -1156,6 +1196,11 @@ export interface components {
 			my_password: string;
 			/** @description The new password to set */
 			new_password: string;
+			user: components["schemas"]["UserId"];
+		};
+		SetUserInfoRequest: {
+			color: components["schemas"]["ColorAction"];
+			email: components["schemas"]["EmailAction"];
 			user: components["schemas"]["UserId"];
 		};
 		/** @description Parameters to finish an uploading file */
@@ -1894,6 +1939,53 @@ export interface operations {
 			};
 		};
 	};
+	set_user_info: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["SetUserInfoRequest"];
+			};
+		};
+		responses: {
+			/** @description Successfully set user info */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Could not change info */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+		};
+	};
 	set_user_password: {
 		parameters: {
 			query?: never;
@@ -1926,7 +2018,9 @@ export interface operations {
 				headers: {
 					[name: string]: unknown;
 				};
-				content?: never;
+				content: {
+					"text/plain": string;
+				};
 			};
 			/** @description Internal server error */
 			500: {

@@ -389,6 +389,7 @@ impl AuthProvider {
 	pub async fn new_user(
 		&self,
 		user_name: &str,
+		user_email: Option<&str>,
 		password: &str,
 		group: GroupId,
 	) -> Result<(), CreateUserError> {
@@ -403,13 +404,14 @@ impl AuthProvider {
 		let res = sqlx::query(
 			"
 			INSERT INTO users (
-				user_name, user_group, pw_hash
+				user_name, user_group, pw_hash, user_email
 			) VALUES (?, ?, ?);
 			",
 		)
 		.bind(&user_name)
 		.bind(group.get_id())
 		.bind(pw_hash)
+		.bind(user_email)
 		.execute(&mut *conn)
 		.await;
 
@@ -452,6 +454,50 @@ impl AuthProvider {
 
 		sqlx::query("UPDATE users SET pw_hash=? WHERE id=?;")
 			.bind(&pw_hash)
+			.bind(u32::from(user))
+			.bind(serde_json::to_string(&SerializedGroupPermissions::default()).unwrap())
+			.execute(&mut *conn)
+			.await
+			.map_err(|e| CreateUserError::DbError(Box::new(e)))?;
+
+		return Ok(());
+	}
+
+	pub async fn set_user_email(
+		&self,
+		user: UserId,
+		email: Option<&str>,
+	) -> Result<(), CreateUserError> {
+		debug!(message = "Changing user email", ?user, ?email);
+
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| CreateUserError::DbError(Box::new(e)))?;
+
+		sqlx::query("UPDATE users SET user_email=? WHERE id=?;")
+			.bind(email)
+			.bind(u32::from(user))
+			.bind(serde_json::to_string(&SerializedGroupPermissions::default()).unwrap())
+			.execute(&mut *conn)
+			.await
+			.map_err(|e| CreateUserError::DbError(Box::new(e)))?;
+
+		return Ok(());
+	}
+
+	pub async fn set_user_color(&self, user: UserId, color: &str) -> Result<(), CreateUserError> {
+		debug!(message = "Changing user color", ?user, ?color);
+
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| CreateUserError::DbError(Box::new(e)))?;
+
+		sqlx::query("UPDATE users SET user_color=? WHERE id=?;")
+			.bind(color)
 			.bind(u32::from(user))
 			.bind(serde_json::to_string(&SerializedGroupPermissions::default()).unwrap())
 			.execute(&mut *conn)
