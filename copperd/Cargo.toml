@@ -66,10 +66,9 @@ copper-pipeline = { path = "crates/pipeline" }
 copper-node-base = { path = "crates/node-base" }
 copper-util = { path = "crates/util" }
 copper-audiofile = { path = "crates/audiofile" }
-
+copper-migrate = { path = "crates/migrate" }
 copper-ds-core = { path = "crates/ds-core" }
 copper-ds-impl = { path = "crates/ds-impl" }
-
 copperd = { path = "crates/copperd" }
 
 
@@ -92,9 +91,10 @@ bytes = "1.6.0"
 rand = "0.8.5"
 md5 = "0.7.0"
 argon2 = "0.5.3"
-time = "0.3.36"
+time = { version = "0.3.36", features = ["serde"] }
 paste = "1.0.15"
 base64 = "0.22.1"
+async-trait = "0.1.81"
 
 # Network
 reqwest = { version = "0.12.4", features = [
@@ -118,7 +118,6 @@ serde_with = "3.8.1"
 
 # Other
 sqlx = { version = "0.7", features = ["sqlite", "runtime-async-std"] }
-#clap = { version = "4.5.4", features = ["derive"] }
 utoipa = { version = "5.0.0-alpha.0", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "7.1.1-alpha.0", features = [
 	"axum",

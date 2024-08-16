@@ -225,9 +225,9 @@ checksum = "8b75356056920673b02621b35afd0f7dda9306d03c79a30f5c56c44cf256e3de"
 
 [[package]]
 name = "async-trait"
-version = "0.1.80"
+version = "0.1.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6fa2087f2753a7da8cc1c0dbfcf89579dd57458e36769de5ac750b4671737ca"
+checksum = "6e0c28dcc82d7c8ead5cb13beb15405b57b8546e93215673ff8ca0349a028107"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -546,6 +546,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "copper-migrate"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "serde_json",
+ "smartstring",
+ "sqlx",
+ "time",
+ "tracing",
+]
+
+[[package]]
 name = "copper-node-base"
 version = "0.1.0"
 dependencies = [
@@ -589,11 +602,13 @@ name = "copperd"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "async-trait",
  "axum",
  "axum-extra",
  "copper-audiofile",
  "copper-ds-core",
  "copper-ds-impl",
+ "copper-migrate",
  "copper-node-base",
  "copper-pipeline",
  "copper-util",

@@ -27,6 +27,7 @@ copper-util = { workspace = true }
 copper-ds-core = { workspace = true }
 copper-ds-impl = { workspace = true }
 copper-audiofile = { workspace = true }
+copper-migrate = { workspace = true }
 
 sqlx = { workspace = true }
 utoipa = { workspace = true }
@@ -48,3 +49,4 @@ argon2 = { workspace = true }
 axum-extra = { workspace = true }
 time = { workspace = true }
 tokio-util = { workspace = true }
+async-trait = { workspace = true }

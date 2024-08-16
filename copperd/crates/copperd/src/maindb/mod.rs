@@ -1,3 +1,5 @@
+mod migrate;
+
 pub mod auth;
 pub mod dataset;
 

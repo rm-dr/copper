@@ -167,6 +167,9 @@ pub struct CopperLogLevelConfig {
 	#[serde(default)]
 	pub server: LogLevel,
 
+	#[serde(default)]
+	pub migrate: LogLevel,
+
 	#[serde(default = "CopperLogLevelConfig::default_all")]
 	pub all: LogLevel,
 }
@@ -179,6 +182,7 @@ impl Default for CopperLogLevelConfig {
 			pipeline: LogLevel::default(),
 			server: LogLevel::default(),
 			dataset: LogLevel::default(),
+			migrate: LogLevel::default(),
 
 			// This can get noisy, so default to a higher level
 			all: Self::default_all(),
@@ -193,10 +197,16 @@ impl CopperLogLevelConfig {
 
 	/// Convert this logging config to a tracing env filter
 	pub fn to_env_filter(&self) -> String {
-		format!(
-			"copper_pipeline={},sqlx={},tower_http={},copperd={},copper_ds_impl={},{}",
-			self.pipeline, self.sqlx, self.http, self.server, self.dataset, self.all
-		)
+		[
+			format!("copper_pipeline={}", self.pipeline),
+			format!("sqlx={}", self.sqlx),
+			format!("tower_http={}", self.http),
+			format!("copperd={}", self.server),
+			format!("copper_ds_impl={}", self.dataset),
+			format!("copper_migrate={}", self.migrate),
+			self.all.to_string(),
+		]
+		.join(",")
 	}
 }
 
