@@ -1,7 +1,6 @@
 "use client";
 
 import styles from "./navbar.module.scss";
-
 import Banner from "../../../../public/banner.svg";
 import { Menu, Text, rem } from "@mantine/core";
 import { XIcon } from "../icons";
@@ -11,28 +10,12 @@ import {
 	IconUser,
 	IconUserCircle,
 } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
 import { APIclient } from "@/app/_util/api";
-import { components } from "@/app/_util/api/openapi";
 import Link from "next/link";
+import { useUserInfoStore } from "@/app/_util/userinfo";
 
 const Navbar = () => {
-	const [userInfo, setUserInfo] = useState<
-		components["schemas"]["UserInfo"] | null | string
-	>(null);
-
-	useEffect(() => {
-		APIclient.GET("/auth/me")
-			.then(({ data, error }) => {
-				if (error !== undefined) {
-					throw error;
-				}
-				setUserInfo(data);
-			})
-			.catch((e) => {
-				setUserInfo("error");
-			});
-	}, []);
+	const user_info = useUserInfoStore((state) => state.user_info);
 
 	return (
 		<div className={styles.navbar}>
@@ -43,9 +26,7 @@ const Navbar = () => {
 			<div className={styles.usermenu}>
 				<Menu trigger="click-hover" shadow="md">
 					<Menu.Target>
-						{typeof userInfo === "string" ? (
-							<Text c="red">{userInfo}</Text>
-						) : userInfo === null ? (
+						{user_info === null ? (
 							<div className={styles.usercontainer}>
 								<XIcon icon={IconUserCircle} />
 								<Text c="dimmed">Loading...</Text>
@@ -53,7 +34,7 @@ const Navbar = () => {
 						) : (
 							<div className={styles.usercontainer}>
 								<XIcon icon={IconUserCircle} />
-								<Text>{userInfo.name}</Text>
+								<Text>{user_info.name}</Text>
 							</div>
 						)}
 					</Menu.Target>

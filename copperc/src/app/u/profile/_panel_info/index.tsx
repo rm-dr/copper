@@ -19,8 +19,10 @@ import {
 } from "@mantine/core";
 import { useState } from "react";
 import { APIclient } from "@/app/_util/api";
+import { useUserInfoStore } from "@/app/_util/userinfo";
 
 export function useInfoPanel(params: {}) {
+	const setcolor = useUserInfoStore((state) => state.set_color);
 	const [isLoading, setLoading] = useState(false);
 
 	const [infoErrorMessage, setInfoErrorMessage] = useState<string | null>(null);
@@ -98,6 +100,15 @@ export function useInfoPanel(params: {}) {
 		setPasswordErrorMessage(null);
 	};
 
+	const [colorErrorMessage, setColorErrorMessage] = useState<string | null>(
+		null,
+	);
+	const [color, setColor] = useState("#ff4f0f");
+	const color_reset = () => {
+		setColor("#ff4f0f");
+		setColorErrorMessage(null);
+	};
+
 	return {
 		node: (
 			<>
@@ -116,8 +127,8 @@ export function useInfoPanel(params: {}) {
 								<div className={styles.item}>
 									<TextInput
 										placeholder="Set username"
-										key={info_form.key("name")}
 										disabled={isLoading}
+										key={info_form.key("name")}
 										{...info_form.getInputProps("name")}
 									/>
 								</div>
@@ -285,35 +296,80 @@ export function useInfoPanel(params: {}) {
 						icon={<XIcon icon={IconColorPicker} />}
 						title={"Primary color"}
 					/>
-					<form>
-						<div className={styles.settings_container}>
-							Pick a primary color for your UI.
-							<ColorPicker fullWidth format="hex" />
-							<Button.Group>
-								<Button
-									variant="light"
-									fullWidth
-									color="red"
-									onClick={info_reset}
-									disabled={isLoading}
-								>
-									Reset
-								</Button>
-								<Button
-									variant="filled"
-									color="green"
-									fullWidth
-									type="submit"
-									loading={isLoading}
-								>
-									Save
-								</Button>
-							</Button.Group>
-							<Text c="red" ta="center">
-								{infoErrorMessage}
-							</Text>
-						</div>
-					</form>
+
+					<div className={styles.settings_container}>
+						Pick a primary color for your UI.
+						<ColorPicker
+							fullWidth
+							format="hex"
+							swatches={[
+								"#2e2e2e",
+								"#868e96",
+								"#fa5252",
+								"#e64980",
+								"#be4bdb",
+								"#7950f2",
+								"#4c6ef5",
+								"#228be6",
+								"#15aabf",
+								"#12b886",
+								"#40c057",
+								"#82c91e",
+								"#fab005",
+								"#fd7e14",
+							]}
+							onChange={(x) => {
+								setColor(x);
+								setcolor(x);
+							}}
+						/>
+						<Button.Group>
+							<Button
+								variant="light"
+								fullWidth
+								color="red"
+								onClick={color_reset}
+								disabled={isLoading}
+							>
+								Reset
+							</Button>
+							<Button
+								variant="filled"
+								color="green"
+								fullWidth
+								onClick={() => {
+									setLoading(true);
+									setColorErrorMessage(null);
+
+									APIclient.POST("/auth/user/set_info", {
+										body: {
+											user: 1 as any,
+											color: { action: "Set", color: color },
+											email: { action: "Unchanged" },
+										},
+									})
+										.then(({ data, error }) => {
+											if (error !== undefined) {
+												throw error;
+											}
+
+											setLoading(false);
+											setcolor(color);
+										})
+										.catch((err) => {
+											setLoading(false);
+											setColorErrorMessage(err);
+										});
+								}}
+								loading={isLoading}
+							>
+								Save
+							</Button>
+						</Button.Group>
+						<Text c="red" ta="center">
+							{colorErrorMessage}
+						</Text>
+					</div>
 				</Panel>
 			</>
 		),

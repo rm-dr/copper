@@ -730,6 +730,7 @@ export interface components {
 			| {
 					/** @enum {string} */
 					action: "Set";
+					color: string;
 			  };
 		/** @description Completed pipeline job status */
 		CompletedJobStatus: {
@@ -877,6 +878,7 @@ export interface components {
 			| {
 					/** @enum {string} */
 					action: "Set";
+					value: string;
 			  };
 		ExtendedClassInfo: {
 			/** @description This class' attributes */
@@ -1238,6 +1240,8 @@ export interface components {
 			id: number;
 		};
 		UserInfo: {
+			color: string;
+			email?: string | null;
 			group: components["schemas"]["GroupInfo"];
 			id: components["schemas"]["UserId"];
 			name: string;

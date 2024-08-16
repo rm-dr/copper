@@ -2,23 +2,36 @@
 
 import "@mantine/core/styles.css";
 import { MantineProvider, createTheme } from "@mantine/core";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
 
-const theme = createTheme({
-	fontFamily: GeistSans.style.fontFamily,
-	fontFamilyMonospace: GeistMono.style.fontFamily,
-	primaryColor: "blue",
-});
+import { useEffect } from "react";
+import { APIclient } from "./_util/api";
+import { useUserInfoStore } from "./_util/userinfo";
 
 export default function Provider({
 	children,
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
+	const setinfo = useUserInfoStore((state) => state.set_info);
+	useEffect(() => {
+		APIclient.GET("/auth/me")
+			.then(({ data, error }) => {
+				if (error !== undefined) {
+					throw error;
+				}
+				setinfo(data);
+			})
+			.catch((e) => {
+				console.error(e);
+			});
+	}, [setinfo]);
+
 	return (
 		<>
-			<MantineProvider theme={theme} forceColorScheme="dark">
+			<MantineProvider
+				theme={useUserInfoStore((state) => state.theme)}
+				forceColorScheme="dark"
+			>
 				{children}
 			</MantineProvider>
 		</>
