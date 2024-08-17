@@ -3,8 +3,6 @@ use std::fmt::Debug;
 
 use crate::flac::errors::{FlacDecodeError, FlacEncodeError};
 
-// TODO: enfoce length limits
-
 /// A type of flac metadata block
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

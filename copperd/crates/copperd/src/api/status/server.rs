@@ -24,6 +24,10 @@ pub(super) struct ServerStatus {
 	/// The maximum request size this server supports, in bytes
 	#[schema(example = 2_000_000)]
 	pub request_body_limit: usize,
+
+	/// The maximum number of items we'll return in one request
+	#[schema(example = 100)]
+	pub max_item_page_size: u32,
 }
 
 /// Get server status
@@ -48,6 +52,7 @@ pub(super) async fn get_server_status(
 		Json(ServerStatus {
 			version: env!("CARGO_PKG_VERSION").into(),
 			request_body_limit: state.config.network.request_body_limit,
+			max_item_page_size: state.config.network.max_item_page_size,
 		}),
 	)
 		.into_response();

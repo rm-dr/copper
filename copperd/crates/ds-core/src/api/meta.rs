@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use utoipa::ToSchema;
@@ -34,9 +36,9 @@ impl AttributeOptions {
 #[derive(Debug, Clone)]
 pub struct ItemData {
 	pub handle: ItemIdx,
-	// Attrs are in the same order as class_get_attrs
-	// TODO: this is important, document it!
-	pub attrs: Vec<MetastoreData>,
+	/// The attributes of this item.
+	/// Attrs are in the same order as class_get_attrs
+	pub attrs: BTreeMap<AttrHandle, MetastoreData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -130,13 +132,12 @@ where
 	/// Rename the given attribute
 	async fn attr_set_name(&self, attr: AttrHandle, name: &str) -> Result<(), MetastoreError>;
 
-	// TODO: clean this up. What does this method do?
-	// Document the fact that attrhandle implies a class.
+	/// Find all items where the value of `attr` is `attr_value`.
 	async fn find_item_with_attr(
 		&self,
 		attr: AttrHandle,
 		attr_value: MetastoreData,
-	) -> Result<Option<ItemIdx>, MetastoreError>;
+	) -> Result<Vec<ItemIdx>, MetastoreError>;
 
 	async fn get_items(
 		&self,
@@ -144,6 +145,8 @@ where
 		page_size: u32,
 		start_at: u32,
 	) -> Result<Vec<ItemData>, MetastoreError>;
+
+	async fn count_items(&self, class: ClassHandle) -> Result<u32, MetastoreError>;
 
 	async fn get_item(&self, class: ClassHandle, item: ItemIdx)
 		-> Result<ItemData, MetastoreError>;

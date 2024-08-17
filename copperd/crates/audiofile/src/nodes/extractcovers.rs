@@ -141,7 +141,6 @@ impl Node<CopperData> for ExtractCovers {
 		}
 
 		// Send the first cover we find
-		// TODO: send an array of covers
 		if let Some(picture) = self.reader.pop_picture() {
 			send_data(
 				PipelinePortID::new("cover_data"),

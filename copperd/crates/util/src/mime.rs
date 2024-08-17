@@ -24,7 +24,7 @@ pub enum MimeType {
 	Gif,
 	Avif,
 
-	// Audo
+	// Audio
 	Flac,
 	Mp3,
 }

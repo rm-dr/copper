@@ -1,6 +1,6 @@
 [package]
 name = "copper-util"
-description = "TODO"
+description = "Shared utilities"
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }

@@ -77,8 +77,6 @@ pub(super) async fn get_pipeline(
 
 	let runner = state.runner.lock().await;
 
-	// TODO: clean up.
-	// We shouldn't need to load a pipeline to get its info
 	match dataset
 		.load_pipeline(
 			runner.get_dispatcher(),

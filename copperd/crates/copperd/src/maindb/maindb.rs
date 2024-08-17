@@ -133,8 +133,8 @@ impl MainDB {
 		}
 
 		Ok(Self {
-			auth: AuthProvider::new(pool.clone()),
-			dataset: DatasetProvider::new(pool.clone(), config),
+			auth: AuthProvider::new(pool.clone(), config.clone()),
+			dataset: DatasetProvider::new(pool, config),
 		})
 	}
 }

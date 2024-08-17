@@ -8,7 +8,6 @@ use std::{error::Error, fmt::Display, string::FromUtf8Error};
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub enum FlacDecodeError {
-	// TODO: multiple comment blocks are an error
 	/// FLAC does not start with 0x66 0x4C 0x61 0x43
 	BadMagicBytes,
 

@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.scss";
 
-// Mantine setup
 import Provider from "./provider";
 import { ColorSchemeScript } from "@mantine/core";
 
 export const metadata: Metadata = {
 	title: "Copper",
-	description: "TODO",
+	description: "Copper web ui",
 };
 
 export default function RootLayout({

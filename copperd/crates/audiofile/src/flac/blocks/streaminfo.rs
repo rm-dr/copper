@@ -156,8 +156,6 @@ impl FlacMetablockEncode for FlacStreaminfoBlock {
 			header.encode(target)?;
 		}
 
-		// TODO: enforce sizes
-
 		target.write_all(&self.min_block_size.to_be_bytes()[2..])?;
 		target.write_all(&self.max_block_size.to_be_bytes()[2..])?;
 		target.write_all(&self.min_frame_size.to_be_bytes()[1..])?;

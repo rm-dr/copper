@@ -1,6 +1,6 @@
 [package]
 name = "copper-ds-core"
-description = "TODO"
+description = "Copper's base api for datasets"
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }

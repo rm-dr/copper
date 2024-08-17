@@ -232,22 +232,14 @@ impl ItemListData {
 pub(super) async fn list_item(
 	jar: CookieJar,
 	State(state): State<RouterState>,
-	Query(query): Query<ItemListRequest>,
+	Query(mut query): Query<ItemListRequest>,
 ) -> Response {
 	if let Err(x) = state.main_db.auth.auth_or_logout(&jar).await {
 		return x;
 	}
 
-	// TODO: configure max page size
-	if query.page_size > 100 {
-		return (
-			StatusCode::BAD_REQUEST,
-			format!(
-				"Page size `{}` exceeds server limit of `{}`",
-				query.page_size, 100
-			),
-		)
-			.into_response();
+	if query.page_size != 0 && query.page_size > state.config.network.max_item_page_size {
+		query.page_size = state.config.network.max_item_page_size;
 	}
 
 	let dataset = match state.main_db.dataset.get_dataset(&query.dataset).await {
@@ -296,6 +288,32 @@ pub(super) async fn list_item(
 		}
 	};
 
+	let itemcount = {
+		let res = dataset.count_items(query.class.into()).await;
+
+		match res {
+			Ok(x) => x,
+
+			Err(MetastoreError::BadClassHandle) => {
+				return (
+					StatusCode::NOT_FOUND,
+					format!("Class `{}` does not exist", query.class),
+				)
+					.into_response()
+			}
+
+			Err(e) => {
+				error!(
+					message = "Could not count items",
+					query = ?query,
+					error = ?e
+				);
+				return (StatusCode::INTERNAL_SERVER_ERROR, "Could not count items")
+					.into_response();
+			}
+		}
+	};
+
 	let attrs = {
 		let res = dataset.class_get_attrs(query.class.into()).await;
 		match res {
@@ -327,7 +345,7 @@ pub(super) async fn list_item(
 	let mut out = Vec::new();
 	for item in itemdata.into_iter() {
 		let mut itemlistdata = HashMap::new();
-		for (attr, val) in attrs.iter().zip(item.attrs.iter()) {
+		for (attr, (_, val)) in attrs.iter().zip(item.attrs.iter()) {
 			let d = match ItemListData::from_data(&dataset, attr.clone(), val).await {
 				Ok(x) => x,
 				Err(r) => return r,
@@ -344,7 +362,7 @@ pub(super) async fn list_item(
 	return Json(ItemListResponse {
 		count: out.len(),
 		start_at: query.start_at,
-		total: 0, // TODO: return total item count
+		total: itemcount,
 		items: out,
 	})
 	.into_response();

@@ -11,7 +11,7 @@ use copper_util::names::clean_name;
 use errors::{CreateGroupError, CreateUserError, DeleteGroupError};
 use rand::{distributions::Alphanumeric, rngs::OsRng, Rng};
 use sqlx::{Row, SqlitePool};
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
@@ -22,12 +22,15 @@ mod permissions;
 pub use info::*;
 pub use permissions::*;
 
+use crate::config::CopperConfig;
+
 const AUTH_TOKEN_LENGTH: usize = 32;
 pub const AUTH_COOKIE_NAME: &str = "authtoken";
 
 pub struct AuthProvider {
 	pool: SqlitePool,
 	active_tokens: Mutex<Vec<AuthToken>>,
+	config: Arc<CopperConfig>,
 }
 
 impl AuthProvider {
@@ -53,17 +56,21 @@ impl AuthProvider {
 		AuthToken {
 			user,
 			token: token.into(),
-			// TODO: config
-			expires: OffsetDateTime::now_utc()
-				.checked_add(Duration::days(7))
-				.unwrap(),
+			expires: (self.config.network.login_lifetime != 0).then(|| {
+				OffsetDateTime::now_utc()
+					.checked_add(Duration::hours(
+						self.config.network.login_lifetime.try_into().unwrap(),
+					))
+					.unwrap()
+			}),
 		}
 	}
 
-	pub(super) fn new(pool: SqlitePool) -> Self {
+	pub(super) fn new(pool: SqlitePool, config: Arc<CopperConfig>) -> Self {
 		Self {
 			pool,
 			active_tokens: Mutex::new(Vec::new()),
+			config,
 		}
 	}
 
@@ -127,8 +134,10 @@ impl AuthProvider {
 				// Expired logins are invalid
 				// These will be cleaned up by `auth_or_logout`
 				// (if the browser doesn't do so automatically)
-				if t.expires < OffsetDateTime::now_utc() {
-					return Ok(None);
+				if let Some(ex) = t.expires {
+					if ex < OffsetDateTime::now_utc() {
+						return Ok(None);
+					}
 				}
 
 				return match self.get_user(t.user).await {

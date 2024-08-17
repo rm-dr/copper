@@ -14,9 +14,6 @@ use new_file::*;
 use new_upload::*;
 use upload::*;
 
-// TODO: better error handling
-// TODO: delete when fail
-
 #[derive(OpenApi)]
 #[openapi(
 	paths(start_upload, start_file, upload, finish_file),

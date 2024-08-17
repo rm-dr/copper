@@ -171,8 +171,6 @@ impl LocalDataset {
 			.await
 			.map_err(|e| LocalDatasetOpenError::DbError(Box::new(e)))?;
 
-		// TODO: check version, blobstore dir
-
 		let blob_storage_dir = ds_root.join({
 			let res = sqlx::query("SELECT val FROM meta_meta WHERE var=\"blob_storage_dir\";")
 				.fetch_one(&mut *conn)

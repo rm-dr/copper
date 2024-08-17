@@ -166,12 +166,13 @@ impl Node<CopperData> for FindItem {
 		))
 		.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 
-		if let Some(item) = found {
+		// TODO: how to handle multiple found items?
+		if let Some(item) = found.first() {
 			send_data(
 				PipelinePortID::new("found_item"),
 				CopperData::Reference {
 					class: self.info.class,
-					item,
+					item: *item,
 				},
 			)?;
 		} else {

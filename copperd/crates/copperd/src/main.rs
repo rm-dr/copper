@@ -13,8 +13,6 @@ mod config;
 mod maindb;
 mod uploader;
 
-// TODO: delete after timeout (what if uploading takes a while? Multiple big files?)
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
 	let config_path: PathBuf = "./data/config.toml".into();

@@ -39,13 +39,6 @@ pub(super) async fn add_class(
 		return x;
 	}
 
-	// TODO: ONE function to check name
-	if payload.new_class_name.is_empty() {
-		return (StatusCode::BAD_REQUEST, "Class name cannot be empty").into_response();
-	} else if payload.new_class_name.trim() == "" {
-		return (StatusCode::BAD_REQUEST, "Class name cannot be whitespace").into_response();
-	}
-
 	let dataset = match state.main_db.dataset.get_dataset(&payload.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
@@ -75,6 +68,9 @@ pub(super) async fn add_class(
 				format!("Class name `{x}` already exists"),
 			)
 				.into_response()
+		}
+		Err(MetastoreError::BadClassName(x)) => {
+			return (StatusCode::BAD_REQUEST, format!("Bad class name: {x}")).into_response()
 		}
 		Err(e) => {
 			error!(

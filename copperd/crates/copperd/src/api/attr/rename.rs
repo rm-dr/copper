@@ -43,13 +43,6 @@ pub(super) async fn rename_attr(
 		return x;
 	}
 
-	// TODO: ONE function to check name
-	if payload.new_name.is_empty() {
-		return (StatusCode::BAD_REQUEST, "Class name cannot be empty").into_response();
-	} else if payload.new_name.trim() == "" {
-		return (StatusCode::BAD_REQUEST, "Class name cannot be whitespace").into_response();
-	}
-
 	let dataset = match state.main_db.dataset.get_dataset(&payload.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {

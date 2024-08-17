@@ -353,7 +353,7 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn add_class(&self, class_name: &str) -> Result<ClassHandle, MetastoreError> {
-		let class_name = clean_name(class_name).map_err(MetastoreError::BadAttrName)?;
+		let class_name = clean_name(class_name).map_err(MetastoreError::BadClassName)?;
 
 		trace!(message = "Adding a class", class_name);
 
@@ -607,10 +607,6 @@ impl Metastore for LocalDataset {
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
-		// TODO: check references
-		// TODO: check pipelines (or don't, just mark as invalid)
-		// TODO: delete blobs (here, del attr, and del item)
-
 		// Get the table we want to modify
 		let table_name = Self::get_table_name(class);
 
@@ -831,7 +827,7 @@ impl Metastore for LocalDataset {
 	}
 
 	async fn class_set_name(&self, class: ClassHandle, name: &str) -> Result<(), MetastoreError> {
-		let name = clean_name(name).map_err(MetastoreError::BadAttrName)?;
+		let name = clean_name(name).map_err(MetastoreError::BadClassName)?;
 
 		// Make sure this name isn't already taken
 		let x = self.get_class_by_name(&name).await?;
@@ -959,14 +955,14 @@ impl Metastore for LocalDataset {
 		&self,
 		attr: AttrHandle,
 		mut attr_value: MetastoreData,
-	) -> Result<Option<ItemIdx>, MetastoreError> {
+	) -> Result<Vec<ItemIdx>, MetastoreError> {
 		let mut conn = self
 			.pool
 			.acquire()
 			.await
 			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
 
-		// Find table and column name to modify
+		// Find table and column to search
 		let column_name = Self::get_column_name(attr);
 		let table_name: String = {
 			let res = sqlx::query(
@@ -995,11 +991,14 @@ impl Metastore for LocalDataset {
 		let mut q = sqlx::query(&query_str);
 		q = Self::bind_storage(q, &mut attr_value)?;
 
-		let res = q.bind(u32::from(attr)).fetch_one(&mut *conn).await;
+		let res = q.bind(u32::from(attr)).fetch_all(&mut *conn).await;
 		return match res {
-			Err(sqlx::Error::RowNotFound) => Ok(None),
+			Err(sqlx::Error::RowNotFound) => Ok(Vec::new()),
 			Err(e) => Err(MetastoreError::DbError(Box::new(e))),
-			Ok(res) => Ok(Some(res.get::<u32, _>("id").into())),
+			Ok(res) => Ok(res
+				.iter()
+				.map(|row| row.get::<u32, _>("id").into())
+				.collect()),
 		};
 	}
 
@@ -1031,12 +1030,30 @@ impl Metastore for LocalDataset {
 				handle: row.get::<u32, _>("id").into(),
 				attrs: attrs
 					.iter()
-					.map(|attr| Self::read_storage(&row, attr))
+					.map(|attr| (attr.handle, Self::read_storage(&row, attr)))
 					.collect(),
 			})
 		}
 
 		return Ok(out);
+	}
+
+	async fn count_items(&self, class: ClassHandle) -> Result<u32, MetastoreError> {
+		let table_name = Self::get_table_name(class);
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
+		let res = sqlx::query(&format!(
+			"SELECT COUNT(1) as \"count\" FROM \"{table_name}\";"
+		))
+		.fetch_one(&mut *conn)
+		.await
+		.map_err(|e| MetastoreError::DbError(Box::new(e)))?;
+
+		return Ok(res.get("count"));
 	}
 
 	async fn get_item(
@@ -1066,7 +1083,7 @@ impl Metastore for LocalDataset {
 			handle: res.get::<u32, _>("id").into(),
 			attrs: attrs
 				.iter()
-				.map(|attr| Self::read_storage(&res, attr))
+				.map(|attr| (attr.handle, Self::read_storage(&res, attr)))
 				.collect(),
 		};
 

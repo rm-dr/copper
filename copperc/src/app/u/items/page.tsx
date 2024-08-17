@@ -18,15 +18,15 @@ export type ItemData = {
 export type selectedClass =
 	| { dataset: null; class_idx: null; attrs: null }
 	| {
-		dataset: string;
-		class_idx: null;
-		attrs: null;
-	}
+			dataset: string;
+			class_idx: null;
+			attrs: null;
+	  }
 	| {
-		dataset: string;
-		class_idx: number;
-		attrs: components["schemas"]["AttrInfo"][];
-	};
+			dataset: string;
+			class_idx: number;
+			attrs: components["schemas"]["AttrInfo"][];
+	  };
 
 export default function Page() {
 	const [selectedClass, setSelectedClass] = useState<selectedClass>({
@@ -92,9 +92,9 @@ export default function Page() {
 						class={(
 							v:
 								| {
-									dataset: string;
-									class_idx: number | null;
-								}
+										dataset: string;
+										class_idx: number | null;
+								  }
 								| { dataset: null; class_idx: null },
 						) => {
 							if (v.class_idx !== null) {
@@ -150,8 +150,6 @@ async function fetchdata(params: {
 	dataset: string;
 	maxPage: number;
 }) {
-	// TODO: data isn't loaded if more than PAGE_SIZE items fit on the screen
-
 	let d: components["schemas"]["ItemListItem"][] = [];
 	for (let page = 0; page <= params.maxPage; page++) {
 		const { data, error } = await APIclient.GET("/item/list", {

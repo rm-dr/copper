@@ -56,7 +56,7 @@ export default function Page() {
 						key={form.key("password")}
 						{...form.getInputProps("password")}
 					/>
-					<Button type="submit" loading={loading} fullWidth>
+					<Button color="red" type="submit" loading={loading} fullWidth>
 						Sign in
 					</Button>
 					<Text c="red">{error}</Text>

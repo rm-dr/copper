@@ -25,6 +25,21 @@ server_addr = "127.0.0.1:3030"
 # is also configured for requests of this size.
 request_body_limit = 2_000_000
 
+# How long login tokens stay valid
+#
+# This is a value in hours and should be positive.
+# If this zero (or smaller), logins to not expire.
+#
+# 168 = 7 * 24
+login_lifetime = 168
+
+# Maximum number of items to return in one page
+#
+# If this is zero, there is no limit.
+# (NOT RECOMMENDED)
+max_item_page_size = 100
+
+
 
 [pipeline]
 # The maximum size, in bytes, of a binary fragment in the pipeline.

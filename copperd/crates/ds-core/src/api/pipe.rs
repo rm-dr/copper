@@ -19,6 +19,5 @@ where
 		name: &PipelineName,
 	) -> Result<Option<Pipeline<DataType, ContextType>>, PipestoreError<DataType>>;
 
-	// TODO: cache list of pipelines?
 	async fn all_pipelines(&self) -> Result<Vec<PipelineName>, PipestoreError<DataType>>;
 }

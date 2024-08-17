@@ -16,9 +16,6 @@ impl Display for PictureTypeError {
 
 impl std::error::Error for PictureTypeError {}
 
-// TODO: There may only be one each of picture type 1 and 2 in a file.
-// TODO: The MIME type may also be --> to signify that the data part is a URL of the picture instead of the picture data itself.
-
 /// A picture type according to the ID3v2 APIC frame
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq)]

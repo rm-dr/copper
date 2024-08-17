@@ -11,8 +11,6 @@ use crate::{
 
 use super::{FlacMetablockDecode, FlacMetablockEncode, FlacMetablockHeader, FlacMetablockType};
 
-// TODO: check constraints
-
 /// A picture metablock in a flac file
 pub struct FlacPictureBlock {
 	/// The type of this picture

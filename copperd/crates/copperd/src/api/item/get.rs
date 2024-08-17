@@ -129,7 +129,7 @@ pub(super) async fn get_item(
 	};
 
 	let mut itemlistdata = HashMap::new();
-	for (attr, val) in attrs.iter().zip(item.attrs.iter()) {
+	for (attr, (_, val)) in attrs.iter().zip(item.attrs.iter()) {
 		let d = match ItemListData::from_data(&dataset, attr.clone(), val).await {
 			Ok(x) => x,
 			Err(r) => return r,

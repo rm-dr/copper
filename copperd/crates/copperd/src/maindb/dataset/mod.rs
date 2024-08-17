@@ -129,7 +129,6 @@ impl DatasetProvider {
 			.fetch_all(&mut *conn)
 			.await?;
 
-		// TODO: one "open dataset" method
 		return Ok(res
 			.into_iter()
 			.map(|x| DatasetEntry {

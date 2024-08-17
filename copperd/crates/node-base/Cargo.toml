@@ -1,6 +1,6 @@
 [package]
 name = "copper-node-base"
-description = "TODO"
+description = "Basic pipeline nodes and helper code for other implementations"
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }

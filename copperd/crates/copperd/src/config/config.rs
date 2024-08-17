@@ -107,11 +107,39 @@ pub struct CopperNetworkConfig {
 	/// Should look like `127.0.0.1:3030`
 	pub server_addr: SmartString<LazyCompact>,
 
-	// TODO: deserialize from pretty string like "2MB"
 	/// Maximum request body size, in bytes
 	/// If you're using a reverse proxy, make sure it
 	/// also accepts requests of this size!
+	#[serde(default = "CopperNetworkConfig::default_request_body_limit")]
 	pub request_body_limit: usize,
+
+	/// How long login tokens stay valid
+	///
+	/// This is a value in hours and should be positive.
+	/// If this zero (or smaller), logins to not expire.
+	#[serde(default = "CopperNetworkConfig::default_login_lifetime")]
+	pub login_lifetime: u32,
+
+	/// Maximum number of items to return in one page
+	///
+	/// If this is zero, there is no limit.
+	/// (NOT RECOMMENDED)
+	#[serde(default = "CopperNetworkConfig::default_max_item_page_size")]
+	pub max_item_page_size: u32,
+}
+
+impl CopperNetworkConfig {
+	fn default_request_body_limit() -> usize {
+		2_000_000
+	}
+
+	fn default_login_lifetime() -> u32 {
+		168
+	}
+
+	fn default_max_item_page_size() -> u32 {
+		100
+	}
 }
 
 #[derive(Deserialize, Debug)]

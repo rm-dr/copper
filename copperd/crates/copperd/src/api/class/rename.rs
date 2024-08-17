@@ -43,13 +43,6 @@ pub(super) async fn rename_class(
 		return x;
 	}
 
-	// TODO: ONE function to check name
-	if payload.new_name.is_empty() {
-		return (StatusCode::BAD_REQUEST, "Class name cannot be empty").into_response();
-	} else if payload.new_name.trim() == "" {
-		return (StatusCode::BAD_REQUEST, "Class name cannot be whitespace").into_response();
-	}
-
 	let dataset = match state.main_db.dataset.get_dataset(&payload.dataset).await {
 		Ok(Some(x)) => x,
 		Ok(None) => {
@@ -69,11 +62,10 @@ pub(super) async fn rename_class(
 		}
 	};
 
-	let res = dataset
+	match dataset
 		.class_set_name(payload.class, &payload.new_name)
-		.await;
-
-	match res {
+		.await
+	{
 		Ok(_) => return StatusCode::OK.into_response(),
 		Err(MetastoreError::DuplicateClassName(x)) => {
 			return (

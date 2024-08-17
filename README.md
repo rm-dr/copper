@@ -35,7 +35,9 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] fs checks create race condition---use errors instead
   - [ ] Error if full db path doesn't exist (no panic)
   - [ ] Clean up all file checks
+  - [ ] Check blobstore dir (and all others)
 - [ ] Backup db when migrating
+- [ ] Do not try to load when item list is scrolled to bottom
 
 ## 📦 View items
 - [ ] Manage ui items
@@ -124,6 +126,7 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] use memmap2 for files
 - [ ] Generic datasets, other dataset types
 - [ ] Remove petgraph (write cycle detection algo)
+- [ ] "stay logged in" checkbox
 
 ## Security
 - [ ] Rate-limit api
@@ -166,7 +169,7 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 
 ## Arrays in pipelines
 - Some nodes could return multiple elements (music with many covers). How should we handle this?
-- Flac node: extract all covers
+- Flac node: extract all covers and send array
 
 ## "other pipeline" node
 - append to back of job queue, no output
@@ -288,8 +291,9 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 
 ## Automatic dataset backups
 
-## Pipes as transactions
+## Pipelines as transactions
 - If a pipe fails, a dataset should not have partial state
+- how should we clean up?
 
 ## Virtual attributes
 - Attributes computed by a pipeline, auto-updated on change
@@ -297,3 +301,8 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 ## Audiofile library
 - Linked images
 - Skip bad blocks (don't reject whole file)
+- Validations
+  - (vorbis) There may be only one picture of type type 1 and 2 in a file
+  - (flac) Multiple vorbis comment blocks are an error
+  - (flac) enforce length limits for all ints
+  - (flac) enforce block length limits
