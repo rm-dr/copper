@@ -3,7 +3,7 @@ import { Panel, PanelTitle } from "@/app/components/panel";
 import { IconColorPicker, IconPaint } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
 import { Button, ColorPicker, Text } from "@mantine/core";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { APIclient } from "@/app/_util/api";
 import { useUserInfoStore } from "@/app/_util/userinfo";
 
@@ -28,6 +28,11 @@ function UiPanelColor(params: {}) {
 	const [color, setColor] = useState(user?.color || "#aaaaaa");
 	const set_color = useUserInfoStore((state) => state.set_color);
 	const preview_color = useUserInfoStore((state) => state.preview_color);
+
+	useEffect(() => {
+		setColor(user?.color || "#aaaaaa");
+		set_color(user?.color || "#aaaaaa");
+	}, [set_color, setColor, user?.color]);
 
 	return (
 		<>
@@ -84,14 +89,18 @@ function UiPanelColor(params: {}) {
 							setLoading(true);
 							setErrorMessage(null);
 
-							APIclient.POST("/auth/user/set_info", {
-								body: {
-									user: 1 as any,
-									color: { action: "Set", color: color },
-									email: { action: "Unchanged" },
-								},
-							})
-								.then(({ data, error }) => {
+							// Minimum delay so user sees loader
+							Promise.all([
+								new Promise((r) => setTimeout(r, 500)),
+								APIclient.POST("/auth/user/set_info", {
+									body: {
+										user: 1 as any,
+										color: { action: "Set", color: color },
+										email: { action: "Unchanged" },
+									},
+								}),
+							])
+								.then(([_, { data, error }]) => {
 									if (error !== undefined) {
 										throw error;
 									}

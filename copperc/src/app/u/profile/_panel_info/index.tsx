@@ -4,11 +4,13 @@ import { IconLock, IconPencil, IconUserEdit } from "@tabler/icons-react";
 import { XIcon } from "@/app/components/icons";
 import { useForm } from "@mantine/form";
 import { Button, PasswordInput, Text, TextInput } from "@mantine/core";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { APIclient } from "@/app/_util/api";
-import { useUserInfoStore } from "@/app/_util/userinfo";
+import { UserInfoState, useUserInfoStore } from "@/app/_util/userinfo";
 
 export function useInfoPanel(params: {}) {
+	const user = useUserInfoStore((state) => state.user_info);
+
 	return {
 		node: (
 			<>
@@ -17,7 +19,7 @@ export function useInfoPanel(params: {}) {
 					icon={<XIcon icon={IconUserEdit} />}
 					title={"User info"}
 				>
-					<InfoSectionBasic />
+					<InfoSectionBasic user={user} />
 					<InfoSectionPassword />
 				</Panel>
 			</>
@@ -25,135 +27,114 @@ export function useInfoPanel(params: {}) {
 	};
 }
 
-function InfoSectionBasic(params: {}) {
+function InfoSectionBasic(params: { user: UserInfoState["user_info"] }) {
+	const user = params.user;
+	const set_info = useUserInfoStore((state) => state.set_info);
 	const [isLoading, setLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [email, setEmail] = useState(user?.email || "");
 
-	const user = useUserInfoStore((state) => state.user_info);
-	const set_info = useUserInfoStore((state) => state.set_info);
-
-	const form = useForm<{
-		email: string | null;
-	}>({
-		mode: "uncontrolled",
-		initialValues: {
-			email: user?.email || null,
-		},
-		validate: {
-			email: (value) => {
-				// empty string email => remove from account
-				if (value === null) {
-					return "Email must not be null";
-				}
-
-				return null;
-			},
-		},
-	});
-
-	const reset = () => {
-		form.reset();
-		setErrorMessage(null);
-	};
+	useEffect(() => {
+		setEmail(user?.email || "");
+	}, [setEmail, user?.email]);
 
 	return (
 		<>
 			<PanelTitle icon={<XIcon icon={IconPencil} />} title={"Basic info"} />
-			<form
-				onSubmit={form.onSubmit((values) => {
-					setLoading(true);
-					setErrorMessage(null);
-
-					if (values.email === null) {
-						throw Error(
-							"Entered unreachable code: form state is null, this should've been caught by `validate`",
-						);
-					}
-
-					if (user === null) {
-						return;
-					}
-
-					APIclient.POST("/auth/user/set_info", {
-						body: {
-							user: user.id,
-							color: { action: "Unchanged" },
-							email:
-								values.email === ""
-									? { action: "Clear" }
-									: { action: "Set", value: values.email },
-						},
-					})
-						.then(({ data, error }) => {
-							if (error !== undefined) {
-								throw error;
-							}
-							//reset();
-							set_info({
-								...user,
-								email: values.email,
-							});
-							setLoading(false);
-						})
-						.catch((err) => {
-							setLoading(false);
-							setErrorMessage(`${err}`);
-						});
-				})}
-			>
-				<div className={styles.settings_container}>
-					<div className={styles.label_row}>
-						<div className={styles.label}>
-							<Text c="dimmed">Username:</Text>
-						</div>
-						<div className={styles.item}>
-							<TextInput
-								placeholder="Set username"
-								disabled={true}
-								value={user?.name}
-							/>
-						</div>
+			<div className={styles.settings_container}>
+				<div className={styles.label_row}>
+					<div className={styles.label}>
+						<Text c="dimmed">Username:</Text>
 					</div>
-
-					<div className={styles.label_row}>
-						<div className={styles.label}>
-							<Text c="dimmed">Email:</Text>
-						</div>
-						<div className={styles.item}>
-							<TextInput
-								placeholder="email is unset"
-								key={form.key("email")}
-								disabled={isLoading}
-								{...form.getInputProps("email")}
-							/>
-						</div>
+					<div className={styles.item}>
+						<TextInput
+							placeholder="Set username"
+							disabled={true}
+							// || "" is required to avoid a react error
+							value={user?.name || ""}
+						/>
 					</div>
-
-					<Button.Group>
-						<Button
-							variant="light"
-							fullWidth
-							color="red"
-							onClick={reset}
-							disabled={isLoading}
-						>
-							Reset
-						</Button>
-						<Button
-							variant="filled"
-							color="green"
-							fullWidth
-							type="submit"
-							loading={isLoading}
-						>
-							Save
-						</Button>
-					</Button.Group>
-					<Text c="red" ta="center">
-						{errorMessage}
-					</Text>
 				</div>
-			</form>
+
+				<div className={styles.label_row}>
+					<div className={styles.label}>
+						<Text c="dimmed">Email:</Text>
+					</div>
+					<div className={styles.item}>
+						<TextInput
+							placeholder="email is unset"
+							disabled={isLoading}
+							value={email}
+							onChange={(x) => setEmail(x.currentTarget.value)}
+						/>
+					</div>
+				</div>
+
+				<Button.Group>
+					<Button
+						variant="light"
+						fullWidth
+						color="red"
+						onClick={() => {
+							setEmail(user?.email || "");
+							setErrorMessage(null);
+						}}
+						disabled={isLoading}
+					>
+						Reset
+					</Button>
+					<Button
+						variant="filled"
+						color="green"
+						fullWidth
+						type="submit"
+						loading={isLoading}
+						onClick={() => {
+							setLoading(true);
+							setErrorMessage(null);
+
+							if (user === null) {
+								return;
+							}
+
+							// Minimum delay so user sees loader
+							Promise.all([
+								new Promise((r) => setTimeout(r, 500)),
+								APIclient.POST("/auth/user/set_info", {
+									body: {
+										user: user.id,
+										color: { action: "Unchanged" },
+										email:
+											email === ""
+												? { action: "Clear" }
+												: { action: "Set", value: email },
+									},
+								}),
+							])
+								.then(([_, { data, error }]) => {
+									if (error !== undefined) {
+										throw error;
+									}
+
+									set_info({
+										...user,
+										email: email === "" ? null : email,
+									});
+									setLoading(false);
+								})
+								.catch((err) => {
+									setLoading(false);
+									setErrorMessage(`${err}`);
+								});
+						}}
+					>
+						Save
+					</Button>
+				</Button.Group>
+				<Text c="red" ta="center">
+					{errorMessage}
+				</Text>
+			</div>
 		</>
 	);
 }
@@ -236,14 +217,18 @@ function InfoSectionPassword(params: {}) {
 						return;
 					}
 
-					APIclient.POST("/auth/user/set_password", {
-						body: {
-							user: user.id,
-							new_password: values.new_password,
-							my_password: values.my_password,
-						},
-					})
-						.then(({ data, error }) => {
+					// Minimum delay so user sees loader
+					Promise.all([
+						new Promise((r) => setTimeout(r, 500)),
+						APIclient.POST("/auth/user/set_password", {
+							body: {
+								user: user.id,
+								new_password: values.new_password,
+								my_password: values.my_password,
+							},
+						}),
+					])
+						.then(([_, { data, error }]) => {
 							if (error !== undefined) {
 								throw error;
 							}
@@ -274,9 +259,7 @@ function InfoSectionPassword(params: {}) {
 
 					<div className={styles.label_row}>
 						<div className={styles.label}>
-							<Text c="dimmed" size="sm">
-								New password:
-							</Text>
+							<Text c="dimmed">New:</Text>
 						</div>
 						<div className={styles.item}>
 							<PasswordInput

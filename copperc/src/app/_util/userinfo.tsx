@@ -7,7 +7,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { generateColorsMap } from "./generate-colors";
 
-type UserInfoState = {
+export type UserInfoState = {
 	user_info: components["schemas"]["UserInfo"] | null;
 	theme: MantineThemeOverride;
 	set_info: (new_info: components["schemas"]["UserInfo"]) => void;
@@ -27,8 +27,7 @@ export const useUserInfoStore = create<UserInfoState>()(
 				}),
 
 				set_info: (new_info) =>
-					set((state) => ({
-						...state,
+					set((_state) => ({
 						user_info: new_info,
 						theme: createTheme({
 							fontFamily: GeistSans.style.fontFamily,
@@ -45,9 +44,8 @@ export const useUserInfoStore = create<UserInfoState>()(
 					})),
 
 				preview_color: (new_color) =>
-					set((state) => {
+					set((_state) => {
 						return {
-							...state,
 							theme: createTheme({
 								fontFamily: GeistSans.style.fontFamily,
 								fontFamilyMonospace: GeistMono.style.fontFamily,
@@ -66,7 +64,6 @@ export const useUserInfoStore = create<UserInfoState>()(
 				set_color: (new_color) =>
 					set((state) => {
 						return {
-							...state,
 							user_info:
 								state.user_info === null
 									? null

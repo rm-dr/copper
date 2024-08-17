@@ -2,16 +2,13 @@
 import { Button, PasswordInput, Text, TextInput } from "@mantine/core";
 import styles from "./page.module.scss";
 import { useState } from "react";
-
 import Banner from "../../../public/banner.svg";
 import { useForm } from "@mantine/form";
 import { APIclient } from "../_util/api";
-import { useUserInfoStore } from "../_util/userinfo";
 
 export default function Page() {
 	let [loading, setLoading] = useState(false);
 	let [error, setError] = useState<null | string>(null);
-	const setinfo = useUserInfoStore((state) => state.set_info);
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -34,18 +31,7 @@ export default function Page() {
 								setError("Login failed");
 							} else {
 								// Middleware will redirect to main page
-
-								APIclient.GET("/auth/me")
-									.then(({ data, error }) => {
-										if (error !== undefined) {
-											throw error;
-										}
-										setinfo(data);
-										location.reload();
-									})
-									.catch((err) => {
-										setError(`Login failed: ${err}`);
-									});
+								location.reload();
 							}
 						})
 						.catch((err) => {
