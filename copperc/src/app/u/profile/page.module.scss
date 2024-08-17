@@ -13,6 +13,18 @@
 	overflow-x: scroll;
 }
 
+.panel_id_info {
+	width: 100%;
+	grid-row: 1 / 2;
+	grid-column: 1 / 2;
+}
+
+.panel_id_ui {
+	width: 100%;
+	grid-row: 1 / 2;
+	grid-column: 2 / 3;
+}
+
 .settings_container {
 	display: flex;
 	flex-direction: column;

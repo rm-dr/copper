@@ -11,6 +11,7 @@ type UserInfoState = {
 	user_info: components["schemas"]["UserInfo"] | null;
 	theme: MantineThemeOverride;
 	set_info: (new_info: components["schemas"]["UserInfo"]) => void;
+	preview_color: (new_color: string) => void;
 	set_color: (new_color: string) => void;
 };
 
@@ -43,6 +44,25 @@ export const useUserInfoStore = create<UserInfoState>()(
 						}),
 					})),
 
+				preview_color: (new_color) =>
+					set((state) => {
+						return {
+							...state,
+							theme: createTheme({
+								fontFamily: GeistSans.style.fontFamily,
+								fontFamilyMonospace: GeistMono.style.fontFamily,
+
+								colors: {
+									"user-color": generateColorsMap(new_color).colors.map((x) =>
+										x.toString(),
+									) as any,
+								},
+
+								primaryColor: "user-color",
+							}),
+						};
+					}),
+
 				set_color: (new_color) =>
 					set((state) => {
 						return {
@@ -67,6 +87,7 @@ export const useUserInfoStore = create<UserInfoState>()(
 						};
 					}),
 			}),
+
 			{
 				name: "user-info",
 			},
