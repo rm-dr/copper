@@ -191,7 +191,6 @@ export function useGroupTreePanel() {
 		</Panel>
 	);
 
-	// TODO: return tree state
 	return { node, selected, treeData, reloadTree: update_tree };
 }
 

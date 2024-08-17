@@ -7,8 +7,6 @@ use super::super::{
 	blocks::FlacPictureBlock,
 };
 
-// TODO: extract picture from vorbis tags
-
 /// Find all pictures in a flac file,
 /// in both picture metablocks and vorbis comments.
 pub struct FlacPictureReader {

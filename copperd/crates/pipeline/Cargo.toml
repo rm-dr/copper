@@ -1,6 +1,6 @@
 [package]
 name = "copper-pipeline"
-description = "TODO"
+description = "Copper's pipeline runner"
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }

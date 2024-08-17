@@ -5,8 +5,6 @@ import { ModalBase } from "@/app/components/modal_base";
 import { attrTypes } from "@/app/_util/attrs";
 import { components, paths } from "@/app/_util/api/openapi";
 
-// TODO: make this a form
-
 export function useAddAttrModal(params: {
 	dataset_name: string;
 	class: components["schemas"]["ClassInfo"];

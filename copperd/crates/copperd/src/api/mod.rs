@@ -45,23 +45,6 @@ pub struct RouterState {
 	pub uploader: Arc<Uploader>,
 }
 
-/*
-For bearer auth, currently disabled
-
-struct BearerSecurityAddon;
-impl Modify for BearerSecurityAddon {
-	fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-		if let Some(components) = openapi.components.as_mut() {
-			components.add_security_scheme(
-				"bearer",
-				SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)),
-			)
-		}
-	}
-}
-*/
-
-// TODO: fix utoipa tags
 #[derive(OpenApi)]
 #[openapi(
 	//modifiers(&BearerSecurityAddon),

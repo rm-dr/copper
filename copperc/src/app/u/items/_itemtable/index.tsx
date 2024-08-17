@@ -16,9 +16,6 @@ import { XIcon } from "@/app/components/icons";
 import { components } from "@/app/_util/api/openapi";
 import { APIclient } from "@/app/_util/api";
 
-// TODO: delete top of list once we scroll too far
-// (save memory for large lists)
-
 const TablePlaceholder = (params: { children: ReactNode }) => {
 	return (
 		<div
@@ -246,7 +243,6 @@ export function ItemTablePanel(params: {
 				return cref.offsetWidth;
 			});
 
-			// TODO: make this prettier
 			// Trim space from columns, starting from the leftmost one
 			for (let i = 0; i < columns.length - 1; i++) {
 				let cref = col_refs.current[i];
@@ -496,7 +492,6 @@ export function ItemTablePanel(params: {
 							);
 						}
 
-						// type hack (TODO: fix)
 						let found_attr = Object.entries(data_entry.attrs).find(
 							([_, x]) => x?.attr.handle === attr.handle,
 						);

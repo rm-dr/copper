@@ -1,6 +1,6 @@
 [package]
 name = "copper-migrate"
-description = "TODO"
+description = "A simple database migration engine"
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }

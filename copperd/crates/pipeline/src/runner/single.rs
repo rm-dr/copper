@@ -127,7 +127,6 @@ pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobCon
 		Result<NodeState, RunNodeError>,
 	)>,
 
-	// TODO: remove and write better scheduler
 	node_run_offset: usize,
 }
 

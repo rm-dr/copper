@@ -969,7 +969,6 @@ impl Metastore for LocalDataset {
 		// Find table and column name to modify
 		let column_name = Self::get_column_name(attr);
 		let table_name: String = {
-			// TODO: meta_attributes.id AS attr_id
 			let res = sqlx::query(
 				"
 					SELECT meta_classes.id AS class_id

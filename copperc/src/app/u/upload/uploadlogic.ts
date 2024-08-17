@@ -301,7 +301,6 @@ export function startUploadingFiles(params: {
 		})
 		// Other errors
 		.catch((err) => {
-			// TODO: show error in ui
 			console.error(err);
 		});
 

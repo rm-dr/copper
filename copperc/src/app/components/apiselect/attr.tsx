@@ -9,8 +9,7 @@ async function update_attrs(params: {
 		return Promise.resolve(null);
 	}
 
-	// TODO: list attrs endpoint, or take attrs as input?
-	// this is a bit inefficient.
+	// this is a bit inefficient, but I guess that's fine.
 	let { data, error } = await APIclient.GET("/class/list", {
 		params: { query: { dataset: params.dataset } },
 	});

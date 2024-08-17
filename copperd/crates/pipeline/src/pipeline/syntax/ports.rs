@@ -16,9 +16,8 @@ pub(crate) struct NodeOutput {
 	pub port: PipelinePortID,
 }
 
-// TODO: better error
 impl FromStr for NodeOutput {
-	type Err = String;
+	type Err = ();
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let mut i = s.split('.');
@@ -26,7 +25,7 @@ impl FromStr for NodeOutput {
 		let b = i.next();
 
 		if a.is_none() || b.is_none() || i.next().is_some() {
-			return Err("bad link format".into());
+			return Err(());
 		}
 		let a = a.unwrap();
 		let b = b.unwrap();
@@ -49,9 +48,8 @@ pub struct NodeInput {
 	pub port: PipelinePortID,
 }
 
-// TODO: better error
 impl FromStr for NodeInput {
-	type Err = String;
+	type Err = ();
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let mut i = s.split('.');
@@ -59,7 +57,7 @@ impl FromStr for NodeInput {
 		let b = i.next();
 
 		if a.is_none() || b.is_none() || i.next().is_some() {
-			return Err("bad link format".into());
+			return Err(());
 		}
 		let a = a.unwrap();
 		let b = b.unwrap();

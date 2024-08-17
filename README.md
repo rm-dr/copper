@@ -33,6 +33,8 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Show item idx in list
 - [ ] Script to run actions manually
 - [ ] fs checks create race condition---use errors instead
+  - [ ] Error if full db path doesn't exist (no panic)
+  - [ ] Clean up all file checks
 - [ ] Backup db when migrating
 
 ## 📦 View items
@@ -66,6 +68,9 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Upload in parallel
 - [ ] Warn when closing window if uploading
 - [ ] View and edit queue (?)
+- [ ] Show all errors in ui
+- [ ] Improve "new file" check
+- [ ] redo input exemplars
 
 ## 📦 Edit items
 - [ ] Edit items even if they differ
@@ -76,15 +81,10 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 ## 📦 Daemon cleanup
 - [ ] remove panics/unwraps
 - [ ] Minor TODOs in code (search all files)
-- [ ] Error if full db path doesn't exist (no panic)
 - [ ] stream big files in `/items/attr`
 - [ ] Remove allow dead code (after implementing features)
 
 ## 📦 User settings
-- [ ] Change self password
-- [ ] Email (send notifications)
-- [ ] Set primary color
-- [ ] Settings page
 - [ ] Disable no-permission buttons in group tree
 - [ ] Disable edit self in group tree
 
@@ -277,7 +277,6 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 
 ## UI config
 - [ ] Light/dark theme
-- [ ] Save user preference
 - [ ] Set primary color for site (admin)
 - [ ] Set site message / logo
 

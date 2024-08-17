@@ -65,8 +65,6 @@ export type attrTypeInfo = {
 				}) => ReactElement;
 		  };
 
-	// TODO: fix these types (no any)
-
 	// Extra parameter elements for this type.
 	// Consumes a function is called whenever parameters change,
 	// returns html that controls this input.

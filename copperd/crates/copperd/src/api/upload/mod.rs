@@ -16,7 +16,6 @@ use upload::*;
 
 // TODO: better error handling
 // TODO: delete when fail
-// TODO: logging
 
 #[derive(OpenApi)]
 #[openapi(

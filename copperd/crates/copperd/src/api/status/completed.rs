@@ -21,7 +21,6 @@ pub(super) struct CompletedJobStatus {
 	#[schema(value_type = String)]
 	pub pipeline: PipelineName,
 
-	// TODO: redo
 	/// A pretty string that identifies this job by its input
 	pub input_exemplar: String,
 }

@@ -209,11 +209,13 @@ impl PipelineDataStub for CopperDataStub {
 
 impl CopperDataStub {
 	/// Get the [`MetastoreDataStub`] that this [`CopperDataStub`] encode to, if any.
-	/// Not all [`CopperDataStub`]s may be stored in a metastore.
+	///
+	/// Not all [`CopperDataStub`]s directly map to a [`MetastoreDataStub`].
+	/// Those special cases return [`None`].
 	fn as_metastore_stub(&self) -> Option<MetastoreDataStub> {
 		Some(match self {
 			Self::Text => MetastoreDataStub::Text,
-			Self::Bytes => todo!(),
+			Self::Bytes => return None,
 			Self::Integer { is_non_negative } => MetastoreDataStub::Integer {
 				is_non_negative: *is_non_negative,
 			},

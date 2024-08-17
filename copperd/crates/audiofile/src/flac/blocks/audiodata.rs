@@ -28,9 +28,6 @@ impl FlacAudioFrame {
 			return Err(FlacDecodeError::BadSyncBytes);
 		}
 
-		// TODO: look for sync bytes inside frame
-		// (There shouldn't be any)
-
 		Ok(Self {
 			data: Vec::from(data),
 		})

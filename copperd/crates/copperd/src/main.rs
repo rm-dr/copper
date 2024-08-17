@@ -13,8 +13,7 @@ mod config;
 mod maindb;
 mod uploader;
 
-// TODO: guaranteed unique pipeline job id (?)
-// delete after timeout (what if uploading takes a while? Multiple big files?)
+// TODO: delete after timeout (what if uploading takes a while? Multiple big files?)
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -74,8 +73,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		use copper_audiofile::nodes::register;
 		register(runner.mut_dispatcher()).unwrap();
 	}
-
-	// TODO: clone fewer arcs
 
 	// Note how these are all async locks
 	let state = RouterState {

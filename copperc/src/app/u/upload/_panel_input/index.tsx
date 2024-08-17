@@ -59,7 +59,6 @@ export function useInputPanel({
 				<Dropzone
 					onDrop={(dropped_files) => {
 						// Only add new files
-						// TODO: improve this check
 						const d = dropped_files.filter((file) => {
 							let is_already_there = false;
 							for (var i = 0; i < uploadState.queue.length; i++) {

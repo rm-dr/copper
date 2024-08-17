@@ -35,7 +35,6 @@ pub struct CopperConfig {
 }
 
 impl CopperConfig {
-	// TODO: build script to make sure this is valid
 	const DEFAULT_CONFIG: &'static str = include_str!("./default-config.toml");
 
 	/// Write the default config to the given path, overwriting if it already exists.
