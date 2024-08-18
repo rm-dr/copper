@@ -1,10 +1,10 @@
 use api::RouterState;
-use config::CopperConfig;
+use config::{ConfigLoadError, CopperConfig};
 use copper_node_base::{data::CopperData, CopperContext};
 use futures::TryFutureExt;
 use std::{error::Error, future::IntoFuture, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{error, info};
 
 use copper_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
 
@@ -14,7 +14,7 @@ mod maindb;
 mod uploader;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() {
 	let config_path: PathBuf = "./data/config.toml".into();
 	if !config_path.exists() {
 		// We cannot log here, logger hasn't been initialized
@@ -22,17 +22,30 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			"Generating default config at {}",
 			config_path.to_str().unwrap()
 		);
-		CopperConfig::create_default_config(&config_path).unwrap();
+		if let Err(e) = CopperConfig::create_default_config(&config_path) {
+			println!("I/O error while generating config: {e:?}");
+			std::process::exit(1);
+		};
 	} else if !config_path.is_file() {
 		// We cannot log here, logger hasn't been initialized
 		println!(
 			"Config path `{}` isn't a file, cannot start",
 			config_path.to_str().unwrap()
 		);
-		std::process::exit(0);
+		std::process::exit(1);
 	}
 
-	let config = Arc::new(CopperConfig::load_from_file(&config_path).unwrap());
+	let config = Arc::new(match CopperConfig::load_from_file(&config_path) {
+		Ok(e) => e,
+		Err(ConfigLoadError::CouldNotDeserialize(e)) => {
+			error!(message = "Could not deserialize config", err = e);
+			std::process::exit(1);
+		}
+		Err(ConfigLoadError::IoError(e)) => {
+			error!(message = "I/O error while deserializing config", err = ?e);
+			std::process::exit(1);
+		}
+	});
 
 	// Logging is available after this point
 	tracing_subscriber::fmt()
@@ -47,11 +60,42 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			message = "Creating main database because it doesn't exist",
 			main_db_path = ?config.paths.main_db
 		);
-		maindb::MainDB::create(&config.paths.main_db).await.unwrap();
+		match maindb::MainDB::create(&config.paths.main_db).await {
+			Ok(_) => {}
+			Err(maindb::MainDbCreateError::DbError(e)) => {
+				error!(message = "SQL error while creating main database", err = ?e);
+				std::process::exit(1);
+			}
+			Err(maindb::MainDbCreateError::MigrateError(e)) => {
+				error!(message = "Migration error while creating main database", err = ?e);
+				std::process::exit(1);
+			}
+		};
 	}
 
-	let main_db = maindb::MainDB::open(config.clone()).await.unwrap();
-	let uploader = uploader::Uploader::open(config.clone()).unwrap();
+	let main_db = match maindb::MainDB::open(config.clone()).await {
+		Ok(x) => x,
+		Err(maindb::MainDbOpenError::DbError(e)) => {
+			error!(message = "SQL error while opening main database", err = ?e);
+			std::process::exit(1);
+		}
+		Err(maindb::MainDbOpenError::IoError(e)) => {
+			error!(message = "I/O error while opening main database", err = ?e);
+			std::process::exit(1);
+		}
+		Err(maindb::MainDbOpenError::MigrateError(e)) => {
+			error!(message = "Error while migrating main database", err = ?e);
+			std::process::exit(1);
+		}
+		Err(maindb::MainDbOpenError::BadDatasetDir) => {
+			error!(message = "Invalid dataset root directory");
+			std::process::exit(1);
+		}
+	};
+	let uploader = match uploader::Uploader::open(config.clone()) {
+		Ok(x) => x,
+		Err(_) => std::process::exit(1),
+	};
 
 	// Prep runner
 	let mut runner: PipelineRunner<CopperData, CopperContext> =
@@ -80,15 +124,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		uploader: Arc::new(uploader),
 	};
 
-	let listener = tokio::net::TcpListener::bind(state.config.network.server_addr.to_string())
-		.await
-		.unwrap();
+	let listener =
+		match tokio::net::TcpListener::bind(state.config.network.server_addr.to_string()).await {
+			Ok(x) => x,
+			Err(e) => {
+				match e.kind() {
+					std::io::ErrorKind::AddrInUse => {
+						error!(
+							message = "Cannot bind to port, already in use",
+							port = state.config.network.server_addr.as_str()
+						);
+					}
+					_ => {
+						error!(message = "Error while migrating main database", err = ?e);
+					}
+				}
+
+				std::process::exit(1);
+			}
+		};
 	info!("listening on {}", listener.local_addr().unwrap());
 
 	let app = api::router(state.clone());
 
 	// Main loop(s)
-	tokio::try_join!(
+	match tokio::try_join!(
 		run_pipes(state),
 		// Call .into on the error axum returns
 		// so that the error types of all futures
@@ -98,9 +158,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		axum::serve(listener, app)
 			.into_future()
 			.map_err(|x| x.into())
-	)?;
-
-	return Ok(());
+	) {
+		Ok(_) => {}
+		Err(e) => {
+			error!(message = "Main loop exited with error", err = e)
+		}
+	};
 }
 
 async fn run_pipes(state: RouterState) -> Result<(), Box<dyn Error>> {

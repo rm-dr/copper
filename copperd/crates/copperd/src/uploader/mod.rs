@@ -87,7 +87,7 @@ impl Uploader {
 				.map_err(UploaderOpenError::IoError)?;
 		} else if config.paths.upload_dir.is_dir() {
 			warn!(
-				message = "Upload directory isn't empty, removing",
+				message = "Upload directory already exists, removing",
 				directory = ?config.paths.upload_dir
 			);
 			std::fs::remove_dir_all(&config.paths.upload_dir)

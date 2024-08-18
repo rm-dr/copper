@@ -15,6 +15,30 @@ use std::{
 	time::Duration,
 };
 
+#[derive(Debug)]
+pub enum ConfigLoadError {
+	IoError(std::io::Error),
+	CouldNotDeserialize(Box<dyn Error>),
+}
+
+impl Display for ConfigLoadError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::IoError(_) => write!(f, "i/o error"),
+			Self::CouldNotDeserialize(_) => write!(f, "could not deserialize config"),
+		}
+	}
+}
+
+impl Error for ConfigLoadError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::IoError(e) => Some(e),
+			Self::CouldNotDeserialize(e) => Some(e.as_ref()),
+		}
+	}
+}
+
 /// Server configuration
 #[derive(Deserialize, Debug)]
 pub struct CopperConfig {
@@ -48,10 +72,13 @@ impl CopperConfig {
 	///
 	/// This is the only valid way to make a CopperConfig,
 	/// since this method makes sure paths are valid
-	pub fn load_from_file(config_path: &Path) -> Result<Self, Box<dyn Error>> {
-		let config_path = std::fs::canonicalize(config_path)?;
-		let config_string = std::fs::read_to_string(&config_path)?;
-		let mut config: Self = toml::from_str(&config_string)?;
+	pub fn load_from_file(config_path: &Path) -> Result<Self, ConfigLoadError> {
+		let config_path = std::fs::canonicalize(config_path).map_err(ConfigLoadError::IoError)?;
+		let config_string =
+			std::fs::read_to_string(&config_path).map_err(ConfigLoadError::IoError)?;
+
+		let mut config: Self = toml::from_str(&config_string)
+			.map_err(|e| ConfigLoadError::CouldNotDeserialize(Box::new(e)))?;
 
 		// Now, adjust paths so that they are relative to the config file
 		config.paths.set_relative_to(config_path.parent().unwrap());

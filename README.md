@@ -28,14 +28,16 @@ The list below is a minimal issue tracker.
 Projects marked with a 📦 are prerequisites for `v0.1.0` release.
 The goal is a minimal working version: robust and usable, but possibly slow and missing fancy features.
 
+## 📦 Daemon cleanup
+- [ ] remove panics/unwraps
+- [ ] Minor TODOs in code (search all files)
+- [ ] stream big files in `/items/attr`
+- [ ] Remove allow dead code (after implementing features)
+
 ## 📦 Fixes
 - [ ] Server deadlocks with two parallel clients
 - [ ] Show item idx in list
 - [ ] Script to run actions manually
-- [ ] fs checks create race condition---use errors instead
-  - [ ] Error if full db path doesn't exist (no panic)
-  - [ ] Clean up all file checks
-  - [ ] Check blobstore dir (and all others)
 - [ ] Backup db when migrating
 - [ ] Do not try to load when item list is scrolled to bottom
 
@@ -45,11 +47,7 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
   - [ ] Sort by attrs
 
 ## 📦 Audiofile library
-- [ ] Tests
-  - [ ] Many metadata blocks
-  - [ ] Many streaminfo blocks
 - [ ] IDv3 complete implementation
-- [ ] Early exit if we don't need audio data
 
 ## 📦 Pipeline ui
 - Redo input ui for new input arch
@@ -57,8 +55,6 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - Node docs (inside ui)
 
 ## 📦 UI Cleanup
-- [ ] show errors in ui when fetch fails (upload)
-- [ ] tab all interactables
 - [ ] Fade bottom of all scrolls (component? overscroll?)
 - [ ] Image preview on hover in table
 - [ ] Image placeholder while loading
@@ -79,12 +75,6 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Show "changed" indicator
 - [ ] "Commit" button
 - [ ] Edit panel items
-
-## 📦 Daemon cleanup
-- [ ] remove panics/unwraps
-- [ ] Minor TODOs in code (search all files)
-- [ ] stream big files in `/items/attr`
-- [ ] Remove allow dead code (after implementing features)
 
 ## 📦 User settings
 - [ ] Disable no-permission buttons in group tree
@@ -236,7 +226,7 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Infinite scroll when item table doesn't fill view
   - just use a big enough page size?
 - [ ] Show menu on right-click in trees
-
+- [ ] tab all interactables
 
 
 ---------------------------------------------------------------------
@@ -306,3 +296,7 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
   - (flac) Multiple vorbis comment blocks are an error
   - (flac) enforce length limits for all ints
   - (flac) enforce block length limits
+  - (flac) Many metadata blocks
+  - (flac) Many streaminfo blocks
+  - tests
+- [ ] Early exit if we don't need audio data
