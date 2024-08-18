@@ -58,9 +58,7 @@ impl AuthProvider {
 			token: token.into(),
 			expires: (self.config.network.login_lifetime != 0).then(|| {
 				OffsetDateTime::now_utc()
-					.checked_add(Duration::hours(
-						self.config.network.login_lifetime.try_into().unwrap(),
-					))
+					.checked_add(Duration::hours(self.config.network.login_lifetime.into()))
 					.unwrap()
 			}),
 		}
