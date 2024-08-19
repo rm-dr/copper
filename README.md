@@ -34,6 +34,10 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] stream big files in `/items/attr`
 - [ ] Remove allow dead code (after implementing features)
 
+## 📦 User settings
+- [ ] Disable no-permission buttons in group tree
+- [ ] Disable edit self in group tree
+
 ## 📦 Fixes
 - [ ] Server deadlocks with two parallel clients
 - [ ] Show item idx in list
@@ -42,9 +46,8 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Do not try to load when item list is scrolled to bottom
 
 ## 📦 View items
-- [ ] Manage ui items
-  - [ ] Delete items
-  - [ ] Sort by attrs
+- [ ] Delete items
+- [ ] Sort by attrs
 
 ## 📦 Audiofile library
 - [ ] IDv3 complete implementation
@@ -55,7 +58,6 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - Node docs (inside ui)
 
 ## 📦 UI Cleanup
-- [ ] Fade bottom of all scrolls (component? overscroll?)
 - [ ] Image preview on hover in table
 - [ ] Image placeholder while loading
 - Show running pipeline node count & progress
@@ -70,38 +72,24 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Improve "new file" check
 - [ ] redo input exemplars
 
-## 📦 Edit items
-- [ ] Edit items even if they differ
-- [ ] Show "changed" indicator
-- [ ] "Commit" button
-- [ ] Edit panel items
-
-## 📦 User settings
-- [ ] Disable no-permission buttons in group tree
-- [ ] Disable edit self in group tree
-
 ## 📦 Distribution
 - [ ] Docker file & compose
 - [ ] `crates.io`
 - [ ] CI:
   - [ ] cargo build
   - [ ] docker build
-- [ ] Git config, rules (docs), and rebase
-- [ ] MD docs for devs
-
-## 📦 Dev docs
-- [ ] How to make nodes (cmd api & rust api)
-  - [ ] When should nodes panic?
-- [ ] glossary of terms
-- [ ] Finalize node api (traits, cmd later)
-- Notes
-  - Pipeline = one-off job. No streams!
-  - Nodes take input even when not ready
 
 ## 📦 Branding
-- [ ] Better name
-- [ ] Better logo
-- [ ] Website (main page & user docs)
+- [ ] Better iconography & font
+- [ ] README
+- Dev docs
+  - [ ] How to make nodes (cmd api & rust api)
+    - [ ] When should nodes panic?
+  - [ ] glossary of terms
+  - [ ] Finalize node api (traits, cmd later)
+  - Notes
+    - Pipeline = one-off job. No streams!
+    - Nodes take input even when not ready
 
 ## 📦 Inline documentation
 - UI should be usable without a manual (info hovers)
@@ -110,6 +98,11 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 
 ---------------------------------------------------------------------
 
+## 📦 Edit items
+- [ ] Edit items even if they differ
+- [ ] Show "changed" indicator
+- [ ] "Commit" button
+- [ ] Edit panel items
 
 ## Daemon cleanup v2
 - [ ] utoipa tags
@@ -227,6 +220,7 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
   - just use a big enough page size?
 - [ ] Show menu on right-click in trees
 - [ ] tab all interactables
+- [ ] Fade bottom of all scrolls (component? overscroll?)
 
 
 ---------------------------------------------------------------------
