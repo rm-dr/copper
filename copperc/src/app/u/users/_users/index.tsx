@@ -22,6 +22,7 @@ import {
 import { components } from "@/app/_util/api/openapi";
 import { useRenameUserModal } from "../_modals/renameuser";
 import { useSetPasswordModal } from "../_modals/setpassword";
+import { useUserInfoStore } from "@/app/_util/userinfo";
 
 const Wrapper = (params: { children: ReactNode }) => {
 	return (
@@ -59,6 +60,7 @@ export function UsersPanel(params: {
 			? undefined
 			: params.data.find((x) => x.uid === params.selected);
 
+	const user_info = useUserInfoStore((state) => state.user_info);
 	const { open: openModal, modal: addUserModal } = useAddUserModal({
 		group: g?.data.group_info,
 		onChange: params.onChange,
@@ -101,18 +103,37 @@ export function UsersPanel(params: {
 			</Wrapper>
 		);
 	} else {
-		userlist = g?.data.users.map((x: any) => {
-			return (
-				<div key={`${x.id}`} className={styles.user_entry}>
-					<div className={styles.user_entry_icon}>
-						<XIcon icon={IconUser} />
+		userlist = g?.data.users.map((x) => {
+			if (x.id === user_info?.id) {
+				return (
+					<div key={`${x.id}`} className={styles.user_entry}>
+						<div className={styles.user_entry_icon}>
+							<XIcon icon={IconUser} />
+						</div>
+						<div className={styles.user_entry_text}>
+							{x.name}{" "}
+							<Text c="dimmed" fs="italic" span>
+								(you)
+							</Text>
+						</div>
+						<div className={styles.user_entry_right}>
+							<UserMenu user={x} onChange={params.onChange} />
+						</div>
 					</div>
-					<div className={styles.user_entry_text}>{x.name}</div>
-					<div className={styles.user_entry_right}>
-						<UserMenu user={x} onChange={params.onChange} />
+				);
+			} else {
+				return (
+					<div key={`${x.id}`} className={styles.user_entry}>
+						<div className={styles.user_entry_icon}>
+							<XIcon icon={IconUser} />
+						</div>
+						<div className={styles.user_entry_text}>{x.name}</div>
+						<div className={styles.user_entry_right}>
+							<UserMenu user={x} onChange={params.onChange} />
+						</div>
 					</div>
-				</div>
-			);
+				);
+			}
 		});
 	}
 

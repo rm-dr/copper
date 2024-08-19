@@ -41,7 +41,8 @@ pub struct GroupInfo {
 	pub permissions: GroupPermissions,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+// TODO: We don't derive ToSchema here because it doesn't handle `transparent` correctly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct UserId {
 	id: u32,
@@ -107,7 +108,9 @@ impl Display for UserColor {
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct UserInfo {
+	#[schema(value_type = u32)]
 	pub id: UserId,
+
 	pub group: GroupInfo,
 
 	pub name: String,

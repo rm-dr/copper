@@ -16,7 +16,9 @@ use crate::{
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub(super) struct RenameUserRequest {
+	#[schema(value_type = u32)]
 	user: UserId,
+
 	new_name: String,
 }
 

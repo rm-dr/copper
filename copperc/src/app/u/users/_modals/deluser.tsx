@@ -73,7 +73,7 @@ export function useDeleteUserModal(params: {
 
 						APIclient.DELETE("/auth/user/del", {
 							body: {
-								user: params.user.id.id,
+								user: params.user.id,
 							},
 						})
 							.then(({ data, error }) => {

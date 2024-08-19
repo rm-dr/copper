@@ -9,11 +9,12 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::ToSchema;
 
-use crate::api::RouterState;
+use crate::{api::RouterState, maindb::auth::UserId};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub(super) struct DeluserRequest {
-	user: u32,
+	#[schema(value_type = u32)]
+	user: UserId,
 }
 
 /// Delete a user
@@ -95,7 +96,7 @@ pub(super) async fn del_user(
 		}
 	};
 
-	if payload.user == u32::from(userinfo.id) {
+	if u32::from(payload.user) == u32::from(userinfo.id) {
 		return (StatusCode::BAD_REQUEST, "Cannot delete self").into_response();
 	}
 

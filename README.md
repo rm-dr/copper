@@ -34,10 +34,6 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] stream big files in `/items/attr`
 - [ ] Remove allow dead code (after implementing features)
 
-## 📦 User settings
-- [ ] Disable no-permission buttons in group tree
-- [ ] Disable edit self in group tree
-
 ## 📦 Fixes
 - [ ] Server deadlocks with two parallel clients
 - [ ] Show item idx in list
@@ -230,7 +226,7 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Dataset permissions (per group)
 - [ ] Hide datasets/groups (view permission)
 - [ ] Clean up permission model (make a lib)
-
+- [ ] Disable no-permission buttons in group tree (ui)
 
 ## Other datasets
 - mysql + ?

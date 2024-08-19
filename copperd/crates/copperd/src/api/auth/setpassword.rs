@@ -17,6 +17,7 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub(super) struct SetPasswordRequest {
 	/// The user to modify
+	#[schema(value_type = u32)]
 	user: UserId,
 
 	/// The new password to set

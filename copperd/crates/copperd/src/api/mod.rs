@@ -31,7 +31,7 @@ mod upload;
 use crate::{
 	config::CopperConfig,
 	maindb::{
-		auth::{GroupId, GroupInfo, UserId, UserInfo},
+		auth::{GroupId, GroupInfo, UserInfo},
 		MainDB,
 	},
 	uploader::Uploader,
@@ -70,7 +70,6 @@ pub struct RouterState {
 		BlobHandle,
 		GroupId,
 		GroupInfo,
-		UserId,
 		UserInfo,
 		AttrInfo,
 		ClassInfo,

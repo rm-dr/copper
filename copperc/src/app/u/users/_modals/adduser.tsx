@@ -23,6 +23,7 @@ export function useAddUserModal(params: {
 			username: "",
 			password: "",
 			passwordconfirm: "",
+			email: "",
 		},
 		validate: {
 			username: (value) =>
@@ -79,6 +80,7 @@ export function useAddUserModal(params: {
 								group: params.group.id,
 								username: values.username,
 								password: values.password,
+								email: values.email === "" ? null : values.email,
 							},
 						})
 
@@ -103,6 +105,16 @@ export function useAddUserModal(params: {
 						disabled={isLoading}
 						key={form.key("username")}
 						{...form.getInputProps("username")}
+						style={{
+							margin: "0.5rem",
+						}}
+					/>
+					<TextInput
+						data-autofocus
+						placeholder="email (optional)"
+						disabled={isLoading}
+						key={form.key("email")}
+						{...form.getInputProps("email")}
 						style={{
 							margin: "0.5rem",
 						}}

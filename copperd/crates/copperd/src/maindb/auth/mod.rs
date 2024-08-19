@@ -409,11 +409,12 @@ impl AuthProvider {
 			.acquire()
 			.await
 			.map_err(|e| CreateUserError::DbError(Box::new(e)))?;
+
 		let res = sqlx::query(
 			"
 			INSERT INTO users (
 				user_name, user_group, pw_hash, user_email
-			) VALUES (?, ?, ?);
+			) VALUES (?, ?, ?, ?);
 			",
 		)
 		.bind(&user_name)

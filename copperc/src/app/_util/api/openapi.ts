@@ -1132,7 +1132,8 @@ export interface components {
 		};
 		RenameUserRequest: {
 			new_name: string;
-			user: components["schemas"]["UserId"];
+			/** Format: int32 */
+			user: number;
 		};
 		/** @description This server's pipeline runner status */
 		RunnerStatus: {
@@ -1182,6 +1183,12 @@ export interface components {
 		/** @description The server's status */
 		ServerStatus: {
 			/**
+			 * Format: int32
+			 * @description The maximum number of items we'll return in one request
+			 * @example 100
+			 */
+			max_item_page_size: number;
+			/**
 			 * @description The maximum request size this server supports, in bytes
 			 * @example 2000000
 			 */
@@ -1198,12 +1205,20 @@ export interface components {
 			my_password: string;
 			/** @description The new password to set */
 			new_password: string;
-			user: components["schemas"]["UserId"];
+			/**
+			 * Format: int32
+			 * @description The user to modify
+			 */
+			user: number;
 		};
 		SetUserInfoRequest: {
 			color: components["schemas"]["ColorAction"];
 			email: components["schemas"]["EmailAction"];
-			user: components["schemas"]["UserId"];
+			/**
+			 * Format: int32
+			 * @description The user to modify
+			 */
+			user: number;
 		};
 		/** @description Parameters to finish an uploading file */
 		UploadFinish: {
@@ -1235,15 +1250,12 @@ export interface components {
 			/** @description This upload job's id */
 			job_id: string;
 		};
-		UserId: {
-			/** Format: int32 */
-			id: number;
-		};
 		UserInfo: {
 			color: string;
 			email?: string | null;
 			group: components["schemas"]["GroupInfo"];
-			id: components["schemas"]["UserId"];
+			/** Format: int32 */
+			id: number;
 			name: string;
 		};
 	};
