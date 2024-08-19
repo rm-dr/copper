@@ -106,6 +106,30 @@ export function ItemTablePanel(params: {
 	// Column resize logic
 	//
 
+	const makeColumnWidths = useCallback(
+		(gridColumns: number[] | null): string => {
+			// If gridColumns is Null, set the default size.
+			// (used to init)
+			if (gridColumns === null) {
+				return "5rem " + columns.map((_) => "1fr").join(" ");
+			}
+
+			return (
+				"5rem " +
+				gridColumns
+					.map((w, i) => {
+						if (i === columns.length - 1) {
+							return `minmax(${params.minCellWidth}px, auto)`;
+						} else {
+							return `${w}px`;
+						}
+					})
+					.join(" ")
+			);
+		},
+		[columns, params.minCellWidth],
+	);
+
 	const resizeStart = useCallback((index: number) => {
 		setActiveResizeHandle(index);
 		tableRootElement.current.style.userSelect = "none";
@@ -182,17 +206,10 @@ export function ItemTablePanel(params: {
 				}
 			}
 
-			tableRootElement.current.style.gridTemplateColumns = gridColumns
-				.map((w, i) => {
-					if (i === columns.length - 1) {
-						return `minmax(${params.minCellWidth}px, auto)`;
-					} else {
-						return `${w}px`;
-					}
-				})
-				.join(" ");
+			tableRootElement.current.style.gridTemplateColumns =
+				makeColumnWidths(gridColumns);
 		},
-		[activeResizeHandle, columns, params.minCellWidth],
+		[activeResizeHandle, columns, params.minCellWidth, makeColumnWidths],
 	);
 
 	const removeResizeListeners = useCallback(() => {
@@ -262,17 +279,10 @@ export function ItemTablePanel(params: {
 				}
 			}
 
-			tableRootElement.current.style.gridTemplateColumns = gridColumns
-				.map((w, i) => {
-					if (i === columns.length - 1) {
-						return `minmax(${params.minCellWidth}px, auto)`;
-					} else {
-						return `${w}px`;
-					}
-				})
-				.join(" ");
+			tableRootElement.current.style.gridTemplateColumns =
+				makeColumnWidths(gridColumns);
 		},
-		[columns, params.minCellWidth],
+		[columns, params.minCellWidth, makeColumnWidths],
 	);
 
 	const windowResize = useCallback(
@@ -350,17 +360,10 @@ export function ItemTablePanel(params: {
 				}
 			}
 
-			tableRootElement.current.style.gridTemplateColumns = gridColumns
-				.map((w, i) => {
-					if (i === gridColumns.length - 1) {
-						return `minmax(${params.minCellWidth}px, auto)`;
-					} else {
-						return `${w}px`;
-					}
-				})
-				.join(" ");
+			tableRootElement.current.style.gridTemplateColumns =
+				makeColumnWidths(gridColumns);
 		},
-		[params.minCellWidth, columns],
+		[params.minCellWidth, columns, makeColumnWidths],
 	);
 
 	const delColumn = useCallback(
@@ -400,17 +403,10 @@ export function ItemTablePanel(params: {
 				}
 			}
 
-			tableRootElement.current.style.gridTemplateColumns = gridColumns
-				.map((w, i) => {
-					if (i === gridColumns.length - 1) {
-						return `minmax(${params.minCellWidth}px, auto)`;
-					} else {
-						return `${w}px`;
-					}
-				})
-				.join(" ");
+			tableRootElement.current.style.gridTemplateColumns =
+				makeColumnWidths(gridColumns);
 		},
-		[params.minCellWidth, columns],
+		[columns, makeColumnWidths],
 	);
 
 	//
@@ -481,6 +477,9 @@ export function ItemTablePanel(params: {
 						}
 					}}
 				>
+					<td key={`id-${data_entry.idx}`}>
+						<Text c="dimmed" ff="monospace">{`#${data_entry.idx}`}</Text>
+					</td>
 					{columns.map(({ attr, unique_id }) => {
 						if (attr === null) {
 							return (
@@ -550,11 +549,14 @@ export function ItemTablePanel(params: {
 					className={styles.itemtable}
 					ref={tableRootElement}
 					style={{
-						gridTemplateColumns: columns.map((_) => "1fr").join(" "),
+						gridTemplateColumns: makeColumnWidths(null),
 					}}
 				>
 					<thead>
 						<tr>
+							{/* This `th` is for the "element id" column */}
+							<th></th>
+
 							{columns.map(({ attr, unique_id }, idx: number) => (
 								<th
 									ref={(ref) => {
