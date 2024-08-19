@@ -53,11 +53,14 @@ export function UsersPanel(params: {
 	selected: string | null;
 	onChange: () => void;
 }) {
-	// No loading state needed here, since we re-use the data the tree component fetches
+	// No loading state needed here,
+	// since we re-use the data that our grouptree component fetches
 
+	// g is `null` when no group is selected.
+	// it should never be `undefined`.
 	let g =
 		params.selected === null
-			? undefined
+			? null
 			: params.data.find((x) => x.uid === params.selected);
 
 	const user_info = useUserInfoStore((state) => state.user_info);
@@ -151,7 +154,7 @@ export function UsersPanel(params: {
 						<div className={styles.overview_entry_label}>Group:</div>
 						<div className={styles.overview_entry_text}>
 							{g === null ? (
-								<Text c="dimmed">None</Text>
+								<Text c="dimmed">No group selected</Text>
 							) : (
 								g.data.group_info.name
 							)}
