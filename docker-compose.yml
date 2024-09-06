@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres
+    restart: unless-stopped
+    shm_size: 256mb
+
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: example
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+    environment:
+      MINIO_ROOT_USER: ROOTNAME
+      MINIO_ROOT_PASSWORD: CHANGEME123
+
+    volumes:
+      - ./data:/data
+
+    command: server /data --console-address ":9001"
