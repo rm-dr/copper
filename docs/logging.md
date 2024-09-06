@@ -1,0 +1,12 @@
+- What log level should I use?
+  - `Error`, if something is wrong and we can't continue
+  - `Warn`, if something wrong and we're ok
+  - `Info`, if something happened that a sysadmin might care about.
+    - *Note: the default log level for all internal modules is `Info`*
+  - `Debug`, somewhere in between
+  - `Trace`, if this is a minor event we don't care about unless we're debugging a specific problem.
+
+- Where should I log X?
+  - Actions should be logged where they happen (e.g, not in api, in the fn that actually does it)
+  - Errors should be logged where they are HANDLED, not where they occur
+    - (maybe change later?)

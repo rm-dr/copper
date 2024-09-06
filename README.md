@@ -1,25 +1,6 @@
 # Notes
 Eventually, consolidate these in docs
 - If a dataset, class, or attr is deleted under a running pipe, that pipe should normally fail.
-Nodes should be panic-free, returning an error when resources they need vanish. This situation
-also shouldn't cause deadlocks, since datasets manage their own locks.
-- Pipeline nodes that need to call async functions should just `block_on` them. Nodes are run in
-a threadpool, and are thus inherently async. This isn't ideal, though, we might want to fix this
-later (part of writing a better scheduler).
-
-- What log level should I use?
-  - `Error`, if something is wrong and we can't continue
-  - `Warn`, if something wrong and we're ok
-  - `Info`, if something happened that a sysadmin might care about.
-    - *Note: the default log level for all internal modules is `Info`*
-  - `Debug`, somewhere in between
-  - `Trace`, if this is a minor event we don't care about unless we're debugging a specific problem.
-
-- Where should I log X?
-  - Actions should be logged where they happen (e.g, not in api, in the fn that actually does it)
-  - Errors should be logged where they are HANDLED, not where they occur
-    - (maybe change later?)
-
 
 # TODO
 
@@ -36,8 +17,6 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 
 ## 📦 Fixes
 - [ ] Server deadlocks with two parallel clients
-- [ ] Show item idx in list
-- [ ] Script to run actions manually
 - [ ] Backup db when migrating
 - [ ] Do not try to load when item list is scrolled to bottom
 
@@ -57,6 +36,9 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Image preview on hover in table
 - [ ] Image placeholder while loading
 - Show running pipeline node count & progress
+- [ ] Remove zustand
+- [ ] Server components
+- [ ] React query
 
 ## 📦 Upload page
 - Rename (and redesign) `upload` page
@@ -79,13 +61,6 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Better iconography & font
 - [ ] README
 - Dev docs
-  - [ ] How to make nodes (cmd api & rust api)
-    - [ ] When should nodes panic?
-  - [ ] glossary of terms
-  - [ ] Finalize node api (traits, cmd later)
-  - Notes
-    - Pipeline = one-off job. No streams!
-    - Nodes take input even when not ready
 
 ## 📦 Inline documentation
 - UI should be usable without a manual (info hovers)
@@ -94,7 +69,7 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 
 ---------------------------------------------------------------------
 
-## 📦 Edit items
+## Edit items
 - [ ] Edit items even if they differ
 - [ ] Show "changed" indicator
 - [ ] "Commit" button
@@ -217,6 +192,7 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Show menu on right-click in trees
 - [ ] tab all interactables
 - [ ] Fade bottom of all scrolls (component? overscroll?)
+- Right-click menus
 
 
 ---------------------------------------------------------------------
