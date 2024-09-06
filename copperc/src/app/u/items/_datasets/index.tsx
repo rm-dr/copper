@@ -1,9 +1,9 @@
 import styles from "./datasets.module.scss";
-import { Panel } from "@/app/components/panel";
+import { Panel } from "@/components/panel";
 
-import { DatasetSelector } from "@/app/components/apiselect/dataset";
-import { ClassSelector } from "@/app/components/apiselect/class";
-import { XIcon } from "@/app/components/icons";
+import { DatasetSelector } from "@/components/apiselect/dataset";
+import { ClassSelector } from "@/components/apiselect/class";
+import { XIcon } from "@/components/icons";
 import { IconDatabase } from "@tabler/icons-react";
 
 export function DatasetPanel(params: {

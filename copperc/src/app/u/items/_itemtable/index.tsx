@@ -1,20 +1,20 @@
 import styles from "./itemtable.module.scss";
-import { Panel } from "@/app/components/panel";
+import { Panel } from "@/components/panel";
 import clsx from "clsx";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Loader, Text } from "@mantine/core";
 import { ColumnHeader } from "./parts/columnheader";
 import { ItemData, Selected, selectedClass } from "../page";
-import { attrTypes } from "@/app/_util/attrs";
+import { attrTypes } from "@/lib/attrs";
 import {
 	IconCircleOff,
 	IconDatabaseX,
 	IconFolderX,
 	IconListDetails,
 } from "@tabler/icons-react";
-import { XIcon } from "@/app/components/icons";
-import { components } from "@/app/_util/api/openapi";
-import { APIclient } from "@/app/_util/api";
+import { XIcon } from "@/components/icons";
+import { components } from "@/lib/api/openapi";
+import { APIclient } from "@/lib/api";
 
 const TablePlaceholder = (params: { children: ReactNode }) => {
 	return (

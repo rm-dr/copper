@@ -2,11 +2,11 @@ import { Button, Select, Text, TextInput } from "@mantine/core";
 import { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
 import { useForm } from "@mantine/form";
-import { ModalBase } from "@/app/components/modal_base";
-import { datasetTypes } from "@/app/_util/datasets";
-import { XIcon } from "@/app/components/icons";
+import { ModalBase } from "@/components/modal_base";
+import { datasetTypes } from "@/lib/datasets";
+import { XIcon } from "@/components/icons";
 import { IconDatabasePlus } from "@tabler/icons-react";
-import { APIclient } from "@/app/_util/api";
+import { APIclient } from "@/lib/api";
 
 export function useNewDsModal(onSuccess: () => void) {
 	const [opened, { open, close }] = useDisclosure(false);

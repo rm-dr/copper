@@ -1,9 +1,9 @@
 import { Badge, Button, Progress, Table, Text } from "@mantine/core";
 import styles from "../page.module.scss";
-import { Panel, PanelTitle } from "@/app/components/panel";
+import { Panel, PanelTitle } from "@/components/panel";
 import { useEffect, useState } from "react";
 import { UploadState } from "../util";
-import { ppBytes } from "@/app/_util/ppbytes";
+import { ppBytes } from "@/lib/ppbytes";
 import {
 	IconCpu,
 	IconFileUpload,
@@ -13,9 +13,9 @@ import {
 	IconTrash,
 	IconUpload,
 } from "@tabler/icons-react";
-import { XIcon } from "@/app/components/icons";
-import { APIclient } from "@/app/_util/api";
-import { paths } from "@/app/_util/api/openapi";
+import { XIcon } from "@/components/icons";
+import { APIclient } from "@/lib/api";
+import { paths } from "@/lib/api/openapi";
 
 export function useStatusPanel(params: {
 	uploadState: UploadState;

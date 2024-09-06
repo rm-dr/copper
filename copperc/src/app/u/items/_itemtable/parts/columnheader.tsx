@@ -1,7 +1,7 @@
-import { components } from "@/app/_util/api/openapi";
+import { components } from "@/lib/api/openapi";
 import styles from "../itemtable.module.scss";
-import { AttrSelector } from "@/app/components/apiselect/attr";
-import { XIcon } from "@/app/components/icons";
+import { AttrSelector } from "@/components/apiselect/attr";
+import { XIcon } from "@/components/icons";
 import { ActionIcon, Menu, Text, rem } from "@mantine/core";
 import {
 	IconChevronLeftPipe,

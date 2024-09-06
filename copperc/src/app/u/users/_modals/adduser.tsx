@@ -2,11 +2,11 @@ import { Button, PasswordInput, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { useForm } from "@mantine/form";
-import { ModalBase } from "@/app/components/modal_base";
+import { ModalBase } from "@/components/modal_base";
 import { IconUserPlus } from "@tabler/icons-react";
-import { XIcon } from "@/app/components/icons";
-import { APIclient } from "@/app/_util/api";
-import { components } from "@/app/_util/api/openapi";
+import { XIcon } from "@/components/icons";
+import { APIclient } from "@/lib/api";
+import { components } from "@/lib/api/openapi";
 
 export function useAddUserModal(params: {
 	group?: components["schemas"]["GroupInfo"];

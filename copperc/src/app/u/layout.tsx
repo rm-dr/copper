@@ -1,5 +1,5 @@
-import NavBar from "../components/navbar";
-import SideBar from "../components/sidebar";
+import NavBar from "../_navbar";
+import SideBar from "../../components/sidebar";
 import styles from "./layout.module.scss";
 
 export default function Layout({

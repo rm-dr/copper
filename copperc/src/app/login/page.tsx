@@ -4,7 +4,7 @@ import styles from "./page.module.scss";
 import { useState } from "react";
 import Banner from "../../../public/banner.svg";
 import { useForm } from "@mantine/form";
-import { APIclient } from "../_util/api";
+import { APIclient } from "../../lib/api";
 
 export default function Page() {
 	let [loading, setLoading] = useState(false);

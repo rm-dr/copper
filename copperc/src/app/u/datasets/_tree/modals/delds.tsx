@@ -2,10 +2,10 @@ import { Button, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useForm } from "@mantine/form";
 import { useState } from "react";
-import { ModalBase } from "@/app/components/modal_base";
-import { XIcon } from "@/app/components/icons";
+import { ModalBase } from "@/components/modal_base";
+import { XIcon } from "@/components/icons";
 import { IconTrash } from "@tabler/icons-react";
-import { APIclient } from "@/app/_util/api";
+import { APIclient } from "@/lib/api";
 
 export function useDeleteDatasetModal(params: {
 	dataset_name: string;

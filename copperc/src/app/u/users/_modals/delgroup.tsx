@@ -2,11 +2,11 @@ import { Button, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { useForm } from "@mantine/form";
-import { ModalBase } from "@/app/components/modal_base";
-import { XIcon } from "@/app/components/icons";
+import { ModalBase } from "@/components/modal_base";
+import { XIcon } from "@/components/icons";
 import { IconTrash } from "@tabler/icons-react";
-import { APIclient } from "@/app/_util/api";
-import { components } from "@/app/_util/api/openapi";
+import { APIclient } from "@/lib/api";
+import { components } from "@/lib/api/openapi";
 
 export function useDeleteGroupModal(params: {
 	group: components["schemas"]["GroupInfo"];

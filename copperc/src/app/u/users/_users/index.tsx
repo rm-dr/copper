@@ -1,11 +1,11 @@
 import styles from "./users.module.scss";
-import { Panel, PanelTitle } from "@/app/components/panel";
+import { Panel, PanelTitle } from "@/components/panel";
 import { ActionIcon, Button, Menu, Text, rem } from "@mantine/core";
-import { TreeNode } from "@/app/components/tree";
+import { TreeNode } from "@/components/tree";
 import { ReactNode, useState } from "react";
 import { useAddUserModal } from "../_modals/adduser";
 import { useDeleteUserModal } from "../_modals/deluser";
-import { XIcon } from "@/app/components/icons";
+import { XIcon } from "@/components/icons";
 import {
 	IconCircleOff,
 	IconDots,
@@ -19,10 +19,10 @@ import {
 	IconUsers,
 	IconUsersGroup,
 } from "@tabler/icons-react";
-import { components } from "@/app/_util/api/openapi";
+import { components } from "@/lib/api/openapi";
 import { useRenameUserModal } from "../_modals/renameuser";
 import { useSetPasswordModal } from "../_modals/setpassword";
-import { useUserInfoStore } from "@/app/_util/userinfo";
+import { useUserInfoStore } from "@/lib/userinfo";
 
 const Wrapper = (params: { children: ReactNode }) => {
 	return (

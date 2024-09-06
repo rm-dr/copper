@@ -3,7 +3,7 @@ import { ActionIcon, Text } from "@mantine/core";
 import { ppBytes } from "../ppbytes";
 import Image from "next/image";
 import { ReactNode } from "react";
-import { XIcon } from "@/app/components/icons";
+import { XIcon } from "@/components/icons";
 import { IconFileDigit, IconTrash, IconUpload } from "@tabler/icons-react";
 import { components } from "../api/openapi";
 import { BaseForm } from "./helpers/baseform";

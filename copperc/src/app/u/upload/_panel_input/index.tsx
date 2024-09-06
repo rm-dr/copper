@@ -1,11 +1,11 @@
 import { Group, Progress, Text } from "@mantine/core";
 import { Dropzone } from "@mantine/dropzone";
-import { Panel, PanelTitle } from "@/app/components/panel";
+import { Panel, PanelTitle } from "@/components/panel";
 import { Dispatch, SetStateAction } from "react";
 import styles from "../page.module.scss";
 import { UploadQueuedFile, UploadState } from "../util";
-import { ppBytes } from "@/app/_util/ppbytes";
-import { XIcon } from "@/app/components/icons";
+import { ppBytes } from "@/lib/ppbytes";
+import { XIcon } from "@/components/icons";
 import {
 	IconFile,
 	IconFilePlus,

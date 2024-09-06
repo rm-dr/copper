@@ -1,4 +1,4 @@
-import { APIclient } from "@/app/_util/api";
+import { APIclient } from "@/lib/api";
 import { ApiSelector } from "./api";
 
 async function update_attrs(params: {

@@ -1,4 +1,4 @@
-import { XIcon } from "@/app/components/icons";
+import { XIcon } from "@/components/icons";
 import { attrTypeInfo } from ".";
 import { Text, Textarea } from "@mantine/core";
 import { IconLetterCase } from "@tabler/icons-react";

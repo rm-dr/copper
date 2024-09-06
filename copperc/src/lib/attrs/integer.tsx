@@ -1,60 +1,49 @@
-import { Button, Select, Text, Textarea, TextInput } from "@mantine/core";
+import { XIcon } from "@/components/icons";
 import { attrTypeInfo } from ".";
-import { IconAnalyze, IconPlus } from "@tabler/icons-react";
-import { XIcon } from "@/app/components/icons";
-import { useForm } from "@mantine/form";
-import { ReactElement, useState } from "react";
-import { APIclient } from "../api";
+import { NumberInput, Switch, Text } from "@mantine/core";
+import { IconHexagon3 } from "@tabler/icons-react";
 import { components } from "../api/openapi";
+import { ReactElement, useState } from "react";
+import { useForm } from "@mantine/form";
+import { APIclient } from "../api";
 import {
 	AttrCommonOptions,
 	AttrNameEntry,
 	AttrSubmitButtons,
 } from "./helpers/baseform";
 
-export const _hashAttrType: attrTypeInfo = {
-	pretty_name: "Hash",
-	serialize_as: "Hash",
-	icon: <XIcon icon={IconAnalyze} />,
+export const _intAttrType: attrTypeInfo = {
+	pretty_name: "Integer",
+	serialize_as: "Integer",
+	icon: <XIcon icon={IconHexagon3} />,
 	params: {
-		form: HashForm,
+		form: IntegerForm,
 	},
 
 	value_preview: (params) => {
-		if (params.attr_value.type !== "Hash") {
+		if (params.attr_value.type !== "Integer") {
 			return <>Unreachable!</>;
 		}
 
 		if (params.attr_value.value === null) {
 			return (
-				<>
-					<Text c="dimmed" span>{`${params.attr_value.hash_type}: `}</Text>
-					<Text c="dimmed" fs="italic" span>
-						no value
-					</Text>
-				</>
+				<Text c="dimmed" fs="italic">
+					no value
+				</Text>
 			);
 		} else {
-			return (
-				<>
-					<Text c="dimmed" span>{`${params.attr_value.hash_type}: `}</Text>
-					<Text ff="monospace" span>
-						{params.attr_value.value}
-					</Text>
-				</>
-			);
+			return <Text>{params.attr_value.value}</Text>;
 		}
 	},
 
 	editor: {
 		type: "inline",
-
 		old_value: (params) => {
-			if (params.attr_value.type !== "Hash") {
+			if (params.attr_value.type !== "Integer") {
 				return <>Unreachable!</>;
 			}
 
-			if (params.attr_value.value == null) {
+			if (params.attr_value.value === null) {
 				return (
 					<Text c="dimmed" fs="italic">
 						no value
@@ -66,25 +55,23 @@ export const _hashAttrType: attrTypeInfo = {
 		},
 
 		new_value: (params) => {
-			if (params.attr_value.type !== "Hash") {
+			if (params.attr_value.type !== "Integer") {
 				return <>Unreachable!</>;
 			}
 
 			return (
-				<Textarea
-					radius="0px"
-					placeholder="no value"
-					autosize
-					minRows={1}
+				<NumberInput
+					placeholder="empty value"
+					allowDecimal={false}
+					allowNegative={true}
 					defaultValue={params.attr_value.value || undefined}
-					onChange={params.onChange}
 				/>
 			);
 		},
 	},
 };
 
-function HashForm(params: {
+export function IntegerForm(params: {
 	dataset_name: string;
 	class: components["schemas"]["ClassInfo"];
 	close: () => void;
@@ -93,23 +80,17 @@ function HashForm(params: {
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 	const form = useForm<{
-		hash_type: components["schemas"]["HashType"] | null;
 		new_attr_name: string | null;
+		is_non_negative: boolean;
 		is_unique: boolean;
 	}>({
 		mode: "uncontrolled",
 		initialValues: {
-			hash_type: null,
 			new_attr_name: null,
+			is_non_negative: false,
 			is_unique: false,
 		},
 		validate: {
-			hash_type: (value) =>
-				value === null
-					? "Hash type is required"
-					: value.trim().length === 0
-					? "Hash type cannot be empty"
-					: null,
 			new_attr_name: (value) =>
 				value === null
 					? "Attribute name is required"
@@ -132,20 +113,21 @@ function HashForm(params: {
 				setLoading(true);
 				setErrorMessage(null);
 
-				if (values.hash_type === null || values.new_attr_name === null) {
+				if (values.new_attr_name === null) {
 					// This is unreachable
 					params.close();
 					return;
 				}
 
 				APIclient.POST("/attr/add", {
+					params: {},
 					body: {
 						class: params.class.handle,
 						dataset: params.dataset_name,
 						new_attr_name: values.new_attr_name,
 						data_type: {
-							type: "Hash",
-							hash_type: values.hash_type,
+							type: "Float",
+							is_non_negative: values.is_non_negative,
 						},
 						options: {
 							unique: values.is_unique,
@@ -171,19 +153,10 @@ function HashForm(params: {
 			>
 				<AttrNameEntry form={form} isLoading={isLoading} />
 
-				<Select
-					required={true}
-					placeholder={"Hash type"}
-					data={[
-						// Hash types the server supports
-						{ label: "MD5", value: "MD5", disabled: false },
-						{ label: "SHA256", value: "SHA256", disabled: false },
-						{ label: "SHA512", value: "SHA512", disabled: false },
-					]}
-					clearable
-					disabled={isLoading}
-					key={form.key("hash_type")}
-					{...form.getInputProps("hash_type")}
+				<Switch
+					label="Non-negative"
+					key={form.key("is_non_negative")}
+					{...form.getInputProps("is_non_negative")}
 				/>
 
 				<AttrCommonOptions form={form} isLoading={isLoading} />

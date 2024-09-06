@@ -1,12 +1,12 @@
 import { Button, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
-import { ModalBase } from "@/app/components/modal_base";
+import { ModalBase } from "@/components/modal_base";
 import { useForm } from "@mantine/form";
-import { XIcon } from "@/app/components/icons";
+import { XIcon } from "@/components/icons";
 import { IconTrash } from "@tabler/icons-react";
-import { APIclient } from "@/app/_util/api";
-import { components } from "@/app/_util/api/openapi";
+import { APIclient } from "@/lib/api";
+import { components } from "@/lib/api/openapi";
 
 export function useDeleteAttrModal(params: {
 	dataset_name: string;

@@ -1,12 +1,12 @@
 import styles from "./edit.module.scss";
-import { Panel } from "@/app/components/panel";
+import { Panel } from "@/components/panel";
 import { ItemData, Selected, selectedClass } from "../page";
-import { attrTypeInfo, attrTypes } from "@/app/_util/attrs";
+import { attrTypeInfo, attrTypes } from "@/lib/attrs";
 import { Button, Text } from "@mantine/core";
 import { Fragment, useCallback, useMemo, useState } from "react";
 import { IconArrowRight, IconEdit, IconEyeOff } from "@tabler/icons-react";
-import { XIcon } from "@/app/components/icons";
-import { components } from "@/app/_util/api/openapi";
+import { XIcon } from "@/components/icons";
+import { components } from "@/lib/api/openapi";
 
 export function EditPanel(params: {
 	sel: selectedClass;
@@ -43,20 +43,20 @@ export function EditPanel(params: {
 						ex.type === "Reference"
 							? ex.item
 							: ex.type === "Blob"
-								? ex.handle
-								: ex.type === "Binary"
-									? 1 // If two items are selected, binaries are always different.
-									: // 1 and 2 are arbitrary different values.
-									ex.value;
+							? ex.handle
+							: ex.type === "Binary"
+							? 1 // If two items are selected, binaries are always different.
+							: // 1 and 2 are arbitrary different values.
+							  ex.value;
 
 					let check =
 						val.type === "Reference"
 							? val.item
 							: val.type === "Blob"
-								? val.handle
-								: val.type === "Binary"
-									? 2 // If two items are selected, binaries are always different.
-									: val.value;
+							? val.handle
+							: val.type === "Binary"
+							? 2 // If two items are selected, binaries are always different.
+							: val.value;
 
 					if (existing !== check) {
 						attr_values[attr] = null;
@@ -105,33 +105,33 @@ export function EditPanel(params: {
 					{selectedItems.length === 0
 						? null
 						: Object.entries(selectedItems[0].attrs)
-							.sort(
-								([a_a, a_v], [b_a, b_v]) =>
-									(a_v as unknown as components["schemas"]["ItemListData"])
-										.attr.idx -
-									(b_v as unknown as components["schemas"]["ItemListData"])
-										.attr.idx,
-							)
-							.map(([_, val]) => {
-								if (val === undefined) {
-									return null; // Unreachable
-								}
+								.sort(
+									([a_a, a_v], [b_a, b_v]) =>
+										(a_v as unknown as components["schemas"]["ItemListData"])
+											.attr.idx -
+										(b_v as unknown as components["schemas"]["ItemListData"])
+											.attr.idx,
+								)
+								.map(([_, val]) => {
+									if (val === undefined) {
+										return null; // Unreachable
+									}
 
-								let v = attr_values[val.attr.handle.toString()];
-								return (
-									<EditRow
-										key={`${val.attr.handle}-
+									let v = attr_values[val.attr.handle.toString()];
+									return (
+										<EditRow
+											key={`${val.attr.handle}-
 											${selectedItems.map((x) => x.idx).join(",")}`}
-										dataset={params.sel.dataset}
-										item={selectedItems[0]}
-										attr={val.attr}
-										value_new={v}
-										value_old={v}
-										setPanelAttr={setPanelAttr}
-										panelAttr={panelAttr}
-									/>
-								);
-							})}
+											dataset={params.sel.dataset}
+											item={selectedItems[0]}
+											attr={val.attr}
+											value_new={v}
+											value_old={v}
+											setPanelAttr={setPanelAttr}
+											panelAttr={panelAttr}
+										/>
+									);
+								})}
 				</div>
 				<EditSubPanel
 					dataset={params.sel.dataset}

@@ -1,11 +1,11 @@
 import styles from "./grouptree.module.scss";
-import { Panel } from "@/app/components/panel";
-import { useTree, TreeNode } from "@/app/components/tree";
+import { Panel } from "@/components/panel";
+import { useTree, TreeNode } from "@/components/tree";
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { ActionIcon, Loader, Menu, Text, rem } from "@mantine/core";
 import { useAddGroupModal } from "../_modals/addgroup";
 import { useDeleteGroupModal } from "../_modals/delgroup";
-import { XIcon } from "@/app/components/icons";
+import { XIcon } from "@/components/icons";
 import {
 	IconDots,
 	IconEdit,
@@ -14,8 +14,8 @@ import {
 	IconUsersGroup,
 	IconX,
 } from "@tabler/icons-react";
-import { APIclient } from "@/app/_util/api";
-import { components } from "@/app/_util/api/openapi";
+import { APIclient } from "@/lib/api";
+import { components } from "@/lib/api/openapi";
 import { useRenameGroupModal } from "../_modals/renamegroup";
 
 type TreeState = {

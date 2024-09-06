@@ -1,12 +1,12 @@
 import styles from "../page.module.scss";
-import { Panel, PanelTitle } from "@/app/components/panel";
+import { Panel, PanelTitle } from "@/components/panel";
 import { IconLock, IconPencil, IconUserEdit } from "@tabler/icons-react";
-import { XIcon } from "@/app/components/icons";
+import { XIcon } from "@/components/icons";
 import { useForm } from "@mantine/form";
 import { Button, PasswordInput, Text, TextInput } from "@mantine/core";
 import { useEffect, useState } from "react";
-import { APIclient } from "@/app/_util/api";
-import { UserInfoState, useUserInfoStore } from "@/app/_util/userinfo";
+import { APIclient } from "@/lib/api";
+import { UserInfoState, useUserInfoStore } from "@/lib/userinfo";
 
 export function useInfoPanel(params: {}) {
 	const user = useUserInfoStore((state) => state.user_info);

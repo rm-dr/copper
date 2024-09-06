@@ -2,7 +2,7 @@
 
 import { Dispatch, SetStateAction } from "react";
 import { UploadQueuedFile, UploadState } from "./util";
-import { APIclient } from "@/app/_util/api";
+import { APIclient } from "@/lib/api";
 
 /// On success, calls `then()` with the new job id.
 export async function startUploadJob(ac: AbortController): Promise<string> {

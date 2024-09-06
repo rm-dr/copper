@@ -7,7 +7,7 @@ import {
 	_PanelBodyUnknown,
 	_PanelBottom,
 } from "./blob";
-import { XIcon } from "@/app/components/icons";
+import { XIcon } from "@/components/icons";
 import { IconBinary } from "@tabler/icons-react";
 import { BaseForm } from "./helpers/baseform";
 

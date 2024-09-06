@@ -1,11 +1,11 @@
 import styles from "../page.module.scss";
-import { Panel, PanelTitle } from "@/app/components/panel";
+import { Panel, PanelTitle } from "@/components/panel";
 import { IconColorPicker, IconPaint } from "@tabler/icons-react";
-import { XIcon } from "@/app/components/icons";
+import { XIcon } from "@/components/icons";
 import { Button, ColorPicker, Text } from "@mantine/core";
 import { useEffect, useState } from "react";
-import { APIclient } from "@/app/_util/api";
-import { useUserInfoStore } from "@/app/_util/userinfo";
+import { APIclient } from "@/lib/api";
+import { useUserInfoStore } from "@/lib/userinfo";
 
 export function useUiPanel(params: {}) {
 	return {

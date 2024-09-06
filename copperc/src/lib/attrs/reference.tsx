@@ -1,13 +1,13 @@
 import { attrTypeInfo, attrTypes } from ".";
 import { Loader, Text } from "@mantine/core";
-import { ClassSelector } from "@/app/components/apiselect/class";
+import { ClassSelector } from "@/components/apiselect/class";
 import {
 	IconAmpersand,
 	IconPlus,
 	IconQuestionMark,
 	IconX,
 } from "@tabler/icons-react";
-import { XIcon } from "@/app/components/icons";
+import { XIcon } from "@/components/icons";
 import { APIclient } from "../api";
 import { components } from "../api/openapi";
 import { useEffect, useState } from "react";

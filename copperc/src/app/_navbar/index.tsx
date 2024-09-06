@@ -1,18 +1,18 @@
 "use client";
 
 import styles from "./navbar.module.scss";
-import Banner from "../../../../public/banner.svg";
+import Banner from "../../../public/banner.svg";
 import { Menu, Text, rem } from "@mantine/core";
-import { XIcon } from "../icons";
+import { XIcon } from "../../components/icons";
 import {
 	IconBook2,
 	IconLogout,
 	IconUser,
 	IconUserCircle,
 } from "@tabler/icons-react";
-import { APIclient } from "@/app/_util/api";
+import { APIclient } from "@/lib/api";
 import Link from "next/link";
-import { useUserInfoStore } from "@/app/_util/userinfo";
+import { useUserInfoStore } from "@/lib/userinfo";
 
 const Navbar = () => {
 	const user_info = useUserInfoStore((state) => state.user_info);

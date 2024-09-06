@@ -1,12 +1,12 @@
 import styles from "../page.module.scss";
 import { Dispatch, SetStateAction } from "react";
-import { Panel, PanelTitle } from "@/app/components/panel";
-import { PanelSwitch } from "@/app/components/panel/parts/switch";
-import { PanelText } from "@/app/components/panel/parts/text";
-import { DatasetSelector } from "@/app/components/apiselect/dataset";
-import { PipelineSelector } from "@/app/components/apiselect/pipeline";
+import { Panel, PanelTitle } from "@/components/panel";
+import { PanelSwitch } from "@/components/panel/parts/switch";
+import { PanelText } from "@/components/panel/parts/text";
+import { DatasetSelector } from "@/components/apiselect/dataset";
+import { PipelineSelector } from "@/components/apiselect/pipeline";
 import { IconAdjustments, IconHexagon, IconSchema } from "@tabler/icons-react";
-import { XIcon } from "@/app/components/icons";
+import { XIcon } from "@/components/icons";
 
 export function usePipelinePanel(params: {
 	setSelectedPipeline: Dispatch<SetStateAction<string | null>>;

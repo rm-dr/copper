@@ -8,7 +8,7 @@ import { usePipelinePanel } from "./_panel_pipeline";
 import { useStatusPanel } from "./_panel_status";
 import { useInputPanel } from "./_panel_input";
 import { UploadState } from "./util";
-import { APIclient } from "@/app/_util/api";
+import { APIclient } from "@/lib/api";
 
 export default function Page() {
 	const [uploadState, setUploadState] = useState<UploadState>({

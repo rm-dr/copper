@@ -1,27 +1,27 @@
-import { XIcon } from "@/app/components/icons";
+import { IconDecimal, IconPlus } from "@tabler/icons-react";
 import { attrTypeInfo } from ".";
-import { NumberInput, Switch, Text } from "@mantine/core";
-import { IconHexagon3 } from "@tabler/icons-react";
-import { components } from "../api/openapi";
-import { ReactElement, useState } from "react";
-import { useForm } from "@mantine/form";
+import { Button, NumberInput, Switch, Text, TextInput } from "@mantine/core";
+import { XIcon } from "@/components/icons";
 import { APIclient } from "../api";
+import { useForm } from "@mantine/form";
+import { ReactElement, useState } from "react";
+import { components } from "../api/openapi";
 import {
 	AttrCommonOptions,
 	AttrNameEntry,
 	AttrSubmitButtons,
 } from "./helpers/baseform";
 
-export const _intAttrType: attrTypeInfo = {
-	pretty_name: "Integer",
-	serialize_as: "Integer",
-	icon: <XIcon icon={IconHexagon3} />,
+export const _floatAttrType: attrTypeInfo = {
+	pretty_name: "Float",
+	serialize_as: "Float",
+	icon: <XIcon icon={IconDecimal} />,
 	params: {
-		form: IntegerForm,
+		form: FloatForm,
 	},
 
 	value_preview: (params) => {
-		if (params.attr_value.type !== "Integer") {
+		if (params.attr_value.type !== "Float") {
 			return <>Unreachable!</>;
 		}
 
@@ -39,7 +39,7 @@ export const _intAttrType: attrTypeInfo = {
 	editor: {
 		type: "inline",
 		old_value: (params) => {
-			if (params.attr_value.type !== "Integer") {
+			if (params.attr_value.type !== "Float") {
 				return <>Unreachable!</>;
 			}
 
@@ -55,15 +55,14 @@ export const _intAttrType: attrTypeInfo = {
 		},
 
 		new_value: (params) => {
-			if (params.attr_value.type !== "Integer") {
+			if (params.attr_value.type !== "Float") {
 				return <>Unreachable!</>;
 			}
 
 			return (
 				<NumberInput
 					placeholder="empty value"
-					allowDecimal={false}
-					allowNegative={true}
+					allowDecimal={true}
 					defaultValue={params.attr_value.value || undefined}
 				/>
 			);
@@ -71,7 +70,7 @@ export const _intAttrType: attrTypeInfo = {
 	},
 };
 
-export function IntegerForm(params: {
+export function FloatForm(params: {
 	dataset_name: string;
 	class: components["schemas"]["ClassInfo"];
 	close: () => void;

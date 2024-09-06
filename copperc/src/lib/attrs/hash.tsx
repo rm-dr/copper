@@ -1,10 +1,10 @@
-import { IconDecimal, IconPlus } from "@tabler/icons-react";
+import { Button, Select, Text, Textarea, TextInput } from "@mantine/core";
 import { attrTypeInfo } from ".";
-import { Button, NumberInput, Switch, Text, TextInput } from "@mantine/core";
-import { XIcon } from "@/app/components/icons";
-import { APIclient } from "../api";
+import { IconAnalyze, IconPlus } from "@tabler/icons-react";
+import { XIcon } from "@/components/icons";
 import { useForm } from "@mantine/form";
 import { ReactElement, useState } from "react";
+import { APIclient } from "../api";
 import { components } from "../api/openapi";
 import {
 	AttrCommonOptions,
@@ -12,38 +12,49 @@ import {
 	AttrSubmitButtons,
 } from "./helpers/baseform";
 
-export const _floatAttrType: attrTypeInfo = {
-	pretty_name: "Float",
-	serialize_as: "Float",
-	icon: <XIcon icon={IconDecimal} />,
+export const _hashAttrType: attrTypeInfo = {
+	pretty_name: "Hash",
+	serialize_as: "Hash",
+	icon: <XIcon icon={IconAnalyze} />,
 	params: {
-		form: FloatForm,
+		form: HashForm,
 	},
 
 	value_preview: (params) => {
-		if (params.attr_value.type !== "Float") {
+		if (params.attr_value.type !== "Hash") {
 			return <>Unreachable!</>;
 		}
 
 		if (params.attr_value.value === null) {
 			return (
-				<Text c="dimmed" fs="italic">
-					no value
-				</Text>
+				<>
+					<Text c="dimmed" span>{`${params.attr_value.hash_type}: `}</Text>
+					<Text c="dimmed" fs="italic" span>
+						no value
+					</Text>
+				</>
 			);
 		} else {
-			return <Text>{params.attr_value.value}</Text>;
+			return (
+				<>
+					<Text c="dimmed" span>{`${params.attr_value.hash_type}: `}</Text>
+					<Text ff="monospace" span>
+						{params.attr_value.value}
+					</Text>
+				</>
+			);
 		}
 	},
 
 	editor: {
 		type: "inline",
+
 		old_value: (params) => {
-			if (params.attr_value.type !== "Float") {
+			if (params.attr_value.type !== "Hash") {
 				return <>Unreachable!</>;
 			}
 
-			if (params.attr_value.value === null) {
+			if (params.attr_value.value == null) {
 				return (
 					<Text c="dimmed" fs="italic">
 						no value
@@ -55,22 +66,25 @@ export const _floatAttrType: attrTypeInfo = {
 		},
 
 		new_value: (params) => {
-			if (params.attr_value.type !== "Float") {
+			if (params.attr_value.type !== "Hash") {
 				return <>Unreachable!</>;
 			}
 
 			return (
-				<NumberInput
-					placeholder="empty value"
-					allowDecimal={true}
+				<Textarea
+					radius="0px"
+					placeholder="no value"
+					autosize
+					minRows={1}
 					defaultValue={params.attr_value.value || undefined}
+					onChange={params.onChange}
 				/>
 			);
 		},
 	},
 };
 
-export function FloatForm(params: {
+function HashForm(params: {
 	dataset_name: string;
 	class: components["schemas"]["ClassInfo"];
 	close: () => void;
@@ -79,17 +93,23 @@ export function FloatForm(params: {
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 	const form = useForm<{
+		hash_type: components["schemas"]["HashType"] | null;
 		new_attr_name: string | null;
-		is_non_negative: boolean;
 		is_unique: boolean;
 	}>({
 		mode: "uncontrolled",
 		initialValues: {
+			hash_type: null,
 			new_attr_name: null,
-			is_non_negative: false,
 			is_unique: false,
 		},
 		validate: {
+			hash_type: (value) =>
+				value === null
+					? "Hash type is required"
+					: value.trim().length === 0
+					? "Hash type cannot be empty"
+					: null,
 			new_attr_name: (value) =>
 				value === null
 					? "Attribute name is required"
@@ -112,21 +132,20 @@ export function FloatForm(params: {
 				setLoading(true);
 				setErrorMessage(null);
 
-				if (values.new_attr_name === null) {
+				if (values.hash_type === null || values.new_attr_name === null) {
 					// This is unreachable
 					params.close();
 					return;
 				}
 
 				APIclient.POST("/attr/add", {
-					params: {},
 					body: {
 						class: params.class.handle,
 						dataset: params.dataset_name,
 						new_attr_name: values.new_attr_name,
 						data_type: {
-							type: "Float",
-							is_non_negative: values.is_non_negative,
+							type: "Hash",
+							hash_type: values.hash_type,
 						},
 						options: {
 							unique: values.is_unique,
@@ -152,10 +171,19 @@ export function FloatForm(params: {
 			>
 				<AttrNameEntry form={form} isLoading={isLoading} />
 
-				<Switch
-					label="Non-negative"
-					key={form.key("is_non_negative")}
-					{...form.getInputProps("is_non_negative")}
+				<Select
+					required={true}
+					placeholder={"Hash type"}
+					data={[
+						// Hash types the server supports
+						{ label: "MD5", value: "MD5", disabled: false },
+						{ label: "SHA256", value: "SHA256", disabled: false },
+						{ label: "SHA512", value: "SHA512", disabled: false },
+					]}
+					clearable
+					disabled={isLoading}
+					key={form.key("hash_type")}
+					{...form.getInputProps("hash_type")}
 				/>
 
 				<AttrCommonOptions form={form} isLoading={isLoading} />

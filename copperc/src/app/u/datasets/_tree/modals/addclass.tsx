@@ -1,11 +1,11 @@
 import { Button, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
-import { ModalBase } from "@/app/components/modal_base";
+import { ModalBase } from "@/components/modal_base";
 import { useForm } from "@mantine/form";
-import { XIcon } from "@/app/components/icons";
+import { XIcon } from "@/components/icons";
 import { IconFolderPlus } from "@tabler/icons-react";
-import { APIclient } from "@/app/_util/api";
+import { APIclient } from "@/lib/api";
 
 export function useAddClassModal(params: {
 	dataset_name: string;

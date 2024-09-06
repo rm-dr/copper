@@ -2,9 +2,9 @@
 
 import "@mantine/core/styles.css";
 import { MantineProvider } from "@mantine/core";
-import { useUserInfoStore } from "./_util/userinfo";
+import { useUserInfoStore } from "../lib/userinfo";
 import { useEffect } from "react";
-import { APIclient } from "./_util/api";
+import { APIclient } from "../lib/api";
 
 export default function Provider({
 	children,

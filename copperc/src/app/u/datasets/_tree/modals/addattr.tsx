@@ -1,9 +1,9 @@
 import { Group, Select, SelectProps, Text } from "@mantine/core";
 import { ReactElement, useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
-import { ModalBase } from "@/app/components/modal_base";
-import { attrTypes } from "@/app/_util/attrs";
-import { components, paths } from "@/app/_util/api/openapi";
+import { ModalBase } from "@/components/modal_base";
+import { attrTypes } from "@/lib/attrs";
+import { components, paths } from "@/lib/api/openapi";
 
 export function useAddAttrModal(params: {
 	dataset_name: string;

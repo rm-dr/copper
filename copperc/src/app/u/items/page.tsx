@@ -5,8 +5,8 @@ import { DatasetPanel } from "./_datasets";
 import { useCallback, useRef, useState } from "react";
 import { ItemTablePanel } from "./_itemtable";
 import { EditPanel } from "./_edit";
-import { components } from "@/app/_util/api/openapi";
-import { APIclient } from "@/app/_util/api";
+import { components } from "@/lib/api/openapi";
+import { APIclient } from "@/lib/api";
 
 const PAGE_SIZE = 50;
 

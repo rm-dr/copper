@@ -1,4 +1,4 @@
-import { APIclient } from "@/app/_util/api";
+import { APIclient } from "@/lib/api";
 import { ApiSelector } from "./api";
 import { UseFormReturnType } from "@mantine/form";
 

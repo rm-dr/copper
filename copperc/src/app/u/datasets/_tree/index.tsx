@@ -1,11 +1,11 @@
 import styles from "./tree.module.scss";
-import { Panel, PanelTitle } from "@/app/components/panel";
+import { Panel, PanelTitle } from "@/components/panel";
 import { ActionIcon, Button, Loader, Menu, Text, rem } from "@mantine/core";
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { useNewDsModal } from "./modals/adddataset";
-import { useTree, TreeNode } from "@/app/components/tree";
-import { datasetTypes } from "@/app/_util/datasets";
-import { attrTypes } from "@/app/_util/attrs";
+import { useTree, TreeNode } from "@/components/tree";
+import { datasetTypes } from "@/lib/datasets";
+import { attrTypes } from "@/lib/attrs";
 import { useDeleteAttrModal } from "./modals/delattr";
 import { useAddAttrModal } from "./modals/addattr";
 import { useDeleteClassModal } from "./modals/delclass";
@@ -24,9 +24,9 @@ import {
 	IconTrash,
 	IconX,
 } from "@tabler/icons-react";
-import { XIcon } from "@/app/components/icons";
-import { APIclient } from "@/app/_util/api";
-import { components } from "@/app/_util/api/openapi";
+import { XIcon } from "@/components/icons";
+import { APIclient } from "@/lib/api";
+import { components } from "@/lib/api/openapi";
 import { useRenameAttrModal } from "./modals/renameattr";
 import { useRenameClassModal } from "./modals/renameclass";
 import { useRenameDatasetModal } from "./modals/renamedataset";
