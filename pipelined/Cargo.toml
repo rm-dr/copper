@@ -1,0 +1,120 @@
+[profile.dev]
+opt-level = 0
+debug = true
+strip = false
+debug-assertions = true
+overflow-checks = true
+lto = false
+panic = "unwind"
+incremental = true
+codegen-units = 256
+rpath = false
+
+
+[profile.release]
+opt-level = 3
+debug = false
+debug-assertions = false
+strip = "symbols"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+incremental = false
+rpath = false
+
+
+[workspace]
+members = ["crates/*"]
+default-members = ["crates/pipelined"]
+resolver = "2"
+
+[workspace.package]
+keywords = []
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.76"
+categories = []
+authors = []
+homepage = ""
+repository = ""
+license = ""
+documentation = ""
+readme = ""
+
+[workspace.lints.rust]
+unused_import_braces = "deny"
+unit_bindings = "deny"
+single_use_lifetimes = "deny"
+non_ascii_idents = "deny"
+macro_use_extern_crate = "deny"
+elided_lifetimes_in_paths = "deny"
+absolute_paths_not_starting_with_crate = "deny"
+explicit_outlives_requirements = "warn"
+unused_crate_dependencies = "warn"
+#variant_size_differences = "warn"
+redundant_lifetimes = "warn"
+missing_docs = "allow"
+
+
+[workspace.lints.clippy]
+needless_return = "allow"
+new_without_default = "allow"
+
+
+[workspace.dependencies]
+copper-pipeline = { path = "crates/pipeline" }
+copper-node-base = { path = "crates/node-base" }
+copper-util = { path = "crates/util" }
+copper-audiofile = { path = "crates/audiofile" }
+pipelined = { path = "crates/pipelined" }
+
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Parallism & async
+crossbeam = "0.8.4"
+futures = "0.3.30"
+
+# Utility
+smartstring = { version = "1.0.1", features = ["serde"] }
+sha2 = "0.10.8"
+petgraph = "0.6.5"
+anyhow = "1.0.83"
+itertools = "0.12.1"
+walkdir = "2"
+bytes = "1.6.0"
+rand = "0.8.5"
+md5 = "0.7.0"
+time = { version = "0.3.36", features = ["serde"] }
+paste = "1.0.15"
+base64 = "0.22.1"
+async-trait = "0.1.81"
+
+# Network
+reqwest = { version = "0.12.4", features = [
+	"json",
+	"blocking",
+	"multipart",
+	"stream",
+] }
+url = { version = "2.5.0", features = ["serde"] }
+tokio = { version = "1.0", features = ["full"] }
+tokio-util = { version = "0.7.11", features = ["io"] }
+axum = { version = "0.7.5", features = ["ws", "multipart", "macros"] }
+axum-extra = { version = "0.9.3", features = ["cookie"] }
+tower-http = { version = "0.5.2", features = ["trace"] }
+
+# Serde
+serde = { version = "1.0.201", features = ["serde_derive", "rc"] }
+serde_json = "1.0.68"
+serde_with = "3.8.1"
+
+# Other
+sqlx = { version = "0.7", features = ["sqlite", "runtime-async-std"] }
+utoipa = { version = "5.0.0-alpha.0", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "7.1.1-alpha.0", features = [
+	"axum",
+	"debug-embed",
+] }
