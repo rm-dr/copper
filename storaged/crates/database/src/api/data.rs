@@ -1,3 +1,5 @@
+//! Types and instances of data we can store in an attribute
+
 use copper_util::mime::MimeType;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -5,30 +7,46 @@ use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
 use utoipa::ToSchema;
 
-use super::handles::{ItemIdx, ItemclassHandle};
+use super::handles::{ItemIdx, ItemclassId};
 
-/// Bits of data inside a metadata db.
+/// A value stored inside an attribute.
+/// Each of these corresponds to an [`AttrDataStub`]
 #[derive(Debug, Clone)]
-pub enum DatasetData {
+pub enum AttrData {
 	/// Typed, unset data
-	None(DatasetDataStub),
+	None(AttrDataStub),
 
 	/// A block of text
 	Text(Arc<SmartString<LazyCompact>>),
 
 	/// An integer
-	Integer { value: i64, is_non_negative: bool },
+	Integer {
+		/// The integer
+		value: i64,
+
+		/// If true, this integer must be non-negative
+		is_non_negative: bool,
+	},
 
 	/// A float
-	Float { value: f64, is_non_negative: bool },
+	Float {
+		/// The float
+		value: f64,
+
+		/// If true, this float must be non-negative
+		is_non_negative: bool,
+	},
 
 	/// A boolean
 	Boolean(bool),
 
 	/// A checksum
 	Hash {
+		/// The type of this hash
 		format: HashType,
-		data: Arc<Vec<u8>>,
+
+		/// The hash data
+		data: Vec<u8>,
 	},
 
 	/// Binary data stored in S3
@@ -40,20 +58,23 @@ pub enum DatasetData {
 		url: String,
 	},
 
+	/// A reference to an item in another class
 	Reference {
 		/// The item class this reference points to
-		class: ItemclassHandle,
+		class: ItemclassId,
 
 		/// The item
 		item: ItemIdx,
 	},
 }
 
-impl DatasetData {
+impl AttrData {
+	/// Is this `Self::None`?
 	pub fn is_none(&self) -> bool {
 		matches!(self, Self::None(_))
 	}
 
+	/// Is this `Self::Blob`?
 	pub fn is_blob(&self) -> bool {
 		matches!(self, Self::Blob { .. })
 	}
@@ -64,16 +85,20 @@ impl DatasetData {
 	}
 }
 
+/// The types of hashes we support
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[allow(missing_docs)]
 pub enum HashType {
 	MD5,
 	SHA256,
 	SHA512,
 }
 
+/// The type of data stored in an attribute.
+/// Each of these corresponds to a variant of [`AttrData`]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type")]
-pub enum DatasetDataStub {
+pub enum AttrDataStub {
 	/// Plain text
 	Text,
 
@@ -81,20 +106,30 @@ pub enum DatasetDataStub {
 	Blob,
 
 	/// An integer
-	Integer { is_non_negative: bool },
+	Integer {
+		/// If true, this integer must be non-negative
+		is_non_negative: bool,
+	},
 
 	/// A float
-	Float { is_non_negative: bool },
+	Float {
+		/// If true, this float must be non-negative
+		is_non_negative: bool,
+	},
 
 	/// A boolean
 	Boolean,
 
 	/// A checksum
-	Hash { hash_type: HashType },
+	Hash {
+		/// The type of this hash
+		hash_type: HashType,
+	},
 
 	/// A reference to an item
 	Reference {
+		/// The itemclass we reference
 		#[schema(value_type = u32)]
-		class: ItemclassHandle,
+		class: ItemclassId,
 	},
 }

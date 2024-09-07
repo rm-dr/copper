@@ -3,7 +3,7 @@ use axum::{
 	routing::{delete, get, patch, post},
 	Router,
 };
-use copper_database::api::DatabaseClient;
+use copper_database::api::client::DatabaseClient;
 use utoipa::OpenApi;
 
 mod add;

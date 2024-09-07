@@ -1,5 +1,8 @@
+//! Errors we can encounter when operating on datasets
+
 use std::{error::Error, fmt::Display};
 
+/// An error we can encounter when creating a dataset
 #[derive(Debug)]
 pub enum AddDatasetError {
 	/// Database error
@@ -28,6 +31,7 @@ impl Error for AddDatasetError {
 	}
 }
 
+/// An error we can encounter when getting dataset info
 #[derive(Debug)]
 pub enum GetDatasetError {
 	/// Database error
@@ -55,6 +59,7 @@ impl Error for GetDatasetError {
 	}
 }
 
+/// An error we can encounter when renaming a dataset
 #[derive(Debug)]
 pub enum RenameDatasetError {
 	/// Database error
@@ -77,6 +82,7 @@ impl Error for RenameDatasetError {
 	}
 }
 
+/// An error we can encounter when deleting a dataset
 #[derive(Debug)]
 pub enum DeleteDatasetError {
 	/// Database error

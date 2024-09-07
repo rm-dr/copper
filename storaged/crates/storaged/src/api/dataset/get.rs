@@ -5,7 +5,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
-use copper_database::api::{errors::dataset::GetDatasetError, DatabaseClient};
+use copper_database::api::{client::DatabaseClient, errors::dataset::GetDatasetError};
 use tracing::error;
 
 /// Get dataset info

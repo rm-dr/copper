@@ -1,6 +1,6 @@
 use crate::RouterState;
 use axum::{routing::get, Router};
-use copper_database::api::DatabaseClient;
+use copper_database::api::client::DatabaseClient;
 use utoipa::OpenApi;
 
 mod server;

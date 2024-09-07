@@ -53,7 +53,7 @@ explicit_outlives_requirements = "warn"
 unused_crate_dependencies = "warn"
 #variant_size_differences = "warn"
 redundant_lifetimes = "warn"
-missing_docs = "allow"
+missing_docs = "warn"
 
 
 [workspace.lints.clippy]

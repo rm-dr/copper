@@ -1,5 +1,8 @@
+//! Errors we can encounter when operating on attributes
+
 use std::{error::Error, fmt::Display};
 
+/// An error we can encounter when creating an attribute
 #[derive(Debug)]
 pub enum AddAttributeError {
 	/// Database error
@@ -29,6 +32,7 @@ impl Error for AddAttributeError {
 	}
 }
 
+/// An error we can encounter when getting attribute info
 #[derive(Debug)]
 pub enum GetAttributeError {
 	/// Database error
@@ -56,6 +60,7 @@ impl Error for GetAttributeError {
 	}
 }
 
+/// An error we can encounter when renaming an attibute
 #[derive(Debug)]
 pub enum RenameAttributeError {
 	/// Database error
@@ -78,6 +83,7 @@ impl Error for RenameAttributeError {
 	}
 }
 
+/// An error we can encounter when deleting an attribute
 #[derive(Debug)]
 pub enum DeleteAttributeError {
 	/// Database error

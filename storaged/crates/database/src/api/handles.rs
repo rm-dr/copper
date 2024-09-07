@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use serde::{Deserialize, Serialize};
 
 // We don't derive ToSchema here, since utoipa doesn't
@@ -25,17 +27,17 @@ impl From<u32> for ItemIdx {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct DatasetHandle {
+pub struct DatasetId {
 	id: u32,
 }
 
-impl From<DatasetHandle> for u32 {
-	fn from(value: DatasetHandle) -> Self {
+impl From<DatasetId> for u32 {
+	fn from(value: DatasetId) -> Self {
 		value.id
 	}
 }
 
-impl From<u32> for DatasetHandle {
+impl From<u32> for DatasetId {
 	fn from(value: u32) -> Self {
 		Self { id: value }
 	}
@@ -43,17 +45,17 @@ impl From<u32> for DatasetHandle {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct ItemclassHandle {
+pub struct ItemclassId {
 	id: u32,
 }
 
-impl From<ItemclassHandle> for u32 {
-	fn from(value: ItemclassHandle) -> Self {
+impl From<ItemclassId> for u32 {
+	fn from(value: ItemclassId) -> Self {
 		value.id
 	}
 }
 
-impl From<u32> for ItemclassHandle {
+impl From<u32> for ItemclassId {
 	fn from(value: u32) -> Self {
 		Self { id: value }
 	}
@@ -61,17 +63,17 @@ impl From<u32> for ItemclassHandle {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct AttributeHandle {
+pub struct AttributeId {
 	id: u32,
 }
 
-impl From<AttributeHandle> for u32 {
-	fn from(value: AttributeHandle) -> Self {
+impl From<AttributeId> for u32 {
+	fn from(value: AttributeId) -> Self {
 		value.id
 	}
 }
 
-impl From<u32> for AttributeHandle {
+impl From<u32> for AttributeId {
 	fn from(value: u32) -> Self {
 		Self { id: value }
 	}

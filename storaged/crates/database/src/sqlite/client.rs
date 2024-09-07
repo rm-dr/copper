@@ -1,5 +1,6 @@
 use crate::api::{
-	data::DatasetDataStub,
+	client::{AttributeOptions, DatabaseClient},
+	data::AttrDataStub,
 	errors::{
 		attribute::{
 			AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
@@ -9,8 +10,8 @@ use crate::api::{
 			AddItemclassError, DeleteItemclassError, GetItemclassError, RenameItemclassError,
 		},
 	},
-	handles::{AttributeHandle, DatasetHandle, ItemclassHandle},
-	AttributeInfo, AttributeOptions, DatabaseClient, DatasetInfo, ItemclassInfo,
+	handles::{AttributeId, DatasetId, ItemclassId},
+	info::{AttributeInfo, DatasetInfo, ItemclassInfo},
 };
 use async_trait::async_trait;
 use copper_util::mime::MimeType;
@@ -22,7 +23,7 @@ use sqlx::{
 };
 use std::sync::Arc;
 
-use super::SqliteDatabase;
+use super::SqliteDatabaseClient;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct BlobJsonEncoded {
@@ -31,7 +32,7 @@ struct BlobJsonEncoded {
 }
 
 // SQL helper functions
-impl SqliteDatabase {
+impl SqliteDatabaseClient {
 	/*
 	fn bind_storage<'a>(
 		q: Query<'a, Sqlite, SqliteArguments<'a>>,
@@ -138,12 +139,12 @@ impl SqliteDatabase {
 }
 
 #[async_trait]
-impl DatabaseClient for SqliteDatabase {
+impl DatabaseClient for SqliteDatabaseClient {
 	//
 	// MARK: Dataset
 	//
 
-	async fn add_dataset(&self, name: &str) -> Result<DatasetHandle, AddDatasetError> {
+	async fn add_dataset(&self, name: &str) -> Result<DatasetId, AddDatasetError> {
 		// Start transaction
 		let mut conn = self
 			.pool
@@ -164,7 +165,7 @@ impl DatabaseClient for SqliteDatabase {
 			.await
 			.map_err(|e| AddDatasetError::DbError(Box::new(e)))?;
 
-		let new_handle: DatasetHandle = match res {
+		let new_handle: DatasetId = match res {
 			Ok(x) => u32::try_from(x.last_insert_rowid()).unwrap().into(),
 			Err(sqlx::Error::Database(e)) => {
 				if e.is_unique_violation() {
@@ -180,7 +181,7 @@ impl DatabaseClient for SqliteDatabase {
 		return Ok(new_handle);
 	}
 
-	async fn get_dataset(&self, dataset: DatasetHandle) -> Result<DatasetInfo, GetDatasetError> {
+	async fn get_dataset(&self, dataset: DatasetId) -> Result<DatasetInfo, GetDatasetError> {
 		let mut conn = self
 			.pool
 			.acquire()
@@ -196,7 +197,7 @@ impl DatabaseClient for SqliteDatabase {
 			Err(sqlx::Error::RowNotFound) => Err(GetDatasetError::NotFound),
 			Err(e) => Err(GetDatasetError::DbError(Box::new(e))),
 			Ok(res) => Ok(DatasetInfo {
-				handle: res.get::<u32, _>("id").into(),
+				id: res.get::<u32, _>("id").into(),
 				name: res.get::<String, _>("pretty_name").into(),
 			}),
 		};
@@ -204,7 +205,7 @@ impl DatabaseClient for SqliteDatabase {
 
 	async fn rename_dataset(
 		&self,
-		dataset: DatasetHandle,
+		dataset: DatasetId,
 		new_name: &str,
 	) -> Result<(), RenameDatasetError> {
 		let mut conn = self
@@ -233,7 +234,7 @@ impl DatabaseClient for SqliteDatabase {
 		};
 	}
 
-	async fn del_dataset(&self, dataset: DatasetHandle) -> Result<(), DeleteDatasetError> {
+	async fn del_dataset(&self, dataset: DatasetId) -> Result<(), DeleteDatasetError> {
 		let mut conn = self
 			.pool
 			.acquire()
@@ -265,9 +266,9 @@ impl DatabaseClient for SqliteDatabase {
 
 	async fn add_itemclass(
 		&self,
-		in_dataset: DatasetHandle,
+		in_dataset: DatasetId,
 		name: &str,
-	) -> Result<ItemclassHandle, AddItemclassError> {
+	) -> Result<ItemclassId, AddItemclassError> {
 		// Start transaction
 		let mut conn = self
 			.pool
@@ -289,7 +290,7 @@ impl DatabaseClient for SqliteDatabase {
 			.await
 			.map_err(|e| AddItemclassError::DbError(Box::new(e)))?;
 
-		let new_handle: ItemclassHandle = match res {
+		let new_handle: ItemclassId = match res {
 			Ok(x) => u32::try_from(x.last_insert_rowid()).unwrap().into(),
 			Err(sqlx::Error::Database(e)) => {
 				if e.is_foreign_key_violation() {
@@ -306,7 +307,7 @@ impl DatabaseClient for SqliteDatabase {
 
 	async fn get_itemclass(
 		&self,
-		itemclass: ItemclassHandle,
+		itemclass: ItemclassId,
 	) -> Result<ItemclassInfo, GetItemclassError> {
 		let mut conn = self
 			.pool
@@ -323,7 +324,7 @@ impl DatabaseClient for SqliteDatabase {
 			Err(sqlx::Error::RowNotFound) => Err(GetItemclassError::NotFound),
 			Err(e) => Err(GetItemclassError::DbError(Box::new(e))),
 			Ok(res) => Ok(ItemclassInfo {
-				handle: res.get::<u32, _>("id").into(),
+				id: res.get::<u32, _>("id").into(),
 				name: res.get::<String, _>("pretty_name").into(),
 			}),
 		};
@@ -331,7 +332,7 @@ impl DatabaseClient for SqliteDatabase {
 
 	async fn rename_itemclass(
 		&self,
-		itemclass: ItemclassHandle,
+		itemclass: ItemclassId,
 		new_name: &str,
 	) -> Result<(), RenameItemclassError> {
 		let mut conn = self
@@ -360,7 +361,7 @@ impl DatabaseClient for SqliteDatabase {
 		};
 	}
 
-	async fn del_itemclass(&self, itemclass: ItemclassHandle) -> Result<(), DeleteItemclassError> {
+	async fn del_itemclass(&self, itemclass: ItemclassId) -> Result<(), DeleteItemclassError> {
 		let mut conn = self
 			.pool
 			.acquire()
@@ -392,11 +393,11 @@ impl DatabaseClient for SqliteDatabase {
 
 	async fn add_attribute(
 		&self,
-		in_itemclass: ItemclassHandle,
+		in_itemclass: ItemclassId,
 		name: &str,
-		with_type: DatasetDataStub,
+		with_type: AttrDataStub,
 		options: AttributeOptions,
-	) -> Result<AttributeHandle, AddAttributeError> {
+	) -> Result<AttributeId, AddAttributeError> {
 		// Start transaction
 		let mut conn = self
 			.pool
@@ -425,7 +426,7 @@ impl DatabaseClient for SqliteDatabase {
 			.await
 			.map_err(|e| AddAttributeError::DbError(Box::new(e)))?;
 
-		let new_handle: AttributeHandle = match res {
+		let new_handle: AttributeId = match res {
 			Ok(x) => u32::try_from(x.last_insert_rowid()).unwrap().into(),
 			Err(sqlx::Error::Database(e)) => {
 				if e.is_foreign_key_violation() {
@@ -443,7 +444,7 @@ impl DatabaseClient for SqliteDatabase {
 
 	async fn get_attribute(
 		&self,
-		attribute: AttributeHandle,
+		attribute: AttributeId,
 	) -> Result<AttributeInfo, GetAttributeError> {
 		let mut conn = self
 			.pool
@@ -460,7 +461,7 @@ impl DatabaseClient for SqliteDatabase {
 			Err(sqlx::Error::RowNotFound) => Err(GetAttributeError::NotFound),
 			Err(e) => Err(GetAttributeError::DbError(Box::new(e))),
 			Ok(res) => Ok(AttributeInfo {
-				handle: res.get::<u32, _>("id").into(),
+				id: res.get::<u32, _>("id").into(),
 				itemclass: res.get::<u32, _>("id").into(),
 				order: res.get::<u32, _>("attr_order").into(),
 				name: res.get::<String, _>("pretty_name").into(),
@@ -473,7 +474,7 @@ impl DatabaseClient for SqliteDatabase {
 
 	async fn rename_attribute(
 		&self,
-		attribute: AttributeHandle,
+		attribute: AttributeId,
 		new_name: &str,
 	) -> Result<(), RenameAttributeError> {
 		let mut conn = self
@@ -502,7 +503,7 @@ impl DatabaseClient for SqliteDatabase {
 		};
 	}
 
-	async fn del_attribute(&self, attribute: AttributeHandle) -> Result<(), DeleteAttributeError> {
+	async fn del_attribute(&self, attribute: AttributeId) -> Result<(), DeleteAttributeError> {
 		let mut conn = self
 			.pool
 			.acquire()

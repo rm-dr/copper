@@ -4,7 +4,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
-use copper_database::api::DatabaseClient;
+use copper_database::api::client::DatabaseClient;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use utoipa::ToSchema;

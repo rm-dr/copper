@@ -1,6 +1,11 @@
+//! Copper's storage daemon
+//!
+//! This daemon stores datasets and wraps all operations on them.
+//! TODO: more details
+
 use api::RouterState;
 use config::StoragedConfig;
-use copper_database::sqlite::{SqliteDatabase, SqliteDatabaseOpenError};
+use copper_database::sqlite::{SqliteDatabaseClient, SqliteDatabaseOpenError};
 use std::sync::Arc;
 use tracing::{error, info};
 
@@ -19,7 +24,7 @@ async fn main() {
 		.init();
 
 	// Connect to database
-	let db = match SqliteDatabase::open(&config.db_addr).await {
+	let db = match SqliteDatabaseClient::open(&config.db_addr).await {
 		Ok(db) => db,
 		Err(SqliteDatabaseOpenError::DbError(e)) => {
 			error!(message = "SQL error while opening database", err = ?e);
@@ -35,7 +40,7 @@ async fn main() {
 		}
 	};
 
-	let state = RouterState::<SqliteDatabase> {
+	let state = RouterState::<SqliteDatabaseClient> {
 		config,
 		client: Arc::new(db),
 	};

@@ -1,15 +1,23 @@
+//! A database client for SQLite
+
 use copper_migrate::{MigrationError, Migrator};
 use sqlx::{sqlite::SqliteConnectOptions, Connection, SqliteConnection, SqlitePool};
 use std::{error::Error, fmt::Display, str::FromStr};
 use tracing::info;
 
-mod meta;
+mod client;
 mod migrate;
 
 #[derive(Debug)]
+/// An error we encounter when opening an SQLite database
 pub enum SqliteDatabaseOpenError {
+	/// We encountered an internal database error
 	DbError(Box<dyn Error + Send + Sync>),
+
+	/// We encountered an os I/O error
 	IoError(std::io::Error),
+
+	/// We encountered an error while migrating
 	MigrateError(MigrationError),
 }
 
@@ -33,11 +41,12 @@ impl Error for SqliteDatabaseOpenError {
 	}
 }
 
-pub struct SqliteDatabase {
+/// A database client for SQLite
+pub struct SqliteDatabaseClient {
 	pool: SqlitePool,
 }
 
-impl SqliteDatabase {
+impl SqliteDatabaseClient {
 	/// Create a new [`LocalDataset`].
 	pub async fn open(db_addr: &str) -> Result<Self, SqliteDatabaseOpenError> {
 		info!(message = "Creating dataset", ds_type = "sqlite", ?db_addr);

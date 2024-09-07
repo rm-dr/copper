@@ -4,7 +4,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
-use copper_database::api::{errors::dataset::RenameDatasetError, DatabaseClient};
+use copper_database::api::{client::DatabaseClient, errors::dataset::RenameDatasetError};
 use serde::Deserialize;
 use tracing::error;
 use utoipa::ToSchema;

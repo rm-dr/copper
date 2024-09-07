@@ -3,7 +3,7 @@ use axum::{
 	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 };
-use copper_database::api::{errors::dataset::DeleteDatasetError, DatabaseClient};
+use copper_database::api::{client::DatabaseClient, errors::dataset::DeleteDatasetError};
 use tracing::error;
 
 use crate::api::RouterState;

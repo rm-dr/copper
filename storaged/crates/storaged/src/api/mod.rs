@@ -7,7 +7,7 @@ use utoipa::{
 };
 use utoipa_swagger_ui::SwaggerUi;
 
-use copper_database::api::{DatabaseClient, DatasetInfo};
+use copper_database::api::{client::DatabaseClient, info::DatasetInfo};
 
 use crate::config::StoragedConfig;
 

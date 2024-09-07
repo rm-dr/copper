@@ -1,5 +1,8 @@
+//! Errors we can encounter when operating on itemclasses
+
 use std::{error::Error, fmt::Display};
 
+/// An error we can encounter when creating an itemclass
 #[derive(Debug)]
 pub enum AddItemclassError {
 	/// Database error
@@ -27,6 +30,7 @@ impl Error for AddItemclassError {
 	}
 }
 
+/// An error we can encounter when getting itemclass info
 #[derive(Debug)]
 pub enum GetItemclassError {
 	/// Database error
@@ -54,6 +58,7 @@ impl Error for GetItemclassError {
 	}
 }
 
+/// An error we can encounter when renaming an itemclass
 #[derive(Debug)]
 pub enum RenameItemclassError {
 	/// Database error
@@ -76,6 +81,7 @@ impl Error for RenameItemclassError {
 	}
 }
 
+/// An error we can encounter when deleting an itemclass
 #[derive(Debug)]
 pub enum DeleteItemclassError {
 	/// Database error
