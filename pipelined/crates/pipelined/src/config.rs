@@ -83,7 +83,6 @@ impl PipelinedConfig {
 	pub fn to_env_filter(&self) -> String {
 		[
 			format!("copper_pipeline={}", LogLevel::Info),
-			format!("sqlx={}", LogLevel::Warn),
 			format!("tower_http={}", LogLevel::Warn),
 			format!("pipelined={}", LogLevel::Info),
 			LogLevel::Warn.to_string(),
