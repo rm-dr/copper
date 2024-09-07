@@ -90,12 +90,16 @@ mod tests {
 	};
 	use copper_database::api::{
 		client::AttributeOptions,
-		data::AttrDataStub,
-		handles::{ClassId, DatasetId},
+		data::{AttrDataStub, HashType},
+		handles::{AttributeId, ClassId, DatasetId},
 	};
 	use serde::de::DeserializeOwned;
 	use serde_json::json;
 	use tower::Service;
+
+	//
+	// MARK: Helpers
+	//
 
 	async fn app_request(
 		app: &mut Router,
@@ -127,6 +131,22 @@ mod tests {
 		.await
 	}
 
+	async fn rename_dataset(
+		app: &mut Router,
+		dataset: DatasetId,
+		new_name: &str,
+	) -> Response<Body> {
+		app_request(
+			app,
+			Method::PATCH,
+			&format!("/dataset/{}", u32::from(dataset)),
+			json!({
+				"new_name": new_name
+			}),
+		)
+		.await
+	}
+
 	async fn create_class(app: &mut Router, dataset: DatasetId, name: &str) -> Response<Body> {
 		app_request(
 			app,
@@ -134,6 +154,17 @@ mod tests {
 			&format!("/dataset/{}/class", u32::from(dataset)),
 			json!({
 				"name": name
+			}),
+		)
+		.await
+	}
+	async fn rename_class(app: &mut Router, class: ClassId, new_name: &str) -> Response<Body> {
+		app_request(
+			app,
+			Method::PATCH,
+			&format!("/class/{}", u32::from(class)),
+			json!({
+				"new_name": new_name
 			}),
 		)
 		.await
@@ -159,6 +190,22 @@ mod tests {
 		.await
 	}
 
+	async fn rename_attribute(
+		app: &mut Router,
+		attribute: AttributeId,
+		new_name: &str,
+	) -> Response<Body> {
+		app_request(
+			app,
+			Method::PATCH,
+			&format!("/attribute/{}", u32::from(attribute)),
+			json!({
+				"new_name": new_name
+			}),
+		)
+		.await
+	}
+
 	async fn response_json<T: DeserializeOwned>(resp: Response<Body>) -> T {
 		serde_json::from_str(
 			&String::from_utf8(
@@ -171,6 +218,10 @@ mod tests {
 		)
 		.unwrap()
 	}
+
+	//
+	// MARK: Test
+	//
 
 	#[tokio::test]
 	async fn basic_crud_sqlite() {
@@ -237,16 +288,31 @@ mod tests {
 		}
 
 		let test_dataset_id: DatasetId = 1.into();
+		let test_dataset_two_id: DatasetId = 2.into();
 		{
-			// This request is perfectly fine
+			// These requests are perfectly fine
 			let response = create_dataset(&mut app, "test_dataset").await;
 			assert_eq!(response.status(), 200);
 			assert_eq!(response_json::<DatasetId>(response).await, test_dataset_id);
+
+			let response = create_dataset(&mut app, "test_dataset_two").await;
+			assert_eq!(response.status(), 200);
+			assert_eq!(
+				response_json::<DatasetId>(response).await,
+				test_dataset_two_id
+			);
 		}
 
 		{
 			// This request should fail, duplicate name
 			let response = create_dataset(&mut app, "test_dataset").await;
+			assert_eq!(response.status(), 400);
+			assert_eq!(
+				response_json::<String>(response).await,
+				"a dataset with this name already exists"
+			);
+
+			let response = rename_dataset(&mut app, test_dataset_id, "test_dataset_two").await;
 			assert_eq!(response.status(), 400);
 			assert_eq!(
 				response_json::<String>(response).await,
@@ -297,38 +363,41 @@ mod tests {
 		}
 
 		{
-			// These requests should fail, invalid dataset
-			let response = create_class(&mut app, 2.into(), "class_bad_dataset").await;
-			assert_eq!(response.status(), 404);
-
-			let response = create_class(&mut app, 5.into(), "class_bad_dataset").await;
+			// This should fail, invalid dataset
+			let response = create_class(&mut app, 45.into(), "class_bad_dataset").await;
 			assert_eq!(response.status(), 404);
 		}
 
-		let test_class_a_id: ClassId = 1.into();
-		let test_class_b_id: ClassId = 2.into();
+		let class_covers_id: ClassId = 1.into();
+		let class_audiofile_id: ClassId = 2.into();
 		{
 			// These requests is perfectly fine
-			let response = create_class(&mut app, test_dataset_id, "test_class_a").await;
+			let response = create_class(&mut app, test_dataset_id, "covers").await;
 			assert_eq!(response.status(), 200);
-			assert_eq!(response_json::<ClassId>(response).await, test_class_a_id);
+			assert_eq!(response_json::<ClassId>(response).await, class_covers_id);
 
-			let response = create_class(&mut app, test_dataset_id, "test_class_b").await;
+			let response = create_class(&mut app, test_dataset_id, "audiofile").await;
 			assert_eq!(response.status(), 200);
-			assert_eq!(response_json::<ClassId>(response).await, test_class_b_id);
+			assert_eq!(response_json::<ClassId>(response).await, class_audiofile_id);
 		}
 
 		{
 			// These requests should fail, duplicate name
-			let response = create_class(&mut app, test_dataset_id, "test_class_a").await;
+			let response = create_class(&mut app, test_dataset_id, "covers").await;
 			assert_eq!(response.status(), 400);
 			assert_eq!(
 				response_json::<String>(response).await,
 				"a class with this name already exists"
 			);
 
-			// This request should fail, duplicate name
-			let response = create_class(&mut app, test_dataset_id, "test_class_b").await;
+			let response = create_class(&mut app, test_dataset_id, "audiofile").await;
+			assert_eq!(response.status(), 400);
+			assert_eq!(
+				response_json::<String>(response).await,
+				"a class with this name already exists"
+			);
+
+			let response = rename_class(&mut app, class_covers_id, "audiofile").await;
 			assert_eq!(response.status(), 400);
 			assert_eq!(
 				response_json::<String>(response).await,
@@ -344,7 +413,7 @@ mod tests {
 			// These requests should fail, invalid name
 			let response = create_attribute(
 				&mut app,
-				test_class_a_id,
+				class_covers_id,
 				"",
 				AttrDataStub::Text,
 				AttributeOptions::default(),
@@ -358,7 +427,7 @@ mod tests {
 
 			let response = create_attribute(
 				&mut app,
-				test_class_b_id,
+				class_covers_id,
 				"  bad_attr",
 				AttrDataStub::Text,
 				AttributeOptions::default(),
@@ -372,7 +441,7 @@ mod tests {
 
 			let response = create_attribute(
 				&mut app,
-				test_class_a_id,
+				class_covers_id,
 				"bad_attr  ",
 				AttrDataStub::Text,
 				AttributeOptions::default(),
@@ -386,7 +455,7 @@ mod tests {
 
 			let response = create_attribute(
 				&mut app,
-				test_class_b_id,
+				class_covers_id,
 				"bad_attr\t",
 				AttrDataStub::Text,
 				AttributeOptions::default(),
@@ -400,7 +469,7 @@ mod tests {
 
 			let response = create_attribute(
 				&mut app,
-				test_class_a_id,
+				class_covers_id,
 				"bad_attr\n",
 				AttrDataStub::Text,
 				AttributeOptions::default(),
@@ -417,17 +486,7 @@ mod tests {
 			// These requests should fail, invalid class
 			let response = create_attribute(
 				&mut app,
-				5.into(),
-				"attr_bad_class",
-				AttrDataStub::Text,
-				AttributeOptions::default(),
-			)
-			.await;
-			assert_eq!(response.status(), 404);
-
-			let response = create_attribute(
-				&mut app,
-				5.into(),
+				45.into(),
 				"attr_bad_class",
 				AttrDataStub::Text,
 				AttributeOptions::default(),
@@ -436,7 +495,196 @@ mod tests {
 			assert_eq!(response.status(), 404);
 		}
 
-		// TODO: make good attrs
-		// TODO: test repeated name
+		{
+			// Create `cover` attributes
+			let response = create_attribute(
+				&mut app,
+				class_covers_id,
+				"content_hash",
+				AttrDataStub::Blob,
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+
+			let response = create_attribute(
+				&mut app,
+				class_covers_id,
+				"image",
+				AttrDataStub::Hash {
+					hash_type: HashType::SHA256,
+				},
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+		}
+
+		let attr_title_id: AttributeId = 3.into();
+		{
+			// Create `audiofile` attributes
+			let response = create_attribute(
+				&mut app,
+				class_audiofile_id,
+				"title",
+				AttrDataStub::Text,
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+			assert_eq!(response_json::<AttributeId>(response).await, attr_title_id);
+
+			let response = create_attribute(
+				&mut app,
+				class_audiofile_id,
+				"album",
+				AttrDataStub::Text,
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+
+			let response = create_attribute(
+				&mut app,
+				class_audiofile_id,
+				"artist",
+				AttrDataStub::Text,
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+
+			let response = create_attribute(
+				&mut app,
+				class_audiofile_id,
+				"albumartist",
+				AttrDataStub::Text,
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+
+			let response = create_attribute(
+				&mut app,
+				class_audiofile_id,
+				"tracknumber",
+				AttrDataStub::Text,
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+
+			let response = create_attribute(
+				&mut app,
+				class_audiofile_id,
+				"year",
+				AttrDataStub::Text,
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+
+			let response = create_attribute(
+				&mut app,
+				class_audiofile_id,
+				"genre",
+				AttrDataStub::Text,
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+
+			let response = create_attribute(
+				&mut app,
+				class_audiofile_id,
+				"ISRC",
+				AttrDataStub::Text,
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+
+			let response = create_attribute(
+				&mut app,
+				class_audiofile_id,
+				"lyrics",
+				AttrDataStub::Text,
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+
+			let response = create_attribute(
+				&mut app,
+				class_audiofile_id,
+				"audio_data",
+				AttrDataStub::Blob,
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+
+			let response = create_attribute(
+				&mut app,
+				class_audiofile_id,
+				"audio_hash",
+				AttrDataStub::Hash {
+					hash_type: HashType::SHA256,
+				},
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+
+			let response = create_attribute(
+				&mut app,
+				class_audiofile_id,
+				"cover_art",
+				AttrDataStub::Reference {
+					class: class_covers_id,
+				},
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 200);
+		}
+
+		{
+			// These should fail, repeated name
+			let response = create_attribute(
+				&mut app,
+				class_covers_id,
+				"content_hash",
+				AttrDataStub::Blob,
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 400);
+			assert_eq!(
+				response_json::<String>(response).await,
+				"an attribute with this name already exists"
+			);
+
+			let response = create_attribute(
+				&mut app,
+				class_audiofile_id,
+				"ISRC",
+				AttrDataStub::Text,
+				AttributeOptions::default(),
+			)
+			.await;
+			assert_eq!(response.status(), 400);
+			assert_eq!(
+				response_json::<String>(response).await,
+				"an attribute with this name already exists"
+			);
+
+			let response = rename_attribute(&mut app, attr_title_id, "ISRC").await;
+			assert_eq!(response.status(), 400);
+			assert_eq!(
+				response_json::<String>(response).await,
+				"an attribute with this name already exists"
+			);
+		}
 	}
 }
