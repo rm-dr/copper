@@ -54,6 +54,9 @@ pub(super) async fn add_attribute<Client: DatabaseClient>(
 
 	return match res {
 		Ok(_) => StatusCode::OK.into_response(),
+		Err(AddAttributeError::NameError(e)) => {
+			(StatusCode::BAD_REQUEST, Json(format!("{}", e))).into_response()
+		}
 		Err(AddAttributeError::NoSuchClass) => StatusCode::NOT_FOUND.into_response(),
 		Err(AddAttributeError::DbError(e)) => {
 			error!(

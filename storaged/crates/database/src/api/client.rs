@@ -63,17 +63,17 @@ where
 	/// Delete a class
 	async fn get_class(&self, class: ClassId) -> Result<ClassInfo, GetClassError>;
 
-	/// Rename an class
+	/// Rename a class
 	async fn rename_class(&self, class: ClassId, new_name: &str) -> Result<(), RenameClassError>;
 
-	/// Delete an class
+	/// Delete a class
 	async fn del_class(&self, class: ClassId) -> Result<(), DeleteClassError>;
 
 	//
 	// MARK: Attribute
 	//
 
-	/// Create a new attribute in an class
+	/// Create a new attribute in a class
 	async fn add_attribute(
 		&self,
 		in_class: ClassId,

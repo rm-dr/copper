@@ -39,6 +39,10 @@ pub(super) async fn add_dataset<Client: DatabaseClient>(
 	return match res {
 		Ok(_) => StatusCode::OK.into_response(),
 
+		Err(AddDatasetError::NameError(e)) => {
+			(StatusCode::BAD_REQUEST, Json(format!("{}", e))).into_response()
+		}
+
 		Err(AddDatasetError::AlreadyExists) => (
 			StatusCode::BAD_REQUEST,
 			Json("A dataset with this name already exists"),

@@ -12,7 +12,7 @@ use crate::api::{
 	info::{AttributeInfo, ClassInfo, DatasetInfo},
 };
 use async_trait::async_trait;
-use copper_util::mime::MimeType;
+use copper_util::{mime::MimeType, names::check_name};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, Row};
 
@@ -138,6 +138,11 @@ impl DatabaseClient for SqliteDatabaseClient {
 	//
 
 	async fn add_dataset(&self, name: &str) -> Result<DatasetId, AddDatasetError> {
+		match check_name(name) {
+			Ok(()) => {}
+			Err(e) => return Err(AddDatasetError::NameError(e)),
+		}
+
 		// Start transaction
 		let mut conn = self
 			.pool
@@ -201,6 +206,11 @@ impl DatabaseClient for SqliteDatabaseClient {
 		dataset: DatasetId,
 		new_name: &str,
 	) -> Result<(), RenameDatasetError> {
+		match check_name(new_name) {
+			Ok(()) => {}
+			Err(e) => return Err(RenameDatasetError::NameError(e)),
+		}
+
 		let mut conn = self
 			.pool
 			.acquire()
@@ -258,6 +268,11 @@ impl DatabaseClient for SqliteDatabaseClient {
 	//
 
 	async fn add_class(&self, in_dataset: DatasetId, name: &str) -> Result<ClassId, AddClassError> {
+		match check_name(name) {
+			Ok(()) => {}
+			Err(e) => return Err(AddClassError::NameError(e)),
+		}
+
 		// Start transaction
 		let mut conn = self
 			.pool
@@ -317,6 +332,11 @@ impl DatabaseClient for SqliteDatabaseClient {
 	}
 
 	async fn rename_class(&self, class: ClassId, new_name: &str) -> Result<(), RenameClassError> {
+		match check_name(new_name) {
+			Ok(()) => {}
+			Err(e) => return Err(RenameClassError::NameError(e)),
+		}
+
 		let mut conn = self
 			.pool
 			.acquire()
@@ -380,6 +400,11 @@ impl DatabaseClient for SqliteDatabaseClient {
 		with_type: AttrDataStub,
 		options: AttributeOptions,
 	) -> Result<AttributeId, AddAttributeError> {
+		match check_name(name) {
+			Ok(()) => {}
+			Err(e) => return Err(AddAttributeError::NameError(e)),
+		}
+
 		// Start transaction
 		let mut conn = self
 			.pool
@@ -459,6 +484,11 @@ impl DatabaseClient for SqliteDatabaseClient {
 		attribute: AttributeId,
 		new_name: &str,
 	) -> Result<(), RenameAttributeError> {
+		match check_name(new_name) {
+			Ok(()) => {}
+			Err(e) => return Err(RenameAttributeError::NameError(e)),
+		}
+
 		let mut conn = self
 			.pool
 			.acquire()

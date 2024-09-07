@@ -2,6 +2,8 @@
 
 use std::{error::Error, fmt::Display};
 
+use copper_util::names::NameError;
+
 /// An error we can encounter when creating an attribute
 #[derive(Debug)]
 pub enum AddAttributeError {
@@ -10,6 +12,9 @@ pub enum AddAttributeError {
 
 	/// We tried to add an attribute to a class that doesn't exist
 	NoSuchClass,
+
+	/// We tried to create an attribute with an invalid name
+	NameError(NameError),
 }
 
 impl Display for AddAttributeError {
@@ -19,6 +24,7 @@ impl Display for AddAttributeError {
 			Self::NoSuchClass => {
 				write!(f, "tried to add an attribute to a non-existing class")
 			}
+			Self::NameError(_) => write!(f, "invalid name"),
 		}
 	}
 }
@@ -27,6 +33,7 @@ impl Error for AddAttributeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
+			Self::NameError(x) => Some(x),
 			_ => None,
 		}
 	}
@@ -65,12 +72,16 @@ impl Error for GetAttributeError {
 pub enum RenameAttributeError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
+
+	/// We tried to set an invalid name
+	NameError(NameError),
 }
 
 impl Display for RenameAttributeError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
+			Self::NameError(_) => write!(f, "invalid name"),
 		}
 	}
 }
@@ -79,6 +90,7 @@ impl Error for RenameAttributeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
+			Self::NameError(x) => Some(x),
 		}
 	}
 }

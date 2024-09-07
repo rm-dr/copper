@@ -2,6 +2,8 @@
 
 use std::{error::Error, fmt::Display};
 
+use copper_util::names::NameError;
+
 /// An error we can encounter when creating a dataset
 #[derive(Debug)]
 pub enum AddDatasetError {
@@ -11,6 +13,9 @@ pub enum AddDatasetError {
 	/// A dataset with this name already exists
 	/// TODO: scope to user
 	AlreadyExists,
+
+	/// We tried to create a dataset with an invalid name
+	NameError(NameError),
 }
 
 impl Display for AddDatasetError {
@@ -18,6 +23,7 @@ impl Display for AddDatasetError {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
 			Self::AlreadyExists => write!(f, "a dataset with this name already exists"),
+			Self::NameError(_) => write!(f, "invalid name"),
 		}
 	}
 }
@@ -26,6 +32,7 @@ impl Error for AddDatasetError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
+			Self::NameError(x) => Some(x),
 			_ => None,
 		}
 	}
@@ -64,12 +71,16 @@ impl Error for GetDatasetError {
 pub enum RenameDatasetError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
+
+	/// We tried to set an invalid name
+	NameError(NameError),
 }
 
 impl Display for RenameDatasetError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
+			Self::NameError(_) => write!(f, "invalid name"),
 		}
 	}
 }
@@ -78,6 +89,7 @@ impl Error for RenameDatasetError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
+			Self::NameError(x) => Some(x),
 		}
 	}
 }

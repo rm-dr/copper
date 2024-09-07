@@ -25,6 +25,7 @@ pub(super) struct RenameAttributeRequest {
 	),
 	responses(
 		(status = 200, description = "Attribute renamed successfully"),
+		(status = 400, description = "Invalid request", body = String),
 		(status = 500, description = "Internal server error"),
 	),
 	security(
@@ -44,6 +45,11 @@ pub(super) async fn rename_attribute<Client: DatabaseClient>(
 
 	return match res {
 		Ok(_) => StatusCode::OK.into_response(),
+
+		Err(RenameAttributeError::NameError(e)) => {
+			(StatusCode::BAD_REQUEST, Json(format!("{}", e))).into_response()
+		}
+
 		Err(RenameAttributeError::DbError(e)) => {
 			error!(
 				message = "Database error while renaming attribute",

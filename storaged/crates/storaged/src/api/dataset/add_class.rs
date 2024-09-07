@@ -43,7 +43,13 @@ pub(super) async fn add_class<Client: DatabaseClient>(
 
 	return match res {
 		Ok(_) => StatusCode::OK.into_response(),
+
+		Err(AddClassError::NameError(e)) => {
+			(StatusCode::BAD_REQUEST, Json(format!("{}", e))).into_response()
+		}
+
 		Err(AddClassError::NoSuchDataset) => StatusCode::NOT_FOUND.into_response(),
+
 		Err(AddClassError::DbError(e)) => {
 			error!(
 				message = "Database error while making new class",
