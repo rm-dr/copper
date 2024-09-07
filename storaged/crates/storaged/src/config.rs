@@ -29,6 +29,7 @@ impl Display for LogLevel {
 	}
 }
 
+#[derive(Debug, Clone)]
 pub struct StoragedConfig {
 	/// IP and port to bind to
 	/// Should look like `127.0.0.1:3030`
