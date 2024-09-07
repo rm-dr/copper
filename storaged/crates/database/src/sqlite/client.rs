@@ -167,7 +167,7 @@ impl DatabaseClient for SqliteDatabaseClient {
 			Ok(x) => u32::try_from(x.last_insert_rowid()).unwrap().into(),
 			Err(sqlx::Error::Database(e)) => {
 				if e.is_unique_violation() {
-					return Err(AddDatasetError::AlreadyExists);
+					return Err(AddDatasetError::UniqueViolation);
 				} else {
 					let e = Box::new(sqlx::Error::Database(e));
 					return Err(AddDatasetError::DbError(e));
@@ -232,8 +232,16 @@ impl DatabaseClient for SqliteDatabaseClient {
 			.map_err(|e| RenameDatasetError::DbError(Box::new(e)))?;
 
 		return match res {
-			Err(e) => Err(RenameDatasetError::DbError(Box::new(e))),
 			Ok(_) => Ok(()),
+			Err(sqlx::Error::Database(e)) => {
+				if e.is_unique_violation() {
+					Err(RenameDatasetError::UniqueViolation)
+				} else {
+					let e = Box::new(sqlx::Error::Database(e));
+					Err(RenameDatasetError::DbError(e))
+				}
+			}
+			Err(e) => Err(RenameDatasetError::DbError(Box::new(e))),
 		};
 	}
 
@@ -360,7 +368,17 @@ impl DatabaseClient for SqliteDatabaseClient {
 			.map_err(|e| RenameClassError::DbError(Box::new(e)))?;
 
 		return match res {
+			Err(sqlx::Error::Database(e)) => {
+				if e.is_unique_violation() {
+					Err(RenameClassError::UniqueViolation)
+				} else {
+					let e = Box::new(sqlx::Error::Database(e));
+					Err(RenameClassError::DbError(e))
+				}
+			}
+
 			Err(e) => Err(RenameClassError::DbError(Box::new(e))),
+
 			Ok(_) => Ok(()),
 		};
 	}
@@ -440,6 +458,8 @@ impl DatabaseClient for SqliteDatabaseClient {
 			Err(sqlx::Error::Database(e)) => {
 				if e.is_foreign_key_violation() {
 					return Err(AddAttributeError::NoSuchClass);
+				} else if e.is_unique_violation() {
+					return Err(AddAttributeError::UniqueViolation);
 				} else {
 					let e = Box::new(sqlx::Error::Database(e));
 					return Err(AddAttributeError::DbError(e));
@@ -512,8 +532,18 @@ impl DatabaseClient for SqliteDatabaseClient {
 			.map_err(|e| RenameAttributeError::DbError(Box::new(e)))?;
 
 		return match res {
-			Err(e) => Err(RenameAttributeError::DbError(Box::new(e))),
 			Ok(_) => Ok(()),
+
+			Err(sqlx::Error::Database(e)) => {
+				if e.is_unique_violation() {
+					Err(RenameAttributeError::UniqueViolation)
+				} else {
+					let e = Box::new(sqlx::Error::Database(e));
+					Err(RenameAttributeError::DbError(e))
+				}
+			}
+
+			Err(e) => Err(RenameAttributeError::DbError(Box::new(e))),
 		};
 	}
 

@@ -59,6 +59,12 @@ pub(super) async fn add_attribute<Client: DatabaseClient>(
 			(StatusCode::BAD_REQUEST, Json(format!("{}", e))).into_response()
 		}
 
+		Err(AddAttributeError::UniqueViolation) => (
+			StatusCode::BAD_REQUEST,
+			Json("an attribute with this name already exists"),
+		)
+			.into_response(),
+
 		Err(AddAttributeError::NoSuchClass) => StatusCode::NOT_FOUND.into_response(),
 
 		Err(AddAttributeError::DbError(e)) => {

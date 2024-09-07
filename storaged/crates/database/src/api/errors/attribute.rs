@@ -13,6 +13,9 @@ pub enum AddAttributeError {
 	/// We tried to add an attribute to a class that doesn't exist
 	NoSuchClass,
 
+	/// We tried to add an attribute with a name that is already taken
+	UniqueViolation,
+
 	/// We tried to create an attribute with an invalid name
 	NameError(NameError),
 }
@@ -25,6 +28,9 @@ impl Display for AddAttributeError {
 				write!(f, "tried to add an attribute to a non-existing class")
 			}
 			Self::NameError(_) => write!(f, "invalid name"),
+			Self::UniqueViolation => {
+				write!(f, "this itemclass already has an attribute with this name")
+			}
 		}
 	}
 }
@@ -73,6 +79,9 @@ pub enum RenameAttributeError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
 
+	/// We tried to add an attribute with a name that is already taken
+	UniqueViolation,
+
 	/// We tried to set an invalid name
 	NameError(NameError),
 }
@@ -82,6 +91,9 @@ impl Display for RenameAttributeError {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
 			Self::NameError(_) => write!(f, "invalid name"),
+			Self::UniqueViolation => {
+				write!(f, "this itemclass already has an attribute with this name")
+			}
 		}
 	}
 }
@@ -91,6 +103,7 @@ impl Error for RenameAttributeError {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
 			Self::NameError(x) => Some(x),
+			_ => None,
 		}
 	}
 }

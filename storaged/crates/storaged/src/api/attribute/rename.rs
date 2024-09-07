@@ -46,6 +46,12 @@ pub(super) async fn rename_attribute<Client: DatabaseClient>(
 	return match res {
 		Ok(_) => StatusCode::OK.into_response(),
 
+		Err(RenameAttributeError::UniqueViolation) => (
+			StatusCode::BAD_REQUEST,
+			Json("an attribute with this name already exists"),
+		)
+			.into_response(),
+
 		Err(RenameAttributeError::NameError(e)) => {
 			(StatusCode::BAD_REQUEST, Json(format!("{}", e))).into_response()
 		}

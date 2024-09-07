@@ -77,6 +77,9 @@ pub enum RenameClassError {
 
 	/// We tried to set an invalid name
 	NameError(NameError),
+
+	/// We tried to rename a class to a name that is already taken
+	UniqueViolation,
 }
 
 impl Display for RenameClassError {
@@ -84,6 +87,7 @@ impl Display for RenameClassError {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
 			Self::NameError(_) => write!(f, "invalid name"),
+			Self::UniqueViolation => write!(f, "this dataset already has a class with this name"),
 		}
 	}
 }
@@ -93,6 +97,7 @@ impl Error for RenameClassError {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
 			Self::NameError(x) => Some(x),
+			_ => None,
 		}
 	}
 }

@@ -46,6 +46,12 @@ pub(super) async fn rename_dataset<Client: DatabaseClient>(
 	return match res {
 		Ok(_) => StatusCode::OK.into_response(),
 
+		Err(RenameDatasetError::UniqueViolation) => (
+			StatusCode::BAD_REQUEST,
+			Json("a dataset with this name already exists"),
+		)
+			.into_response(),
+
 		Err(RenameDatasetError::NameError(e)) => {
 			(StatusCode::BAD_REQUEST, Json(format!("{}", e))).into_response()
 		}

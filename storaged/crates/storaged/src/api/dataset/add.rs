@@ -43,7 +43,7 @@ pub(super) async fn add_dataset<Client: DatabaseClient>(
 			(StatusCode::BAD_REQUEST, Json(format!("{}", e))).into_response()
 		}
 
-		Err(AddDatasetError::AlreadyExists) => (
+		Err(AddDatasetError::UniqueViolation) => (
 			StatusCode::BAD_REQUEST,
 			Json("a dataset with this name already exists"),
 		)

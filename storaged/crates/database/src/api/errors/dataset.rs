@@ -12,7 +12,7 @@ pub enum AddDatasetError {
 
 	/// A dataset with this name already exists
 	/// TODO: scope to user
-	AlreadyExists,
+	UniqueViolation,
 
 	/// We tried to create a dataset with an invalid name
 	NameError(NameError),
@@ -22,7 +22,7 @@ impl Display for AddDatasetError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
-			Self::AlreadyExists => write!(f, "a dataset with this name already exists"),
+			Self::UniqueViolation => write!(f, "a dataset with this name already exists"),
 			Self::NameError(_) => write!(f, "invalid name"),
 		}
 	}
@@ -72,6 +72,9 @@ pub enum RenameDatasetError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
 
+	/// A dataset with this name already exists
+	UniqueViolation,
+
 	/// We tried to set an invalid name
 	NameError(NameError),
 }
@@ -81,6 +84,7 @@ impl Display for RenameDatasetError {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
 			Self::NameError(_) => write!(f, "invalid name"),
+			Self::UniqueViolation => write!(f, "a dataset with this name already exists"),
 		}
 	}
 }
@@ -90,6 +94,7 @@ impl Error for RenameDatasetError {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
 			Self::NameError(x) => Some(x),
+			_ => None,
 		}
 	}
 }
