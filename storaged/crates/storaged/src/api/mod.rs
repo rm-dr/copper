@@ -9,6 +9,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use copper_database::api::{
 	client::DatabaseClient,
+	data::{AttrDataStub, HashType},
 	info::{AttributeInfo, ClassInfo, DatasetInfo},
 };
 
@@ -61,7 +62,9 @@ impl Modify for BearerSecurityAddon {
 	components(schemas(
 		DatasetInfo,
 		ClassInfo,
-		AttributeInfo
+		AttributeInfo,
+		AttrDataStub,
+		HashType
 	))
 )]
 struct ApiDoc;
