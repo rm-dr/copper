@@ -299,6 +299,8 @@ impl DatabaseClient for SqliteDatabaseClient {
 			Err(sqlx::Error::Database(e)) => {
 				if e.is_foreign_key_violation() {
 					return Err(AddClassError::NoSuchDataset);
+				} else if e.is_unique_violation() {
+					return Err(AddClassError::UniqueViolation);
 				} else {
 					let e = Box::new(sqlx::Error::Database(e));
 					return Err(AddClassError::DbError(e));

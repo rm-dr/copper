@@ -13,6 +13,9 @@ pub enum AddClassError {
 	/// We tried to add a class to a dataset that doesn't exist
 	NoSuchDataset,
 
+	/// We tried to add a class, but its dataset already has a class with that name
+	UniqueViolation,
+
 	/// We tried to create a class with an invalid name
 	NameError(NameError),
 }
@@ -23,6 +26,7 @@ impl Display for AddClassError {
 			Self::DbError(_) => write!(f, "database backend error"),
 			Self::NoSuchDataset => write!(f, "tried to add a class to a non-existing dataset"),
 			Self::NameError(_) => write!(f, "invalid name"),
+			Self::UniqueViolation => write!(f, "this dataset already has a class with this name"),
 		}
 	}
 }

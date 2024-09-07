@@ -27,7 +27,7 @@ pub(super) struct NewAttributeRequest {
 	post,
 	path = "/{class_id}/attribute",
 	responses(
-		(status = 200, description = "Attribute created successfully"),
+		(status = 200, description = "Attribute created successfully", body = u32),
 		(status = 400, description = "Bad request", body = String),
 		(status = 404, description = "Dataset does not exist"),
 		(status = 500, description = "Internal server error"),
@@ -53,11 +53,14 @@ pub(super) async fn add_attribute<Client: DatabaseClient>(
 		.await;
 
 	return match res {
-		Ok(_) => StatusCode::OK.into_response(),
+		Ok(x) => (StatusCode::OK, Json(x)).into_response(),
+
 		Err(AddAttributeError::NameError(e)) => {
 			(StatusCode::BAD_REQUEST, Json(format!("{}", e))).into_response()
 		}
+
 		Err(AddAttributeError::NoSuchClass) => StatusCode::NOT_FOUND.into_response(),
+
 		Err(AddAttributeError::DbError(e)) => {
 			error!(
 				message = "Database error while making new attribute",

@@ -17,7 +17,7 @@ use super::{
 	info::{AttributeInfo, ClassInfo, DatasetInfo},
 };
 
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
 /// Options we can set when creating an attribute
 pub struct AttributeOptions {
 	/// If true, this attribute must have a value

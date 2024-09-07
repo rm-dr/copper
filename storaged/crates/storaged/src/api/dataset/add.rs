@@ -21,7 +21,7 @@ pub(super) struct NewDatasetRequest {
 	post,
 	path = "",
 	responses(
-		(status = 200, description = "Dataset created successfully"),
+		(status = 200, description = "Dataset created successfully", body = u32),
 		(status = 400, description = "Bad request", body = String),
 		(status = 500, description = "Internal server error"),
 	),
@@ -37,7 +37,7 @@ pub(super) async fn add_dataset<Client: DatabaseClient>(
 	let res = state.client.add_dataset(&payload.name).await;
 
 	return match res {
-		Ok(_) => StatusCode::OK.into_response(),
+		Ok(x) => (StatusCode::OK, Json(x)).into_response(),
 
 		Err(AddDatasetError::NameError(e)) => {
 			(StatusCode::BAD_REQUEST, Json(format!("{}", e))).into_response()
@@ -45,7 +45,7 @@ pub(super) async fn add_dataset<Client: DatabaseClient>(
 
 		Err(AddDatasetError::AlreadyExists) => (
 			StatusCode::BAD_REQUEST,
-			Json("A dataset with this name already exists"),
+			Json("a dataset with this name already exists"),
 		)
 			.into_response(),
 

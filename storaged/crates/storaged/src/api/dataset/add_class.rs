@@ -21,7 +21,7 @@ pub(super) struct NewClassRequest {
 	post,
 	path = "/{dataset_id}/class",
 	responses(
-		(status = 200, description = "Class created successfully"),
+		(status = 200, description = "Class created successfully", body = u32),
 		(status = 400, description = "Bad request", body = String),
 		(status = 404, description = "Dataset does not exist"),
 		(status = 500, description = "Internal server error"),
@@ -42,11 +42,17 @@ pub(super) async fn add_class<Client: DatabaseClient>(
 		.await;
 
 	return match res {
-		Ok(_) => StatusCode::OK.into_response(),
+		Ok(x) => (StatusCode::OK, Json(x)).into_response(),
 
 		Err(AddClassError::NameError(e)) => {
 			(StatusCode::BAD_REQUEST, Json(format!("{}", e))).into_response()
 		}
+
+		Err(AddClassError::UniqueViolation) => (
+			StatusCode::BAD_REQUEST,
+			Json("a class with this name already exists"),
+		)
+			.into_response(),
 
 		Err(AddClassError::NoSuchDataset) => StatusCode::NOT_FOUND.into_response(),
 
