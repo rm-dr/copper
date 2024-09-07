@@ -7,15 +7,17 @@ use utoipa::{
 };
 use utoipa_swagger_ui::SwaggerUi;
 
-use copper_database::api::{client::DatabaseClient, info::DatasetInfo};
+use copper_database::api::{
+	client::DatabaseClient,
+	info::{AttributeInfo, ClassInfo, DatasetInfo},
+};
 
 use crate::config::StoragedConfig;
 
+mod attribute;
 mod class;
 mod dataset;
 mod status;
-// mod attr;
-// mod item;
 
 pub struct RouterState<Client: DatabaseClient> {
 	pub config: Arc<StoragedConfig>,
@@ -50,8 +52,7 @@ impl Modify for BearerSecurityAddon {
 		(path = "/status", api = status::StatusApi),
 		(path = "/dataset", api = dataset::DatasetApi),
 		(path = "/class", api = class::ClassApi),
-		// (path = "/attr", api = attr::AttrApi),
-		// (path = "/item", api = item::ItemApi),
+		(path = "/attribute", api = attribute::AttributeApi),
 	),
 	tags(
 		(name = "Copper", description = "Copper backend daemon")
@@ -59,6 +60,8 @@ impl Modify for BearerSecurityAddon {
 	// All schema structs defined outside `crate::api` go here
 	components(schemas(
 		DatasetInfo,
+		ClassInfo,
+		AttributeInfo
 	))
 )]
 struct ApiDoc;
@@ -70,8 +73,7 @@ pub(super) fn router<Client: DatabaseClient + 'static>(state: RouterState<Client
 		.nest("/status", status::router())
 		.nest("/dataset", dataset::router())
 		.nest("/class", class::router())
-		// .nest("/attr", attr::router())
-		// .nest("/item", item::router())
+		.nest("/attribute", attribute::router())
 		//
 		.layer(TraceLayer::new_for_http())
 		.layer(DefaultBodyLimit::max(state.config.request_body_limit))

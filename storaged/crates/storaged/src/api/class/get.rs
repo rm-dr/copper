@@ -16,7 +16,7 @@ use tracing::error;
 		("class_id", description = "Class id"),
 	),
 	responses(
-		(status = 200, description = "Class info", body = classInfo),
+		(status = 200, description = "Class info", body = ClassInfo),
 		(status = 404, description = "Class not found"),
 		(status = 500, description = "Internal server error"),
 	),

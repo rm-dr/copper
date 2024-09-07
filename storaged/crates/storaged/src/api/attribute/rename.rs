@@ -4,7 +4,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
-use copper_database::api::{client::DatabaseClient, errors::class::RenameClassError};
+use copper_database::api::{client::DatabaseClient, errors::attribute::RenameAttributeError};
 use serde::Deserialize;
 use tracing::error;
 use utoipa::ToSchema;
@@ -12,41 +12,41 @@ use utoipa::ToSchema;
 use crate::api::RouterState;
 
 #[derive(Debug, Deserialize, ToSchema)]
-pub(super) struct RenameClassRequest {
+pub(super) struct RenameAttributeRequest {
 	pub new_name: String,
 }
 
-/// Rename a class
+/// Rename a attribute
 #[utoipa::path(
 	patch,
-	path = "/{class_id}",
+	path = "/{attribute_id}",
 	params(
-		("class_id", description = "Class id"),
+		("attribute_id", description = "Attribute id"),
 	),
 	responses(
-		(status = 200, description = "Class renamed successfully"),
+		(status = 200, description = "Attribute renamed successfully"),
 		(status = 500, description = "Internal server error"),
 	),
 	security(
 		("bearer" = []),
 	)
 )]
-pub(super) async fn rename_class<Client: DatabaseClient>(
+pub(super) async fn rename_attribute<Client: DatabaseClient>(
 	_headers: HeaderMap,
 	State(state): State<RouterState<Client>>,
-	Path(class_id): Path<u32>,
-	Json(payload): Json<RenameClassRequest>,
+	Path(attribute_id): Path<u32>,
+	Json(payload): Json<RenameAttributeRequest>,
 ) -> Response {
 	let res = state
 		.client
-		.rename_class(class_id.into(), &payload.new_name)
+		.rename_attribute(attribute_id.into(), &payload.new_name)
 		.await;
 
 	return match res {
 		Ok(_) => StatusCode::OK.into_response(),
-		Err(RenameClassError::DbError(e)) => {
+		Err(RenameAttributeError::DbError(e)) => {
 			error!(
-				message = "Database error while renaming class",
+				message = "Database error while renaming attribute",
 				error = ?e
 			);
 			StatusCode::INTERNAL_SERVER_ERROR.into_response()
