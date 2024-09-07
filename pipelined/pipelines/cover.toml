@@ -1,0 +1,16 @@
+[input]
+type = "Noop"
+input."cover_data" = "binary"
+
+[node."add_item"]
+node.type = "AddItem"
+node.class = "CoverArt"
+
+input."content_hash" = { node = "hash", output = "hash" }
+input."image_data" = { pipeline = "cover_data" }
+
+
+[node."hash"]
+node.type = "Hash"
+node.hash_type = "SHA256"
+input."data" = { pipeline = "cover_data" }
