@@ -14,12 +14,7 @@ use crate::api::{
 use async_trait::async_trait;
 use copper_util::mime::MimeType;
 use serde::{Deserialize, Serialize};
-use sqlx::{
-	query::Query,
-	sqlite::{SqliteArguments, SqliteRow},
-	Connection, Row, Sqlite,
-};
-use std::sync::Arc;
+use sqlx::{Connection, Row};
 
 use super::SqliteDatabaseClient;
 
