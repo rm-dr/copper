@@ -1,10 +1,35 @@
-use std::{error::Error, fmt::Display};
+pub mod attribute;
+pub mod dataset;
+pub mod itemclass;
 
-use copper_util::names::NameError;
-use smartstring::{LazyCompact, SmartString};
-
+/*
 #[derive(Debug)]
-pub enum MetastoreError {
+pub enum NewError {
+	/// Database error
+	DbError(Box<dyn Error + Send + Sync>),
+}
+
+impl Display for NewError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::DbError(_) => write!(f, "Database backend error"),
+		}
+	}
+}
+
+impl Error for NewError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::DbError(x) => Some(x.as_ref()),
+			_ => None,
+		}
+	}
+}
+*/
+
+/*
+#[derive(Debug)]
+pub enum DatabaseError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
 
@@ -49,7 +74,7 @@ pub enum MetastoreError {
 	DuplicateClassName(SmartString<LazyCompact>),
 }
 
-impl Display for MetastoreError {
+impl Display for DatabaseError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "Database backend error"),
@@ -71,7 +96,7 @@ impl Display for MetastoreError {
 	}
 }
 
-impl Error for MetastoreError {
+impl Error for DatabaseError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
@@ -81,41 +106,4 @@ impl Error for MetastoreError {
 		}
 	}
 }
-
-#[derive(Debug)]
-pub enum BlobstoreError {
-	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
-
-	/// Filesystem I/O error
-	IOError(std::io::Error),
-
-	/// This blob doesn't exist
-	InvalidBlobHandle,
-}
-
-impl Display for BlobstoreError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::DbError(_) => write!(f, "Database backend error"),
-			Self::IOError(_) => write!(f, "I/O error"),
-			Self::InvalidBlobHandle => write!(f, "Invalid blob handle"),
-		}
-	}
-}
-
-impl Error for BlobstoreError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::DbError(x) => Some(x.as_ref()),
-			Self::IOError(x) => Some(x),
-			_ => None,
-		}
-	}
-}
-
-impl From<std::io::Error> for BlobstoreError {
-	fn from(value: std::io::Error) -> Self {
-		Self::IOError(value)
-	}
-}
+*/

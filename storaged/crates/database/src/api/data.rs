@@ -5,7 +5,7 @@ use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
 use utoipa::ToSchema;
 
-use super::handles::{ClassHandle, ItemIdx};
+use super::handles::{ItemIdx, ItemclassHandle};
 
 /// Bits of data inside a metadata db.
 #[derive(Debug, Clone)]
@@ -42,7 +42,7 @@ pub enum DatasetData {
 
 	Reference {
 		/// The item class this reference points to
-		class: ClassHandle,
+		class: ItemclassHandle,
 
 		/// The item
 		item: ItemIdx,
@@ -95,6 +95,6 @@ pub enum DatasetDataStub {
 	/// A reference to an item
 	Reference {
 		#[schema(value_type = u32)]
-		class: ClassHandle,
+		class: ItemclassHandle,
 	},
 }

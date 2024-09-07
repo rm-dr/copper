@@ -25,17 +25,17 @@ impl From<u32> for ItemIdx {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct ClassHandle {
+pub struct DatasetHandle {
 	id: u32,
 }
 
-impl From<ClassHandle> for u32 {
-	fn from(value: ClassHandle) -> Self {
+impl From<DatasetHandle> for u32 {
+	fn from(value: DatasetHandle) -> Self {
 		value.id
 	}
 }
 
-impl From<u32> for ClassHandle {
+impl From<u32> for DatasetHandle {
 	fn from(value: u32) -> Self {
 		Self { id: value }
 	}
@@ -43,17 +43,35 @@ impl From<u32> for ClassHandle {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct AttrHandle {
+pub struct ItemclassHandle {
 	id: u32,
 }
 
-impl From<AttrHandle> for u32 {
-	fn from(value: AttrHandle) -> Self {
+impl From<ItemclassHandle> for u32 {
+	fn from(value: ItemclassHandle) -> Self {
 		value.id
 	}
 }
 
-impl From<u32> for AttrHandle {
+impl From<u32> for ItemclassHandle {
+	fn from(value: u32) -> Self {
+		Self { id: value }
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct AttributeHandle {
+	id: u32,
+}
+
+impl From<AttributeHandle> for u32 {
+	fn from(value: AttributeHandle) -> Self {
+		value.id
+	}
+}
+
+impl From<u32> for AttributeHandle {
 	fn from(value: u32) -> Self {
 		Self { id: value }
 	}
