@@ -7,11 +7,13 @@ use copper_database::api::client::DatabaseClient;
 use utoipa::OpenApi;
 
 mod add;
+mod add_class;
 mod del;
 mod get;
 mod rename;
 
 use add::*;
+use add_class::*;
 use del::*;
 use get::*;
 use rename::*;
@@ -30,4 +32,6 @@ pub(super) fn router<Client: DatabaseClient + 'static>() -> Router<RouterState<C
 		.route("/:dataset_id", get(get_dataset))
 		.route("/:dataset_id", delete(del_dataset))
 		.route("/:dataset_id", patch(rename_dataset))
+		//
+		.route("/:dataset_id/class", post(add_itemclass))
 }

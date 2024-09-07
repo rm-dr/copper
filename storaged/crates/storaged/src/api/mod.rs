@@ -12,9 +12,9 @@ use copper_database::api::{client::DatabaseClient, info::DatasetInfo};
 use crate::config::StoragedConfig;
 
 mod dataset;
+mod itemclass;
 mod status;
 // mod attr;
-// mod class;
 // mod item;
 
 pub struct RouterState<Client: DatabaseClient> {
@@ -49,7 +49,7 @@ impl Modify for BearerSecurityAddon {
 	nest(
 		(path = "/status", api = status::StatusApi),
 		(path = "/dataset", api = dataset::DatasetApi),
-		// (path = "/class", api = class::ClassApi),
+		(path = "/itemclass", api = itemclass::ItemclassApi),
 		// (path = "/attr", api = attr::AttrApi),
 		// (path = "/item", api = item::ItemApi),
 	),
@@ -69,7 +69,7 @@ pub(super) fn router<Client: DatabaseClient + 'static>(state: RouterState<Client
 		//
 		.nest("/status", status::router())
 		.nest("/dataset", dataset::router())
-		// .nest("/class", class::router())
+		.nest("/itemclass", itemclass::router())
 		// .nest("/attr", attr::router())
 		// .nest("/item", item::router())
 		//
