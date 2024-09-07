@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS itemclass (
 	-- This itemclass' display name
 	pretty_name TEXT NOT NULL UNIQUE,
 
-	FOREIGN KEY (dataset_id) REFERENCES dataset(id)
+	FOREIGN KEY (dataset_id) REFERENCES dataset(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_itemclass_name on itemclass(dataset_id, pretty_name);
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS attribute (
 	--- Boolean (0 or 1). Does this attribute have a "not_null" constraint?
 	is_not_null INTEGER NOT NULL,
 
-	FOREIGN KEY (itemclass_id) REFERENCES itemclass(id)
+	FOREIGN KEY (itemclass_id) REFERENCES itemclass(id) ON DELETE CASCADE
 
 	-- Attribute names must be unique within a class
 	UNIQUE (pretty_name, itemclass_id)
