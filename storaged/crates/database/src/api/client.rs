@@ -10,13 +10,11 @@ use super::{
 		attribute::{
 			AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
 		},
+		class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
 		dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
-		itemclass::{
-			AddItemclassError, DeleteItemclassError, GetItemclassError, RenameItemclassError,
-		},
 	},
-	handles::{AttributeId, DatasetId, ItemclassId},
-	info::{AttributeInfo, DatasetInfo, ItemclassInfo},
+	handles::{AttributeId, ClassId, DatasetId},
+	info::{AttributeInfo, ClassInfo, DatasetInfo},
 };
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
@@ -56,40 +54,29 @@ where
 	async fn del_dataset(&self, dataset: DatasetId) -> Result<(), DeleteDatasetError>;
 
 	//
-	// MARK: Itemclass
+	// MARK: Class
 	//
 
-	/// Create a new itemclass in a dataset
-	async fn add_itemclass(
-		&self,
-		in_dataset: DatasetId,
-		name: &str,
-	) -> Result<ItemclassId, AddItemclassError>;
+	/// Create a new class in a dataset
+	async fn add_class(&self, in_dataset: DatasetId, name: &str) -> Result<ClassId, AddClassError>;
 
-	/// Delete an itemclass
-	async fn get_itemclass(
-		&self,
-		itemclass: ItemclassId,
-	) -> Result<ItemclassInfo, GetItemclassError>;
+	/// Delete a class
+	async fn get_class(&self, class: ClassId) -> Result<ClassInfo, GetClassError>;
 
-	/// Rename an itemclass
-	async fn rename_itemclass(
-		&self,
-		itemclass: ItemclassId,
-		new_name: &str,
-	) -> Result<(), RenameItemclassError>;
+	/// Rename an class
+	async fn rename_class(&self, class: ClassId, new_name: &str) -> Result<(), RenameClassError>;
 
-	/// Delete an itemclass
-	async fn del_itemclass(&self, itemclass: ItemclassId) -> Result<(), DeleteItemclassError>;
+	/// Delete an class
+	async fn del_class(&self, class: ClassId) -> Result<(), DeleteClassError>;
 
 	//
 	// MARK: Attribute
 	//
 
-	/// Create a new attribute in an itemclass
+	/// Create a new attribute in an class
 	async fn add_attribute(
 		&self,
-		in_itemclass: ItemclassId,
+		in_class: ClassId,
 		name: &str,
 		with_type: AttrDataStub,
 		options: AttributeOptions,

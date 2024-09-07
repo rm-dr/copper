@@ -12,7 +12,7 @@ use utoipa::ToSchema;
 use crate::api::RouterState;
 
 #[derive(Debug, Deserialize, ToSchema)]
-pub(super) struct RenameItemclassRequest {
+pub(super) struct RenameClassRequest {
 	pub new_name: String,
 }
 
@@ -31,11 +31,11 @@ pub(super) struct RenameItemclassRequest {
 		("bearer" = []),
 	)
 )]
-pub(super) async fn rename_itemclass<Client: DatabaseClient>(
+pub(super) async fn rename_class<Client: DatabaseClient>(
 	_headers: HeaderMap,
 	State(state): State<RouterState<Client>>,
 	Path(dataset_id): Path<u32>,
-	Json(payload): Json<RenameItemclassRequest>,
+	Json(payload): Json<RenameClassRequest>,
 ) -> Response {
 	let res = state
 		.client

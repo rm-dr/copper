@@ -8,16 +8,16 @@ pub enum AddAttributeError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
 
-	/// We tried to add an attribute to an itemclass that doesn't exist
-	NoSuchItemclass,
+	/// We tried to add an attribute to a class that doesn't exist
+	NoSuchClass,
 }
 
 impl Display for AddAttributeError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
-			Self::NoSuchItemclass => {
-				write!(f, "tried to add an attribute to a non-existing itemclass")
+			Self::NoSuchClass => {
+				write!(f, "tried to add an attribute to a non-existing class")
 			}
 		}
 	}

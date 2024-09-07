@@ -7,7 +7,7 @@ use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
 use utoipa::ToSchema;
 
-use super::handles::{ItemIdx, ItemclassId};
+use super::handles::{ClassId, ItemIdx};
 
 /// A value stored inside an attribute.
 /// Each of these corresponds to an [`AttrDataStub`]
@@ -61,7 +61,7 @@ pub enum AttrData {
 	/// A reference to an item in another class
 	Reference {
 		/// The item class this reference points to
-		class: ItemclassId,
+		class: ClassId,
 
 		/// The item
 		item: ItemIdx,
@@ -128,8 +128,8 @@ pub enum AttrDataStub {
 
 	/// A reference to an item
 	Reference {
-		/// The itemclass we reference
+		/// The class we reference
 		#[schema(value_type = u32)]
-		class: ItemclassId,
+		class: ClassId,
 	},
 }

@@ -45,17 +45,17 @@ impl From<u32> for DatasetId {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct ItemclassId {
+pub struct ClassId {
 	id: u32,
 }
 
-impl From<ItemclassId> for u32 {
-	fn from(value: ItemclassId) -> Self {
+impl From<ClassId> for u32 {
+	fn from(value: ClassId) -> Self {
 		value.id
 	}
 }
 
-impl From<u32> for ItemclassId {
+impl From<u32> for ClassId {
 	fn from(value: u32) -> Self {
 		Self { id: value }
 	}

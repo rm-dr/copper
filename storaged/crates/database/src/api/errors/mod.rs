@@ -2,7 +2,7 @@
 
 pub mod attribute;
 pub mod dataset;
-pub mod itemclass;
+pub mod class;
 
 /*
 #[derive(Debug)]

@@ -6,7 +6,7 @@ use utoipa::ToSchema;
 
 use super::{
 	data::AttrDataStub,
-	handles::{AttributeId, DatasetId, ItemclassId},
+	handles::{AttributeId, ClassId, DatasetId},
 };
 
 /// Dataset information
@@ -21,14 +21,14 @@ pub struct DatasetInfo {
 	pub name: SmartString<LazyCompact>,
 }
 
-/// Itemclass information
+/// Class information
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct ItemclassInfo {
-	/// The id of the itemclass
+pub struct ClassInfo {
+	/// The id of the class
 	#[schema(value_type = u32)]
-	pub id: ItemclassId,
+	pub id: ClassId,
 
-	/// This itemclass' name
+	/// This class' name
 	#[schema(value_type = String)]
 	pub name: SmartString<LazyCompact>,
 }
@@ -40,13 +40,13 @@ pub struct AttributeInfo {
 	#[schema(value_type = u32)]
 	pub id: AttributeId,
 
-	/// The itemclass this attribute belongs to
+	/// The class this attribute belongs to
 	#[schema(value_type = u32)]
-	pub itemclass: ItemclassId,
+	pub class: ClassId,
 
-	/// The order of this attribute in its itemclass.
+	/// The order of this attribute in its class.
 	/// These start at 0, and must be unique & consecutive
-	/// inside any itemclass.
+	/// inside any class.
 	pub order: u32,
 
 	/// This attribute's name
@@ -59,7 +59,7 @@ pub struct AttributeInfo {
 	/// If true, this attribute must contain a value
 	pub is_not_null: bool,
 
-	/// If true, each item in this attribute's itemclass must
+	/// If true, each item in this attribute's class must
 	/// have a unique value in this attribute
 	pub is_unique: bool,
 }

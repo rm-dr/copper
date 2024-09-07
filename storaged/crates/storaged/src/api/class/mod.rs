@@ -17,14 +17,14 @@ use rename::*;
 #[derive(OpenApi)]
 #[openapi(
 	tags(),
-	paths(rename_itemclass, del_itemclass, get_itemclass),
-	components(schemas(RenameItemclassRequest))
+	paths(rename_class, del_class, get_class),
+	components(schemas(RenameClassRequest))
 )]
-pub(super) struct ItemclassApi;
+pub(super) struct ClassApi;
 
 pub(super) fn router<Client: DatabaseClient + 'static>() -> Router<RouterState<Client>> {
 	Router::new()
-		.route("/:itemclass_id", get(get_itemclass))
-		.route("/:itemclass_id", delete(del_itemclass))
-		.route("/:itemclass_id", patch(rename_itemclass))
+		.route("/:class_id", get(get_class))
+		.route("/:class_id", delete(del_class))
+		.route("/:class_id", patch(rename_class))
 }

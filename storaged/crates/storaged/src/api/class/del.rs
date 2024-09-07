@@ -3,39 +3,39 @@ use axum::{
 	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 };
-use copper_database::api::{client::DatabaseClient, errors::itemclass::DeleteItemclassError};
+use copper_database::api::{client::DatabaseClient, errors::class::DeleteClassError};
 use tracing::error;
 
 use crate::api::RouterState;
 
-/// Delete an itemclass
+/// Delete a class
 #[utoipa::path(
 	delete,
-	path = "/{itemclass_id}",
+	path = "/{class_id}",
 	params(
-		("itemclass_id", description = "Itemclass id"),
+		("class_id", description = "class id"),
 	),
 	responses(
-		(status = 200, description = "Itemclass deleted successfully"),
+		(status = 200, description = "Class deleted successfully"),
 		(status = 500, description = "Internal server error"),
 	),
 	security(
 		("bearer" = []),
 	)
 )]
-pub(super) async fn del_itemclass<Client: DatabaseClient>(
+pub(super) async fn del_class<Client: DatabaseClient>(
 	_headers: HeaderMap,
 	State(state): State<RouterState<Client>>,
-	Path(itemclass_id): Path<u32>,
+	Path(class_id): Path<u32>,
 ) -> Response {
-	let res = state.client.del_itemclass(itemclass_id.into()).await;
+	let res = state.client.del_class(class_id.into()).await;
 
 	return match res {
 		Ok(_) => StatusCode::OK.into_response(),
-		Err(DeleteItemclassError::DbError(error)) => {
+		Err(DeleteClassError::DbError(error)) => {
 			error!(
-				message = "Database error while deleting itemclass",
-				itemclass_id,
+				message = "Database error while deleting class",
+				class_id,
 				?error,
 			);
 			StatusCode::INTERNAL_SERVER_ERROR.into_response()

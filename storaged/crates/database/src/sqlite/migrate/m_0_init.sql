@@ -21,19 +21,19 @@ CREATE TABLE IF NOT EXISTS dataset (
 
 
 -- Item classes
-CREATE TABLE IF NOT EXISTS itemclass (
+CREATE TABLE IF NOT EXISTS class (
 	id INTEGER PRIMARY KEY NOT NULL,
 
 	-- The dataset this class belongs to
 	dataset_id INTEGER NOT NULL,
 
-	-- This itemclass' display name
+	-- This class' display name
 	pretty_name TEXT NOT NULL UNIQUE,
 
 	FOREIGN KEY (dataset_id) REFERENCES dataset(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_itemclass_name on itemclass(dataset_id, pretty_name);
+CREATE INDEX IF NOT EXISTS idx_class_name on class(dataset_id, pretty_name);
 
 
 -- Attribute metadata
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS attribute (
 	id INTEGER PRIMARY KEY NOT NULL,
 
 	-- The class this attribute belongs to
-	itemclass_id INTEGER NOT NULL,
+	class_id INTEGER NOT NULL,
 
 	-- The order of this attribute in its class.
 	-- Starts at 0, must be consecutive within each class.
@@ -59,12 +59,12 @@ CREATE TABLE IF NOT EXISTS attribute (
 	--- Boolean (0 or 1). Does this attribute have a "not_null" constraint?
 	is_not_null INTEGER NOT NULL,
 
-	FOREIGN KEY (itemclass_id) REFERENCES itemclass(id) ON DELETE CASCADE
+	FOREIGN KEY (class_id) REFERENCES class(id) ON DELETE CASCADE
 
 	-- Attribute names must be unique within a class
-	UNIQUE (pretty_name, itemclass_id)
-	UNIQUE (attr_order, itemclass_id)
+	UNIQUE (pretty_name, class_id)
+	UNIQUE (attr_order, class_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_attribute_name on attribute(pretty_name);
-CREATE INDEX IF NOT EXISTS idx_attribute_itemclass on attribute(itemclass_id);
+CREATE INDEX IF NOT EXISTS idx_attribute_class on attribute(class_id);
