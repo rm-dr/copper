@@ -1,10 +1,10 @@
 use axum::{
 	extract::State,
-	http::StatusCode,
+	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
-use axum_extra::extract::CookieJar;
+use copper_database::api::DatabaseClient;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use utoipa::ToSchema;
@@ -33,11 +33,14 @@ pub(super) struct ServerStatus {
 	responses(
 		(status = 200, description = "Server status", body = ServerStatus),
 		(status = 401, description = "Unauthorized")
+	),
+	security(
+		("bearer" = []),
 	)
 )]
-pub(super) async fn get_server_status(
-	_jar: CookieJar,
-	State(state): State<RouterState>,
+pub(super) async fn get_server_status<Client: DatabaseClient>(
+	_headers: HeaderMap,
+	State(state): State<RouterState<Client>>,
 ) -> Response {
 	return (
 		StatusCode::OK,

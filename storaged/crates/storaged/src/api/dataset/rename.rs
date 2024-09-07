@@ -1,73 +1,55 @@
 use axum::{
-	extract::State,
-	http::StatusCode,
+	extract::{Path, State},
+	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
-use axum_extra::extract::CookieJar;
-use serde::{Deserialize, Serialize};
+use copper_database::api::{errors::dataset::RenameDatasetError, DatabaseClient};
+use serde::Deserialize;
 use tracing::error;
 use utoipa::ToSchema;
 
 use crate::api::RouterState;
 
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub(super) struct RenameDatasetRequest {
-	pub old_name: String,
 	pub new_name: String,
 }
 
-/// Delete a dataset
+/// Rename a dataset
 #[utoipa::path(
-	post,
-	path = "/rename",
+	patch,
+	path = "/{dataset_id}",
+	params(
+		("dataset_id", description = "Dataset id"),
+	),
 	responses(
 		(status = 200, description = "Dataset renamed successfully"),
-		(status = 400, description = "Could not rename dataset", body = String),
-		(status = 500, description = "Internal server error", body = String),
-		(status = 401, description = "Unauthorized")
+		(status = 500, description = "Internal server error"),
+	),
+	security(
+		("bearer" = []),
 	)
 )]
-pub(super) async fn rename_dataset(
-	jar: CookieJar,
-	State(state): State<RouterState>,
+pub(super) async fn rename_dataset<Client: DatabaseClient>(
+	_headers: HeaderMap,
+	State(state): State<RouterState<Client>>,
+	Path(dataset_id): Path<u32>,
 	Json(payload): Json<RenameDatasetRequest>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(u) => {
-			if !u.group.permissions.edit_datasets.is_allowed() {
-				return StatusCode::UNAUTHORIZED.into_response();
-			}
-		}
-	}
-
 	let res = state
-		.main_db
-		.dataset
-		.rename_dataset(&payload.old_name, &payload.new_name)
+		.client
+		.rename_dataset(dataset_id.into(), &payload.new_name)
 		.await;
 
-	match res {
-		Ok(_) => {}
-		Err(RenameDatasetError::BadName(err)) => {
-			return (StatusCode::BAD_REQUEST, err.to_string()).into_response()
-		}
-		Err(RenameDatasetError::AlreadyExists) => {
-			return (
-				StatusCode::BAD_REQUEST,
-				format!("A dataset named `{}` already exists.", payload.new_name),
-			)
-				.into_response();
-		}
+	return match res {
+		Ok(_) => StatusCode::OK.into_response(),
 		Err(RenameDatasetError::DbError(e)) => {
 			error!(
-				message = "Database error while making new dataset",
+				message = "Database error while renaming dataset",
 				error = ?e
 			);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			StatusCode::INTERNAL_SERVER_ERROR.into_response()
 		}
 	};
-
-	return StatusCode::OK.into_response();
 }

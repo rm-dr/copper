@@ -1,68 +1,44 @@
 use axum::{
-	extract::State,
-	http::StatusCode,
+	extract::{Path, State},
+	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
-	Json,
 };
-use axum_extra::extract::CookieJar;
-use serde::{Deserialize, Serialize};
+use copper_database::api::{errors::dataset::DeleteDatasetError, DatabaseClient};
 use tracing::error;
-use utoipa::ToSchema;
 
 use crate::api::RouterState;
-
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
-pub(super) struct DeleteDatasetRequest {
-	/// The dataset to delete from.
-	pub dataset_name: String,
-}
 
 /// Delete a dataset
 #[utoipa::path(
 	delete,
-	path = "/del",
+	path = "/{dataset_id}",
+	params(
+		("dataset_id", description = "Dataset id"),
+	),
 	responses(
 		(status = 200, description = "Dataset deleted successfully"),
-		(status = 400, description = "Could not delete dataset", body = String),
-		(status = 500, description = "Internal server error", body = String),
-		(status = 401, description = "Unauthorized")
+		(status = 500, description = "Internal server error"),
+	),
+	security(
+		("bearer" = []),
 	)
 )]
-pub(super) async fn del_dataset(
-	jar: CookieJar,
-	State(state): State<RouterState>,
-	Json(payload): Json<DeleteDatasetRequest>,
+pub(super) async fn del_dataset<Client: DatabaseClient>(
+	_headers: HeaderMap,
+	State(state): State<RouterState<Client>>,
+	Path(dataset_id): Path<u32>,
 ) -> Response {
-	match state.main_db.auth.auth_or_logout(&jar).await {
-		Err(x) => return x,
-		Ok(u) => {
-			if !u.group.permissions.edit_datasets.is_allowed() {
-				return StatusCode::UNAUTHORIZED.into_response();
-			}
-		}
-	}
+	let res = state.client.del_dataset(dataset_id.into()).await;
 
-	let res = state
-		.main_db
-		.dataset
-		.del_dataset(&payload.dataset_name)
-		.await;
-
-	match res {
-		Ok(_) => {}
-		Err(e) => {
+	return match res {
+		Ok(_) => StatusCode::OK.into_response(),
+		Err(DeleteDatasetError::DbError(error)) => {
 			error!(
-				message = "Could not delete dataset",
-				payload = ?payload,
-				error = ?e
+				message = "Database error while deleting dataset",
+				dataset_id,
+				?error,
 			);
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Could not delete dataset `{}`", payload.dataset_name),
-			)
-				.into_response();
+			StatusCode::INTERNAL_SERVER_ERROR.into_response()
 		}
 	};
-
-	return StatusCode::OK.into_response();
 }

@@ -1,5 +1,6 @@
 use crate::RouterState;
 use axum::{routing::get, Router};
+use copper_database::api::DatabaseClient;
 use utoipa::OpenApi;
 
 mod server;
@@ -10,6 +11,6 @@ use server::*;
 #[openapi(tags(), paths(get_server_status), components(schemas(ServerStatus,)))]
 pub(super) struct StatusApi;
 
-pub(super) fn router() -> Router<RouterState> {
+pub(super) fn router<Client: DatabaseClient + 'static>() -> Router<RouterState<Client>> {
 	Router::new().route("/", get(get_server_status))
 }

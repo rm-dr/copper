@@ -35,7 +35,10 @@ async fn main() {
 		}
 	};
 
-	let state = RouterState { config };
+	let state = RouterState::<SqliteDatabase> {
+		config,
+		client: Arc::new(db),
+	};
 
 	let listener = match tokio::net::TcpListener::bind(state.config.server_addr.to_string()).await {
 		Ok(x) => x,
@@ -57,7 +60,7 @@ async fn main() {
 	};
 	info!("listening on {}", listener.local_addr().unwrap());
 
-	let app = api::router(state.clone());
+	let app = api::router(state);
 
 	match axum::serve(listener, app).await {
 		Ok(_) => {}

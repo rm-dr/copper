@@ -1,38 +1,33 @@
 use crate::RouterState;
 use axum::{
-	routing::{delete, get, post},
+	routing::{delete, get, patch, post},
 	Router,
 };
+use copper_database::api::DatabaseClient;
 use utoipa::OpenApi;
 
 mod add;
 mod del;
-mod list;
+mod get;
 mod rename;
 
 use add::*;
 use del::*;
-use list::*;
+use get::*;
 use rename::*;
 
 #[derive(OpenApi)]
 #[openapi(
 	tags(),
-	paths(add_dataset, rename_dataset, list_datasets, del_dataset),
-	components(schemas(
-		NewDatasetRequest,
-		NewDatasetParams,
-		DatasetInfoShort,
-		DeleteDatasetRequest,
-		RenameDatasetRequest
-	))
+	paths(add_dataset, rename_dataset, del_dataset, get_dataset),
+	components(schemas(RenameDatasetRequest, NewDatasetRequest))
 )]
 pub(super) struct DatasetApi;
 
-pub(super) fn router() -> Router<RouterState> {
+pub(super) fn router<Client: DatabaseClient + 'static>() -> Router<RouterState<Client>> {
 	Router::new()
-		.route("/list", get(list_datasets))
-		.route("/add", post(add_dataset))
-		.route("/del", delete(del_dataset))
-		.route("/rename", post(rename_dataset))
+		.route("/", post(add_dataset))
+		.route("/:dataset_id", get(get_dataset))
+		.route("/:dataset_id", delete(del_dataset))
+		.route("/:dataset_id", patch(rename_dataset))
 }
