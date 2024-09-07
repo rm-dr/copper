@@ -1,6 +1,6 @@
 use axum::{extract::DefaultBodyLimit, Router};
 use copper_database::api::{
-	data::{HashType, MetastoreDataStub},
+	data::{DatasetDataStub, HashType},
 	AttrInfo, AttributeOptions, ClassInfo,
 };
 use std::sync::Arc;
@@ -36,7 +36,7 @@ pub struct RouterState {
 	),
 	// All schema structs defined outside `crate::api` go here
 	components(schemas(
-		MetastoreDataStub,
+		DatasetDataStub,
 		HashType,
 		AttributeOptions,
 		AttrInfo,
