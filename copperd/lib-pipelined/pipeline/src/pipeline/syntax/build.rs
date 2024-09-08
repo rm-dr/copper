@@ -1,13 +1,13 @@
 //! A user-provided pipeline specification
 
+use copper_util::graph::graph::Graph;
 use std::{collections::HashMap, marker::PhantomData};
 use tracing::{debug, trace};
 
 use super::{errors::PipelineBuildError, spec::PipelineSpec};
 use crate::{
-	api::{PipelineData, PipelineDataStub, PipelineJobContext},
+	base::{PipelineData, PipelineDataStub, PipelineJobContext},
 	dispatcher::NodeDispatcher,
-	graph::graph::Graph,
 	labels::PipelineName,
 	pipeline::{
 		pipeline::{Pipeline, PipelineEdgeData, PipelineNodeData},

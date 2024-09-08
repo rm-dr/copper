@@ -1,3 +1,4 @@
+use copper_util::graph::util::GraphNodeIdx;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use smartstring::{LazyCompact, SmartString};
 use std::{
@@ -15,9 +16,8 @@ use super::{
 	util::{EdgeState, NodeRunState},
 };
 use crate::{
-	api::{Node, NodeState, PipelineData, PipelineJobContext, RunNodeError},
+	base::{Node, NodeState, PipelineData, PipelineJobContext, RunNodeError},
 	dispatcher::NodeDispatcher,
-	graph::util::GraphNodeIdx,
 	labels::{PipelineNodeID, PipelinePortID},
 	pipeline::pipeline::{Pipeline, PipelineEdgeData},
 };

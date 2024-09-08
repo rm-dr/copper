@@ -494,6 +494,7 @@ dependencies = [
 name = "copper-util"
 version = "0.1.0"
 dependencies = [
+ "petgraph",
  "serde_with",
  "tracing",
 ]
@@ -1861,8 +1862,8 @@ dependencies = [
 name = "pipelined-pipeline"
 version = "0.1.0"
 dependencies = [
+ "copper-util",
  "crossbeam",
- "petgraph",
  "serde",
  "smartstring",
  "tracing",

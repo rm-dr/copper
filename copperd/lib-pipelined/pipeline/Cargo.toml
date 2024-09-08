@@ -17,9 +17,10 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
+copper-util = { workspace = true }
+
 serde = { workspace = true }
 smartstring = { workspace = true }
-petgraph = { workspace = true }
 crossbeam = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }

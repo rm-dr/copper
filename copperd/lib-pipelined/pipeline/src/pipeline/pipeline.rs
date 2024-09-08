@@ -1,15 +1,15 @@
 //! Core pipeline structs
 
+use copper_util::graph::finalized::FinalizedGraph;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, fmt::Debug, marker::PhantomData};
 
 use super::syntax::{build::build_pipeline, errors::PipelineBuildError, spec::PipelineSpec};
 use crate::{
-	api::{PipelineData, PipelineJobContext},
+	base::{PipelineData, PipelineJobContext},
 	dispatcher::{NodeDispatcher, NodeParameterValue},
-	graph::finalized::FinalizedGraph,
 	labels::{PipelineName, PipelineNodeID, PipelinePortID},
-	nodes::input::INPUT_NODE_TYPE_NAME,
+	nodes::INPUT_NODE_TYPE_NAME,
 };
 
 /// A node in a pipeline graph

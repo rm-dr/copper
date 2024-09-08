@@ -1,17 +1,17 @@
 //! Strip all tags from an audio file
 
 use crate::flac::proc::metastrip::FlacMetaStrip;
+use copper_util::mime::MimeType;
 use pipelined_node_base::{
 	data::{BytesSource, CopperData, CopperDataStub},
 	helpers::DataSource,
 	CopperContext,
 };
 use pipelined_pipeline::{
-	api::{InitNodeError, Node, NodeInfo, NodeState, RunNodeError},
+	base::{InitNodeError, Node, NodeInfo, NodeState, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };
-use copper_util::mime::MimeType;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, io::Read, sync::Arc};
 

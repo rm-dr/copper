@@ -2,7 +2,7 @@ use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, marker::PhantomData};
 
 use crate::{
-	api::{
+	base::{
 		InitNodeError, Node, NodeInfo, NodeState, PipelineData, PipelineJobContext, RunNodeError,
 	},
 	dispatcher::NodeParameterValue,

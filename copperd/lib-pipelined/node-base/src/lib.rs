@@ -7,7 +7,7 @@ pub mod helpers;
 pub mod nodes;
 
 use data::CopperData;
-use pipelined_pipeline::api::PipelineJobContext;
+use pipelined_pipeline::base::PipelineJobContext;
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 

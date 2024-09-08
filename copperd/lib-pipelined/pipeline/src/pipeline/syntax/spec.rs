@@ -5,7 +5,7 @@ use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, fmt::Debug};
 
 use super::ports::{InputPort, OutputPort};
-use crate::{api::PipelineData, dispatcher::NodeParameterValue, labels::PipelineNodeID};
+use crate::{base::PipelineData, dispatcher::NodeParameterValue, labels::PipelineNodeID};
 
 #[derive(Debug, Deserialize, Clone, Copy)]
 pub(crate) enum EdgeType {

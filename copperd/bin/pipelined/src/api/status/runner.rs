@@ -6,7 +6,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use pipelined_pipeline::{
-	api::NodeState,
+	base::NodeState,
 	labels::{PipelineName, PipelineNodeID},
 };
 use serde::{Deserialize, Serialize};

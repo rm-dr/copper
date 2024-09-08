@@ -3,8 +3,8 @@ use std::{collections::BTreeMap, marker::PhantomData};
 
 use super::{NodeParameterSpec, NodeParameterValue, RegisterNodeError};
 use crate::{
-	api::{InitNodeError, Node, NodeInfo, PipelineData, PipelineJobContext},
-	nodes::input::{Input, InputInfo, INPUT_NODE_TYPE_NAME},
+	base::{InitNodeError, Node, NodeInfo, PipelineData, PipelineJobContext},
+	nodes::{Input, InputInfo, INPUT_NODE_TYPE_NAME},
 };
 
 // This type must be send + sync, since we use this inside tokio's async runtime.

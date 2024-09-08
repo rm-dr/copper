@@ -3,7 +3,7 @@ use smartstring::{LazyCompact, SmartString};
 use std::collections::{BTreeMap, BTreeSet};
 use utoipa::ToSchema;
 
-use crate::api::PipelineData;
+use crate::base::PipelineData;
 
 /// The types of node parameters we accept
 pub enum NodeParameterType<DataType: PipelineData> {

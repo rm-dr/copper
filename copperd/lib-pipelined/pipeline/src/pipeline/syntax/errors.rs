@@ -5,7 +5,7 @@ use std::{error::Error, fmt::Display};
 use smartstring::{LazyCompact, SmartString};
 
 use crate::{
-	api::{InitNodeError, PipelineData},
+	base::{InitNodeError, PipelineData},
 	labels::{PipelineNodeID, PipelinePortID},
 };
 

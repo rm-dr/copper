@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use pipelined_pipeline::{
-	api::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
+	base::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
 	dispatcher::NodeParameterValue,
 	labels::PipelinePortID,
 };

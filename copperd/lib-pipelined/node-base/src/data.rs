@@ -1,5 +1,5 @@
 use copper_util::mime::MimeType;
-use pipelined_pipeline::api::{PipelineData, PipelineDataStub};
+use pipelined_pipeline::base::{PipelineData, PipelineDataStub};
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};

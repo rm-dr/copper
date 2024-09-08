@@ -1,6 +1,6 @@
 //! Pipeline runner utilities
 
-use crate::api::NodeState;
+use crate::base::NodeState;
 
 #[derive(Debug)]
 pub(super) enum EdgeState {
