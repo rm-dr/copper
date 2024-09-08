@@ -4,6 +4,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
+use copper_util::mime::MimeType;
 use pipelined_node_base::{
 	data::{BytesSource, CopperData},
 	CopperContext,
@@ -12,7 +13,6 @@ use pipelined_pipeline::{
 	labels::PipelineName,
 	pipeline::{pipeline::Pipeline, syntax::spec::PipelineSpec},
 };
-use copper_util::mime::MimeType;
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
