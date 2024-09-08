@@ -2,3 +2,4 @@
 # Each project dir provides its own .gitignore.
 *.ignore
 .lycheecache
+/data
