@@ -73,7 +73,7 @@ impl Error for GetAttributeError {
 	}
 }
 
-/// An error we can encounter when renaming an attibute
+/// An error we can encounter when renaming an attribute
 #[derive(Debug)]
 pub enum RenameAttributeError {
 	/// Database error
