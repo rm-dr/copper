@@ -245,12 +245,19 @@ mod tests {
 		config.db_addr = format!("sqlite://{SQLITE_DB_FILE}?mode=rwc").into();
 		let mut app = make_app(config).await;
 
+		// Saved ids we intend do use later
+		let test_dataset_id: DatasetId = 1.into();
+		let test_dataset_two_id: DatasetId = 2.into();
+		let class_covers_id: ClassId = 1.into();
+		let class_audiofile_id: ClassId = 2.into();
+		let attr_title_id: AttributeId = 3.into();
+
 		//
 		// MARK: Create datasets
 		//
 
+		// These requests should fail, invalid name
 		{
-			// These requests should fail, invalid name
 			let response = create_dataset(&mut app, "").await;
 			assert_eq!(response.status(), 400);
 			assert_eq!(
@@ -287,10 +294,8 @@ mod tests {
 			);
 		}
 
-		let test_dataset_id: DatasetId = 1.into();
-		let test_dataset_two_id: DatasetId = 2.into();
+		// These requests are perfectly fine
 		{
-			// These requests are perfectly fine
 			let response = create_dataset(&mut app, "test_dataset").await;
 			assert_eq!(response.status(), 200);
 			assert_eq!(response_json::<DatasetId>(response).await, test_dataset_id);
@@ -303,8 +308,8 @@ mod tests {
 			);
 		}
 
+		// This request should fail, duplicate name
 		{
-			// This request should fail, duplicate name
 			let response = create_dataset(&mut app, "test_dataset").await;
 			assert_eq!(response.status(), 400);
 			assert_eq!(
@@ -324,8 +329,8 @@ mod tests {
 		// MARK: Create classes
 		//
 
+		// These requests should fail, invalid name
 		{
-			// These requests should fail, invalid name
 			let response = create_class(&mut app, test_dataset_id, "").await;
 			assert_eq!(response.status(), 400);
 			assert_eq!(
@@ -362,16 +367,15 @@ mod tests {
 			);
 		}
 
+		// This should fail, invalid dataset
 		{
-			// This should fail, invalid dataset
 			let response = create_class(&mut app, 45.into(), "class_bad_dataset").await;
 			assert_eq!(response.status(), 404);
 		}
 
-		let class_covers_id: ClassId = 1.into();
-		let class_audiofile_id: ClassId = 2.into();
+		// These requests is perfectly fine
+
 		{
-			// These requests is perfectly fine
 			let response = create_class(&mut app, test_dataset_id, "covers").await;
 			assert_eq!(response.status(), 200);
 			assert_eq!(response_json::<ClassId>(response).await, class_covers_id);
@@ -381,8 +385,8 @@ mod tests {
 			assert_eq!(response_json::<ClassId>(response).await, class_audiofile_id);
 		}
 
+		// These requests should fail, duplicate name
 		{
-			// These requests should fail, duplicate name
 			let response = create_class(&mut app, test_dataset_id, "covers").await;
 			assert_eq!(response.status(), 400);
 			assert_eq!(
@@ -409,8 +413,8 @@ mod tests {
 		// MARK: Create attributes
 		//
 
+		// These requests should fail, invalid name
 		{
-			// These requests should fail, invalid name
 			let response = create_attribute(
 				&mut app,
 				class_covers_id,
@@ -482,8 +486,8 @@ mod tests {
 			);
 		}
 
+		// These requests should fail, invalid class
 		{
-			// These requests should fail, invalid class
 			let response = create_attribute(
 				&mut app,
 				45.into(),
@@ -495,8 +499,8 @@ mod tests {
 			assert_eq!(response.status(), 404);
 		}
 
+		// Create `cover` attributes
 		{
-			// Create `cover` attributes
 			let response = create_attribute(
 				&mut app,
 				class_covers_id,
@@ -520,9 +524,8 @@ mod tests {
 			assert_eq!(response.status(), 200);
 		}
 
-		let attr_title_id: AttributeId = 3.into();
+		// Create `audiofile` attributes
 		{
-			// Create `audiofile` attributes
 			let response = create_attribute(
 				&mut app,
 				class_audiofile_id,
@@ -649,8 +652,8 @@ mod tests {
 			assert_eq!(response.status(), 200);
 		}
 
+		// These should fail, repeated name
 		{
-			// These should fail, repeated name
 			let response = create_attribute(
 				&mut app,
 				class_covers_id,
