@@ -67,7 +67,7 @@ async fn main() {
 			std::process::exit(1);
 		}
 	};
-	info!("listening on {}", listener.local_addr().unwrap());
+	info!("listening on http://{}", listener.local_addr().unwrap());
 
 	let app = make_app(config).await;
 
