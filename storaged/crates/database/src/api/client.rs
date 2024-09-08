@@ -1,20 +1,23 @@
 //! The database client api
 
+use std::collections::BTreeMap;
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use super::{
-	data::AttrDataStub,
+	data::{AttrData, AttrDataStub},
 	errors::{
 		attribute::{
 			AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
 		},
 		class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
 		dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
+		item::{AddItemError, DeleteItemError, GetItemError},
 	},
-	handles::{AttributeId, ClassId, DatasetId},
-	info::{AttributeInfo, ClassInfo, DatasetInfo},
+	handles::{AttributeId, ClassId, DatasetId, ItemId},
+	info::{AttributeInfo, ClassInfo, DatasetInfo, ItemInfo},
 };
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
@@ -40,7 +43,7 @@ where
 	/// Create a new dataset
 	async fn add_dataset(&self, name: &str) -> Result<DatasetId, AddDatasetError>;
 
-	/// Delete a dataset
+	/// Get dataset details
 	async fn get_dataset(&self, dataset: DatasetId) -> Result<DatasetInfo, GetDatasetError>;
 
 	/// Rename a dataset
@@ -60,7 +63,7 @@ where
 	/// Create a new class in a dataset
 	async fn add_class(&self, in_dataset: DatasetId, name: &str) -> Result<ClassId, AddClassError>;
 
-	/// Delete a class
+	/// Get class details
 	async fn get_class(&self, class: ClassId) -> Result<ClassInfo, GetClassError>;
 
 	/// Rename a class
@@ -82,7 +85,7 @@ where
 		options: AttributeOptions,
 	) -> Result<AttributeId, AddAttributeError>;
 
-	/// Delete an attribute
+	/// Get attribute details
 	async fn get_attribute(
 		&self,
 		attribute: AttributeId,
@@ -97,4 +100,21 @@ where
 
 	/// Delete an attribute
 	async fn del_attribute(&self, attribute: AttributeId) -> Result<(), DeleteAttributeError>;
+
+	//
+	// MARK: Item
+	//
+
+	/// Create a new item in the given class
+	async fn add_item(
+		&self,
+		in_class: ClassId,
+		attributes: BTreeMap<AttributeId, AttrData>,
+	) -> Result<ItemId, AddItemError>;
+
+	/// Get item details
+	async fn get_item(&self, item: ItemId) -> Result<ItemInfo, GetItemError>;
+
+	/// Delete an item
+	async fn del_item(&self, item: ItemId) -> Result<(), DeleteItemError>;
 }

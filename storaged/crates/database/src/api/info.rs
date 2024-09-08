@@ -1,12 +1,14 @@
 //! Helper structs that contain database element properties
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use utoipa::ToSchema;
 
 use super::{
-	data::AttrDataStub,
-	handles::{AttributeId, ClassId, DatasetId},
+	data::{AttrData, AttrDataStub},
+	handles::{AttributeId, ClassId, DatasetId, ItemId},
 };
 
 /// Dataset information
@@ -62,4 +64,19 @@ pub struct AttributeInfo {
 	/// If true, each item in this attribute's class must
 	/// have a unique value in this attribute
 	pub is_unique: bool,
+}
+
+/// Item information
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ItemInfo {
+	/// The id of this item
+	#[schema(value_type = u32)]
+	pub id: ItemId,
+
+	/// The class this item belongs to
+	#[schema(value_type = u32)]
+	pub class: ClassId,
+
+	/// All attributes this item has
+	pub attribute_values: BTreeMap<AttributeId, AttrData>,
 }

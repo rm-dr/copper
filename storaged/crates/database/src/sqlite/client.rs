@@ -1,15 +1,18 @@
+use std::collections::BTreeMap;
+
 use crate::api::{
 	client::{AttributeOptions, DatabaseClient},
-	data::AttrDataStub,
+	data::{AttrData, AttrDataStub},
 	errors::{
 		attribute::{
 			AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
 		},
 		class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
 		dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
+		item::{AddItemError, DeleteItemError, GetItemError},
 	},
-	handles::{AttributeId, ClassId, DatasetId},
-	info::{AttributeInfo, ClassInfo, DatasetInfo},
+	handles::{AttributeId, ClassId, DatasetId, ItemId},
+	info::{AttributeInfo, ClassInfo, DatasetInfo, ItemInfo},
 };
 use async_trait::async_trait;
 use copper_util::{mime::MimeType, names::check_name};
@@ -571,5 +574,94 @@ impl DatabaseClient for SqliteDatabaseClient {
 			.map_err(|e| DeleteAttributeError::DbError(Box::new(e)))?;
 
 		return Ok(());
+	}
+
+	//
+	// MARK: Item
+	//
+
+	async fn add_item(
+		&self,
+		in_class: ClassId,
+		attributes: BTreeMap<AttributeId, AttrData>,
+	) -> Result<ItemId, AddItemError> {
+		// Start transaction
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| AddItemError::DbError(Box::new(e)))?;
+		let mut t = conn
+			.begin()
+			.await
+			.map_err(|e| AddItemError::DbError(Box::new(e)))?;
+
+		let res = sqlx::query("INSERT INTO item(class_id) VALUES ?;")
+			.bind(u32::from(in_class))
+			.execute(&mut *t)
+			.await;
+
+		let new_item: ItemId = match res {
+			Ok(x) => u32::try_from(x.last_insert_rowid()).unwrap().into(),
+			Err(sqlx::Error::Database(e)) => {
+				if e.is_foreign_key_violation() {
+					return Err(AddItemError::NoSuchClass);
+				} else {
+					let e = Box::new(sqlx::Error::Database(e));
+					return Err(AddItemError::DbError(e));
+				}
+			}
+			Err(e) => return Err(AddItemError::DbError(Box::new(e))),
+		};
+
+		for (attr, value) in &attributes {
+			// Make sure this attribute comes from this class
+			match sqlx::query("SELECT FROM attribute WHERE id=? AND class_id=?;")
+				.fetch_one(&mut *t)
+				.await
+			{
+				Ok(_) => {}
+				Err(sqlx::Error::RowNotFound) => return Err(AddItemError::ForeignAttribute),
+				Err(e) => return Err(AddItemError::DbError(Box::new(e))),
+			}
+
+			// Create the attribute instance
+			let res = sqlx::query(
+				"INSERT INTO attribute_instance(item_id, attribute_id, attribute_value)
+				VALUES (?, ?, ?);",
+			)
+			.bind(u32::from(new_item))
+			.bind(u32::from(*attr))
+			.bind(serde_json::to_string(&value).unwrap())
+			.execute(&mut *t)
+			.await;
+
+			match res {
+				Ok(_) => {}
+				Err(sqlx::Error::Database(e)) => {
+					if e.is_foreign_key_violation() {
+						return Err(AddItemError::BadAttribute);
+					} else {
+						let e = Box::new(sqlx::Error::Database(e));
+						return Err(AddItemError::DbError(e));
+					}
+				}
+				Err(e) => return Err(AddItemError::DbError(Box::new(e))),
+			};
+		}
+
+		t.commit()
+			.await
+			.map_err(|e| AddItemError::DbError(Box::new(e)))?;
+
+		return Ok(new_item);
+	}
+
+	async fn get_item(&self, item: ItemId) -> Result<ItemInfo, GetItemError> {
+		unimplemented!()
+	}
+
+	async fn del_item(&self, item: ItemId) -> Result<(), DeleteItemError> {
+		unimplemented!()
 	}
 }

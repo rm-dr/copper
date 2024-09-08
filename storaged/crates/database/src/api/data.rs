@@ -7,11 +7,11 @@ use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
 use utoipa::ToSchema;
 
-use super::handles::{ClassId, ItemIdx};
+use super::handles::{ClassId, ItemId};
 
 /// A value stored inside an attribute.
 /// Each of these corresponds to an [`AttrDataStub`]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AttrData {
 	/// Typed, unset data
 	None(AttrDataStub),
@@ -64,7 +64,7 @@ pub enum AttrData {
 		class: ClassId,
 
 		/// The item
-		item: ItemIdx,
+		item: ItemId,
 	},
 }
 
