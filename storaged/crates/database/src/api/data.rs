@@ -11,12 +11,13 @@ use super::handles::{ClassId, ItemId};
 
 /// A value stored inside an attribute.
 /// Each of these corresponds to an [`AttrDataStub`]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub enum AttrData {
 	/// Typed, unset data
 	None(AttrDataStub),
 
 	/// A block of text
+	#[schema(value_type = String)]
 	Text(Arc<SmartString<LazyCompact>>),
 
 	/// An integer
@@ -52,6 +53,7 @@ pub enum AttrData {
 	/// Binary data stored in S3
 	Blob {
 		/// This data's media type
+		#[schema(value_type = String)]
 		mime: MimeType,
 
 		/// The data
@@ -61,9 +63,11 @@ pub enum AttrData {
 	/// A reference to an item in another class
 	Reference {
 		/// The item class this reference points to
+		#[schema(value_type = u32)]
 		class: ClassId,
 
 		/// The item
+		#[schema(value_type = u32)]
 		item: ItemId,
 	},
 }

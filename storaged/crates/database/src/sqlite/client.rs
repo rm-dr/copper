@@ -1,137 +1,30 @@
-use std::collections::BTreeMap;
-
 use crate::api::{
 	client::{AttributeOptions, DatabaseClient},
-	data::{AttrData, AttrDataStub},
+	data::AttrDataStub,
 	errors::{
 		attribute::{
 			AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
 		},
 		class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
 		dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
-		item::{AddItemError, DeleteItemError, GetItemError},
+		item::{DeleteItemError, GetItemError},
+		transaction::ApplyTransactionError,
 	},
 	handles::{AttributeId, ClassId, DatasetId, ItemId},
 	info::{AttributeInfo, ClassInfo, DatasetInfo, ItemInfo},
+	transaction::{Transaction, TransactionAction},
 };
 use async_trait::async_trait;
 use copper_util::{mime::MimeType, names::check_name};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, Row};
 
-use super::SqliteDatabaseClient;
+use super::{helpers, SqliteDatabaseClient};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct BlobJsonEncoded {
 	url: String,
 	mime: MimeType,
-}
-
-// SQL helper functions
-impl SqliteDatabaseClient {
-	/*
-	fn bind_storage<'a>(
-		q: Query<'a, Sqlite, SqliteArguments<'a>>,
-		storage: &'a mut DatasetData,
-	) -> Result<Query<'a, Sqlite, SqliteArguments<'a>>, DatabaseError> {
-		Ok(match storage {
-			// We MUST bind something, even for null values.
-			// If we don't, the null value's '?' won't be used
-			// and all following fields will be shifted left.
-			DatasetData::None(_) => q.bind(None::<u32>),
-			DatasetData::Text(s) => q.bind(s.as_str()),
-			DatasetData::Reference { item, .. } => q.bind(u32::from(*item)),
-			DatasetData::Blob { url, mime } => q.bind(
-				serde_json::to_string(&BlobJsonEncoded {
-					url: url.clone(),
-					mime: mime.clone(),
-				})
-				.unwrap(),
-			),
-			DatasetData::Boolean(x) => q.bind(*x),
-			DatasetData::Hash { data, .. } => q.bind(&**data),
-
-			DatasetData::Float {
-				value,
-				is_non_negative,
-			} => {
-				if *is_non_negative && *value < 0.0 {
-					return Err(DatabaseError::NonNegativeViolated);
-				}
-				q.bind(*value)
-			}
-
-			DatasetData::Integer {
-				value,
-				is_non_negative,
-			} => {
-				if *is_non_negative && *value < 0 {
-					return Err(DatabaseError::NonNegativeViolated);
-				}
-				q.bind(*value)
-			}
-		})
-	}
-	*/
-
-	/*
-	fn read_storage(row: &SqliteRow, attr: &AttributeInfo) -> DatasetData {
-		let col_name = Self::get_column_name(attr.handle);
-		return match attr.data_type {
-			DatasetDataStub::Float { is_non_negative } => row
-				.get::<Option<_>, _>(&col_name[..])
-				.map(|value| DatasetData::Float {
-					is_non_negative,
-					value,
-				})
-				.unwrap_or(DatasetData::None(attr.data_type)),
-
-			DatasetDataStub::Boolean => row
-				.get::<Option<_>, _>(&col_name[..])
-				.map(DatasetData::Boolean)
-				.unwrap_or(DatasetData::None(attr.data_type)),
-
-			DatasetDataStub::Integer { is_non_negative } => row
-				.get::<Option<_>, _>(&col_name[..])
-				.map(|value| DatasetData::Integer {
-					is_non_negative,
-					value,
-				})
-				.unwrap_or(DatasetData::None(attr.data_type)),
-
-			DatasetDataStub::Text => row
-				.get::<Option<String>, _>(&col_name[..])
-				.map(SmartString::from)
-				.map(Arc::new)
-				.map(DatasetData::Text)
-				.unwrap_or(DatasetData::None(attr.data_type)),
-
-			DatasetDataStub::Reference { class } => row
-				.get::<Option<_>, _>(&col_name[..])
-				.map(|item: u32| DatasetData::Reference {
-					class,
-					item: item.into(),
-				})
-				.unwrap_or(DatasetData::None(attr.data_type)),
-
-			DatasetDataStub::Hash { hash_type } => row
-				.get::<Option<_>, _>(&col_name[..])
-				.map(|item| DatasetData::Hash {
-					format: hash_type,
-					data: Arc::new(item),
-				})
-				.unwrap_or(DatasetData::None(attr.data_type)),
-
-			DatasetDataStub::Blob => row
-				.get::<Option<_>, _>(&col_name[..])
-				.map(|item: String| DatasetData::Blob {
-					url: item.into(),
-					mime: MimeType::Avif,
-				})
-				.unwrap_or(DatasetData::None(attr.data_type)),
-		};
-	}
-	*/
 }
 
 #[async_trait]
@@ -580,88 +473,42 @@ impl DatabaseClient for SqliteDatabaseClient {
 	// MARK: Item
 	//
 
-	async fn add_item(
-		&self,
-		in_class: ClassId,
-		attributes: BTreeMap<AttributeId, AttrData>,
-	) -> Result<ItemId, AddItemError> {
-		// Start transaction
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| AddItemError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| AddItemError::DbError(Box::new(e)))?;
-
-		let res = sqlx::query("INSERT INTO item(class_id) VALUES ?;")
-			.bind(u32::from(in_class))
-			.execute(&mut *t)
-			.await;
-
-		let new_item: ItemId = match res {
-			Ok(x) => u32::try_from(x.last_insert_rowid()).unwrap().into(),
-			Err(sqlx::Error::Database(e)) => {
-				if e.is_foreign_key_violation() {
-					return Err(AddItemError::NoSuchClass);
-				} else {
-					let e = Box::new(sqlx::Error::Database(e));
-					return Err(AddItemError::DbError(e));
-				}
-			}
-			Err(e) => return Err(AddItemError::DbError(Box::new(e))),
-		};
-
-		for (attr, value) in &attributes {
-			// Make sure this attribute comes from this class
-			match sqlx::query("SELECT FROM attribute WHERE id=? AND class_id=?;")
-				.fetch_one(&mut *t)
-				.await
-			{
-				Ok(_) => {}
-				Err(sqlx::Error::RowNotFound) => return Err(AddItemError::ForeignAttribute),
-				Err(e) => return Err(AddItemError::DbError(Box::new(e))),
-			}
-
-			// Create the attribute instance
-			let res = sqlx::query(
-				"INSERT INTO attribute_instance(item_id, attribute_id, attribute_value)
-				VALUES (?, ?, ?);",
-			)
-			.bind(u32::from(new_item))
-			.bind(u32::from(*attr))
-			.bind(serde_json::to_string(&value).unwrap())
-			.execute(&mut *t)
-			.await;
-
-			match res {
-				Ok(_) => {}
-				Err(sqlx::Error::Database(e)) => {
-					if e.is_foreign_key_violation() {
-						return Err(AddItemError::BadAttribute);
-					} else {
-						let e = Box::new(sqlx::Error::Database(e));
-						return Err(AddItemError::DbError(e));
-					}
-				}
-				Err(e) => return Err(AddItemError::DbError(Box::new(e))),
-			};
-		}
-
-		t.commit()
-			.await
-			.map_err(|e| AddItemError::DbError(Box::new(e)))?;
-
-		return Ok(new_item);
-	}
-
 	async fn get_item(&self, item: ItemId) -> Result<ItemInfo, GetItemError> {
 		unimplemented!()
 	}
 
 	async fn del_item(&self, item: ItemId) -> Result<(), DeleteItemError> {
 		unimplemented!()
+	}
+
+	//
+	// MARK: Transaction
+	//
+
+	async fn apply_transaction(
+		&self,
+		transaction: Transaction,
+	) -> Result<(), ApplyTransactionError> {
+		// Start transaction
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| ApplyTransactionError::DbError(Box::new(e)))?;
+		let mut t = conn
+			.begin()
+			.await
+			.map_err(|e| ApplyTransactionError::DbError(Box::new(e)))?;
+
+		for action in transaction.actions {
+			match action {
+				TransactionAction::AddItem {
+					to_class,
+					attributes,
+				} => helpers::add_item(&mut t, to_class, attributes).await?,
+			};
+		}
+
+		return Ok(());
 	}
 }

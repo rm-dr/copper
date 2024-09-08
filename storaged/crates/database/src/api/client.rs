@@ -1,23 +1,23 @@
 //! The database client api
 
-use std::collections::BTreeMap;
-
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use super::{
-	data::{AttrData, AttrDataStub},
+	data::AttrDataStub,
 	errors::{
 		attribute::{
 			AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
 		},
 		class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
 		dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
-		item::{AddItemError, DeleteItemError, GetItemError},
+		item::{DeleteItemError, GetItemError},
+		transaction::ApplyTransactionError,
 	},
 	handles::{AttributeId, ClassId, DatasetId, ItemId},
 	info::{AttributeInfo, ClassInfo, DatasetInfo, ItemInfo},
+	transaction::Transaction,
 };
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
@@ -105,16 +105,19 @@ where
 	// MARK: Item
 	//
 
-	/// Create a new item in the given class
-	async fn add_item(
-		&self,
-		in_class: ClassId,
-		attributes: BTreeMap<AttributeId, AttrData>,
-	) -> Result<ItemId, AddItemError>;
-
 	/// Get item details
 	async fn get_item(&self, item: ItemId) -> Result<ItemInfo, GetItemError>;
 
 	/// Delete an item
 	async fn del_item(&self, item: ItemId) -> Result<(), DeleteItemError>;
+
+	//
+	// MARK: Transactions
+	//
+
+	/// Apply the given transaction the database
+	async fn apply_transaction(
+		&self,
+		transaction: Transaction,
+	) -> Result<(), ApplyTransactionError>;
 }

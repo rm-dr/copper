@@ -6,6 +6,7 @@ use std::{error::Error, fmt::Display, str::FromStr};
 use tracing::info;
 
 mod client;
+mod helpers;
 mod migrate;
 
 #[derive(Debug)]

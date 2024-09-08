@@ -9,7 +9,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use copper_database::api::{
 	client::DatabaseClient,
-	data::{AttrDataStub, HashType},
+	data::{AttrData, AttrDataStub, HashType},
 	info::{AttributeInfo, ClassInfo, DatasetInfo},
 };
 
@@ -19,6 +19,7 @@ mod attribute;
 mod class;
 mod dataset;
 mod status;
+mod transaction;
 
 pub struct RouterState<Client: DatabaseClient> {
 	pub config: Arc<StoragedConfig>,
@@ -54,6 +55,7 @@ impl Modify for BearerSecurityAddon {
 		(path = "/dataset", api = dataset::DatasetApi),
 		(path = "/class", api = class::ClassApi),
 		(path = "/attribute", api = attribute::AttributeApi),
+		(path = "/transaction", api = transaction::TransactionApi),
 	),
 	tags(
 		(name = "Copper", description = "Copper backend daemon")
@@ -64,7 +66,8 @@ impl Modify for BearerSecurityAddon {
 		ClassInfo,
 		AttributeInfo,
 		AttrDataStub,
-		HashType
+		HashType,
+		AttrData
 	))
 )]
 struct ApiDoc;
@@ -77,6 +80,7 @@ pub(super) fn router<Client: DatabaseClient + 'static>(state: RouterState<Client
 		.nest("/dataset", dataset::router())
 		.nest("/class", class::router())
 		.nest("/attribute", attribute::router())
+		.nest("/transaction", transaction::router())
 		//
 		.layer(TraceLayer::new_for_http())
 		.layer(DefaultBodyLimit::max(state.config.request_body_limit))
