@@ -1,0 +1,31 @@
+[package]
+name = "storaged-database"
+description = "Copper's base api for datasets"
+categories = { workspace = true }
+keywords = { workspace = true }
+version = { workspace = true }
+rust-version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+copper-util = { workspace = true }
+storaged-util = { workspace = true }
+copper-migrate = { workspace = true }
+
+serde = { workspace = true }
+smartstring = { workspace = true }
+utoipa = { workspace = true }
+itertools = { workspace = true }
+sqlx = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
