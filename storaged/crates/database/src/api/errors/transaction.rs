@@ -52,6 +52,14 @@ pub enum AddItemError {
 	/// attribute that doesn't exist
 	BadAttribute,
 
+	/// We tried to create an item,
+	/// but provided multiple values for one attribute
+	RepeatedAttribute,
+
+	/// We tried to assign data to an attribute,
+	/// but that data has the wrong type
+	AttributeDataTypeMismatch,
+
 	/// We tried to create an item that contains an
 	/// attribute from another itemclass
 	ForeignAttribute,
@@ -66,6 +74,15 @@ impl Display for AddItemError {
 				write!(f, "tried to create an item an attribute that doesn't exist")
 			}
 			Self::ForeignAttribute => write!(f, "tried to create an item with a foreign attribute"),
+			Self::RepeatedAttribute => {
+				write!(f, "multiple values were provided for one attribute")
+			}
+			Self::AttributeDataTypeMismatch => {
+				write!(
+					f,
+					"tried to assign data to an attribute, but type doesn't match"
+				)
+			}
 		}
 	}
 }

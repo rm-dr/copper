@@ -44,7 +44,7 @@ pub enum AttrData {
 	/// A checksum
 	Hash {
 		/// The type of this hash
-		format: HashType,
+		hash_type: HashType,
 
 		/// The hash data
 		data: Vec<u8>,
@@ -86,6 +86,34 @@ impl AttrData {
 	/// Convert a hash to a hex string
 	pub fn hash_to_string(data: &[u8]) -> String {
 		data.iter().map(|x| format!("{:02X}", x)).join("")
+	}
+
+	/// Convert this data instance to its type
+	pub fn to_stub(&self) -> AttrDataStub {
+		match self {
+			Self::None(x) => x.clone(),
+			Self::Blob { .. } => AttrDataStub::Blob,
+			Self::Boolean(_) => AttrDataStub::Boolean,
+			Self::Text(_) => AttrDataStub::Text,
+
+			Self::Float {
+				is_non_negative, ..
+			} => AttrDataStub::Float {
+				is_non_negative: *is_non_negative,
+			},
+
+			Self::Integer {
+				is_non_negative, ..
+			} => AttrDataStub::Integer {
+				is_non_negative: *is_non_negative,
+			},
+
+			Self::Hash { hash_type, .. } => AttrDataStub::Hash {
+				hash_type: *hash_type,
+			},
+
+			Self::Reference { class, .. } => AttrDataStub::Reference { class: *class },
+		}
 	}
 }
 

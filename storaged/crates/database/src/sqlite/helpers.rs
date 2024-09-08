@@ -1,5 +1,8 @@
+use itertools::Itertools;
+use sqlx::Row;
+
 use crate::api::{
-	data::AttrData,
+	data::{AttrData, AttrDataStub},
 	errors::transaction::AddItemError,
 	handles::{AttributeId, ClassId, ItemId},
 };
@@ -9,6 +12,11 @@ pub(super) async fn add_item(
 	to_class: ClassId,
 	attributes: Vec<(AttributeId, AttrData)>,
 ) -> Result<ItemId, AddItemError> {
+	// Make sure we have at most one of each attribute
+	if !attributes.iter().map(|(x, _)| x).all_unique() {
+		return Err(AddItemError::RepeatedAttribute);
+	}
+
 	let res = sqlx::query("INSERT INTO item (class_id) VALUES (?);")
 		.bind(u32::from(to_class))
 		.execute(&mut **t)
@@ -29,19 +37,27 @@ pub(super) async fn add_item(
 
 	for (attr, value) in attributes {
 		// Make sure this attribute comes from this class
-		match sqlx::query("SELECT data_type FROM attribute WHERE id=? AND class_id=?;")
-			.bind(u32::from(attr))
-			.bind(u32::from(to_class))
-			.fetch_one(&mut **t)
-			.await
-		{
-			Ok(_) => {}
-			Err(sqlx::Error::RowNotFound) => return Err(AddItemError::ForeignAttribute),
-			Err(e) => return Err(AddItemError::DbError(Box::new(e))),
-		}
+		let data_type =
+			match sqlx::query("SELECT data_type FROM attribute WHERE id=? AND class_id=?;")
+				.bind(u32::from(attr))
+				.bind(u32::from(to_class))
+				.fetch_one(&mut **t)
+				.await
+			{
+				Ok(res) => {
+					let data_type: AttrDataStub =
+						serde_json::from_str(&res.get::<String, _>("data_type")).unwrap();
 
-		// TODO: check type
-		// TODO: check one of each
+					data_type
+				}
+				Err(sqlx::Error::RowNotFound) => return Err(AddItemError::ForeignAttribute),
+				Err(e) => return Err(AddItemError::DbError(Box::new(e))),
+			};
+
+		// Make sure type matches
+		if data_type != value.to_stub() {
+			return Err(AddItemError::AttributeDataTypeMismatch);
+		}
 
 		// Create the attribute instance
 		let res = sqlx::query(
