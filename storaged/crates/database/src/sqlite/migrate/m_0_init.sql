@@ -7,12 +7,12 @@ CREATE TABLE meta (
 	val TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_meta_var on meta(var);
+CREATE INDEX idx_meta_var on meta(var);
 
 
 
 -- Datasets
-CREATE TABLE IF NOT EXISTS dataset (
+CREATE TABLE dataset (
 	id INTEGER PRIMARY KEY NOT NULL,
 
 	-- This dataset's display name
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS dataset (
 
 
 -- Item classes
-CREATE TABLE IF NOT EXISTS class (
+CREATE TABLE class (
 	id INTEGER PRIMARY KEY NOT NULL,
 
 	-- The dataset this class belongs to
@@ -33,11 +33,11 @@ CREATE TABLE IF NOT EXISTS class (
 	FOREIGN KEY (dataset_id) REFERENCES dataset(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_class_name on class(dataset_id, pretty_name);
+CREATE INDEX idx_class_name on class(dataset_id, pretty_name);
 
 
 -- Attribute metadata
-CREATE TABLE IF NOT EXISTS attribute (
+CREATE TABLE attribute (
 	id INTEGER PRIMARY KEY NOT NULL,
 
 	-- The class this attribute belongs to
@@ -66,5 +66,37 @@ CREATE TABLE IF NOT EXISTS attribute (
 	UNIQUE (attr_order, class_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_attribute_name on attribute(pretty_name);
-CREATE INDEX IF NOT EXISTS idx_attribute_class on attribute(class_id);
+CREATE INDEX idx_attribute_class_name on attribute(class_id, pretty_name);
+
+
+-- Items
+CREATE TABLE item (
+	id INTEGER PRIMARY KEY NOT NULL,
+
+	-- The class this item belongs to
+	class_id INTEGER NOT NULL,
+
+	FOREIGN KEY (class_id) REFERENCES class(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_item_class on item(class_id);
+
+
+-- Attribute values
+CREATE TABLE attribute_instance (
+	-- The item to which this attribute is connected
+	item_id INTEGER NOT NULL,
+
+	-- The attribute this is an instance of
+	attribute_id INTEGER NOT NULL,
+
+	-- The value of this instance
+	attribute_value TEXT NOT NULL,
+
+	FOREIGN KEY (item_id) REFERENCES item(id) ON DELETE CASCADE
+	FOREIGN KEY (attribute_id) REFERENCES attribute(id) ON DELETE CASCADE
+
+	CONSTRAINT pk_attribute_instance PRIMARY KEY (item_id, attribute_id)
+);
+
+CREATE INDEX idx_attrinst_item on attribute_instance(item_id);
