@@ -4,7 +4,7 @@ use copper_util::mime::MimeType;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 use utoipa::ToSchema;
 
 use super::handles::{ClassId, ItemId};
@@ -18,7 +18,7 @@ pub enum AttrData {
 
 	/// A block of text
 	#[schema(value_type = String)]
-	Text(Arc<SmartString<LazyCompact>>),
+	Text(SmartString<LazyCompact>),
 
 	/// An integer
 	Integer {

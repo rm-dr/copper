@@ -21,7 +21,7 @@ pub(super) struct ExecTransactionRequest {
 /// Apply a transaction
 #[utoipa::path(
 	post,
-	path = "",
+	path = "/apply",
 	responses(
 		(status = 200, description = "Transaction executed successfully"),
 		(status = 400, description = "Bad request", body = String),
@@ -49,6 +49,12 @@ pub(super) async fn apply_transaction<Client: DatabaseClient>(
 			StatusCode::INTERNAL_SERVER_ERROR.into_response()
 		}
 
-		Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+		Err(e) => {
+			error!(
+				message = "error while running transaction",
+				error = ?e
+			);
+			StatusCode::INTERNAL_SERVER_ERROR.into_response()
+		}
 	};
 }

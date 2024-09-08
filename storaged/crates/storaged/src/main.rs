@@ -90,8 +90,9 @@ mod tests {
 	};
 	use copper_database::api::{
 		client::AttributeOptions,
-		data::{AttrDataStub, HashType},
+		data::{AttrData, AttrDataStub, HashType},
 		handles::{AttributeId, ClassId, DatasetId},
+		transaction::{Transaction, TransactionAction},
 	};
 	use serde::de::DeserializeOwned;
 	use serde_json::json;
@@ -206,17 +207,30 @@ mod tests {
 		.await
 	}
 
-	async fn response_json<T: DeserializeOwned>(resp: Response<Body>) -> T {
-		serde_json::from_str(
-			&String::from_utf8(
-				axum::body::to_bytes(resp.into_body(), usize::MAX)
-					.await
-					.unwrap()
-					.to_vec(),
-			)
-			.unwrap(),
+	async fn apply_transaction(app: &mut Router, transaction: Transaction) -> Response<Body> {
+		app_request(
+			app,
+			Method::POST,
+			"/transaction/apply",
+			json!({
+				"transaction": transaction
+			}),
 		)
-		.unwrap()
+		.await
+	}
+
+	async fn response_json<T: DeserializeOwned>(resp: Response<Body>) -> T {
+		let s = String::from_utf8(
+			axum::body::to_bytes(resp.into_body(), usize::MAX)
+				.await
+				.unwrap()
+				.to_vec(),
+		)
+		.unwrap();
+
+		// This will panic if you try to call `response_json`
+		// on a response that returns nothing.
+		serde_json::from_str(&s).unwrap()
 	}
 
 	//
@@ -688,6 +702,24 @@ mod tests {
 				response_json::<String>(response).await,
 				"an attribute with this name already exists"
 			);
+		}
+
+		//
+		// MARK: Create items
+		//
+
+		{
+			let response = apply_transaction(
+				&mut app,
+				Transaction {
+					actions: vec![TransactionAction::AddItem {
+						to_class: class_audiofile_id,
+						attributes: vec![(attr_title_id, AttrData::Text("title!".into()))],
+					}],
+				},
+			)
+			.await;
+			assert_eq!(response.status(), 200);
 		}
 	}
 }

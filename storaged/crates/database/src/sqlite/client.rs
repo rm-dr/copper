@@ -509,6 +509,10 @@ impl DatabaseClient for SqliteDatabaseClient {
 			};
 		}
 
+		t.commit()
+			.await
+			.map_err(|e| ApplyTransactionError::DbError(Box::new(e)))?;
+
 		return Ok(());
 	}
 }

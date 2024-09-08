@@ -3,14 +3,13 @@ use crate::api::{
 	errors::transaction::AddItemError,
 	handles::{AttributeId, ClassId, ItemId},
 };
-use std::collections::BTreeMap;
 
 pub(super) async fn add_item(
 	t: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
 	to_class: ClassId,
-	attributes: BTreeMap<AttributeId, AttrData>,
+	attributes: Vec<(AttributeId, AttrData)>,
 ) -> Result<ItemId, AddItemError> {
-	let res = sqlx::query("INSERT INTO item(class_id) VALUES ?;")
+	let res = sqlx::query("INSERT INTO item (class_id) VALUES (?);")
 		.bind(u32::from(to_class))
 		.execute(&mut **t)
 		.await;
@@ -30,7 +29,9 @@ pub(super) async fn add_item(
 
 	for (attr, value) in attributes {
 		// Make sure this attribute comes from this class
-		match sqlx::query("SELECT FROM attribute WHERE id=? AND class_id=?;")
+		match sqlx::query("SELECT data_type FROM attribute WHERE id=? AND class_id=?;")
+			.bind(u32::from(attr))
+			.bind(u32::from(to_class))
 			.fetch_one(&mut **t)
 			.await
 		{
@@ -39,10 +40,13 @@ pub(super) async fn add_item(
 			Err(e) => return Err(AddItemError::DbError(Box::new(e))),
 		}
 
+		// TODO: check type
+		// TODO: check one of each
+
 		// Create the attribute instance
 		let res = sqlx::query(
-			"INSERT INTO attribute_instance(item_id, attribute_id, attribute_value)
-				VALUES (?, ?, ?);",
+			"INSERT INTO attribute_instance (item_id, attribute_id, attribute_value)
+			VALUES (?, ?, ?);",
 		)
 		.bind(u32::from(new_item))
 		.bind(u32::from(attr))

@@ -6,9 +6,9 @@ use copper_database::api::{
 };
 use utoipa::OpenApi;
 
-mod exec;
+mod apply;
 
-use exec::*;
+use apply::*;
 
 #[derive(OpenApi)]
 #[openapi(

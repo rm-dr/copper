@@ -1,8 +1,5 @@
 //! Definitions for high-level dataset transactions
-
-use std::collections::BTreeMap;
-
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use super::{
@@ -11,7 +8,7 @@ use super::{
 };
 
 /// A single action in a transaction
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 #[serde(tag = "type")]
 pub enum TransactionAction {
 	/// Add an item
@@ -21,14 +18,14 @@ pub enum TransactionAction {
 		to_class: ClassId,
 
 		/// The attributes to create the item with
-		attributes: BTreeMap<AttributeId, AttrData>,
+		attributes: Vec<(AttributeId, AttrData)>,
 	},
 }
 
 /// A set of actions to apply to a dataset.
 ///
 /// Transactions are atomic: they either fully succeed or fully fail.
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct Transaction {
 	/// The actions to apply.
 	/// These are applied in an arbitrary order, possibly in parallel.
