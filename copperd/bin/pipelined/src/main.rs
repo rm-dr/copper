@@ -1,15 +1,15 @@
 use api::RouterState;
 use config::PipelinedConfig;
 use futures::TryFutureExt;
+use pipeline::runner::{PipelineRunner, PipelineRunnerOptions};
 use pipelined_node_base::{data::CopperData, CopperContext};
 use std::{error::Error, future::IntoFuture, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{error, info};
 
-use pipelined_pipeline::runner::runner::{PipelineRunConfig, PipelineRunner};
-
 mod api;
 mod config;
+mod pipeline;
 
 #[tokio::main]
 async fn main() {
@@ -24,7 +24,7 @@ async fn main() {
 
 	// Prep runner
 	let mut runner: PipelineRunner<CopperData, CopperContext> =
-		PipelineRunner::new(PipelineRunConfig {
+		PipelineRunner::new(PipelineRunnerOptions {
 			node_threads: config.threads_per_job,
 			max_active_jobs: config.parallel_jobs,
 		});

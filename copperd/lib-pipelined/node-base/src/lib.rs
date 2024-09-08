@@ -2,12 +2,13 @@
 
 //#![warn(missing_docs)]
 
+pub mod base;
 pub mod data;
 pub mod helpers;
 pub mod nodes;
 
+use base::PipelineJobContext;
 use data::CopperData;
-use pipelined_pipeline::base::PipelineJobContext;
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 

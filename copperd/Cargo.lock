@@ -1810,10 +1810,10 @@ dependencies = [
  "axum",
  "axum-extra",
  "copper-util",
+ "crossbeam",
  "futures",
  "pipelined-audiofile",
  "pipelined-node-base",
- "pipelined-pipeline",
  "serde",
  "serde_json",
  "smartstring",
@@ -1835,7 +1835,6 @@ dependencies = [
  "itertools",
  "paste",
  "pipelined-node-base",
- "pipelined-pipeline",
  "rand",
  "serde_with",
  "sha2",
@@ -1848,25 +1847,12 @@ version = "0.1.0"
 dependencies = [
  "copper-util",
  "md5",
- "pipelined-pipeline",
  "reqwest",
  "serde",
  "serde_json",
  "sha2",
  "smartstring",
  "url",
- "utoipa",
-]
-
-[[package]]
-name = "pipelined-pipeline"
-version = "0.1.0"
-dependencies = [
- "copper-util",
- "crossbeam",
- "serde",
- "smartstring",
- "tracing",
  "utoipa",
 ]
 

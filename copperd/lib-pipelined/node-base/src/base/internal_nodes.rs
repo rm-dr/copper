@@ -1,15 +1,9 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, marker::PhantomData};
 
-use crate::{
-	base::{
-		InitNodeError, Node, NodeInfo, NodeState, PipelineData, PipelineJobContext, RunNodeError,
-	},
-	dispatcher::NodeParameterValue,
-	labels::PipelinePortID,
-};
+use crate::base::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError};
 
-pub const INPUT_NODE_TYPE_NAME: &str = "Input";
+use super::{NodeParameterValue, PipelineJobContext, PipelinePortID};
 
 pub struct InputInfo<DataType: PipelineData> {
 	inputs: BTreeMap<PipelinePortID, DataType::DataStubType>,
@@ -78,13 +72,17 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		let value = if let Some(value) = ctx.get_input().get(node_name) {
 			value.clone()
 		} else {
+			panic!();
+			/*
 			return Err(InitNodeError::MissingInput {
 				input_name: node_name.into(),
 			});
+			*/
 		};
 
 		if info.data_type != value.as_stub() {
-			return Err(InitNodeError::BadInputType);
+			panic!()
+			//return Err(InitNodeError::BadInputType);
 		}
 
 		Ok(Self {

@@ -67,7 +67,6 @@ copper-util = { path = "lib-common/util" }
 copper-migrate = { path = "lib-common/migrate" }
 # Pipelined libraries
 pipelined-audiofile = { path = "lib-pipelined/audiofile" }
-pipelined-pipeline = { path = "lib-pipelined/pipeline" }
 pipelined-node-base = { path = "lib-pipelined/node-base" }
 
 

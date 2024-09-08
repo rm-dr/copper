@@ -18,7 +18,6 @@ workspace = true
 
 [dependencies]
 copper-util = { workspace = true }
-pipelined-pipeline = { workspace = true }
 pipelined-node-base = { workspace = true }
 
 smartstring = { workspace = true }

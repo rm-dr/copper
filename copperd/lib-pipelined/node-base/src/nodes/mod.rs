@@ -1,7 +1,10 @@
-use pipelined_pipeline::dispatcher::{NodeDispatcher, RegisterNodeError};
 use std::collections::BTreeMap;
 
-use crate::{data::CopperData, CopperContext};
+use crate::{
+	base::{NodeDispatcher, RegisterNodeError},
+	data::CopperData,
+	CopperContext,
+};
 
 mod constant;
 mod hash;

@@ -3,14 +3,12 @@
 use crate::flac::proc::metastrip::FlacMetaStrip;
 use copper_util::mime::MimeType;
 use pipelined_node_base::{
+	base::{
+		InitNodeError, Node, NodeInfo, NodeParameterValue, NodeState, PipelinePortID, RunNodeError,
+	},
 	data::{BytesSource, CopperData, CopperDataStub},
 	helpers::DataSource,
 	CopperContext,
-};
-use pipelined_pipeline::{
-	base::{InitNodeError, Node, NodeInfo, NodeState, RunNodeError},
-	dispatcher::NodeParameterValue,
-	labels::PipelinePortID,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, io::Read, sync::Arc};

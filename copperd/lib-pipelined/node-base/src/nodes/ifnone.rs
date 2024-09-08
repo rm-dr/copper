@@ -1,13 +1,13 @@
+use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 
-use pipelined_pipeline::{
-	base::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
-	dispatcher::NodeParameterValue,
-	labels::PipelinePortID,
+use crate::{
+	base::{
+		InitNodeError, Node, NodeInfo, NodeParameterValue, NodeState, PipelineData, PipelinePortID,
+		RunNodeError,
+	},
+	data::{CopperData, CopperDataStub},
 };
-use smartstring::{LazyCompact, SmartString};
-
-use crate::data::{CopperData, CopperDataStub};
 
 pub struct IfNone {
 	inputs: BTreeMap<PipelinePortID, CopperDataStub>,

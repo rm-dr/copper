@@ -1,5 +1,9 @@
 use copper_util::graph::util::GraphNodeIdx;
 use crossbeam::channel::{unbounded, Receiver, Sender};
+use pipelined_node_base::base::{
+	Node, NodeDispatcher, NodeState, PipelineData, PipelineJobContext, PipelineNodeID,
+	PipelinePortID, RunNodeError,
+};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::{BTreeMap, VecDeque},
@@ -11,20 +15,15 @@ use std::{
 };
 use tracing::trace;
 
-use super::{
-	runner::PipelineRunConfig,
-	util::{EdgeState, NodeRunState},
-};
-use crate::{
-	base::{Node, NodeState, PipelineData, PipelineJobContext, RunNodeError},
-	dispatcher::NodeDispatcher,
-	labels::{PipelineNodeID, PipelinePortID},
-	pipeline::pipeline::{Pipeline, PipelineEdgeData},
-};
+use crate::pipeline::spec::{EdgeSpec, PipelineSpec};
+
+//
+// MARK: Helpers
+//
 
 #[derive(Debug)]
 #[allow(clippy::manual_non_exhaustive)]
-pub struct PipelineSingleJobError {
+pub struct PipelineJobError {
 	// Prevent creation of this error outside this module
 	_private: (),
 
@@ -32,21 +31,21 @@ pub struct PipelineSingleJobError {
 	pub error: RunNodeError,
 }
 
-impl Display for PipelineSingleJobError {
+impl Display for PipelineJobError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "Error in node `{}`: `{}`", self.node, self.error)
 	}
 }
 
-impl Error for PipelineSingleJobError {
+impl Error for PipelineJobError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		Some(&self.error)
 	}
 }
 
-/// The state of a [`PipelineSingleRunner`]
+/// The state of a [`PipelineJob`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum SingleJobState {
+pub(super) enum PipelineJobState {
 	/// Nodes are running, not done yet
 	Running,
 
@@ -74,10 +73,48 @@ struct NodeInstanceContainer<DataType: PipelineData> {
 	node: Arc<Mutex<Option<Box<dyn Node<DataType>>>>>,
 }
 
-/// An instance of a single running pipeline
-pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
+/// A wrapper around [`PipelineNodeState`] that keeps
+/// track if a certain node is running *right now*.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum NodeRunState {
+	/// This node is currently queued in the thread pool.
+	Running,
+
+	/// This node is not actively running
+	NotRunning(NodeState),
+}
+
+impl NodeRunState {
+	/// Is this node [`NodeRunState::Running`]?
+	pub fn is_running(&self) -> bool {
+		matches!(self, Self::Running)
+	}
+
+	/// Is this node `NodeRunState::NotRunning(PipelineNodestate::Done)`?
+	pub fn is_done(&self) -> bool {
+		matches!(self, Self::NotRunning(NodeState::Done))
+	}
+}
+
+#[derive(Debug)]
+pub(super) enum EdgeState {
+	/// This is a normal data edge
+	Data,
+
+	// This is an Edge::After that is waiting for it's source node
+	AfterWaiting,
+
+	// This is an Edge::After whose source node has finished running.
+	AfterReady,
+}
+
+//
+// MARK: PipelineJob
+//
+
+pub struct PipelineJob<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	/// The pipeline we're running
-	pipeline: Arc<Pipeline<DataType, ContextType>>,
+	pipeline: Arc<PipelineSpec<DataType, ContextType>>,
 
 	pub(crate) context: ContextType,
 
@@ -131,7 +168,7 @@ pub struct PipelineSingleJob<DataType: PipelineData, ContextType: PipelineJobCon
 }
 
 impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Drop
-	for PipelineSingleJob<DataType, ContextType>
+	for PipelineJob<DataType, ContextType>
 {
 	fn drop(&mut self) {
 		for i in &mut self.workers {
@@ -143,10 +180,10 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Drop
 }
 
 impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
-	PipelineSingleJob<DataType, ContextType>
+	PipelineJob<DataType, ContextType>
 {
 	/// Get the pipeline this job is running
-	pub fn get_pipeline(&self) -> &Pipeline<DataType, ContextType> {
+	pub fn get_pipeline(&self) -> &PipelineSpec<DataType, ContextType> {
 		&self.pipeline
 	}
 
@@ -165,17 +202,12 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	pub fn get_input(&self) -> &BTreeMap<SmartString<LazyCompact>, DataType> {
 		self.context.get_input()
 	}
-}
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
-	PipelineSingleJob<DataType, ContextType>
-{
-	/// Make a new [`PipelineSingleRunner`]
 	pub(super) fn new(
-		config: &PipelineRunConfig,
-		context: ContextType,
+		pipeline: Arc<PipelineSpec<DataType, ContextType>>,
 		dispatcher: &NodeDispatcher<DataType, ContextType>,
-		pipeline: Arc<Pipeline<DataType, ContextType>>,
+		context: ContextType,
+		worker_threads: usize,
 	) -> Self {
 		let instant_now = Instant::now();
 		trace!(message = "Making node instances", pipeline_name = ?pipeline.name);
@@ -237,8 +269,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				.graph
 				.iter_edges()
 				.map(|(_, _, x)| match x {
-					PipelineEdgeData::After => EdgeState::AfterWaiting,
-					PipelineEdgeData::PortToPort(_) => EdgeState::Data,
+					EdgeSpec::After => EdgeState::AfterWaiting,
+					EdgeSpec::PortToPort(_) => EdgeState::Data,
 				})
 				.collect::<Vec<_>>()
 		};
@@ -266,7 +298,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			pipeline,
 			node_instances,
 			edge_values,
-			workers: (0..config.node_threads).map(|_| None).collect(),
+			workers: (0..worker_threads).map(|_| None).collect(),
 			send_data,
 			receive_data,
 			send_status,
@@ -274,18 +306,14 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			node_run_offset: 0,
 		}
 	}
-}
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
-	PipelineSingleJob<DataType, ContextType>
-{
 	/// Update this job: process state changes that occurred since we last called `run()`,
 	/// deliver new data, and start nodes that should be started.
 	///
 	/// This method should be called often, but not too often.
 	/// All computation is done in a thread pool, `run()`'s responsibility
 	/// is to update state and schedule new nodes.
-	pub(super) fn run(&mut self) -> Result<SingleJobState, PipelineSingleJobError> {
+	pub(super) fn run(&mut self) -> Result<PipelineJobState, PipelineJobError> {
 		// Run nodes in a better order, and maybe skip a few.
 
 		// Handle all changes that occurred since we last called `run()`
@@ -315,15 +343,15 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		self.node_run_offset %= self.node_instances.len();
 
 		if all_nodes_done {
-			return Ok(SingleJobState::Done);
+			return Ok(PipelineJobState::Done);
 		}
 
-		return Ok(SingleJobState::Running);
+		return Ok(PipelineJobState::Running);
 	}
 
 	/// Helper function, written here only for convenience.
 	/// If we can add the node with index `n` to the thread pool, do so.
-	fn try_start_node(&mut self, node: GraphNodeIdx) -> Result<(), PipelineSingleJobError> {
+	fn try_start_node(&mut self, node: GraphNodeIdx) -> Result<(), PipelineJobError> {
 		// Skip nodes we've already run and nodes that are running right now.
 		let n = self.node_instances[node.as_usize()].state;
 		let node_id = self.node_instances[node.as_usize()].id.clone();
@@ -359,7 +387,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 					.as_mut()
 					.unwrap()
 					.take_input(data.0, data.1)
-					.map_err(|error| PipelineSingleJobError {
+					.map_err(|error| PipelineJobError {
 						_private: (),
 						node: node_id.clone(),
 						error,
@@ -466,7 +494,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	/// Handle all messages nodes have sent up to this point.
 	/// This MUST be done between successive calls of
 	/// `run()` on any one node.
-	fn handle_all_messages(&mut self) -> Result<(), PipelineSingleJobError> {
+	fn handle_all_messages(&mut self) -> Result<(), PipelineJobError> {
 		for (node, port, data) in self.receive_data.try_iter() {
 			// Send data to all inputs connected to this output
 			for edge_idx in self.pipeline.graph.edges_starting_at(node) {
@@ -489,7 +517,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		for (node, res) in self.receive_status.try_iter() {
 			match res {
 				Err(x) => {
-					return Err(PipelineSingleJobError {
+					return Err(PipelineJobError {
 						_private: (),
 						node: self.node_instances[node.as_usize()].id.clone(),
 						error: x,

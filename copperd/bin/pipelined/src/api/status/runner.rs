@@ -5,10 +5,7 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use pipelined_pipeline::{
-	base::NodeState,
-	labels::{PipelineName, PipelineNodeID},
-};
+use pipelined_node_base::base::{NodeState, PipelineNodeID};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -37,8 +34,7 @@ pub(super) struct RunningJobStatus {
 	pub job_id: u128,
 
 	/// The pipeline this job is running
-	#[schema(value_type = String)]
-	pub pipeline: PipelineName,
+	pub pipeline: String,
 
 	/// The status of each node in this pipeline
 	pub node_status: Vec<RunningNodeStatus>,
@@ -97,7 +93,7 @@ pub(super) async fn get_runner_status(
 			let p = job.get_pipeline();
 			RunningJobStatus {
 				job_id: *job_id,
-				pipeline: p.get_name().clone(),
+				pipeline: p.get_name().to_string(),
 				input_exemplar: format!("{:?}", job.get_input().first_key_value().unwrap().0),
 				node_status: p
 					.iter_node_ids()

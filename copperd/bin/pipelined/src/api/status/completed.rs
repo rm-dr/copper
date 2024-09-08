@@ -5,7 +5,6 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use pipelined_pipeline::labels::PipelineName;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -18,8 +17,7 @@ pub(super) struct CompletedJobStatus {
 	pub job_id: u128,
 
 	/// The pipeline this job ran
-	#[schema(value_type = String)]
-	pub pipeline: PipelineName,
+	pub pipeline: String,
 
 	/// A pretty string that identifies this job by its input
 	pub input_exemplar: String,
@@ -45,7 +43,7 @@ pub(super) async fn get_runner_completed(
 		.iter()
 		.map(|c| CompletedJobStatus {
 			job_id: c.job_id,
-			pipeline: c.pipeline.clone(),
+			pipeline: c.pipeline.clone().into(),
 			input_exemplar: format!("{:?}", c.input.first_key_value().unwrap().0),
 		})
 		.collect();

@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
-use super::{PipelineData, RunNodeError};
-use crate::labels::PipelinePortID;
+use super::{PipelineData, PipelinePortID, RunNodeError};
 
 /// The state of a [`PipelineNode`] at a point in time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,12 +39,7 @@ pub trait NodeInfo<DataType: PipelineData> {
 	fn outputs(&self) -> &BTreeMap<PipelinePortID, DataType::DataStubType>;
 }
 
-/// An instance of a pipeline node, with some state.
-///
-/// When a pipeline is run, a [`Node`] is created for each of its nodes.
-///
-/// A [`Node`] is used to run exactly one pipeline instance,
-/// and is dropped when that pipeline finishes.
+/// A pipeline node with some state.
 pub trait Node<DataType: PipelineData>: Sync + Send {
 	/// If true, run this node in the main loop instead of starting a thread.
 	///

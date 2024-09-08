@@ -31,20 +31,6 @@ pub enum InitNodeError {
 		message: String,
 	},
 
-	/// We tried to create an `Input` node with data that doesn't match
-	/// its configured type. This means that our pipeline was run with
-	/// invalid inputs.
-	///
-	/// Only the `Input` node should throw this error, since no other nodes
-	/// access the context's input.
-	BadInputType,
-
-	/// We expected an input with the given name, but didn't get it.
-	MissingInput {
-		/// The input that is missing
-		input_name: SmartString<LazyCompact>,
-	},
-
 	/// An arbitrary error
 	Other(Box<dyn Error + Sync + Send + 'static>),
 }
@@ -66,8 +52,6 @@ impl Display for InitNodeError {
 			Self::MissingParameter { param_name } => {
 				write!(f, "Missing parameter `{param_name}`")
 			}
-			Self::BadInputType => write!(f, "Tried to run pipeline with invalid input"),
-			Self::MissingInput { input_name } => write!(f, "Missing input `{input_name}`"),
 		}
 	}
 }

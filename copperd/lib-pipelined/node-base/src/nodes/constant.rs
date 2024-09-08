@@ -1,12 +1,13 @@
-use pipelined_pipeline::{
-	base::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
-	dispatcher::NodeParameterValue,
-	labels::PipelinePortID,
-};
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 
-use crate::data::{CopperData, CopperDataStub};
+use crate::{
+	base::{
+		InitNodeError, Node, NodeInfo, NodeParameterValue, NodeState, PipelineData, PipelinePortID,
+		RunNodeError,
+	},
+	data::{CopperData, CopperDataStub},
+};
 
 pub struct Constant {
 	inputs: BTreeMap<PipelinePortID, CopperDataStub>,

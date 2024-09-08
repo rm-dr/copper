@@ -5,14 +5,13 @@ use crate::{
 use copper_util::mime::MimeType;
 use itertools::Itertools;
 use pipelined_node_base::{
+	base::{
+		InitNodeError, Node, NodeInfo, NodeParameterValue, NodeState, PipelineData, PipelinePortID,
+		RunNodeError,
+	},
 	data::{CopperData, CopperDataStub},
 	helpers::DataSource,
 	CopperContext,
-};
-use pipelined_pipeline::{
-	base::{InitNodeError, Node, NodeInfo, NodeState, PipelineData, RunNodeError},
-	dispatcher::NodeParameterValue,
-	labels::PipelinePortID,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, io::Read, sync::Arc};

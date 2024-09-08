@@ -9,22 +9,21 @@ use pipelined_node_base::{
 	data::{BytesSource, CopperData},
 	CopperContext,
 };
-use pipelined_pipeline::{
-	labels::PipelineName,
-	pipeline::{pipeline::Pipeline, syntax::spec::PipelineSpec},
-};
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
 use url::Url;
 use utoipa::ToSchema;
 
-use crate::RouterState;
+use crate::{
+	pipeline::{json::PipelineJson, spec::PipelineSpec},
+	RouterState,
+};
 
 #[derive(Deserialize, ToSchema, Debug)]
 pub(super) struct AddJobParams {
 	pub pipeline_name: String,
-	pub pipeline_spec: PipelineSpec<CopperData>,
+	pub pipeline_spec: PipelineJson<CopperData>,
 
 	#[schema(value_type = BTreeMap<String, AddJobInput>)]
 	pub input: BTreeMap<SmartString<LazyCompact>, AddJobInput>,
@@ -64,8 +63,6 @@ pub(super) async fn run_pipeline(
 	State(state): State<RouterState>,
 	Json(payload): Json<AddJobParams>,
 ) -> Response {
-	let pipeline_name = PipelineName::new(&payload.pipeline_name);
-
 	let mut runner = state.runner.lock().await;
 
 	let mut input = BTreeMap::new();
@@ -91,10 +88,10 @@ pub(super) async fn run_pipeline(
 		input,
 	};
 
-	let pipe = Pipeline::build(
+	let pipe = PipelineSpec::build(
 		runner.get_dispatcher(),
 		&context,
-		&pipeline_name,
+		&payload.pipeline_name,
 		&payload.pipeline_spec,
 	)
 	.unwrap();

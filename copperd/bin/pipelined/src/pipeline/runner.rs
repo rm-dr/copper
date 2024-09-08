@@ -1,6 +1,4 @@
-//! Top-level pipeline runner.
-//! Runs a set of jobs asynchronously and in parallel.
-
+use pipelined_node_base::base::{NodeDispatcher, NodeState, PipelineData, PipelineJobContext};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::{BTreeMap, VecDeque},
@@ -8,16 +6,12 @@ use std::{
 };
 use tracing::{debug, info, warn};
 
-use super::single::{PipelineSingleJob, PipelineSingleJobError, SingleJobState};
-use crate::{
-	base::{NodeState, PipelineData, PipelineJobContext},
-	dispatcher::NodeDispatcher,
-	labels::PipelineName,
-	pipeline::pipeline::Pipeline,
+use crate::pipeline::{
+	job::{PipelineJob, PipelineJobError, PipelineJobState},
+	spec::PipelineSpec,
 };
 
-/// Pipeline runner configuration
-pub struct PipelineRunConfig {
+pub struct PipelineRunnerOptions {
 	/// The size of each job's threadpool.
 	/// A runner will use at most `node_threads * max_active_jobs` threads.
 	pub node_threads: usize,
@@ -29,11 +23,11 @@ pub struct PipelineRunConfig {
 /// A completed pipeline job
 #[derive(Debug)]
 pub struct CompletedJob<DataType: PipelineData> {
-	/// The id of the job that finisehd
+	/// The id of the job that finished
 	pub job_id: u128,
 
 	/// The name of the pipeline that was run
-	pub pipeline: PipelineName,
+	pub pipeline: SmartString<LazyCompact>,
 
 	/// The arguments this pipeline was run with
 	pub input: BTreeMap<SmartString<LazyCompact>, DataType>,
@@ -49,7 +43,7 @@ pub struct FailedJob<DataType: PipelineData> {
 	pub job_id: u128,
 
 	/// The name of the pipeline that was run
-	pub pipeline: PipelineName,
+	pub pipeline: SmartString<LazyCompact>,
 
 	/// The arguments this pipeline was run with
 	pub input: BTreeMap<SmartString<LazyCompact>, DataType>,
@@ -58,21 +52,21 @@ pub struct FailedJob<DataType: PipelineData> {
 	pub node_states: Vec<(bool, NodeState)>,
 
 	/// The reason this pipeline failed.
-	pub error: PipelineSingleJobError,
+	pub error: PipelineJobError,
 }
 
 /// A prepared data processing pipeline.
 /// This is guaranteed to be correct:
 /// no dependency cycles, no port type mismatch, etc
 pub struct PipelineRunner<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
-	config: PipelineRunConfig,
+	config: PipelineRunnerOptions,
 	dispatcher: NodeDispatcher<DataType, ContextType>,
 
 	/// Jobs that are actively running
-	active_jobs: Vec<Option<(u128, PipelineSingleJob<DataType, ContextType>)>>,
+	active_jobs: Vec<Option<(u128, PipelineJob<DataType, ContextType>)>>,
 
 	/// Jobs that are queued to run
-	job_queue: VecDeque<(u128, PipelineSingleJob<DataType, ContextType>)>,
+	job_queue: VecDeque<(u128, PipelineJob<DataType, ContextType>)>,
 
 	/// A log of completed jobs
 	completed_jobs: VecDeque<CompletedJob<DataType>>,
@@ -89,7 +83,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	PipelineRunner<DataType, ContextType>
 {
 	/// Initialize a new runner
-	pub fn new(config: PipelineRunConfig) -> Self {
+	pub fn new(config: PipelineRunnerOptions) -> Self {
 		Self {
 			active_jobs: (0..config.max_active_jobs).map(|_| None).collect(),
 			job_queue: VecDeque::new(),
@@ -107,14 +101,19 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	pub fn add_job(
 		&mut self,
 		context: ContextType,
-		pipeline: Arc<Pipeline<DataType, ContextType>>,
+		pipeline: Arc<PipelineSpec<DataType, ContextType>>,
 	) -> u128 {
 		debug!(
 			message = "Adding job",
 			pipeline = ?pipeline.name,
 		);
 
-		let runner = PipelineSingleJob::new(&self.config, context, &self.dispatcher, pipeline);
+		let runner = PipelineJob::new(
+			pipeline,
+			&self.dispatcher,
+			context,
+			self.config.node_threads,
+		);
 		self.job_id_counter = self.job_id_counter.wrapping_add(1);
 		self.job_queue.push_back((self.job_id_counter, runner));
 		return self.job_id_counter;
@@ -123,7 +122,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	/// Iterate over all active jobs
 	pub fn iter_active_jobs(
 		&self,
-	) -> impl Iterator<Item = &(u128, PipelineSingleJob<DataType, ContextType>)> {
+	) -> impl Iterator<Item = &(u128, PipelineJob<DataType, ContextType>)> {
 		self.active_jobs.iter().filter_map(|x| x.as_ref())
 	}
 
@@ -138,7 +137,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	}
 
 	/// Get this runner's job queue
-	pub fn get_queued_jobs(&self) -> &VecDeque<(u128, PipelineSingleJob<DataType, ContextType>)> {
+	pub fn get_queued_jobs(&self) -> &VecDeque<(u128, PipelineJob<DataType, ContextType>)> {
 		&self.job_queue
 	}
 
@@ -166,7 +165,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	pub fn queued_job_by_id(
 		&self,
 		id: u128,
-	) -> Option<&(u128, PipelineSingleJob<DataType, ContextType>)> {
+	) -> Option<&(u128, PipelineJob<DataType, ContextType>)> {
 		self.job_queue.iter().find(|(x, _)| *x == id)
 	}
 
@@ -174,7 +173,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	pub fn active_job_by_id(
 		&self,
 		id: u128,
-	) -> Option<&(u128, PipelineSingleJob<DataType, ContextType>)> {
+	) -> Option<&(u128, PipelineJob<DataType, ContextType>)> {
 		self.active_jobs
 			.iter()
 			.find(|x| x.as_ref().is_some_and(|(x, _)| *x == id))
@@ -187,8 +186,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			if let Some((id, x)) = r {
 				// Update running jobs
 				match x.run() {
-					Ok(SingleJobState::Running) => {}
-					Ok(SingleJobState::Done) => {
+					Ok(PipelineJobState::Running) => {}
+					Ok(PipelineJobState::Done) => {
 						info!(
 							message = "Job finished",
 							job_id = id,

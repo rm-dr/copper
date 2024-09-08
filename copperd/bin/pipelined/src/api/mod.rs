@@ -9,12 +9,10 @@ use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use pipelined_pipeline::runner::runner::PipelineRunner;
-
 mod pipeline;
 mod status;
 
-use crate::config::PipelinedConfig;
+use crate::{config::PipelinedConfig, pipeline::runner::PipelineRunner};
 
 #[derive(Clone)]
 pub struct RouterState {

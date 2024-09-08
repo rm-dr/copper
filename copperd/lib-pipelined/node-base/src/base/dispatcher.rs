@@ -1,10 +1,10 @@
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, marker::PhantomData};
+use std::{collections::BTreeMap, error::Error, fmt::Display, marker::PhantomData};
 
-use super::{NodeParameterSpec, NodeParameterValue, RegisterNodeError};
-use crate::{
-	base::{InitNodeError, Node, NodeInfo, PipelineData, PipelineJobContext},
-	nodes::{Input, InputInfo, INPUT_NODE_TYPE_NAME},
+use super::{
+	internal_nodes::{Input, InputInfo},
+	InitNodeError, Node, NodeInfo, NodeParameterSpec, NodeParameterValue, PipelineData,
+	PipelineJobContext, INPUT_NODE_TYPE_NAME,
 };
 
 // This type must be send + sync, since we use this inside tokio's async runtime.
@@ -31,6 +31,23 @@ type NodeInfoFnType<DataType, ContextType> = &'static (dyn Fn(
               + Send
               + Sync);
 
+/// An error we encounter when trying to register a node
+#[derive(Debug)]
+pub enum RegisterNodeError {
+	/// We tried to register a node with a type string that is already used
+	AlreadyExists,
+}
+
+impl Display for RegisterNodeError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::AlreadyExists => write!(f, "A node with this name already exists"),
+		}
+	}
+}
+
+impl Error for RegisterNodeError {}
+
 /// A node type we've registered inside a [`NodeDispatcher`]
 struct RegisteredNode<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	/// A method that constructs a new node of this type with the provided parameters.
@@ -44,10 +61,8 @@ struct RegisteredNode<DataType: PipelineData, ContextType: PipelineJobContext<Da
 }
 
 /// A factory struct that constructs pipeline nodes
-/// `ContextType` is per-job state that is passed to each node.
 pub struct NodeDispatcher<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	_pa: PhantomData<DataType>,
-	_pb: PhantomData<ContextType>,
 
 	nodes: BTreeMap<SmartString<LazyCompact>, RegisteredNode<DataType, ContextType>>,
 }
@@ -59,7 +74,6 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	pub fn new() -> Self {
 		let mut x = Self {
 			_pa: PhantomData {},
-			_pb: PhantomData {},
 			nodes: BTreeMap::new(),
 		};
 
@@ -102,7 +116,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		return Ok(());
 	}
 
-	pub(crate) fn init_node(
+	pub fn init_node(
 		&self,
 		context: &ContextType,
 		node_type: &str,
@@ -116,7 +130,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		}
 	}
 
-	pub(crate) fn node_info(
+	pub fn node_info(
 		&self,
 		context: &ContextType,
 		node_type: &str,

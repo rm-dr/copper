@@ -1,10 +1,11 @@
 use copper_util::mime::MimeType;
-use pipelined_pipeline::base::{PipelineData, PipelineDataStub};
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
 use url::Url;
 use utoipa::ToSchema;
+
+use crate::base::{PipelineData, PipelineDataStub};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
 pub enum HashType {
