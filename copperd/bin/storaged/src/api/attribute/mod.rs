@@ -1,9 +1,9 @@
+use crate::database::base::client::DatabaseClient;
 use crate::RouterState;
 use axum::{
 	routing::{delete, get, patch},
 	Router,
 };
-use storaged_database::api::client::DatabaseClient;
 use utoipa::OpenApi;
 
 mod del;

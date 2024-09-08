@@ -24,7 +24,7 @@ rpath = false
 
 
 [workspace]
-members = ["bin/*", "lib-common/*", "lib-pipelined/*", "lib-storaged/*"]
+members = ["bin/*", "lib-common/*", "lib-pipelined/*"]
 default-members = ["bin/pipelined", "bin/storaged"]
 resolver = "2"
 
@@ -69,9 +69,6 @@ copper-migrate = { path = "lib-common/migrate" }
 pipelined-audiofile = { path = "lib-pipelined/audiofile" }
 pipelined-pipeline = { path = "lib-pipelined/pipeline" }
 pipelined-node-base = { path = "lib-pipelined/node-base" }
-# Storaged libraries
-storaged-database = { path = "lib-storaged/database" }
-storaged-util = { path = "lib-storaged/util" }
 
 
 # Logging

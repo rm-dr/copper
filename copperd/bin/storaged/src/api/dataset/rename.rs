@@ -1,10 +1,10 @@
+use crate::database::base::{client::DatabaseClient, errors::dataset::RenameDatasetError};
 use axum::{
 	extract::{Path, State},
 	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
-use storaged_database::api::{client::DatabaseClient, errors::dataset::RenameDatasetError};
 use serde::Deserialize;
 use tracing::error;
 use utoipa::ToSchema;

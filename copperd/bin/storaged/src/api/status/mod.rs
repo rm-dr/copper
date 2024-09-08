@@ -1,6 +1,6 @@
+use crate::database::base::client::DatabaseClient;
 use crate::RouterState;
 use axum::{routing::get, Router};
-use storaged_database::api::client::DatabaseClient;
 use utoipa::OpenApi;
 
 mod server;

@@ -7,7 +7,7 @@ use utoipa::{
 };
 use utoipa_swagger_ui::SwaggerUi;
 
-use storaged_database::api::{
+use crate::database::base::{
 	client::DatabaseClient,
 	data::{AttrData, AttrDataStub, HashType},
 	info::{AttributeInfo, ClassInfo, DatasetInfo},

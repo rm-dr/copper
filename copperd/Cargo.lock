@@ -2785,25 +2785,8 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "storaged"
 version = "0.1.0"
 dependencies = [
- "axum",
- "serde",
- "serde_json",
- "smartstring",
- "storaged-database",
- "tokio",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "utoipa",
- "utoipa-swagger-ui",
-]
-
-[[package]]
-name = "storaged-database"
-version = "0.1.0"
-dependencies = [
  "async-trait",
+ "axum",
  "copper-migrate",
  "copper-util",
  "itertools",
@@ -2811,17 +2794,13 @@ dependencies = [
  "serde_json",
  "smartstring",
  "sqlx",
- "storaged-util",
+ "tokio",
+ "tower",
+ "tower-http",
  "tracing",
+ "tracing-subscriber",
  "utoipa",
-]
-
-[[package]]
-name = "storaged-util"
-version = "0.1.0"
-dependencies = [
- "serde_with",
- "tracing",
+ "utoipa-swagger-ui",
 ]
 
 [[package]]

@@ -2,7 +2,7 @@
 
 use std::{error::Error, fmt::Display};
 
-use storaged_util::names::NameError;
+use crate::util::names::NameError;
 
 /// An error we can encounter when creating a dataset
 #[derive(Debug)]

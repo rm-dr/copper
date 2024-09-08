@@ -1,10 +1,10 @@
+use crate::database::base::client::DatabaseClient;
 use axum::{
 	extract::State,
 	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
-use storaged_database::api::client::DatabaseClient;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use utoipa::ToSchema;

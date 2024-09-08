@@ -1,37 +1,41 @@
-//! Errors we can encounter when operating on classes
+//! Errors we can encounter when operating on attributes
 
 use std::{error::Error, fmt::Display};
 
-use storaged_util::names::NameError;
+use crate::util::names::NameError;
 
-/// An error we can encounter when creating a class
+/// An error we can encounter when creating an attribute
 #[derive(Debug)]
-pub enum AddClassError {
+pub enum AddAttributeError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
 
-	/// We tried to add a class to a dataset that doesn't exist
-	NoSuchDataset,
+	/// We tried to add an attribute to a class that doesn't exist
+	NoSuchClass,
 
-	/// We tried to add a class, but its dataset already has a class with that name
+	/// We tried to add an attribute with a name that is already taken
 	UniqueViolation,
 
-	/// We tried to create a class with an invalid name
+	/// We tried to create an attribute with an invalid name
 	NameError(NameError),
 }
 
-impl Display for AddClassError {
+impl Display for AddAttributeError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
-			Self::NoSuchDataset => write!(f, "tried to add a class to a non-existing dataset"),
+			Self::NoSuchClass => {
+				write!(f, "tried to add an attribute to a non-existing class")
+			}
 			Self::NameError(_) => write!(f, "invalid name"),
-			Self::UniqueViolation => write!(f, "this dataset already has a class with this name"),
+			Self::UniqueViolation => {
+				write!(f, "this itemclass already has an attribute with this name")
+			}
 		}
 	}
 }
 
-impl Error for AddClassError {
+impl Error for AddAttributeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
@@ -41,26 +45,26 @@ impl Error for AddClassError {
 	}
 }
 
-/// An error we can encounter when getting class info
+/// An error we can encounter when getting attribute info
 #[derive(Debug)]
-pub enum GetClassError {
+pub enum GetAttributeError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
 
-	/// We tried to get a class by id, but it doesn't exist
+	/// We tried to get an attribute by id, but it doesn't exist
 	NotFound,
 }
 
-impl Display for GetClassError {
+impl Display for GetAttributeError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
-			Self::NotFound => write!(f, "class not found"),
+			Self::NotFound => write!(f, "attribute not found"),
 		}
 	}
 }
 
-impl Error for GetClassError {
+impl Error for GetAttributeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
@@ -69,30 +73,32 @@ impl Error for GetClassError {
 	}
 }
 
-/// An error we can encounter when renaming a class
+/// An error we can encounter when renaming an attibute
 #[derive(Debug)]
-pub enum RenameClassError {
+pub enum RenameAttributeError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
 
+	/// We tried to add an attribute with a name that is already taken
+	UniqueViolation,
+
 	/// We tried to set an invalid name
 	NameError(NameError),
-
-	/// We tried to rename a class to a name that is already taken
-	UniqueViolation,
 }
 
-impl Display for RenameClassError {
+impl Display for RenameAttributeError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
 			Self::NameError(_) => write!(f, "invalid name"),
-			Self::UniqueViolation => write!(f, "this dataset already has a class with this name"),
+			Self::UniqueViolation => {
+				write!(f, "this itemclass already has an attribute with this name")
+			}
 		}
 	}
 }
 
-impl Error for RenameClassError {
+impl Error for RenameAttributeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
@@ -102,14 +108,14 @@ impl Error for RenameClassError {
 	}
 }
 
-/// An error we can encounter when deleting a class
+/// An error we can encounter when deleting an attribute
 #[derive(Debug)]
-pub enum DeleteClassError {
+pub enum DeleteAttributeError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
 }
 
-impl Display for DeleteClassError {
+impl Display for DeleteAttributeError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
@@ -117,7 +123,7 @@ impl Display for DeleteClassError {
 	}
 }
 
-impl Error for DeleteClassError {
+impl Error for DeleteAttributeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),

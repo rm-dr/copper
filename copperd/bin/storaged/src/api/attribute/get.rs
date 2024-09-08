@@ -1,3 +1,4 @@
+use crate::database::base::{client::DatabaseClient, errors::attribute::GetAttributeError};
 use crate::RouterState;
 use axum::{
 	extract::{Path, State},
@@ -5,7 +6,6 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
-use storaged_database::api::{client::DatabaseClient, errors::attribute::GetAttributeError};
 use tracing::error;
 
 /// Get attribute info

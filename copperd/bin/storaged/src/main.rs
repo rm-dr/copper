@@ -6,12 +6,14 @@
 use api::RouterState;
 use axum::Router;
 use config::StoragedConfig;
+use database::sqlite::{SqliteDatabaseClient, SqliteDatabaseOpenError};
 use std::sync::Arc;
-use storaged_database::sqlite::{SqliteDatabaseClient, SqliteDatabaseOpenError};
 use tracing::{error, info};
 
 mod api;
 mod config;
+mod database;
+mod util;
 
 async fn make_app(config: StoragedConfig) -> Router {
 	// Connect to database
@@ -88,14 +90,14 @@ mod tests {
 		body::Body,
 		http::{Method, Request, Response},
 	};
-	use serde::de::DeserializeOwned;
-	use serde_json::json;
-	use storaged_database::api::{
+	use database::base::{
 		client::AttributeOptions,
 		data::{AttrData, AttrDataStub, HashType},
 		handles::{AttributeId, ClassId, DatasetId},
 		transaction::{Transaction, TransactionAction},
 	};
+	use serde::de::DeserializeOwned;
+	use serde_json::json;
 	use tower::Service;
 
 	//

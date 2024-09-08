@@ -1,26 +1,28 @@
-use crate::api::{
-	client::{AttributeOptions, DatabaseClient},
-	data::AttrDataStub,
-	errors::{
-		attribute::{
-			AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
-		},
-		class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
-		dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
-		item::{DeleteItemError, GetItemError},
-		transaction::ApplyTransactionError,
-	},
-	handles::{AttributeId, ClassId, DatasetId, ItemId},
-	info::{AttributeInfo, ClassInfo, DatasetInfo, ItemInfo},
-	transaction::{Transaction, TransactionAction},
-};
 use async_trait::async_trait;
 use copper_util::mime::MimeType;
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, Row};
-use storaged_util::names::check_name;
 
 use super::{helpers, SqliteDatabaseClient};
+use crate::{
+	database::base::{
+		client::{AttributeOptions, DatabaseClient},
+		data::AttrDataStub,
+		errors::{
+			attribute::{
+				AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
+			},
+			class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
+			dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
+			item::{DeleteItemError, GetItemError},
+			transaction::ApplyTransactionError,
+		},
+		handles::{AttributeId, ClassId, DatasetId, ItemId},
+		info::{AttributeInfo, ClassInfo, DatasetInfo, ItemInfo},
+		transaction::{Transaction, TransactionAction},
+	},
+	util::names::check_name,
+};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct BlobJsonEncoded {
