@@ -9,7 +9,10 @@ use copper_util::HashType;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
-use utoipa::OpenApi;
+use utoipa::{
+	openapi::security::{Http, HttpAuthScheme, SecurityScheme},
+	Modify, OpenApi,
+};
 use utoipa_swagger_ui::SwaggerUi;
 
 mod pipeline;
@@ -29,17 +32,28 @@ pub struct RouterState {
 	pub runner: Arc<Mutex<PipelineRunner<PipeData, CopperContext>>>,
 }
 
+struct BearerSecurityAddon;
+impl Modify for BearerSecurityAddon {
+	fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+		if let Some(components) = openapi.components.as_mut() {
+			components.add_security_scheme(
+				"bearer",
+				SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)),
+			)
+		}
+	}
+}
+
 #[derive(OpenApi)]
 #[openapi(
-	//modifiers(&BearerSecurityAddon),
+	modifiers(&BearerSecurityAddon),
 	nest(
 		(path = "/status", api = status::StatusApi),
 		(path = "/pipeline", api = pipeline::PipelineApi),
 	),
 	tags(
-		(name = "Copper", description = "Copper backend daemon")
+		(name = "pipelined", description = "Copper pipeline runner")
 	),
-	// All schema structs defined outside `crate::api` go here
 	components(schemas(
 		PipeDataStub,
 		PipeData,

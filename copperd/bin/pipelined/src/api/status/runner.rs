@@ -1,10 +1,9 @@
 use axum::{
-	extract::State,
-	http::StatusCode,
+	extract::{OriginalUri, State},
+	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
-use axum_extra::extract::CookieJar;
 use copper_pipelined::base::{NodeId, NodeState};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -82,9 +81,14 @@ pub(super) enum RunningNodeState {
 	)
 )]
 pub(super) async fn get_runner_status(
-	_jar: CookieJar,
+	headers: HeaderMap,
+	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState>,
 ) -> Response {
+	if !state.config.header_has_valid_auth(&uri, &headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	};
+
 	let runner = state.runner.lock().await;
 
 	let running_jobs: Vec<RunningJobStatus> = runner

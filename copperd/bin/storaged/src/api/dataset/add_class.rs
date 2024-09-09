@@ -1,6 +1,6 @@
 use crate::database::base::{client::DatabaseClient, errors::class::AddClassError};
 use axum::{
-	extract::{Path, State},
+	extract::{OriginalUri, Path, State},
 	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
@@ -31,11 +31,16 @@ pub(super) struct NewClassRequest {
 	)
 )]
 pub(super) async fn add_class<Client: DatabaseClient>(
-	_headers: HeaderMap,
+	headers: HeaderMap,
+	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
 	Path(dataset_id): Path<u32>,
 	Json(payload): Json<NewClassRequest>,
 ) -> Response {
+	if !state.config.header_has_valid_auth(&uri, &headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	};
+
 	let res = state
 		.client
 		.add_class(dataset_id.into(), &payload.name)

@@ -1,6 +1,6 @@
 use crate::database::base::{client::DatabaseClient, errors::dataset::RenameDatasetError};
 use axum::{
-	extract::{Path, State},
+	extract::{OriginalUri, Path, State},
 	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
@@ -33,11 +33,16 @@ pub(super) struct RenameDatasetRequest {
 	)
 )]
 pub(super) async fn rename_dataset<Client: DatabaseClient>(
-	_headers: HeaderMap,
+	headers: HeaderMap,
+	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
 	Path(dataset_id): Path<u32>,
 	Json(payload): Json<RenameDatasetRequest>,
 ) -> Response {
+	if !state.config.header_has_valid_auth(&uri, &headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	};
+
 	let res = state
 		.client
 		.rename_dataset(dataset_id.into(), &payload.new_name)

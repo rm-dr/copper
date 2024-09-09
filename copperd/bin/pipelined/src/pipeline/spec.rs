@@ -1,6 +1,5 @@
 use copper_pipelined::base::{
 	NodeDispatcher, NodeId, NodeParameterValue, PipelineData, PipelineJobContext, PortName,
-	INPUT_NODE_TYPE_NAME,
 };
 use copper_util::graph::{finalized::FinalizedGraph, graph::Graph};
 use smartstring::{LazyCompact, SmartString};
@@ -165,26 +164,6 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	/// Get this pipeline's name
 	pub fn get_name(&self) -> &str {
 		&self.name
-	}
-
-	pub fn get_node(&self, node_id: &NodeId) -> Option<&NodeSpec<DataType>> {
-		self.graph.iter_nodes().find(|n| n.id == *node_id)
-	}
-
-	pub fn input_nodes(&self) -> Vec<(NodeId, <DataType as PipelineData>::DataStubType)> {
-		self.graph
-			.iter_nodes()
-			.filter(|n| n.node_type == INPUT_NODE_TYPE_NAME)
-			.map(|n| {
-				(
-					n.id.clone(),
-					match n.node_params.get("data_type") {
-						Some(NodeParameterValue::DataType(x)) => *x,
-						_ => unreachable!(),
-					},
-				)
-			})
-			.collect()
 	}
 }
 

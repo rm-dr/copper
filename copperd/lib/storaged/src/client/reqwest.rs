@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use reqwest::{Client, IntoUrl, Url};
+use reqwest::{header, Client, IntoUrl, StatusCode, Url};
 use serde_json::json;
 
 use super::{StoragedClient, StoragedRequestError};
@@ -8,13 +8,15 @@ use crate::{ClassId, ClassInfo, Transaction};
 pub struct ReqwestStoragedClient {
 	client: Client,
 	storaged_url: Url,
+	storaged_secret: String,
 }
 
 impl ReqwestStoragedClient {
-	pub fn new(storaged_url: impl IntoUrl) -> Result<Self, reqwest::Error> {
+	pub fn new(storaged_url: impl IntoUrl, storaged_secret: &str) -> Result<Self, reqwest::Error> {
 		Ok(Self {
 			client: Client::new(),
 			storaged_url: storaged_url.into_url()?,
+			storaged_secret: storaged_secret.to_string(),
 		})
 	}
 }
@@ -43,12 +45,27 @@ impl StoragedClient for ReqwestStoragedClient {
 					.join(&format!("/class/{}", u32::from(class_id)))
 					.unwrap(),
 			)
+			.header(
+				header::AUTHORIZATION,
+				format!("Bearer {}", self.storaged_secret),
+			)
 			.send()
 			.await
 			.map_err(convert_error)?;
 
-		let class: ClassInfo = res.json().await.map_err(convert_error)?;
-		return Ok(Some(class));
+		match res.status() {
+			StatusCode::OK => {
+				let class: ClassInfo = res.json().await.map_err(convert_error)?;
+				return Ok(Some(class));
+			}
+
+			x => {
+				return Err(StoragedRequestError::GenericHttp {
+					code: x.as_u16(),
+					message: res.text().await.ok(),
+				})
+			}
+		}
 	}
 
 	async fn apply_transaction(
@@ -57,6 +74,10 @@ impl StoragedClient for ReqwestStoragedClient {
 	) -> Result<(), StoragedRequestError> {
 		self.client
 			.post(self.storaged_url.join("/apply").unwrap())
+			.header(
+				header::AUTHORIZATION,
+				format!("Bearer {}", self.storaged_secret),
+			)
 			.json(&json!({
 				"transaction": transaction
 			}))

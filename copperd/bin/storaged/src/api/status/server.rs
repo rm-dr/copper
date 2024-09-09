@@ -1,6 +1,6 @@
 use crate::database::base::client::DatabaseClient;
 use axum::{
-	extract::State,
+	extract::{OriginalUri, State},
 	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
@@ -39,9 +39,14 @@ pub(super) struct ServerStatus {
 	)
 )]
 pub(super) async fn get_server_status<Client: DatabaseClient>(
-	_headers: HeaderMap,
+	headers: HeaderMap,
+	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
 ) -> Response {
+	if !state.config.header_has_valid_auth(&uri, &headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	};
+
 	return (
 		StatusCode::OK,
 		Json(ServerStatus {

@@ -1,6 +1,6 @@
 use crate::database::base::{client::DatabaseClient, errors::transaction::ApplyTransactionError};
 use axum::{
-	extract::State,
+	extract::{OriginalUri, State},
 	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
@@ -31,10 +31,15 @@ pub(super) struct ExecTransactionRequest {
 	)
 )]
 pub(super) async fn apply_transaction<Client: DatabaseClient>(
-	_headers: HeaderMap,
+	headers: HeaderMap,
+	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
 	Json(payload): Json<ExecTransactionRequest>,
 ) -> Response {
+	if !state.config.header_has_valid_auth(&uri, &headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	};
+
 	let res = state.client.apply_transaction(payload.transaction).await;
 
 	return match res {

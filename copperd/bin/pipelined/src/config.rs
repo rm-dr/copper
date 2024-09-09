@@ -1,7 +1,9 @@
+use axum::http::HeaderMap;
 use copper_util::LogLevel;
 use reqwest::Url;
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
+use tracing::{debug, info};
 
 /// Note that the field of this struct are not capitalized.
 /// Envy is case-insensitive, and expects Rust fields to be snake_case.
@@ -33,6 +35,15 @@ pub struct PipelinedConfig {
 	/// IP and port of the `storaged` daemon we'll use
 	/// Should look like `http://127.0.0.1:3030`
 	pub pipelined_storaged_addr: Url,
+
+	/// The secret used to authenticate calls to storaged.
+	pub pipelined_storaged_secret: String,
+
+	/// The secret used to authenticate callers.
+	/// This should be a long sequence of random characters.
+	///
+	/// Anyone with this key can call all `pipelined` endpoints.
+	pub pipelined_secret: String,
 }
 
 impl PipelinedConfig {
@@ -62,5 +73,64 @@ impl PipelinedConfig {
 			LogLevel::Warn.to_string(),
 		]
 		.join(",")
+	}
+}
+
+// Capture this in a module to modify log source
+mod auth {
+	use super::*;
+	use axum::http::Uri;
+
+	impl PipelinedConfig {
+		/// Check the given header map for `self.pipelined_secret`.
+		///
+		/// Returns `true` if authentication is successful and `false` otherwise.
+		pub fn header_has_valid_auth(&self, uri: &Uri, headers: &HeaderMap) -> bool {
+			let token = if let Some(header) = headers.get("authorization") {
+				match header.to_str().map(|x| x.strip_prefix("Bearer ")) {
+					Ok(Some(secret)) => secret,
+					Ok(None) => {
+						debug!(
+							message = "Authentication failed",
+							reason = "invalid header value",
+							?uri,
+							?header,
+						);
+						return false;
+					}
+					Err(error) => {
+						debug!(
+							message = "Authentication failed",
+							reason = "could not stringify auth header",
+							?uri,
+							?header,
+							?error,
+						);
+						return false;
+					}
+				}
+			} else {
+				info!(
+					message = "Authentication failed",
+					reason = "header missing",
+					?uri
+				);
+				return false;
+			};
+
+			if token == self.pipelined_secret {
+				info!(message = "Authentication successful", ?uri,);
+				return true;
+			} else {
+				info!(
+					message = "Authentication failed",
+					reason = "header mismatch",
+					?uri,
+					configured_secret = self.pipelined_secret,
+					received_secret = token
+				);
+				return false;
+			}
+		}
 	}
 }

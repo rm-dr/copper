@@ -1,6 +1,6 @@
 use crate::database::base::{client::DatabaseClient, errors::class::DeleteClassError};
 use axum::{
-	extract::{Path, State},
+	extract::{OriginalUri, Path, State},
 	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 };
@@ -24,10 +24,14 @@ use crate::api::RouterState;
 	)
 )]
 pub(super) async fn del_class<Client: DatabaseClient>(
-	_headers: HeaderMap,
+	headers: HeaderMap,
+	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
 	Path(class_id): Path<u32>,
 ) -> Response {
+	if !state.config.header_has_valid_auth(&uri, &headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	};
 	let res = state.client.del_class(class_id.into()).await;
 
 	return match res {

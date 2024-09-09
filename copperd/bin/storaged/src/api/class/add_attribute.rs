@@ -3,7 +3,7 @@ use crate::database::base::{
 	errors::attribute::AddAttributeError,
 };
 use axum::{
-	extract::{Path, State},
+	extract::{OriginalUri, Path, State},
 	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
@@ -37,11 +37,16 @@ pub(super) struct NewAttributeRequest {
 	)
 )]
 pub(super) async fn add_attribute<Client: DatabaseClient>(
-	_headers: HeaderMap,
+	headers: HeaderMap,
+	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
 	Path(class_id): Path<u32>,
 	Json(payload): Json<NewAttributeRequest>,
 ) -> Response {
+	if !state.config.header_has_valid_auth(&uri, &headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	};
+
 	let res = state
 		.client
 		.add_attribute(

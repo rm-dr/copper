@@ -263,6 +263,7 @@ mod tests {
 			storaged_db_addr: format!("sqlite://{SQLITE_DB_FILE}?mode=rwc").into(),
 			storaged_server_addr: "".into(),
 			storaged_request_body_limit: StoragedConfig::default_request_body_limit(),
+			storaged_secret: "i_m_secret".into(),
 		};
 		let mut app = make_app(Arc::new(config)).await;
 

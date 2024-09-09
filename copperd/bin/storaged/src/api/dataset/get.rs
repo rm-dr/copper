@@ -1,5 +1,6 @@
 use crate::database::base::{client::DatabaseClient, errors::dataset::GetDatasetError};
 use crate::RouterState;
+use axum::extract::OriginalUri;
 use axum::{
 	extract::{Path, State},
 	http::{HeaderMap, StatusCode},
@@ -25,10 +26,15 @@ use tracing::error;
 	)
 )]
 pub(super) async fn get_dataset<Client: DatabaseClient>(
-	_headers: HeaderMap,
+	headers: HeaderMap,
+	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
 	Path(dataset_id): Path<u32>,
 ) -> Response {
+	if !state.config.header_has_valid_auth(&uri, &headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	};
+
 	return match state.client.get_dataset(dataset_id.into()).await {
 		Ok(x) => (StatusCode::OK, Json(x)).into_response(),
 		Err(GetDatasetError::NotFound) => StatusCode::NOT_FOUND.into_response(),

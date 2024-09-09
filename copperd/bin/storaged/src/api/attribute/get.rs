@@ -1,5 +1,6 @@
 use crate::database::base::{client::DatabaseClient, errors::attribute::GetAttributeError};
 use crate::RouterState;
+use axum::extract::OriginalUri;
 use axum::{
 	extract::{Path, State},
 	http::{HeaderMap, StatusCode},
@@ -25,10 +26,15 @@ use tracing::error;
 	)
 )]
 pub(super) async fn get_attribute<Client: DatabaseClient>(
-	_headers: HeaderMap,
+	headers: HeaderMap,
+	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
 	Path(attribute_id): Path<u32>,
 ) -> Response {
+	if !state.config.header_has_valid_auth(&uri, &headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	};
+
 	return match state.client.get_attribute(attribute_id.into()).await {
 		Ok(x) => (StatusCode::OK, Json(x)).into_response(),
 		Err(GetAttributeError::NotFound) => StatusCode::NOT_FOUND.into_response(),

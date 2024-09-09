@@ -1,6 +1,6 @@
 use axum::{
-	extract::State,
-	http::StatusCode,
+	extract::{OriginalUri, State},
+	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
@@ -43,11 +43,20 @@ pub(super) struct AddJobResponse {
 		(status = 500, description = "Internal server error", body = String),
 		(status = 401, description = "Unauthorized")
 	),
+	security(
+		("bearer" = []),
+	)
 )]
 pub(super) async fn run_pipeline(
+	headers: HeaderMap,
+	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState>,
 	Json(payload): Json<AddJobRequest>,
 ) -> Response {
+	if !state.config.header_has_valid_auth(&uri, &headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	};
+
 	let runner = state.runner.lock().await;
 
 	let mut input = BTreeMap::new();
@@ -59,7 +68,11 @@ pub(super) async fn run_pipeline(
 	let context = CopperContext {
 		blob_fragment_size: state.config.pipelined_blob_fragment_size,
 		storaged_client: Arc::new(
-			ReqwestStoragedClient::new(state.config.pipelined_storaged_addr.clone()).unwrap(),
+			ReqwestStoragedClient::new(
+				state.config.pipelined_storaged_addr.clone(),
+				&state.config.pipelined_storaged_secret,
+			)
+			.unwrap(),
 		),
 		input,
 	};

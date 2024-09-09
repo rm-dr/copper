@@ -56,9 +56,8 @@ impl Modify for BearerSecurityAddon {
 		(path = "/transaction", api = transaction::TransactionApi),
 	),
 	tags(
-		(name = "Copper", description = "Copper backend daemon")
+		(name = "Copper", description = "Copper storage daemon")
 	),
-	// All schema structs defined outside `crate::api` go here
 	components(schemas(
 		DatasetInfo,
 		ClassInfo,

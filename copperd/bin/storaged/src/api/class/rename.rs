@@ -1,6 +1,6 @@
 use crate::database::base::{client::DatabaseClient, errors::class::RenameClassError};
 use axum::{
-	extract::{Path, State},
+	extract::{OriginalUri, Path, State},
 	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
@@ -33,11 +33,16 @@ pub(super) struct RenameClassRequest {
 	)
 )]
 pub(super) async fn rename_class<Client: DatabaseClient>(
-	_headers: HeaderMap,
+	headers: HeaderMap,
+	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
 	Path(class_id): Path<u32>,
 	Json(payload): Json<RenameClassRequest>,
 ) -> Response {
+	if !state.config.header_has_valid_auth(&uri, &headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	};
+
 	let res = state
 		.client
 		.rename_class(class_id.into(), &payload.new_name)

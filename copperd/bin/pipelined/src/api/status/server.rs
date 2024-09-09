@@ -1,10 +1,9 @@
 use axum::{
-	extract::State,
-	http::StatusCode,
+	extract::{OriginalUri, State},
+	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
-use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use utoipa::ToSchema;
@@ -36,9 +35,14 @@ pub(super) struct ServerStatus {
 	)
 )]
 pub(super) async fn get_server_status(
-	_jar: CookieJar,
+	headers: HeaderMap,
+	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState>,
 ) -> Response {
+	if !state.config.header_has_valid_auth(&uri, &headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	};
+
 	return (
 		StatusCode::OK,
 		Json(ServerStatus {
