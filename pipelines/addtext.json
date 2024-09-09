@@ -1,0 +1,31 @@
+{
+	"input": { "testdata": { "type": "Text", "value": "this is test data" } },
+	"pipeline_name": "test",
+	"pipeline_spec": {
+		"edges": {
+			"e": {
+				"source": {
+					"node": "testdata",
+					"port": "out"
+				},
+				"target": {
+					"node": "b",
+					"port": "title"
+				},
+				"edge_type": "Data"
+			}
+		},
+		"nodes": {
+			"testdata": {
+				"node_type": "Input",
+				"params": {}
+			},
+			"b": {
+				"node_type": "AddItem",
+				"params": {
+					"class": { "parameter_type": "Integer", "value": 2 }
+				}
+			}
+		}
+	}
+}
