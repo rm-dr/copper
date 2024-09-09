@@ -1,4 +1,4 @@
-use copper_util::mime::MimeType;
+use copper_util::MimeType;
 use std::{collections::VecDeque, sync::Arc};
 use url::Url;
 

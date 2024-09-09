@@ -46,7 +46,7 @@ pub(super) async fn get_server_status<Client: DatabaseClient>(
 		StatusCode::OK,
 		Json(ServerStatus {
 			version: env!("CARGO_PKG_VERSION").into(),
-			request_body_limit: state.config.request_body_limit,
+			request_body_limit: state.config.storaged_request_body_limit,
 		}),
 	)
 		.into_response();

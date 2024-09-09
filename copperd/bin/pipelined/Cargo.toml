@@ -29,7 +29,7 @@ pipelined-audiofile = { workspace = true }
 pipelined-storaged = { workspace = true }
 pipelined-basic = { workspace = true }
 
-url = { workspace = true }
+reqwest = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 tower-http = { workspace = true }

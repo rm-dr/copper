@@ -1,11 +1,12 @@
 use api::RouterState;
 use config::PipelinedConfig;
 use copper_pipelined::{data::PipeData, CopperContext};
+use copper_util::load_env;
 use futures::TryFutureExt;
 use pipeline::runner::{PipelineRunner, PipelineRunnerOptions};
 use std::{error::Error, future::IntoFuture, sync::Arc};
 use tokio::sync::Mutex;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 mod api;
 mod config;
@@ -13,8 +14,7 @@ mod pipeline;
 
 #[tokio::main]
 async fn main() {
-	// TODO: configure with env vars
-	let config = Arc::new(PipelinedConfig::default());
+	let config = Arc::new(load_env::<PipelinedConfig>());
 
 	tracing_subscriber::fmt()
 		.with_env_filter(config.to_env_filter())
@@ -22,11 +22,13 @@ async fn main() {
 		.with_ansi(true)
 		.init();
 
+	debug!(message = "Loaded config from environment", ?config);
+
 	// Prep runner
 	let mut runner: PipelineRunner<PipeData, CopperContext> =
 		PipelineRunner::new(PipelineRunnerOptions {
-			node_threads: config.threads_per_job,
-			max_active_jobs: config.parallel_jobs,
+			node_threads: config.pipelined_threads_per_job,
+			max_active_jobs: config.pipelined_parallel_jobs,
 		});
 
 	{
@@ -53,24 +55,25 @@ async fn main() {
 		runner: Arc::new(Mutex::new(runner)),
 	};
 
-	let listener = match tokio::net::TcpListener::bind(state.config.server_addr.to_string()).await {
-		Ok(x) => x,
-		Err(e) => {
-			match e.kind() {
-				std::io::ErrorKind::AddrInUse => {
-					error!(
-						message = "Cannot bind to port, already in use",
-						port = state.config.server_addr.as_str()
-					);
+	let listener =
+		match tokio::net::TcpListener::bind(state.config.pipelined_server_addr.to_string()).await {
+			Ok(x) => x,
+			Err(e) => {
+				match e.kind() {
+					std::io::ErrorKind::AddrInUse => {
+						error!(
+							message = "Cannot bind to port, already in use",
+							port = state.config.pipelined_server_addr.as_str()
+						);
+					}
+					_ => {
+						error!(message = "Error while migrating main database", err = ?e);
+					}
 				}
-				_ => {
-					error!(message = "Error while migrating main database", err = ?e);
-				}
-			}
 
-			std::process::exit(1);
-		}
-	};
+				std::process::exit(1);
+			}
+		};
 	info!("listening on http://{}", listener.local_addr().unwrap());
 
 	let app = api::router(state.clone());

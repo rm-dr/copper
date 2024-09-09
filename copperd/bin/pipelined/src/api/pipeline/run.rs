@@ -57,8 +57,10 @@ pub(super) async fn run_pipeline(
 	}
 
 	let context = CopperContext {
-		blob_fragment_size: state.config.blob_fragment_size,
-		storaged_client: Arc::new(ReqwestStoragedClient::new("http://localhost:5000").unwrap()),
+		blob_fragment_size: state.config.pipelined_blob_fragment_size,
+		storaged_client: Arc::new(
+			ReqwestStoragedClient::new(state.config.pipelined_storaged_addr.clone()).unwrap(),
+		),
 		input,
 	};
 

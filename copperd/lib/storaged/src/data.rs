@@ -1,6 +1,6 @@
 //! Types and instances of data we can store in an attribute
 
-use copper_util::{mime::MimeType, HashType};
+use copper_util::{HashType, MimeType};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};

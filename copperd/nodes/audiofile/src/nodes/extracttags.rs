@@ -12,7 +12,7 @@ use copper_pipelined::{
 	CopperContext,
 };
 use copper_storaged::AttrDataStub;
-use copper_util::mime::MimeType;
+use copper_util::MimeType;
 use itertools::Itertools;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, io::Read};

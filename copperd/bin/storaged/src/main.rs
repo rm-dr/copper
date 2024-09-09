@@ -6,18 +6,19 @@
 use api::RouterState;
 use axum::Router;
 use config::StoragedConfig;
+use copper_util::load_env;
 use database::sqlite::{SqliteDatabaseClient, SqliteDatabaseOpenError};
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 mod api;
 mod config;
 mod database;
 mod util;
 
-async fn make_app(config: StoragedConfig) -> Router {
+async fn make_app(config: Arc<StoragedConfig>) -> Router {
 	// Connect to database
-	let db = match SqliteDatabaseClient::open(&config.db_addr).await {
+	let db = match SqliteDatabaseClient::open(&config.storaged_db_addr).await {
 		Ok(db) => db,
 		Err(SqliteDatabaseOpenError::DbError(e)) => {
 			error!(message = "SQL error while opening database", err = ?e);
@@ -35,15 +36,14 @@ async fn make_app(config: StoragedConfig) -> Router {
 
 	// Create app
 	return api::router(RouterState {
-		config: Arc::new(config.clone()),
+		config: config.clone(),
 		client: Arc::new(db),
 	});
 }
 
 #[tokio::main]
 async fn main() {
-	// TODO: configure with env vars
-	let config = StoragedConfig::default();
+	let config = Arc::new(load_env::<StoragedConfig>());
 
 	tracing_subscriber::fmt()
 		.with_env_filter(config.to_env_filter())
@@ -51,24 +51,33 @@ async fn main() {
 		.with_ansi(true)
 		.init();
 
-	let listener = match tokio::net::TcpListener::bind(config.server_addr.to_string()).await {
-		Ok(x) => x,
-		Err(e) => {
-			match e.kind() {
-				std::io::ErrorKind::AddrInUse => {
-					error!(
-						message = "Cannot bind to address, already in use",
-						server_addr = config.server_addr.as_str()
-					);
-				}
-				_ => {
-					error!(message = "Error while migrating main database", err = ?e);
-				}
-			}
+	debug!(message = "Loaded config from environment", ?config);
 
-			std::process::exit(1);
-		}
-	};
+	tracing_subscriber::fmt()
+		.with_env_filter(config.to_env_filter())
+		.without_time()
+		.with_ansi(true)
+		.init();
+
+	let listener =
+		match tokio::net::TcpListener::bind(config.storaged_server_addr.to_string()).await {
+			Ok(x) => x,
+			Err(e) => {
+				match e.kind() {
+					std::io::ErrorKind::AddrInUse => {
+						error!(
+							message = "Cannot bind to address, already in use",
+							server_addr = config.storaged_server_addr.as_str()
+						);
+					}
+					_ => {
+						error!(message = "Error while migrating main database", err = ?e);
+					}
+				}
+
+				std::process::exit(1);
+			}
+		};
 	info!("listening on http://{}", listener.local_addr().unwrap());
 
 	let app = make_app(config).await;
@@ -256,9 +265,12 @@ mod tests {
 			.init();
 
 		// Set up config & create app
-		let mut config = StoragedConfig::default();
-		config.db_addr = format!("sqlite://{SQLITE_DB_FILE}?mode=rwc").into();
-		let mut app = make_app(config).await;
+		let config = StoragedConfig {
+			storaged_db_addr: format!("sqlite://{SQLITE_DB_FILE}?mode=rwc").into(),
+			storaged_server_addr: "".into(),
+			storaged_request_body_limit: StoragedConfig::default_request_body_limit(),
+		};
+		let mut app = make_app(Arc::new(config)).await;
 
 		// Saved ids we intend do use later
 		let test_dataset_id: DatasetId = 1.into();

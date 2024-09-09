@@ -1,5 +1,3 @@
-//! Media type utilities
-
 use std::{fmt::Display, str::FromStr};
 
 use serde_with::{DeserializeFromStr, SerializeDisplay};

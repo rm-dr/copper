@@ -1,4 +1,4 @@
-use copper_util::mime::MimeType;
+use copper_util::MimeType;
 use std::{
 	fmt::Debug,
 	io::{Cursor, Read},

@@ -43,7 +43,7 @@ pub(super) async fn get_server_status(
 		StatusCode::OK,
 		Json(ServerStatus {
 			version: env!("CARGO_PKG_VERSION").into(),
-			request_body_limit: state.config.request_body_limit,
+			request_body_limit: state.config.pipelined_request_body_limit,
 		}),
 	)
 		.into_response();

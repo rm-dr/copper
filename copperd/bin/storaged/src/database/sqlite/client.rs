@@ -3,7 +3,7 @@ use copper_storaged::{
 	AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo, ItemId,
 	ItemInfo, Transaction, TransactionAction,
 };
-use copper_util::mime::MimeType;
+use copper_util::MimeType;
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, Row};
 

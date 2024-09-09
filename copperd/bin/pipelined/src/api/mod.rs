@@ -65,6 +65,8 @@ pub(super) fn router(state: RouterState) -> Router {
 		.nest("/pipeline", pipeline::router())
 		//
 		.layer(TraceLayer::new_for_http())
-		.layer(DefaultBodyLimit::max(state.config.request_body_limit))
+		.layer(DefaultBodyLimit::max(
+			state.config.pipelined_request_body_limit,
+		))
 		.with_state(state)
 }

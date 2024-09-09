@@ -72,7 +72,6 @@ pipelined-basic = { path = "nodes/basic" }
 pipelined-storaged = { path = "nodes/storaged" }
 pipelined-audiofile = { path = "nodes/audiofile" }
 
-
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -95,6 +94,8 @@ time = { version = "0.3.36", features = ["serde"] }
 paste = "1.0.15"
 base64 = "0.22.1"
 async-trait = "0.1.81"
+envy = "0.4.2"
+dotenvy = "0.15.7"
 
 # Network
 reqwest = { version = "0.12.4", features = [

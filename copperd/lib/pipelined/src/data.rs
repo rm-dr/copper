@@ -1,5 +1,5 @@
 use copper_storaged::{AttrData, AttrDataStub, ClassId, ItemId};
-use copper_util::{mime::MimeType, HashType};
+use copper_util::{HashType, MimeType};
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};

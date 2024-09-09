@@ -8,7 +8,7 @@ pub mod proc;
 #[cfg(test)]
 mod tests {
 
-	use copper_util::mime::MimeType;
+	use copper_util::MimeType;
 	use itertools::Itertools;
 
 	use super::errors::FlacDecodeError;

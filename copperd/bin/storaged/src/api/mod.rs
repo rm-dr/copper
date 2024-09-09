@@ -81,6 +81,8 @@ pub(super) fn router<Client: DatabaseClient + 'static>(state: RouterState<Client
 		.nest("/transaction", transaction::router())
 		//
 		.layer(TraceLayer::new_for_http())
-		.layer(DefaultBodyLimit::max(state.config.request_body_limit))
+		.layer(DefaultBodyLimit::max(
+			state.config.storaged_request_body_limit,
+		))
 		.with_state(state)
 }
