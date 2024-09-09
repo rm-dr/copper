@@ -1,8 +1,8 @@
-use copper_util::graph::{finalized::FinalizedGraph, graph::Graph};
 use copper_pipelined::base::{
 	NodeDispatcher, NodeId, NodeParameterValue, PipelineData, PipelineJobContext, PortName,
 	INPUT_NODE_TYPE_NAME,
 };
+use copper_util::graph::{finalized::FinalizedGraph, graph::Graph};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::{BTreeMap, HashMap},
@@ -58,8 +58,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		for (node_id, node_spec) in &json.nodes {
 			let n = graph.add_node(NodeSpec {
 				id: node_id.clone(),
-				node_params: node_spec.data.params.clone(),
-				node_type: node_spec.data.node_type.clone(),
+				node_params: node_spec.params.clone(),
+				node_type: node_spec.node_type.clone(),
 			});
 
 			node_id_map.insert(node_id.clone(), n);
@@ -70,7 +70,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		for (edge_id, edge_spec) in json
 			.edges
 			.iter()
-			.filter(|(_, v)| matches!(v.data.edge_type, EdgeType::After))
+			.filter(|(_, v)| matches!(v.edge_type, EdgeType::After))
 		{
 			let source =
 				node_id_map
@@ -98,7 +98,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		for (edge_id, edge_spec) in json
 			.edges
 			.iter()
-			.filter(|(_, v)| matches!(v.data.edge_type, EdgeType::Data))
+			.filter(|(_, v)| matches!(v.edge_type, EdgeType::Data))
 		{
 			let source_node =
 				json.nodes
@@ -115,15 +115,15 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 						invalid_node_id: edge_spec.target.node.clone(),
 					})?;
 
-			if !dispatcher.has_node(&source_node.data.node_type) {
+			if !dispatcher.has_node(&source_node.node_type) {
 				return Err(PipelineBuildError::InvalidNodeType {
-					bad_type: source_node.data.node_type.clone(),
+					bad_type: source_node.node_type.clone(),
 				});
 			}
 
-			if !dispatcher.has_node(&target_node.data.node_type) {
+			if !dispatcher.has_node(&target_node.node_type) {
 				return Err(PipelineBuildError::InvalidNodeType {
-					bad_type: target_node.data.node_type.clone(),
+					bad_type: target_node.node_type.clone(),
 				});
 			}
 
@@ -148,6 +148,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			return Err(PipelineBuildError::HasCycle);
 		}
 
+		trace!(message = "Pipeline is ready", pipeline_name);
 		return Ok(Self {
 			_pa: PhantomData {},
 			_pb: PhantomData {},

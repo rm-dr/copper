@@ -23,6 +23,7 @@ workspace = true
 [dependencies]
 copper-util = { workspace = true }
 copper-pipelined = { workspace = true }
+copper-storaged = { workspace = true }
 # Node implementations
 pipelined-audiofile = { workspace = true }
 pipelined-storaged = { workspace = true }

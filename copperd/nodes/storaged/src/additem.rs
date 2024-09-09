@@ -1,6 +1,3 @@
-use copper_storaged::{
-	AttrData, AttributeId, AttributeInfo, ClassId, ClassInfo, Transaction, TransactionAction,
-};
 use copper_pipelined::{
 	base::{
 		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PortName,
@@ -9,6 +6,9 @@ use copper_pipelined::{
 	data::PipeData,
 	helpers::ConnectedInput,
 	CopperContext,
+};
+use copper_storaged::{
+	AttrData, AttributeId, AttributeInfo, ClassId, ClassInfo, Transaction, TransactionAction,
 };
 use reqwest::StatusCode;
 use serde_json::json;
@@ -28,8 +28,8 @@ impl AddItem {
 		ctx: &CopperContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
 	) -> Result<Self, InitNodeError> {
-		if params.len() != 2 {
-			return Err(InitNodeError::BadParameterCount { expected: 2 });
+		if params.len() != 1 {
+			return Err(InitNodeError::BadParameterCount { expected: 1 });
 		}
 
 		let class: ClassId = if let Some(value) = params.get("class") {
@@ -50,9 +50,11 @@ impl AddItem {
 		let ports: BTreeMap<PortName, AttributeInfo> = {
 			let client = reqwest::blocking::Client::new();
 
+			// TODO: config (state)
 			// TODO: handle errors
+			// TODO: write mockable client
 			let classinfo: ClassInfo = client
-				.get(format!("http://localhost:5000/attribute"))
+				.get(format!("http://localhost:5000/class/{}", u32::from(class)))
 				.send()
 				.unwrap()
 				.json()
@@ -178,7 +180,7 @@ impl Node<PipeData> for AddItem {
 
 		// TODO: handle errors
 		let res = client
-			.post(format!("http://localhost:5000/attribute"))
+			.post("http://localhost:5000/transaction/apply")
 			.json(&json!({
 				"transaction": transaction
 			}))

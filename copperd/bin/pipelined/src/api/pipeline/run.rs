@@ -4,15 +4,12 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
-use copper_pipelined::{
-	data::{BytesSource, PipeData},
-	CopperContext,
-};
-use copper_util::mime::MimeType;
+use copper_pipelined::{data::PipeData, CopperContext};
+use copper_storaged::AttrData;
+use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
@@ -25,27 +22,8 @@ pub(super) struct AddJobRequest {
 	pub pipeline_name: String,
 	pub pipeline_spec: PipelineJson<PipeData>,
 
-	#[schema(value_type = BTreeMap<String, AddJobInput>)]
-	pub input: BTreeMap<SmartString<LazyCompact>, AddJobInput>,
-}
-
-/// Input that is passed to the pipeline we're running
-#[derive(Deserialize, ToSchema, Debug)]
-#[serde(tag = "type")]
-pub(super) enum AddJobInput {
-	File {
-		/// The file to run this pipeline with
-		#[schema(value_type = String)]
-		file_name: SmartString<LazyCompact>,
-
-		/// The MIME type of this file
-		#[schema(value_type = String)]
-		mime: MimeType,
-
-		/// A url to this file
-		#[schema(value_type = String)]
-		url: Url,
-	},
+	#[schema(value_type = BTreeMap<String, AttrData>)]
+	pub input: BTreeMap<SmartString<LazyCompact>, AttrData>,
 }
 
 /// Input that is passed to the pipeline we're running
@@ -69,24 +47,12 @@ pub(super) async fn run_pipeline(
 	State(state): State<RouterState>,
 	Json(payload): Json<AddJobRequest>,
 ) -> Response {
-	let mut runner = state.runner.lock().await;
+	let runner = state.runner.lock().await;
 
 	let mut input = BTreeMap::new();
 	for (name, value) in payload.input {
-		match value {
-			AddJobInput::File {
-				file_name,
-				mime,
-				url,
-			} => {
-				let path = PipeData::Blob {
-					mime,
-					source: BytesSource::Url { url },
-				};
-
-				input.insert(name, path);
-			}
-		}
+		// TODO: handle special cases (unwrap)
+		input.insert(name, PipeData::try_from(value).unwrap());
 	}
 
 	let context = CopperContext {
@@ -101,7 +67,19 @@ pub(super) async fn run_pipeline(
 	)
 	.unwrap();
 
-	let new_job_id = runner.add_job(context, Arc::new(pipe)).unwrap();
+	// Prevent a deadlock with below code
+	drop(runner);
+
+	// Allow `add_job` to block
+	let x = state.runner.clone();
+	let new_job_id = tokio::task::spawn_blocking(move || {
+		let mut y = block_on(x.lock());
+		y.add_job(context, Arc::new(pipe))
+	})
+	.await
+	// TODO: handle errors
+	.unwrap()
+	.unwrap();
 
 	return (StatusCode::OK, Json(AddJobResponse { new_job_id })).into_response();
 }

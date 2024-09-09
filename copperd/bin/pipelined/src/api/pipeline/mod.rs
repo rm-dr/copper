@@ -11,7 +11,7 @@ use super::RouterState;
 #[openapi(
 	tags(),
 	paths(run_pipeline),
-	components(schemas(AddJobInput, AddJobRequest, AddJobResponse))
+	components(schemas(AddJobRequest, AddJobResponse))
 )]
 pub(super) struct PipelineApi;
 

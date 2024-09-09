@@ -4,6 +4,8 @@ use copper_pipelined::{
 	data::{PipeData, PipeDataStub},
 	CopperContext,
 };
+use copper_storaged::{AttrData, AttrDataStub};
+use copper_util::HashType;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
@@ -16,10 +18,7 @@ mod status;
 use crate::{
 	config::PipelinedConfig,
 	pipeline::{
-		json::{
-			EdgeJson, EdgeJsonData, EdgeType, InputPort, NodeJson, NodeJsonData, OutputPort,
-			PipelineJson,
-		},
+		json::{EdgeJson, EdgeType, InputPort, NodeJson, OutputPort, PipelineJson},
 		runner::PipelineRunner,
 	},
 };
@@ -47,12 +46,13 @@ pub struct RouterState {
 		PipelineJson<PipeData>,
 		NodeJson<PipeData>,
 		EdgeJson,
-		EdgeJsonData,
 		OutputPort,
 		InputPort,
-		NodeJsonData<PipeData>,
 		EdgeType,
 		NodeParameterValue<PipeData>,
+		AttrData,
+		AttrDataStub,
+		HashType
 	))
 )]
 struct ApiDoc;

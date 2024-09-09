@@ -1,9 +1,9 @@
-use copper_util::graph::util::GraphNodeIdx;
-use crossbeam::channel::{unbounded, Receiver, Sender};
 use copper_pipelined::base::{
 	InitNodeError, Node, NodeDispatcher, NodeId, NodeSignal, NodeState, PipelineData,
 	PipelineJobContext, PortName, ProcessSignalError, RunNodeError,
 };
+use copper_util::graph::util::GraphNodeIdx;
+use crossbeam::channel::{unbounded, Receiver, Sender};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::{BTreeMap, VecDeque},
@@ -269,6 +269,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		trace!(message = "Making node instances", pipeline_name = ?pipeline.name);
 		let mut node_instances = Vec::new();
 		for (idx, node_data) in pipeline.graph.iter_nodes_idx() {
+			trace!(message = "Instantating node", ?node_data);
+
 			let mut node = dispatcher
 				.init_node(
 					&context,
@@ -377,8 +379,12 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			self.node_instances[i].last_run = Instant::now();
 			self.try_start_node(GraphNodeIdx::from_usize(i))?;
 		}
-		self.node_run_offset += 1;
-		self.node_run_offset %= self.node_instances.len();
+
+		// Prevent panic when instances.len() == 0
+		if self.node_instances.len() != 0 {
+			self.node_run_offset += 1;
+			self.node_run_offset %= self.node_instances.len();
+		}
 
 		if all_nodes_done {
 			return Ok(PipelineJobState::Done);

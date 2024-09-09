@@ -82,7 +82,6 @@ impl PipelinedConfig {
 	/// Convert this logging config to a tracing env filter
 	pub fn to_env_filter(&self) -> String {
 		[
-			format!("copper_pipeline={}", LogLevel::Info),
 			format!("tower_http={}", LogLevel::Warn),
 			format!("pipelined={}", LogLevel::Info),
 			LogLevel::Warn.to_string(),

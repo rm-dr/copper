@@ -23,13 +23,6 @@ pub struct PipelineJson<DataType: PipelineData> {
 #[serde(deny_unknown_fields)]
 #[serde(bound = "DataType: DeserializeOwned")]
 pub(crate) struct NodeJson<DataType: PipelineData> {
-	pub data: NodeJsonData<DataType>,
-}
-
-#[derive(Debug, Deserialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
-#[serde(bound = "DataType: DeserializeOwned")]
-pub(crate) struct NodeJsonData<DataType: PipelineData> {
 	/// What kind of node is this?
 	#[schema(value_type = String)]
 	pub node_type: SmartString<LazyCompact>,
@@ -45,12 +38,7 @@ pub(crate) struct NodeJsonData<DataType: PipelineData> {
 pub(crate) struct EdgeJson {
 	pub source: OutputPort,
 	pub target: InputPort,
-	pub data: EdgeJsonData,
-}
 
-#[derive(Debug, Deserialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct EdgeJsonData {
 	/// What kind of edge is this?
 	pub edge_type: EdgeType,
 }

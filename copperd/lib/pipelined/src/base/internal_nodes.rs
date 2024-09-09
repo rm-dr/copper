@@ -18,9 +18,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
 		node_name: &str,
 	) -> Result<Self, InitNodeError> {
-		if params.len() != 1 {
-			return Err(InitNodeError::BadParameterCount { expected: 1 });
+		if params.len() != 0 {
+			return Err(InitNodeError::BadParameterCount { expected: 0 });
 		}
+
+		// TODO: input as parameter
 
 		let value = if let Some(value) = ctx.get_input().get(node_name) {
 			value.clone()

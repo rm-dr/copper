@@ -1836,6 +1836,7 @@ dependencies = [
  "axum",
  "axum-extra",
  "copper-pipelined",
+ "copper-storaged",
  "copper-util",
  "crossbeam",
  "futures",
@@ -1889,11 +1890,13 @@ dependencies = [
  "copper-pipelined",
  "copper-storaged",
  "copper-util",
+ "futures",
  "itertools",
  "reqwest",
  "serde",
  "serde_json",
  "smartstring",
+ "tracing",
  "utoipa",
 ]
 
