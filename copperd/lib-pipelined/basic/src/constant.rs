@@ -1,13 +1,12 @@
-use smartstring::{LazyCompact, SmartString};
-use std::collections::BTreeMap;
-
-use crate::{
+use pipelined_node_base::{
 	base::{
 		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PipelinePortID,
 		ProcessSignalError, RunNodeError,
 	},
 	data::CopperData,
 };
+use smartstring::{LazyCompact, SmartString};
+use std::collections::BTreeMap;
 
 pub struct Constant {
 	value: CopperData,

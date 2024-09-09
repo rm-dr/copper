@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
-// TODO: move to another lib
-
-use crate::{
+use pipelined_node_base::{
 	base::{NodeDispatcher, RegisterNodeError},
 	data::CopperData,
 	CopperContext,
 };
+
+// TODO: move to another lib
 
 mod constant;
 mod hash;

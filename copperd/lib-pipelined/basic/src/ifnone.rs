@@ -1,7 +1,4 @@
-use smartstring::{LazyCompact, SmartString};
-use std::collections::BTreeMap;
-
-use crate::{
+use pipelined_node_base::{
 	base::{
 		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PipelineData,
 		PipelinePortID, ProcessSignalError, RunNodeError,
@@ -9,6 +6,8 @@ use crate::{
 	data::{CopperData, CopperDataStub},
 	helpers::ConnectedInput,
 };
+use smartstring::{LazyCompact, SmartString};
+use std::collections::BTreeMap;
 
 pub struct IfNone {
 	ifnone: ConnectedInput<CopperData>,

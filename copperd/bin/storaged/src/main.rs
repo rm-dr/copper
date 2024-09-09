@@ -13,7 +13,6 @@ use tracing::{error, info};
 mod api;
 mod config;
 mod database;
-mod nodes;
 mod util;
 
 async fn make_app(config: StoragedConfig) -> Router {

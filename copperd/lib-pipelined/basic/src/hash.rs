@@ -1,18 +1,17 @@
 use copper_util::HashType;
-use sha2::{Digest, Sha256, Sha512};
-use smartstring::{LazyCompact, SmartString};
-use std::{
-	collections::BTreeMap,
-	io::{Cursor, Read},
-};
-
-use crate::{
+use pipelined_node_base::{
 	base::{
 		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PipelinePortID,
 		ProcessSignalError, RunNodeError,
 	},
 	data::CopperData,
 	helpers::DataSource,
+};
+use sha2::{Digest, Sha256, Sha512};
+use smartstring::{LazyCompact, SmartString};
+use std::{
+	collections::BTreeMap,
+	io::{Cursor, Read},
 };
 
 enum HashComputer {

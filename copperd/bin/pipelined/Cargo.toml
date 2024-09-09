@@ -24,6 +24,8 @@ workspace = true
 copper-util = { workspace = true }
 pipelined-node-base = { workspace = true }
 pipelined-audiofile = { workspace = true }
+pipelined-storaged = { workspace = true }
+pipelined-basic = { workspace = true }
 
 url = { workspace = true }
 utoipa = { workspace = true }

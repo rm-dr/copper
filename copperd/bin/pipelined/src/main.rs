@@ -31,7 +31,13 @@ async fn main() {
 
 	{
 		// Base nodes
-		use pipelined_node_base::nodes::register;
+		use pipelined_basic::register;
+		register(runner.mut_dispatcher()).unwrap();
+	}
+
+	{
+		// Storaged nodes
+		use pipelined_storaged::register;
 		register(runner.mut_dispatcher()).unwrap();
 	}
 

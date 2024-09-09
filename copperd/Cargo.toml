@@ -69,6 +69,8 @@ copper-storaged = { path = "lib-common/storaged" }
 # Pipelined libraries
 pipelined-audiofile = { path = "lib-pipelined/audiofile" }
 pipelined-node-base = { path = "lib-pipelined/node-base" }
+pipelined-storaged = { path = "lib-pipelined/storaged" }
+pipelined-basic = { path = "lib-pipelined/basic" }
 
 
 # Logging

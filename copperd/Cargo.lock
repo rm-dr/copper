@@ -1827,7 +1827,9 @@ dependencies = [
  "crossbeam",
  "futures",
  "pipelined-audiofile",
+ "pipelined-basic",
  "pipelined-node-base",
+ "pipelined-storaged",
  "serde",
  "serde_json",
  "smartstring",
@@ -1856,6 +1858,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "pipelined-basic"
+version = "0.1.0"
+dependencies = [
+ "copper-util",
+ "md5",
+ "pipelined-node-base",
+ "serde_json",
+ "sha2",
+ "smartstring",
+]
+
+[[package]]
 name = "pipelined-node-base"
 version = "0.1.0"
 dependencies = [
@@ -1867,6 +1881,21 @@ dependencies = [
  "sha2",
  "smartstring",
  "url",
+ "utoipa",
+]
+
+[[package]]
+name = "pipelined-storaged"
+version = "0.1.0"
+dependencies = [
+ "copper-storaged",
+ "copper-util",
+ "itertools",
+ "pipelined-node-base",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "smartstring",
  "utoipa",
 ]
 

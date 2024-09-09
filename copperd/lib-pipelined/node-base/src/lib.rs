@@ -5,7 +5,6 @@
 pub mod base;
 pub mod data;
 pub mod helpers;
-pub mod nodes;
 
 use base::PipelineJobContext;
 use data::CopperData;
