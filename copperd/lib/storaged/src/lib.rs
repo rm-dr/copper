@@ -9,3 +9,5 @@ pub use transaction::*;
 
 mod id;
 pub use id::*;
+
+pub mod client;

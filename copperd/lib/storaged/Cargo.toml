@@ -19,7 +19,9 @@ workspace = true
 [dependencies]
 copper-util = { workspace = true }
 
+reqwest = { workspace = true }
 smartstring = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 utoipa = { workspace = true }
 itertools = { workspace = true }

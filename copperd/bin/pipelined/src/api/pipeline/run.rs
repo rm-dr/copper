@@ -5,7 +5,7 @@ use axum::{
 	Json,
 };
 use copper_pipelined::{data::PipeData, CopperContext};
-use copper_storaged::AttrData;
+use copper_storaged::{client::ReqwestStoragedClient, AttrData};
 use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
@@ -57,6 +57,7 @@ pub(super) async fn run_pipeline(
 
 	let context = CopperContext {
 		blob_fragment_size: state.config.blob_fragment_size,
+		storaged_client: Arc::new(ReqwestStoragedClient::new("http://localhost:5000").unwrap()),
 		input,
 	};
 
