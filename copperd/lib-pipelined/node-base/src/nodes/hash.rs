@@ -1,9 +1,9 @@
+use copper_util::HashType;
 use sha2::{Digest, Sha256, Sha512};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::BTreeMap,
 	io::{Cursor, Read},
-	sync::Arc,
 };
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
 		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PipelinePortID,
 		ProcessSignalError, RunNodeError,
 	},
-	data::{CopperData, HashType},
+	data::CopperData,
 	helpers::DataSource,
 };
 
@@ -62,7 +62,7 @@ impl HashComputer {
 
 	fn finish(self) -> CopperData {
 		let format = self.hash_type();
-		let v = match self {
+		let data = match self {
 			Self::MD5 { context } => context.compute().to_vec(),
 			Self::SHA256 { hasher } => hasher.finalize().to_vec(),
 			Self::SHA512 { hasher } => hasher.finalize().to_vec(),
@@ -70,7 +70,7 @@ impl HashComputer {
 
 		CopperData::Hash {
 			hash_type: format,
-			data: Arc::new(v),
+			data,
 		}
 	}
 }
@@ -148,7 +148,7 @@ impl Node<CopperData> for Hash {
 
 				match port.id().as_str() {
 					"data" => match data {
-						CopperData::Bytes { source, mime } => {
+						CopperData::Blob { source, mime } => {
 							self.data.as_mut().unwrap().consume(mime, source);
 						}
 

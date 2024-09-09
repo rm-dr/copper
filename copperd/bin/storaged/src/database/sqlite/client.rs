@@ -1,4 +1,8 @@
 use async_trait::async_trait;
+use copper_storaged::{
+	AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo, ItemId,
+	ItemInfo, Transaction, TransactionAction,
+};
 use copper_util::mime::MimeType;
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, Row};
@@ -7,7 +11,6 @@ use super::{helpers, SqliteDatabaseClient};
 use crate::{
 	database::base::{
 		client::{AttributeOptions, DatabaseClient},
-		data::AttrDataStub,
 		errors::{
 			attribute::{
 				AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
@@ -17,9 +20,6 @@ use crate::{
 			item::{DeleteItemError, GetItemError},
 			transaction::ApplyTransactionError,
 		},
-		handles::{AttributeId, ClassId, DatasetId, ItemId},
-		info::{AttributeInfo, ClassInfo, DatasetInfo, ItemInfo},
-		transaction::{Transaction, TransactionAction},
 	},
 	util::names::check_name,
 };
@@ -225,6 +225,27 @@ impl DatabaseClient for SqliteDatabaseClient {
 			.await
 			.map_err(|e| GetClassError::DbError(Box::new(e)))?;
 
+		let res = sqlx::query("SELECT * FROM attribute WHERE class_id=?;")
+			.bind(u32::from(class))
+			.fetch_all(&mut *conn)
+			.await;
+
+		let attributes: Vec<AttributeInfo> = match res {
+			Err(e) => return Err(GetClassError::DbError(Box::new(e))),
+			Ok(rows) => rows
+				.into_iter()
+				.map(|row| AttributeInfo {
+					id: row.get::<u32, _>("id").into(),
+					class: row.get::<u32, _>("id").into(),
+					order: row.get::<u32, _>("attr_order").into(),
+					name: row.get::<String, _>("pretty_name").into(),
+					data_type: serde_json::from_str(row.get::<&str, _>("data_type")).unwrap(),
+					is_unique: row.get("is_unique"),
+					is_not_null: row.get("is_not_null"),
+				})
+				.collect(),
+		};
+
 		let res = sqlx::query("SELECT * FROM class WHERE id=?;")
 			.bind(u32::from(class))
 			.fetch_one(&mut *conn)
@@ -236,6 +257,7 @@ impl DatabaseClient for SqliteDatabaseClient {
 			Ok(res) => Ok(ClassInfo {
 				id: res.get::<u32, _>("id").into(),
 				name: res.get::<String, _>("pretty_name").into(),
+				attributes,
 			}),
 		};
 	}

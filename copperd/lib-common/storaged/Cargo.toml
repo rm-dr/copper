@@ -1,6 +1,6 @@
 [package]
-name = "copper-util"
-description = "Shared utilities"
+name = "copper-storaged"
+description = ""
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }
@@ -17,8 +17,10 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
-tracing = { workspace = true }
+copper-util = { workspace = true }
+pipelined-node-base = { workspace = true }
+
+smartstring = { workspace = true }
 serde = { workspace = true }
-serde_with = { workspace = true }
-petgraph = { workspace = true }
 utoipa = { workspace = true }
+itertools = { workspace = true }

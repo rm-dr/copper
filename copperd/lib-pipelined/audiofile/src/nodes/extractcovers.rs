@@ -74,7 +74,7 @@ impl Node<CopperData> for ExtractCovers {
 
 				match port.id().as_str() {
 					"data" => match data {
-						CopperData::Bytes { source, mime } => {
+						CopperData::Blob { source, mime } => {
 							if mime != MimeType::Flac {
 								return Err(ProcessSignalError::UnsupportedFormat(format!(
 									"cannot read tags from `{}`",
@@ -139,7 +139,7 @@ impl Node<CopperData> for ExtractCovers {
 		if let Some(picture) = self.reader.pop_picture() {
 			send_data(
 				PipelinePortID::new("cover_data"),
-				CopperData::Bytes {
+				CopperData::Blob {
 					mime: picture.mime.clone(),
 					source: BytesSource::Array {
 						fragment: Arc::new(picture.img_data),
@@ -152,7 +152,7 @@ impl Node<CopperData> for ExtractCovers {
 			send_data(
 				PipelinePortID::new("cover_data"),
 				CopperData::None {
-					data_type: CopperDataStub::Bytes,
+					data_type: CopperDataStub::Blob,
 				},
 			)?;
 			return Ok(NodeState::Done);

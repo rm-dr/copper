@@ -491,12 +491,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "copper-storaged"
+version = "0.1.0"
+dependencies = [
+ "copper-util",
+ "itertools",
+ "pipelined-node-base",
+ "serde",
+ "smartstring",
+ "utoipa",
+]
+
+[[package]]
 name = "copper-util"
 version = "0.1.0"
 dependencies = [
  "petgraph",
+ "serde",
  "serde_with",
  "tracing",
+ "utoipa",
 ]
 
 [[package]]
@@ -2775,8 +2789,12 @@ dependencies = [
  "async-trait",
  "axum",
  "copper-migrate",
+ "copper-storaged",
  "copper-util",
+ "futures",
  "itertools",
+ "pipelined-node-base",
+ "reqwest",
  "serde",
  "serde_json",
  "smartstring",

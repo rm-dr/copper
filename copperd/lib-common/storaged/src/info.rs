@@ -8,7 +8,7 @@ use utoipa::ToSchema;
 
 use super::{
 	data::{AttrData, AttrDataStub},
-	handles::{AttributeId, ClassId, DatasetId, ItemId},
+	id::{AttributeId, ClassId, DatasetId, ItemId},
 };
 
 /// Dataset information
@@ -33,6 +33,8 @@ pub struct ClassInfo {
 	/// This class' name
 	#[schema(value_type = String)]
 	pub name: SmartString<LazyCompact>,
+
+	pub attributes: Vec<AttributeInfo>,
 }
 
 /// Attribute information

@@ -73,7 +73,7 @@ pub(super) async fn run_pipeline(
 				mime,
 				url,
 			} => {
-				let path = CopperData::Bytes {
+				let path = CopperData::Blob {
 					mime,
 					source: BytesSource::Url { url },
 				};

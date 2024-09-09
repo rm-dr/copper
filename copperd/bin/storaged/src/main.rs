@@ -90,12 +90,11 @@ mod tests {
 		body::Body,
 		http::{Method, Request, Response},
 	};
-	use database::base::{
-		client::AttributeOptions,
-		data::{AttrData, AttrDataStub, HashType},
-		handles::{AttributeId, ClassId, DatasetId},
-		transaction::{Transaction, TransactionAction},
+	use copper_storaged::{
+		AttrData, AttrDataStub, AttributeId, ClassId, DatasetId, Transaction, TransactionAction,
 	};
+	use copper_util::HashType;
+	use database::base::client::AttributeOptions;
 	use serde::de::DeserializeOwned;
 	use serde_json::json;
 	use tower::Service;
@@ -716,7 +715,12 @@ mod tests {
 				Transaction {
 					actions: vec![TransactionAction::AddItem {
 						to_class: class_audiofile_id,
-						attributes: vec![(attr_title_id, AttrData::Text("title!".into()))],
+						attributes: vec![(
+							attr_title_id,
+							AttrData::Text {
+								value: "title!".into(),
+							},
+						)],
 					}],
 				},
 			)

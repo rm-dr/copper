@@ -76,7 +76,7 @@ impl Node<CopperData> for StripTags {
 
 				match port.id().as_str() {
 					"data" => match data {
-						CopperData::Bytes { source, mime } => {
+						CopperData::Blob { source, mime } => {
 							if mime != MimeType::Flac {
 								return Err(ProcessSignalError::UnsupportedFormat(format!(
 									"cannot strip tags from `{}`",
@@ -150,7 +150,7 @@ impl Node<CopperData> for StripTags {
 			if !out.is_empty() {
 				send_data(
 					PipelinePortID::new("out"),
-					CopperData::Bytes {
+					CopperData::Blob {
 						mime: MimeType::Flac,
 						source: BytesSource::Array {
 							fragment: Arc::new(out),

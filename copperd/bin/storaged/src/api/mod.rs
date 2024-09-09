@@ -1,4 +1,6 @@
 use axum::{extract::DefaultBodyLimit, Router};
+use copper_storaged::{AttrData, AttrDataStub, AttributeInfo, ClassInfo, DatasetInfo};
+use copper_util::HashType;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
 use utoipa::{
@@ -7,11 +9,7 @@ use utoipa::{
 };
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::database::base::{
-	client::DatabaseClient,
-	data::{AttrData, AttrDataStub, HashType},
-	info::{AttributeInfo, ClassInfo, DatasetInfo},
-};
+use crate::database::base::client::DatabaseClient;
 
 use crate::config::StoragedConfig;
 

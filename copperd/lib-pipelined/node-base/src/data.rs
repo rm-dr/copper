@@ -1,4 +1,4 @@
-use copper_util::mime::MimeType;
+use copper_util::{mime::MimeType, HashType};
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
@@ -6,13 +6,6 @@ use url::Url;
 use utoipa::ToSchema;
 
 use crate::base::{PipelineData, PipelineDataStub};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
-pub enum HashType {
-	MD5,
-	SHA256,
-	SHA512,
-}
 
 /// Immutable bits of data inside a pipeline.
 ///
@@ -40,7 +33,7 @@ pub enum CopperData {
 	/// A block of text
 	Text {
 		#[schema(value_type = String)]
-		value: Arc<SmartString<LazyCompact>>,
+		value: SmartString<LazyCompact>,
 	},
 
 	/// An integer
@@ -54,15 +47,12 @@ pub enum CopperData {
 
 	/// A checksum
 	#[serde(skip)]
-	Hash {
-		hash_type: HashType,
-		data: Arc<Vec<u8>>,
-	},
+	Hash { hash_type: HashType, data: Vec<u8> },
 
 	/// Arbitrary binary data.
 	/// This will be stored in the metadata db.
 	#[serde(skip)]
-	Bytes {
+	Blob {
 		/// This data's media type
 		mime: MimeType,
 
@@ -113,7 +103,7 @@ impl PipelineData for CopperData {
 			Self::Hash {
 				hash_type: format, ..
 			} => CopperDataStub::Hash { hash_type: *format },
-			Self::Bytes { .. } => CopperDataStub::Bytes,
+			Self::Blob { .. } => CopperDataStub::Blob,
 			Self::Reference { class, .. } => CopperDataStub::Reference { class: *class },
 		}
 	}
@@ -132,7 +122,7 @@ pub enum CopperDataStub {
 	Text,
 
 	/// A binary blob
-	Bytes,
+	Blob,
 
 	/// An integer
 	Integer { is_non_negative: bool },

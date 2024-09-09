@@ -1,11 +1,8 @@
+use copper_storaged::{AttrData, AttrDataStub, AttributeId, ClassId, ItemId};
 use itertools::Itertools;
 use sqlx::Row;
 
-use crate::database::base::{
-	data::{AttrData, AttrDataStub},
-	errors::transaction::AddItemError,
-	handles::{AttributeId, ClassId, ItemId},
-};
+use crate::database::base::errors::transaction::AddItemError;
 
 pub(super) async fn add_item(
 	t: &mut sqlx::Transaction<'_, sqlx::Sqlite>,

@@ -14,7 +14,7 @@ use pipelined_node_base::{
 	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, io::Read, sync::Arc};
+use std::{collections::BTreeMap, io::Read};
 
 /// Extract tags from audio metadata
 pub struct ExtractTags {
@@ -123,7 +123,7 @@ impl Node<CopperData> for ExtractTags {
 
 			NodeSignal::ReceiveInput { port, data } => match port.id().as_str() {
 				"data" => match data {
-					CopperData::Bytes { source, mime } => {
+					CopperData::Blob { source, mime } => {
 						if mime != MimeType::Flac {
 							return Err(ProcessSignalError::UnsupportedFormat(format!(
 								"cannot read tags from `{}`",
@@ -196,7 +196,7 @@ impl Node<CopperData> for ExtractTags {
 							send_data(
 								port.clone(),
 								CopperData::Text {
-									value: Arc::new(tag_value.clone()),
+									value: tag_value.clone(),
 								},
 							)?;
 						} else {

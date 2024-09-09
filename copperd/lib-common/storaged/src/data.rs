@@ -1,24 +1,28 @@
 //! Types and instances of data we can store in an attribute
 
-use copper_util::mime::MimeType;
+use copper_util::{mime::MimeType, HashType};
 use itertools::Itertools;
+use pipelined_node_base::data::{CopperData, CopperDataStub};
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::fmt::Debug;
 use utoipa::ToSchema;
 
-use super::handles::{ClassId, ItemId};
+use super::id::{ClassId, ItemId};
 
 /// A value stored inside an attribute.
 /// Each of these corresponds to an [`AttrDataStub`]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "type")]
 pub enum AttrData {
 	/// Typed, unset data
-	None(AttrDataStub),
+	None { data_type: AttrDataStub },
 
 	/// A block of text
-	#[schema(value_type = String)]
-	Text(SmartString<LazyCompact>),
+	Text {
+		#[schema(value_type = String)]
+		value: SmartString<LazyCompact>,
+	},
 
 	/// An integer
 	Integer {
@@ -39,7 +43,7 @@ pub enum AttrData {
 	},
 
 	/// A boolean
-	Boolean(bool),
+	Boolean { value: bool },
 
 	/// A checksum
 	Hash {
@@ -75,7 +79,7 @@ pub enum AttrData {
 impl AttrData {
 	/// Is this `Self::None`?
 	pub fn is_none(&self) -> bool {
-		matches!(self, Self::None(_))
+		matches!(self, Self::None { .. })
 	}
 
 	/// Is this `Self::Blob`?
@@ -91,10 +95,10 @@ impl AttrData {
 	/// Convert this data instance to its type
 	pub fn to_stub(&self) -> AttrDataStub {
 		match self {
-			Self::None(x) => x.clone(),
+			Self::None { data_type } => data_type.clone(),
 			Self::Blob { .. } => AttrDataStub::Blob,
-			Self::Boolean(_) => AttrDataStub::Boolean,
-			Self::Text(_) => AttrDataStub::Text,
+			Self::Boolean { .. } => AttrDataStub::Boolean,
+			Self::Text { .. } => AttrDataStub::Text,
 
 			Self::Float {
 				is_non_negative, ..
@@ -115,15 +119,42 @@ impl AttrData {
 			Self::Reference { class, .. } => AttrDataStub::Reference { class: *class },
 		}
 	}
-}
 
-/// The types of hashes we support
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
-#[allow(missing_docs)]
-pub enum HashType {
-	MD5,
-	SHA256,
-	SHA512,
+	/// Convert this into a [`CopperData`].
+	/// Returns [`None`] only if this is [`Self::Blob`].
+	pub fn to_pipeline_data(self) -> Option<CopperData> {
+		return Some(match self {
+			Self::None { data_type } => CopperData::None {
+				data_type: data_type.into(),
+			},
+
+			Self::Blob { .. } => return None,
+			Self::Text { value } => CopperData::Text { value },
+			Self::Boolean { value } => CopperData::Boolean { value },
+			Self::Hash { hash_type, data } => CopperData::Hash { hash_type, data },
+
+			Self::Reference { class, item } => CopperData::Reference {
+				class: class.into(),
+				item: item.into(),
+			},
+
+			Self::Float {
+				value,
+				is_non_negative,
+			} => CopperData::Float {
+				value,
+				is_non_negative,
+			},
+
+			Self::Integer {
+				value,
+				is_non_negative,
+			} => CopperData::Integer {
+				value,
+				is_non_negative,
+			},
+		});
+	}
 }
 
 /// The type of data stored in an attribute.
@@ -164,4 +195,20 @@ pub enum AttrDataStub {
 		#[schema(value_type = u32)]
 		class: ClassId,
 	},
+}
+
+impl Into<CopperDataStub> for AttrDataStub {
+	fn into(self) -> CopperDataStub {
+		match self {
+			Self::Text => CopperDataStub::Text,
+			Self::Blob => CopperDataStub::Blob,
+			Self::Integer { is_non_negative } => CopperDataStub::Integer { is_non_negative },
+			Self::Float { is_non_negative } => CopperDataStub::Integer { is_non_negative },
+			Self::Boolean => CopperDataStub::Boolean,
+			Self::Hash { hash_type } => CopperDataStub::Hash { hash_type },
+			Self::Reference { class } => CopperDataStub::Reference {
+				class: u32::from(class),
+			},
+		}
+	}
 }

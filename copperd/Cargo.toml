@@ -65,6 +65,7 @@ new_without_default = "allow"
 # Shared libraries
 copper-util = { path = "lib-common/util" }
 copper-migrate = { path = "lib-common/migrate" }
+copper-storaged = { path = "lib-common/storaged" }
 # Pipelined libraries
 pipelined-audiofile = { path = "lib-pipelined/audiofile" }
 pipelined-node-base = { path = "lib-pipelined/node-base" }

@@ -1,6 +1,5 @@
 use crate::database::base::{
 	client::{AttributeOptions, DatabaseClient},
-	data::AttrDataStub,
 	errors::attribute::AddAttributeError,
 };
 use axum::{
@@ -9,6 +8,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
+use copper_storaged::AttrDataStub;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::ToSchema;

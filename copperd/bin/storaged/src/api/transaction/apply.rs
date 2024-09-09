@@ -1,12 +1,11 @@
-use crate::database::base::{
-	client::DatabaseClient, errors::transaction::ApplyTransactionError, transaction::Transaction,
-};
+use crate::database::base::{client::DatabaseClient, errors::transaction::ApplyTransactionError};
 use axum::{
 	extract::State,
 	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
+use copper_storaged::Transaction;
 use serde::Deserialize;
 use tracing::error;
 use utoipa::ToSchema;

@@ -2,10 +2,8 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use super::{
-	data::AttrData,
-	handles::{AttributeId, ClassId},
-};
+use super::data::AttrData;
+use crate::{AttributeId, ClassId};
 
 /// A single action in a transaction
 #[derive(Debug, Deserialize, Serialize, ToSchema)]

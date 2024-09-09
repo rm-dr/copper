@@ -1,23 +1,19 @@
 //! The database client api
 
 use async_trait::async_trait;
+use copper_storaged::{
+	AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo, ItemId,
+	ItemInfo, Transaction,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use super::{
-	data::AttrDataStub,
-	errors::{
-		attribute::{
-			AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
-		},
-		class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
-		dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
-		item::{DeleteItemError, GetItemError},
-		transaction::ApplyTransactionError,
-	},
-	handles::{AttributeId, ClassId, DatasetId, ItemId},
-	info::{AttributeInfo, ClassInfo, DatasetInfo, ItemInfo},
-	transaction::Transaction,
+use super::errors::{
+	attribute::{AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError},
+	class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
+	dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
+	item::{DeleteItemError, GetItemError},
+	transaction::ApplyTransactionError,
 };
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, Default)]

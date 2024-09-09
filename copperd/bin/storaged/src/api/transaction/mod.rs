@@ -1,10 +1,8 @@
 use axum::{routing::post, Router};
+use copper_storaged::{Transaction, TransactionAction};
 use utoipa::OpenApi;
 
-use crate::database::base::{
-	client::DatabaseClient,
-	transaction::{Transaction, TransactionAction},
-};
+use crate::database::base::client::DatabaseClient;
 
 mod apply;
 
