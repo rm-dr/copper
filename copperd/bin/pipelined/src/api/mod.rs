@@ -1,5 +1,6 @@
 use axum::{extract::DefaultBodyLimit, Router};
 use copper_pipelined::{
+	base::NodeParameterValue,
 	data::{PipeData, PipeDataStub},
 	CopperContext,
 };
@@ -12,7 +13,16 @@ use utoipa_swagger_ui::SwaggerUi;
 mod pipeline;
 mod status;
 
-use crate::{config::PipelinedConfig, pipeline::runner::PipelineRunner};
+use crate::{
+	config::PipelinedConfig,
+	pipeline::{
+		json::{
+			EdgeJson, EdgeJsonData, EdgeType, InputPort, NodeJson, NodeJsonData, OutputPort,
+			PipelineJson,
+		},
+		runner::PipelineRunner,
+	},
+};
 
 #[derive(Clone)]
 pub struct RouterState {
@@ -34,6 +44,15 @@ pub struct RouterState {
 	components(schemas(
 		PipeDataStub,
 		PipeData,
+		PipelineJson<PipeData>,
+		NodeJson<PipeData>,
+		EdgeJson,
+		EdgeJsonData,
+		OutputPort,
+		InputPort,
+		NodeJsonData<PipeData>,
+		EdgeType,
+		NodeParameterValue<PipeData>,
 	))
 )]
 struct ApiDoc;

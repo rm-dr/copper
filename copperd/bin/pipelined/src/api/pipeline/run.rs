@@ -4,12 +4,12 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
-use copper_util::mime::MimeType;
 use copper_pipelined::{
 	data::{BytesSource, PipeData},
 	CopperContext,
 };
-use serde::Deserialize;
+use copper_util::mime::MimeType;
+use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
 use url::Url;
@@ -21,7 +21,7 @@ use crate::{
 };
 
 #[derive(Deserialize, ToSchema, Debug)]
-pub(super) struct AddJobParams {
+pub(super) struct AddJobRequest {
 	pub pipeline_name: String,
 	pub pipeline_spec: PipelineJson<PipeData>,
 
@@ -48,12 +48,18 @@ pub(super) enum AddJobInput {
 	},
 }
 
+/// Input that is passed to the pipeline we're running
+#[derive(Serialize, ToSchema, Debug)]
+pub(super) struct AddJobResponse {
+	new_job_id: u128,
+}
+
 /// Start a pipeline job
 #[utoipa::path(
 	post,
 	path = "/run",
 	responses(
-		(status = 200, description = "Job queued successfully", body = PipelineInfo),
+		(status = 200, description = "Job queued successfully", body = AddJobResponse),
 		(status = 404, description = "Invalid dataset or pipeline", body = String),
 		(status = 500, description = "Internal server error", body = String),
 		(status = 401, description = "Unauthorized")
@@ -61,7 +67,7 @@ pub(super) enum AddJobInput {
 )]
 pub(super) async fn run_pipeline(
 	State(state): State<RouterState>,
-	Json(payload): Json<AddJobParams>,
+	Json(payload): Json<AddJobRequest>,
 ) -> Response {
 	let mut runner = state.runner.lock().await;
 
@@ -95,7 +101,7 @@ pub(super) async fn run_pipeline(
 	)
 	.unwrap();
 
-	let new_id = runner.add_job(context, Arc::new(pipe));
+	let new_job_id = runner.add_job(context, Arc::new(pipe)).unwrap();
 
-	return StatusCode::OK.into_response();
+	return (StatusCode::OK, Json(AddJobResponse { new_job_id })).into_response();
 }

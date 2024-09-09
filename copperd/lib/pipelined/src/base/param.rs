@@ -69,12 +69,14 @@ pub enum NodeParameterValue<DataType: PipelineData> {
 	/// A plain string. This is used to carry the value of both
 	/// `String` and `Enum` types. If an `Enum` parameter receives
 	/// a string it doesn't recognize, an error should be thrown.
+	#[schema(value_type = String)]
 	String(SmartString<LazyCompact>),
 
 	/// A list of parameters
 	List(Vec<NodeParameterValue<DataType>>),
 
 	/// A map from `String` to parameter
+	#[schema(value_type = BTreeMap<String, NodeParameterValue<DataType>>)]
 	Map(BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>),
 }
 
