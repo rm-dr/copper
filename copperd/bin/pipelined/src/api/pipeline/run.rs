@@ -10,6 +10,7 @@ use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
+use tracing::error;
 use utoipa::ToSchema;
 
 use crate::{
@@ -73,14 +74,28 @@ pub(super) async fn run_pipeline(
 
 	// Allow `add_job` to block
 	let x = state.runner.clone();
-	let new_job_id = tokio::task::spawn_blocking(move || {
+	let new_job_result = tokio::task::spawn_blocking(move || {
 		let mut y = block_on(x.lock());
 		y.add_job(context, Arc::new(pipe))
 	})
-	.await
-	// TODO: handle errors
-	.unwrap()
-	.unwrap();
+	.await;
 
-	return (StatusCode::OK, Json(AddJobResponse { new_job_id })).into_response();
+	match new_job_result {
+		Ok(Ok(new_job_id)) => {
+			return (StatusCode::OK, Json(AddJobResponse { new_job_id })).into_response();
+		}
+
+		Ok(Err(e)) => {
+			return (
+				StatusCode::BAD_REQUEST,
+				Json(format!("Could not create job: {e:?}")),
+			)
+				.into_response()
+		}
+
+		Err(e) => {
+			error!(message = "Join error while starting job", error = ?e);
+			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+		}
+	}
 }
