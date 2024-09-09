@@ -53,12 +53,6 @@ async fn main() {
 
 	debug!(message = "Loaded config from environment", ?config);
 
-	tracing_subscriber::fmt()
-		.with_env_filter(config.to_env_filter())
-		.without_time()
-		.with_ansi(true)
-		.init();
-
 	let listener =
 		match tokio::net::TcpListener::bind(config.storaged_server_addr.to_string()).await {
 			Ok(x) => x,
