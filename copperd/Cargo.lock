@@ -509,7 +509,9 @@ version = "0.1.0"
 dependencies = [
  "copper-util",
  "itertools",
+ "reqwest",
  "serde",
+ "serde_json",
  "smartstring",
  "utoipa",
 ]
@@ -1889,15 +1891,7 @@ version = "0.1.0"
 dependencies = [
  "copper-pipelined",
  "copper-storaged",
- "copper-util",
- "futures",
- "itertools",
- "reqwest",
- "serde",
- "serde_json",
  "smartstring",
- "tracing",
- "utoipa",
 ]
 
 [[package]]

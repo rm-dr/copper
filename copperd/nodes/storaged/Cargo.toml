@@ -17,15 +17,7 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
-copper-util = { workspace = true }
 copper-pipelined = { workspace = true }
 copper-storaged = { workspace = true }
 
-futures = { workspace = true }
-reqwest = { workspace = true }
 smartstring = { workspace = true }
-serde_json = { workspace = true }
-serde = { workspace = true }
-utoipa = { workspace = true }
-itertools = { workspace = true }
-tracing = { workspace = true }

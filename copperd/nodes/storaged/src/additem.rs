@@ -8,15 +8,15 @@ use copper_pipelined::{
 	CopperContext,
 };
 use copper_storaged::{
-	AttrData, AttributeId, AttributeInfo, ClassId, ClassInfo, Transaction, TransactionAction,
+	client::BlockingStoragedClient, AttrData, AttributeId, AttributeInfo, ClassId, Transaction,
+	TransactionAction,
 };
-use reqwest::StatusCode;
-use serde_json::json;
 use smartstring::{LazyCompact, SmartString};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 pub struct AddItem {
 	class: ClassId,
+	client: Arc<dyn BlockingStoragedClient>,
 
 	ports: BTreeMap<PortName, AttributeInfo>,
 	attrs: BTreeMap<AttributeId, PortName>,
@@ -47,25 +47,18 @@ impl AddItem {
 			});
 		};
 
-		let ports: BTreeMap<PortName, AttributeInfo> = {
-			let client = reqwest::blocking::Client::new();
-
-			// TODO: config (state)
-			// TODO: handle errors
-			// TODO: write mockable client
-			let classinfo: ClassInfo = client
-				.get(format!("http://localhost:5000/class/{}", u32::from(class)))
-				.send()
-				.unwrap()
-				.json()
-				.unwrap();
-
-			classinfo
-				.attributes
-				.into_iter()
-				.map(|x| (PortName::new(x.name.as_str()), x))
-				.collect()
-		};
+		let ports: BTreeMap<PortName, AttributeInfo> = ctx
+			.storaged_client
+			.get_class(class)
+			.map_err(|e| InitNodeError::Other(Box::new(e)))?
+			.ok_or(InitNodeError::BadParameterOther {
+				param_name: "class".into(),
+				message: "this class doesn't exist".into(),
+			})?
+			.attributes
+			.into_iter()
+			.map(|x| (PortName::new(x.name.as_str()), x))
+			.collect();
 
 		let data = ports
 			.iter()
@@ -76,6 +69,7 @@ impl AddItem {
 
 		Ok(Self {
 			class,
+			client: ctx.storaged_client.clone(),
 			ports,
 			data,
 			attrs,
@@ -176,23 +170,10 @@ impl Node<PipeData> for AddItem {
 			}],
 		};
 
-		let client = reqwest::blocking::Client::new();
+		self.client
+			.apply_transaction(transaction)
+			.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 
-		// TODO: handle errors
-		let res = client
-			.post("http://localhost:5000/transaction/apply")
-			.json(&json!({
-				"transaction": transaction
-			}))
-			.send()
-			.unwrap();
-
-		match res.status() {
-			StatusCode::OK => return Ok(NodeState::Done),
-
-			x => {
-				panic!("failed with code {x}")
-			}
-		}
+		return Ok(NodeState::Done);
 	}
 }

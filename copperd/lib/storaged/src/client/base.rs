@@ -4,8 +4,13 @@ use crate::{ClassId, ClassInfo, Transaction};
 
 #[derive(Debug)]
 pub enum StoragedRequestError {
-	GenericHttp { code: u16, message: Option<String> },
-	Other { error: Box<dyn Error> },
+	GenericHttp {
+		code: u16,
+		message: Option<String>,
+	},
+	Other {
+		error: Box<dyn Error + Sync + Send + 'static>,
+	},
 }
 
 impl Display for StoragedRequestError {
