@@ -1,7 +1,8 @@
-use reqwest::{blocking::Client, IntoUrl, Url};
+use async_trait::async_trait;
+use reqwest::{Client, IntoUrl, Url};
 use serde_json::json;
 
-use super::{BlockingStoragedClient, StoragedRequestError};
+use super::{StoragedClient, StoragedRequestError};
 use crate::{ClassId, ClassInfo, Transaction};
 
 pub struct ReqwestStoragedClient {
@@ -12,7 +13,7 @@ pub struct ReqwestStoragedClient {
 impl ReqwestStoragedClient {
 	pub fn new(storaged_url: impl IntoUrl) -> Result<Self, reqwest::Error> {
 		Ok(Self {
-			client: reqwest::blocking::Client::new(),
+			client: Client::new(),
 			storaged_url: storaged_url.into_url()?,
 		})
 	}
@@ -29,8 +30,12 @@ fn convert_error(e: reqwest::Error) -> StoragedRequestError {
 	}
 }
 
-impl BlockingStoragedClient for ReqwestStoragedClient {
-	fn get_class(&self, class_id: ClassId) -> Result<Option<ClassInfo>, StoragedRequestError> {
+#[async_trait]
+impl StoragedClient for ReqwestStoragedClient {
+	async fn get_class(
+		&self,
+		class_id: ClassId,
+	) -> Result<Option<ClassInfo>, StoragedRequestError> {
 		let res = self
 			.client
 			.get(
@@ -39,19 +44,24 @@ impl BlockingStoragedClient for ReqwestStoragedClient {
 					.unwrap(),
 			)
 			.send()
+			.await
 			.map_err(convert_error)?;
 
-		let class: ClassInfo = res.json().map_err(convert_error)?;
+		let class: ClassInfo = res.json().await.map_err(convert_error)?;
 		return Ok(Some(class));
 	}
 
-	fn apply_transaction(&self, transaction: Transaction) -> Result<(), StoragedRequestError> {
+	async fn apply_transaction(
+		&self,
+		transaction: Transaction,
+	) -> Result<(), StoragedRequestError> {
 		self.client
 			.post(self.storaged_url.join("/apply").unwrap())
 			.json(&json!({
 				"transaction": transaction
 			}))
 			.send()
+			.await
 			.map_err(convert_error)?;
 
 		return Ok(());

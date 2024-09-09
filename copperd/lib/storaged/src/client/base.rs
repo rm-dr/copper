@@ -1,5 +1,7 @@
 use std::{error::Error, fmt::Display};
 
+use async_trait::async_trait;
+
 use crate::{ClassId, ClassInfo, Transaction};
 
 #[derive(Debug)]
@@ -37,8 +39,11 @@ impl Error for StoragedRequestError {
 	}
 }
 
-pub trait BlockingStoragedClient: Send + Sync {
-	fn get_class(&self, class_id: ClassId) -> Result<Option<ClassInfo>, StoragedRequestError>;
+#[async_trait]
+pub trait StoragedClient: Send + Sync {
+	async fn get_class(&self, class_id: ClassId)
+		-> Result<Option<ClassInfo>, StoragedRequestError>;
 
-	fn apply_transaction(&self, transaction: Transaction) -> Result<(), StoragedRequestError>;
+	async fn apply_transaction(&self, transaction: Transaction)
+		-> Result<(), StoragedRequestError>;
 }

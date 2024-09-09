@@ -8,15 +8,16 @@ use copper_pipelined::{
 	CopperContext,
 };
 use copper_storaged::{
-	client::BlockingStoragedClient, AttrData, AttributeId, AttributeInfo, ClassId, Transaction,
+	client::StoragedClient, AttrData, AttributeId, AttributeInfo, ClassId, Transaction,
 	TransactionAction,
 };
+use futures::executor::block_on;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
 
 pub struct AddItem {
 	class: ClassId,
-	client: Arc<dyn BlockingStoragedClient>,
+	client: Arc<dyn StoragedClient>,
 
 	ports: BTreeMap<PortName, AttributeInfo>,
 	attrs: BTreeMap<AttributeId, PortName>,
@@ -47,18 +48,17 @@ impl AddItem {
 			});
 		};
 
-		let ports: BTreeMap<PortName, AttributeInfo> = ctx
-			.storaged_client
-			.get_class(class)
-			.map_err(|e| InitNodeError::Other(Box::new(e)))?
-			.ok_or(InitNodeError::BadParameterOther {
-				param_name: "class".into(),
-				message: "this class doesn't exist".into(),
-			})?
-			.attributes
-			.into_iter()
-			.map(|x| (PortName::new(x.name.as_str()), x))
-			.collect();
+		let ports: BTreeMap<PortName, AttributeInfo> =
+			block_on(ctx.storaged_client.get_class(class))
+				.map_err(|e| InitNodeError::Other(Box::new(e)))?
+				.ok_or(InitNodeError::BadParameterOther {
+					param_name: "class".into(),
+					message: "this class doesn't exist".into(),
+				})?
+				.attributes
+				.into_iter()
+				.map(|x| (PortName::new(x.name.as_str()), x))
+				.collect();
 
 		let data = ports
 			.iter()
@@ -170,8 +170,7 @@ impl Node<PipeData> for AddItem {
 			}],
 		};
 
-		self.client
-			.apply_transaction(transaction)
+		block_on(self.client.apply_transaction(transaction))
 			.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 
 		return Ok(NodeState::Done);

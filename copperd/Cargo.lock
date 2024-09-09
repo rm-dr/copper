@@ -507,6 +507,7 @@ dependencies = [
 name = "copper-storaged"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "copper-util",
  "itertools",
  "reqwest",
@@ -1902,6 +1903,7 @@ version = "0.1.0"
 dependencies = [
  "copper-pipelined",
  "copper-storaged",
+ "futures",
  "smartstring",
 ]
 

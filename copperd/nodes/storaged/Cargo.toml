@@ -20,4 +20,5 @@ workspace = true
 copper-pipelined = { workspace = true }
 copper-storaged = { workspace = true }
 
+futures = { workspace = true }
 smartstring = { workspace = true }

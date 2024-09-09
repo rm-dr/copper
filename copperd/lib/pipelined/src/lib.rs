@@ -3,7 +3,7 @@ pub mod data;
 pub mod helpers;
 
 use base::PipelineJobContext;
-use copper_storaged::client::BlockingStoragedClient;
+use copper_storaged::client::StoragedClient;
 use data::PipeData;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
@@ -13,7 +13,7 @@ pub struct CopperContext {
 	pub blob_fragment_size: u64,
 	pub input: BTreeMap<SmartString<LazyCompact>, PipeData>,
 
-	pub storaged_client: Arc<dyn BlockingStoragedClient>,
+	pub storaged_client: Arc<dyn StoragedClient>,
 }
 
 impl PipelineJobContext<PipeData> for CopperContext {
