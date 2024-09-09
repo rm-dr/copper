@@ -2,9 +2,8 @@ use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, error::Error, fmt::Display, marker::PhantomData};
 
 use super::{
-	internal_nodes::{Input, InputInfo},
-	InitNodeError, Node, NodeInfo, NodeParameterSpec, NodeParameterValue, PipelineData,
-	PipelineJobContext, INPUT_NODE_TYPE_NAME,
+	internal_nodes::Input, InitNodeError, Node, NodeParameterSpec, NodeParameterValue,
+	PipelineData, PipelineJobContext, INPUT_NODE_TYPE_NAME,
 };
 
 // This type must be send + sync, since we use this inside tokio's async runtime.
@@ -16,18 +15,6 @@ type NodeInitFnType<DataType, ContextType> = &'static (dyn Fn(
 	// This node's name
 	&str,
 ) -> Result<Box<dyn Node<DataType>>, InitNodeError>
-              + Send
-              + Sync);
-
-// This type must be send + sync, since we use this inside tokio's async runtime.
-type NodeInfoFnType<DataType, ContextType> = &'static (dyn Fn(
-	// The job context to build this node with
-	&ContextType,
-	// This node's parameters
-	&BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
-	// This node's name
-	&str,
-) -> Result<Box<dyn NodeInfo<DataType>>, InitNodeError>
               + Send
               + Sync);
 
@@ -50,9 +37,6 @@ impl Error for RegisterNodeError {}
 
 /// A node type we've registered inside a [`NodeDispatcher`]
 struct RegisteredNode<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
-	/// A method that constructs a new node of this type with the provided parameters.
-	node_info: NodeInfoFnType<DataType, ContextType>,
-
 	/// A method that constructs a new node of this type with the provided parameters.
 	node_init: NodeInitFnType<DataType, ContextType>,
 
@@ -81,7 +65,6 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		x.register_node(
 			INPUT_NODE_TYPE_NAME,
 			BTreeMap::new(),
-			&|_ctx, params, name| Ok(Box::new(InputInfo::new(params, name)?)),
 			&|ctx, params, name| Ok(Box::new(Input::new(ctx, params, name)?)),
 		)
 		.unwrap();
@@ -97,7 +80,6 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		&mut self,
 		type_name: &str,
 		parameters: BTreeMap<SmartString<LazyCompact>, NodeParameterSpec<DataType>>,
-		node_info: NodeInfoFnType<DataType, ContextType>,
 		node_init: NodeInitFnType<DataType, ContextType>,
 	) -> Result<(), RegisterNodeError> {
 		if self.nodes.contains_key(type_name) {
@@ -107,13 +89,16 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		self.nodes.insert(
 			type_name.into(),
 			RegisteredNode {
-				node_info,
 				node_init,
 				_parameters: parameters,
 			},
 		);
 
 		return Ok(());
+	}
+
+	pub fn has_node(&self, node_name: &str) -> bool {
+		return self.nodes.contains_key(node_name);
 	}
 
 	pub fn init_node(
@@ -125,20 +110,6 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	) -> Result<Option<Box<dyn Node<DataType>>>, InitNodeError> {
 		if let Some(node) = self.nodes.get(node_type) {
 			return Ok(Some((node.node_init)(context, node_params, node_name)?));
-		} else {
-			return Ok(None);
-		}
-	}
-
-	pub fn node_info(
-		&self,
-		context: &ContextType,
-		node_type: &str,
-		node_params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
-		node_name: &str,
-	) -> Result<Option<Box<dyn NodeInfo<DataType>>>, InitNodeError> {
-		if let Some(node) = self.nodes.get(node_type) {
-			return Ok(Some((node.node_info)(context, node_params, node_name)?));
 		} else {
 			return Ok(None);
 		}

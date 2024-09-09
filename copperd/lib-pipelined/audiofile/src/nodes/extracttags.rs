@@ -6,8 +6,8 @@ use copper_util::mime::MimeType;
 use itertools::Itertools;
 use pipelined_node_base::{
 	base::{
-		InitNodeError, Node, NodeInfo, NodeParameterValue, NodeState, PipelineData, PipelinePortID,
-		RunNodeError,
+		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PipelinePortID,
+		ProcessSignalError, RunNodeError,
 	},
 	data::{CopperData, CopperDataStub},
 	helpers::DataSource,
@@ -16,16 +16,21 @@ use pipelined_node_base::{
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, io::Read, sync::Arc};
 
-/// Info for a [`ExtractTags`] node
-pub struct ExtractTagsInfo {
-	inputs: BTreeMap<PipelinePortID, CopperDataStub>,
-	outputs: BTreeMap<PipelinePortID, CopperDataStub>,
+/// Extract tags from audio metadata
+pub struct ExtractTags {
 	tags: BTreeMap<PipelinePortID, TagType>,
+
+	blob_fragment_size: u64,
+	reader: FlacBlockReader,
+
+	/// None if disconnected, `Uninitialized` if unset
+	data: Option<DataSource>,
 }
 
-impl ExtractTagsInfo {
-	/// Generate node info from parameters
+impl ExtractTags {
+	/// Create a new [`ExtractTags`] node
 	pub fn new(
+		ctx: &CopperContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
 	) -> Result<Self, InitNodeError> {
 		if params.len() != 1 {
@@ -60,7 +65,7 @@ impl ExtractTagsInfo {
 		}
 
 		Ok(Self {
-			inputs: BTreeMap::from([(PipelinePortID::new("data"), CopperDataStub::Bytes)]),
+			/*
 			outputs: {
 				let mut out = BTreeMap::new();
 				for t in &tags {
@@ -71,43 +76,15 @@ impl ExtractTagsInfo {
 				}
 				out
 			},
+			*/
 			tags: tags
 				.into_iter()
 				.unique()
 				.map(|x| (PipelinePortID::new(Into::<&str>::into(&x)), x))
 				.collect(),
-		})
-	}
-}
 
-impl NodeInfo<CopperData> for ExtractTagsInfo {
-	fn inputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
-		&self.inputs
-	}
-
-	fn outputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
-		&self.outputs
-	}
-}
-
-/// Extract tags from audio metadata
-pub struct ExtractTags {
-	info: ExtractTagsInfo,
-	blob_fragment_size: u64,
-	data: DataSource,
-	reader: FlacBlockReader,
-}
-
-impl ExtractTags {
-	/// Create a new [`ExtractTags`] node
-	pub fn new(
-		ctx: &CopperContext,
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
-	) -> Result<Self, InitNodeError> {
-		Ok(Self {
-			info: ExtractTagsInfo::new(params)?,
 			blob_fragment_size: ctx.blob_fragment_size,
-			data: DataSource::Uninitialized,
+			data: None,
 			reader: FlacBlockReader::new(FlacBlockSelector {
 				pick_vorbiscomment: true,
 				..Default::default()
@@ -116,34 +93,54 @@ impl ExtractTags {
 	}
 }
 
+// Inputs: "data" - Bytes
+// Outputs: variable, depends on tags
 impl Node<CopperData> for ExtractTags {
-	fn get_info(&self) -> &dyn NodeInfo<CopperData> {
-		&self.info
-	}
-
-	fn take_input(
-		&mut self,
-		target_port: PipelinePortID,
-		input_data: CopperData,
-	) -> Result<(), RunNodeError> {
-		match target_port.id().as_str() {
-			"data" => match input_data {
-				CopperData::Bytes { source, mime } => {
-					if mime != MimeType::Flac {
-						return Err(RunNodeError::UnsupportedFormat(format!(
-							"cannot read tags from `{}`",
-							mime
-						)));
+	fn process_signal(&mut self, signal: NodeSignal<CopperData>) -> Result<(), ProcessSignalError> {
+		match signal {
+			NodeSignal::ConnectInput { port } => match port.id().as_str() {
+				"data" => {
+					if self.data.is_some() {
+						unreachable!("tried to connect an input twice")
 					}
-
-					self.data.consume(mime, source);
+					self.data = Some(DataSource::Uninitialized)
 				}
-
-				_ => unreachable!("Received unexpected data type"),
+				_ => return Err(ProcessSignalError::InputPortDoesntExist),
 			},
 
-			_ => unreachable!("Received data at invalid port"),
+			NodeSignal::DisconnectInput { port } => match port.id().as_str() {
+				"data" => {
+					if self.data.is_none() {
+						unreachable!("tried to disconnect an input that hasn't been connected")
+					}
+
+					if matches!(self.data, Some(DataSource::Uninitialized)) {
+						return Err(ProcessSignalError::RequiredInputEmpty);
+					}
+				}
+				_ => return Err(ProcessSignalError::InputPortDoesntExist),
+			},
+
+			NodeSignal::ReceiveInput { port, data } => match port.id().as_str() {
+				"data" => match data {
+					CopperData::Bytes { source, mime } => {
+						if mime != MimeType::Flac {
+							return Err(ProcessSignalError::UnsupportedFormat(format!(
+								"cannot read tags from `{}`",
+								mime
+							)));
+						}
+
+						self.data.as_mut().unwrap().consume(mime, source);
+					}
+
+					_ => return Err(ProcessSignalError::InputWithBadType),
+				},
+
+				_ => return Err(ProcessSignalError::InputPortDoesntExist),
+			},
 		}
+
 		return Ok(());
 	}
 
@@ -152,12 +149,14 @@ impl Node<CopperData> for ExtractTags {
 		send_data: &dyn Fn(PipelinePortID, CopperData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		// Push latest data into tag reader
-		match &mut self.data {
-			DataSource::Uninitialized => {
-				return Ok(NodeState::Pending("No data received"));
+		match self.data.as_mut() {
+			None => return Err(RunNodeError::RequiredInputNotConnected),
+
+			Some(DataSource::Uninitialized) => {
+				return Ok(NodeState::Pending("waiting for data"));
 			}
 
-			DataSource::Binary { data, is_done, .. } => {
+			Some(DataSource::Binary { data, is_done, .. }) => {
 				while let Some(d) = data.pop_front() {
 					self.reader
 						.push_data(&d)
@@ -170,7 +169,7 @@ impl Node<CopperData> for ExtractTags {
 				}
 			}
 
-			DataSource::Url { data, .. } => {
+			Some(DataSource::Url { data, .. }) => {
 				let mut v = Vec::new();
 				let n = data.take(self.blob_fragment_size).read_to_end(&mut v)?;
 				self.reader
@@ -190,7 +189,7 @@ impl Node<CopperData> for ExtractTags {
 			let b = self.reader.pop_block().unwrap();
 			match b {
 				FlacBlock::VorbisComment(comment) => {
-					for (port, tag_type) in self.info.tags.iter() {
+					for (port, tag_type) in self.tags.iter() {
 						if let Some((_, tag_value)) =
 							comment.comment.comments.iter().find(|(t, _)| t == tag_type)
 						{

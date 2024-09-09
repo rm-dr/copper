@@ -19,10 +19,6 @@ where
 
 	/// Transform this data container into its type.
 	fn as_stub(&self) -> Self::DataStubType;
-
-	/// Create an "empty" data of the given type.
-	/// This is sent to all disconnected inputs.
-	fn disconnected(stub: Self::DataStubType) -> Self;
 }
 
 /// A "type" of [`PipelineData`].

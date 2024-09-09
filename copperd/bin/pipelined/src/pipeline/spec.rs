@@ -1,7 +1,7 @@
 use copper_util::graph::{finalized::FinalizedGraph, graph::Graph};
 use pipelined_node_base::base::{
-	InitNodeError, NodeDispatcher, NodeParameterValue, PipelineData, PipelineDataStub,
-	PipelineJobContext, PipelineNodeID, PipelinePortID, INPUT_NODE_TYPE_NAME,
+	NodeDispatcher, NodeParameterValue, PipelineData, PipelineJobContext, PipelineNodeID,
+	PipelinePortID, INPUT_NODE_TYPE_NAME,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{
@@ -43,20 +43,17 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	/// Load a pipeline from a TOML string
 	pub fn build(
 		dispatcher: &NodeDispatcher<DataType, ContextType>,
-		context: &ContextType,
 		pipeline_name: &str,
 		json: &PipelineJson<DataType>,
-	) -> Result<Self, PipelineBuildError<DataType>> {
+	) -> Result<Self, PipelineBuildError> {
 		debug!(message = "Building pipeline", pipeline_name);
 
-		// Initialize all variables
+		// The graph that stores this pipeline
 		let mut graph = Graph::new();
-		let mut node_output_name_map_ptp = HashMap::new();
-		let mut node_input_name_map_ptp = HashMap::new();
-		let mut node_output_name_map_after = HashMap::new();
-		let mut node_input_name_map_after = HashMap::new();
+		// Maps node ids (from JSON) to node indices in `graph`
+		let mut node_id_map = HashMap::new();
 
-		// Add nodes to the graph
+		// Create all nodes in the graph
 		trace!(message = "Making nodes", pipeline_name);
 		for (node_id, node_spec) in &json.nodes {
 			let n = graph.add_node(NodeSpec {
@@ -65,10 +62,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				node_type: node_spec.data.node_type.clone(),
 			});
 
-			node_output_name_map_ptp.insert(node_id.clone(), n);
-			node_input_name_map_ptp.insert(node_id.clone(), n);
-			node_output_name_map_after.insert(node_id.clone(), n);
-			node_input_name_map_after.insert(node_id.clone(), n);
+			node_id_map.insert(node_id.clone(), n);
 		}
 
 		// Make sure all "after" edges are valid and create them in the graph.
@@ -78,23 +72,28 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			.iter()
 			.filter(|(_, v)| matches!(v.data.edge_type, EdgeType::After))
 		{
-			let source = node_input_name_map_after
-				.get(&edge_spec.source.node)
-				.ok_or(PipelineBuildError::NoNode {
-					edge_id: edge_id.clone(),
-					invalid_node_id: edge_spec.source.node.clone(),
-				})?;
-			let target = node_input_name_map_after
-				.get(&edge_spec.target.node)
-				.ok_or(PipelineBuildError::NoNode {
-					edge_id: edge_id.clone(),
-					invalid_node_id: edge_spec.target.node.clone(),
-				})?;
+			let source =
+				node_id_map
+					.get(&edge_spec.source.node)
+					.ok_or(PipelineBuildError::NoNode {
+						edge_id: edge_id.clone(),
+						invalid_node_id: edge_spec.source.node.clone(),
+					})?;
+			let target =
+				node_id_map
+					.get(&edge_spec.target.node)
+					.ok_or(PipelineBuildError::NoNode {
+						edge_id: edge_id.clone(),
+						invalid_node_id: edge_spec.target.node.clone(),
+					})?;
 
 			graph.add_edge(source.clone(), target.clone(), EdgeSpec::After);
 		}
 
 		// Make sure all "data" edges are valid and create them in the graph.
+		//
+		// We do not check if ports exist & have matching types here,
+		// since not all nodes know their ports at build time.
 		trace!(message = "Making `data` edges", pipeline_name);
 		for (edge_id, edge_spec) in json
 			.edges
@@ -116,78 +115,21 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 						invalid_node_id: edge_spec.target.node.clone(),
 					})?;
 
-			let source_node_info = dispatcher
-				.node_info(
-					context,
-					&source_node.data.node_type,
-					&source_node.data.params,
-					edge_spec.source.node.id(),
-				)?
-				.unwrap();
-
-			let target_node_info = dispatcher
-				.node_info(
-					context,
-					&target_node.data.node_type,
-					&target_node.data.params,
-					edge_spec.target.node.id(),
-				)?
-				.unwrap();
-
-			// Make sure types are compatible
-			{
-				let source_type = *source_node_info
-					.outputs()
-					.get(&edge_spec.source.port)
-					.ok_or(PipelineBuildError::NoNode {
-						edge_id: edge_id.clone(),
-						invalid_node_id: edge_spec.source.node.clone(),
-					})?;
-
-				let target_type = *target_node_info
-					.outputs()
-					.get(&edge_spec.target.port)
-					.ok_or(PipelineBuildError::NoNode {
-						edge_id: edge_id.clone(),
-						invalid_node_id: edge_spec.target.node.clone(),
-					})?;
-
-				if !source_type.is_subset_of(&target_type) {
-					return Err(PipelineBuildError::TypeMismatch {
-						edge_id: edge_id.clone(),
-						source_type,
-						target_type,
-					});
-				}
+			if !dispatcher.has_node(&source_node.data.node_type) {
+				return Err(PipelineBuildError::InvalidNodeType {
+					bad_type: source_node.data.node_type.clone(),
+				});
 			}
 
-			if !source_node_info
-				.inputs()
-				.contains_key(&edge_spec.source.port)
-			{
-				return Err(PipelineBuildError::NoSuchOutputPort {
-					edge_id: edge_id.clone(),
-					node: edge_spec.source.node.clone(),
-					invalid_port: edge_spec.source.port.clone(),
+			if !dispatcher.has_node(&target_node.data.node_type) {
+				return Err(PipelineBuildError::InvalidNodeType {
+					bad_type: target_node.data.node_type.clone(),
 				});
-			};
+			}
 
-			if !target_node_info
-				.inputs()
-				.contains_key(&edge_spec.target.port)
-			{
-				return Err(PipelineBuildError::NoSuchOutputPort {
-					edge_id: edge_id.clone(),
-					node: edge_spec.target.node.clone(),
-					invalid_port: edge_spec.target.port.clone(),
-				});
-			};
-
-			let source_node_idx = *node_output_name_map_ptp
-				.get(&edge_spec.source.node)
-				.unwrap();
-
-			let target_node_idx = *node_input_name_map_ptp.get(&edge_spec.target.node).unwrap();
+			// These should never fail
+			let source_node_idx = *node_id_map.get(&edge_spec.source.node).unwrap();
+			let target_node_idx = *node_id_map.get(&edge_spec.target.node).unwrap();
 
 			// Create the edge
 			graph.add_edge(
@@ -308,7 +250,7 @@ impl EdgeSpec {
 
 /// An error we encounter when a pipeline spec is invalid
 #[derive(Debug)]
-pub enum PipelineBuildError<DataType: PipelineData> {
+pub enum PipelineBuildError {
 	/// An edge references a node, but it doesn't exist
 	NoNode {
 		/// The edge that references an invalid node
@@ -318,61 +260,17 @@ pub enum PipelineBuildError<DataType: PipelineData> {
 		invalid_node_id: PipelineNodeID,
 	},
 
-	/// We tried to connect `input` to `output`,
-	/// but their types don't match.
-	TypeMismatch {
-		/// The offending edge
-		edge_id: SmartString<LazyCompact>,
-
-		/// The source type
-		source_type: <DataType as PipelineData>::DataStubType,
-
-		/// The incompatible target type
-		target_type: <DataType as PipelineData>::DataStubType,
-	},
-
 	/// This pipeline has a cycle and is thus invalid
 	HasCycle,
 
-	/// `node` has no output port named `input`.
-	/// This is triggered when we specify an input that doesn't exist.
-	NoSuchOutputPort {
-		/// The responsible edge
-		edge_id: SmartString<LazyCompact>,
-		/// The node we tried to reference
-		node: PipelineNodeID,
-		/// The port that doesn't exist
-		invalid_port: PipelinePortID,
-	},
-
-	/// `node` has no input port named `port`.
-	/// This is triggered when we specify an input that doesn't exist.
-	NoSuchInputPort {
-		/// The responsible edge
-		edge_id: SmartString<LazyCompact>,
-		/// The node we tried to reference
-		node: PipelineNodeID,
-		/// The port name that doesn't exist
-		invalid_port: PipelinePortID,
-	},
-
 	/// We tried to create a node with an unrecognized type
 	InvalidNodeType {
-		/// The node that was invalid
-		node: PipelineNodeID,
-
-		///The invalid type
+		/// The invalid type
 		bad_type: SmartString<LazyCompact>,
-	},
-
-	/// We encountered an [`InitNodeError`] while building a pipeline
-	InitNodeError {
-		/// The error we encountered
-		error: InitNodeError,
 	},
 }
 
-impl<DataType: PipelineData> Display for PipelineBuildError<DataType> {
+impl Display for PipelineBuildError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::NoNode {
@@ -385,65 +283,21 @@ impl<DataType: PipelineData> Display for PipelineBuildError<DataType> {
 				)
 			}
 
-			Self::TypeMismatch {
-				edge_id,
-				source_type,
-				target_type,
-			} => {
-				writeln!(
-					f,
-					"edge `{edge_id}` connects incompatible types `{source_type:?}` and `{target_type:?}`"
-				)
-			}
-
 			Self::HasCycle => {
 				writeln!(f, "this pipeline has a cycle")
 			}
 
-			Self::NoSuchInputPort {
-				edge_id,
-				node,
-				invalid_port,
-			} => {
-				writeln!(
-					f,
-					"edge `{edge_id}` references invalid input port `{invalid_port}` on node `{node}`"
-				)
-			}
-
-			Self::NoSuchOutputPort {
-				edge_id,
-				node,
-				invalid_port,
-			} => {
-				writeln!(
-					f,
-					"edge `{edge_id}` references invalid output port `{invalid_port}` on node `{node}`"
-				)
-			}
-
-			Self::InvalidNodeType { node, bad_type } => {
-				writeln!(f, "node `{node}` has invalid type `{bad_type}`")
-			}
-
-			Self::InitNodeError { .. } => {
-				writeln!(f, "could not initialize node")
+			Self::InvalidNodeType { bad_type } => {
+				writeln!(f, "unknown node type `{bad_type}`")
 			}
 		}
 	}
 }
 
-impl<DataType: PipelineData> Error for PipelineBuildError<DataType> {
+impl Error for PipelineBuildError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::InitNodeError { error } => Some(error),
 			_ => None,
 		}
-	}
-}
-
-impl<DataType: PipelineData> From<InitNodeError> for PipelineBuildError<DataType> {
-	fn from(error: InitNodeError) -> Self {
-		Self::InitNodeError { error }
 	}
 }

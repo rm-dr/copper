@@ -90,7 +90,6 @@ pub(super) async fn run_pipeline(
 
 	let pipe = PipelineSpec::build(
 		runner.get_dispatcher(),
-		&context,
 		&payload.pipeline_name,
 		&payload.pipeline_spec,
 	)

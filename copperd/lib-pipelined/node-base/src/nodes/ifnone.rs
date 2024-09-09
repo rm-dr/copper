@@ -3,18 +3,18 @@ use std::collections::BTreeMap;
 
 use crate::{
 	base::{
-		InitNodeError, Node, NodeInfo, NodeParameterValue, NodeState, PipelineData, PipelinePortID,
-		RunNodeError,
+		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PipelineData,
+		PipelinePortID, ProcessSignalError, RunNodeError,
 	},
 	data::{CopperData, CopperDataStub},
+	helpers::ConnectedInput,
 };
 
 pub struct IfNone {
-	inputs: BTreeMap<PipelinePortID, CopperDataStub>,
-	outputs: BTreeMap<PipelinePortID, CopperDataStub>,
+	ifnone: ConnectedInput<CopperData>,
+	data: ConnectedInput<CopperData>,
 
-	ifnone: Option<CopperData>,
-	input: Option<CopperData>,
+	data_type: CopperDataStub,
 }
 
 impl IfNone {
@@ -41,68 +41,92 @@ impl IfNone {
 		};
 
 		Ok(Self {
-			inputs: BTreeMap::from([
-				(PipelinePortID::new("data"), data_type),
-				(PipelinePortID::new("ifnone"), data_type),
-			]),
-
-			outputs: BTreeMap::from([(PipelinePortID::new("out"), data_type)]),
-
-			ifnone: None,
-			input: None,
+			ifnone: ConnectedInput::NotConnected,
+			data: ConnectedInput::NotConnected,
+			data_type,
 		})
 	}
 }
 
-impl NodeInfo<CopperData> for IfNone {
-	fn inputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
-		&self.inputs
-	}
-
-	fn outputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
-		&self.outputs
-	}
-}
-
+// Inputs:
+// - "data", <T>
+// - "ifnone", <T>
+// Outputs:
+// - "out", <T>
 impl Node<CopperData> for IfNone {
-	fn get_info(&self) -> &dyn NodeInfo<CopperData> {
-		self
+	fn process_signal(&mut self, signal: NodeSignal<CopperData>) -> Result<(), ProcessSignalError> {
+		match signal {
+			NodeSignal::ConnectInput { port } => match port.id().as_str() {
+				"data" => self.data.connect(),
+				"ifnone" => self.ifnone.connect(),
+				_ => return Err(ProcessSignalError::InputPortDoesntExist),
+			},
+
+			NodeSignal::DisconnectInput { port } => match port.id().as_str() {
+				"data" => {
+					if !self.data.is_connected() {
+						unreachable!("disconnected an input that hasn't been connected")
+					}
+					if !self.data.is_set() {
+						return Err(ProcessSignalError::RequiredInputEmpty);
+					}
+				}
+				"ifnone" => {
+					if !self.data.is_connected() {
+						unreachable!("disconnected an input that hasn't been connected")
+					}
+					if !self.ifnone.is_set() {
+						return Err(ProcessSignalError::RequiredInputEmpty);
+					}
+				}
+				_ => return Err(ProcessSignalError::InputPortDoesntExist),
+			},
+
+			NodeSignal::ReceiveInput { port, data } => match port.id().as_str() {
+				"data" => {
+					if data.as_stub() != self.data_type {
+						return Err(ProcessSignalError::InputWithBadType);
+					}
+
+					self.data.set(data);
+				}
+				"ifnone" => {
+					if data.as_stub() != self.data_type {
+						return Err(ProcessSignalError::InputWithBadType);
+					}
+
+					self.ifnone.set(data);
+				}
+				_ => return Err(ProcessSignalError::InputPortDoesntExist),
+			},
+		}
+
+		return Ok(());
 	}
 
 	fn quick_run(&self) -> bool {
 		true
 	}
 
-	fn take_input(
-		&mut self,
-		target_port: PipelinePortID,
-		input_data: CopperData,
-	) -> Result<(), RunNodeError> {
-		match target_port.id().as_str() {
-			"data" => {
-				self.input = Some(input_data);
-			}
-			"ifnone" => {
-				self.ifnone = Some(input_data);
-			}
-			_ => unreachable!(),
-		}
-		return Ok(());
-	}
-
 	fn run(
 		&mut self,
 		send_data: &dyn Fn(PipelinePortID, CopperData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
-		if self.input.is_none() || self.ifnone.is_none() {
+		if !(self.data.is_connected() && self.ifnone.is_connected()) {
+			return Err(RunNodeError::RequiredInputNotConnected);
+		}
+
+		if !(self.data.is_set() && self.ifnone.is_set()) {
 			return Ok(NodeState::Pending("args not ready"));
 		}
 
 		send_data(
 			PipelinePortID::new("out"),
-			match self.input.take().unwrap() {
-				CopperData::None { .. } => self.ifnone.take().unwrap(),
-				x => x,
+			match &self.data {
+				ConnectedInput::Set {
+					value: CopperData::None { .. },
+				} => self.ifnone.value().unwrap().clone(),
+				x => x.value().unwrap().clone(),
 			},
 		)?;
 

@@ -3,15 +3,13 @@ use std::collections::BTreeMap;
 
 use crate::{
 	base::{
-		InitNodeError, Node, NodeInfo, NodeParameterValue, NodeState, PipelineData, PipelinePortID,
-		RunNodeError,
+		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PipelinePortID,
+		ProcessSignalError, RunNodeError,
 	},
-	data::{CopperData, CopperDataStub},
+	data::CopperData,
 };
 
 pub struct Constant {
-	inputs: BTreeMap<PipelinePortID, CopperDataStub>,
-	outputs: BTreeMap<PipelinePortID, CopperDataStub>,
 	value: CopperData,
 }
 
@@ -38,39 +36,27 @@ impl Constant {
 			});
 		};
 
-		Ok(Self {
-			inputs: BTreeMap::new(),
-			outputs: BTreeMap::from([(PipelinePortID::new("out"), value.as_stub())]),
-			value,
-		})
-	}
-}
-
-impl NodeInfo<CopperData> for Constant {
-	fn inputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
-		&self.inputs
-	}
-
-	fn outputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
-		&self.outputs
+		Ok(Self { value })
 	}
 }
 
 impl Node<CopperData> for Constant {
-	fn get_info(&self) -> &dyn NodeInfo<CopperData> {
-		self
+	fn process_signal(&mut self, signal: NodeSignal<CopperData>) -> Result<(), ProcessSignalError> {
+		match signal {
+			NodeSignal::ConnectInput { .. } => {
+				return Err(ProcessSignalError::InputPortDoesntExist)
+			}
+			NodeSignal::DisconnectInput { .. } => {
+				return Err(ProcessSignalError::InputPortDoesntExist)
+			}
+			NodeSignal::ReceiveInput { .. } => {
+				return Err(ProcessSignalError::InputPortDoesntExist)
+			}
+		}
 	}
 
 	fn quick_run(&self) -> bool {
 		true
-	}
-
-	fn take_input(
-		&mut self,
-		_target_port: PipelinePortID,
-		_input_data: CopperData,
-	) -> Result<(), RunNodeError> {
-		unreachable!("Constant nodes do not take input.")
 	}
 
 	fn run(

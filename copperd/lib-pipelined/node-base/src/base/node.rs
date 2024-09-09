@@ -1,6 +1,4 @@
-use std::collections::BTreeMap;
-
-use super::{PipelineData, PipelinePortID, RunNodeError};
+use super::{PipelineData, PipelinePortID, ProcessSignalError, RunNodeError};
 
 /// The state of a [`PipelineNode`] at a point in time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,17 +27,46 @@ impl NodeState {
 	}
 }
 
-/// Information about a node. Depends on a node's parameters.
-/// Used to validate connections.
-pub trait NodeInfo<DataType: PipelineData> {
-	/// Get this pipeline's inputs
-	fn inputs(&self) -> &BTreeMap<PipelinePortID, DataType::DataStubType>;
+pub enum NodeSignal<DataType: PipelineData> {
+	/// This signal is sent once for each edge that is connected to
+	/// an input port of this node. All instances of `ConnectPort` should
+	/// happen before `Input` or `DisconnectPort` are sent or `run` is called.
+	///
+	/// This signal allows nodes to detect disconnected inputs and
+	/// set state appropriately. Any port that has not been connected
+	/// before a call to `take_input` of `run` should be considered disconnected.
+	///
+	/// `ConnectInput` should never be received with the same port twice,
+	/// and should cause an `unreachable!` panic.
+	ConnectInput { port: PipelinePortID },
 
-	/// Get this pipeline's outputs
-	fn outputs(&self) -> &BTreeMap<PipelinePortID, DataType::DataStubType>;
+	/// This signal is sent an input edge connected to this node
+	/// has it's source node finish. All instances of `ConnectPort` should
+	/// happen after all instances of `ConnectPort` are received
+	///
+	/// This signal allows nodes to detect disconnected inputs
+	/// not connected to any other node and set state appropriately.
+	///
+	/// If a required input is disconnected before receiving data, nodes should
+	/// throw a [`ProcessSignalError::InputNotConnected`]. If an optional input
+	/// is disconnected before receiving data, nodes should automatically set it
+	/// to a default value. The exact implementation of this depends on the node.
+	///
+	/// `ConnectInput` should never be received with the same port twice,
+	/// and should never be received with a port that hasn't yet been connected.
+	/// Both should cause an `unreachable!` panic.
+	DisconnectInput { port: PipelinePortID },
+
+	/// Receive input on the specified port
+	///
+	/// `ReceiveInput` should never be received with a port that hasn't yet been connected.
+	/// This should cause an `unreachable!` panic.
+	ReceiveInput {
+		port: PipelinePortID,
+		data: DataType,
+	},
 }
 
-/// A pipeline node with some state.
 pub trait Node<DataType: PipelineData>: Sync + Send {
 	/// If true, run this node in the main loop instead of starting a thread.
 	///
@@ -50,12 +77,7 @@ pub trait Node<DataType: PipelineData>: Sync + Send {
 		false
 	}
 
-	/// Accept input data to a port of this node.
-	fn take_input(
-		&mut self,
-		target_port: PipelinePortID,
-		input_data: DataType,
-	) -> Result<(), RunNodeError>;
+	fn process_signal(&mut self, signal: NodeSignal<DataType>) -> Result<(), ProcessSignalError>;
 
 	/// Run this node.
 	/// This is always run in a worker thread.
@@ -63,7 +85,4 @@ pub trait Node<DataType: PipelineData>: Sync + Send {
 		&mut self,
 		send_data: &dyn Fn(PipelinePortID, DataType) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError>;
-
-	/// Get this node's info
-	fn get_info(&self) -> &dyn NodeInfo<DataType>;
 }

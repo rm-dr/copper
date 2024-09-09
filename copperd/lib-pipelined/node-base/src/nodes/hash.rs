@@ -8,10 +8,10 @@ use std::{
 
 use crate::{
 	base::{
-		InitNodeError, Node, NodeInfo, NodeParameterValue, NodeState, PipelineData, PipelinePortID,
-		RunNodeError,
+		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PipelinePortID,
+		ProcessSignalError, RunNodeError,
 	},
-	data::{CopperData, CopperDataStub, HashType},
+	data::{CopperData, HashType},
 	helpers::DataSource,
 };
 
@@ -76,13 +76,13 @@ impl HashComputer {
 }
 
 pub struct Hash {
-	inputs: BTreeMap<PipelinePortID, CopperDataStub>,
-	outputs: BTreeMap<PipelinePortID, CopperDataStub>,
-
-	data: DataSource,
+	/// None if disconnected, `Uninitialized` if unset
+	data: Option<DataSource>,
 	hasher: Option<HashComputer>,
 }
 
+// Inputs: "data", Bytes
+// Outputs: "hash", Hash
 impl Hash {
 	pub fn new(
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
@@ -109,50 +109,57 @@ impl Hash {
 		};
 
 		Ok(Self {
-			inputs: BTreeMap::from([(PipelinePortID::new("data"), CopperDataStub::Bytes)]),
-
-			outputs: BTreeMap::from([(
-				PipelinePortID::new("hash"),
-				CopperDataStub::Hash { hash_type },
-			)]),
-
-			data: DataSource::Uninitialized,
+			data: None,
 			hasher: Some(HashComputer::new(hash_type)),
 		})
 	}
 }
 
-impl NodeInfo<CopperData> for Hash {
-	fn inputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
-		&self.inputs
-	}
-
-	fn outputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
-		&self.outputs
-	}
-}
-
 impl Node<CopperData> for Hash {
-	fn get_info(&self) -> &dyn NodeInfo<CopperData> {
-		self
-	}
-
-	fn take_input(
-		&mut self,
-		target_port: PipelinePortID,
-		input_data: CopperData,
-	) -> Result<(), RunNodeError> {
-		match target_port.id().as_str() {
-			"data" => match input_data {
-				CopperData::Bytes { source, mime } => {
-					self.data.consume(mime, source);
+	fn process_signal(&mut self, signal: NodeSignal<CopperData>) -> Result<(), ProcessSignalError> {
+		match signal {
+			NodeSignal::ConnectInput { port } => match port.id().as_str() {
+				"data" => {
+					if self.data.is_some() {
+						unreachable!("tried to connect an input twice")
+					}
+					self.data = Some(DataSource::Uninitialized)
 				}
-
-				_ => unreachable!("Received input with unexpected type"),
+				_ => return Err(ProcessSignalError::InputPortDoesntExist),
 			},
 
-			_ => unreachable!("Received input on invalid port {target_port}"),
+			NodeSignal::DisconnectInput { port } => match port.id().as_str() {
+				"data" => {
+					if self.data.is_none() {
+						unreachable!("tried to disconnect an input that hasn't been connected")
+					}
+
+					if matches!(self.data, Some(DataSource::Uninitialized)) {
+						return Err(ProcessSignalError::RequiredInputEmpty);
+					}
+				}
+				_ => return Err(ProcessSignalError::InputPortDoesntExist),
+			},
+
+			NodeSignal::ReceiveInput { port, data } => {
+				if self.data.is_none() {
+					unreachable!("received input to a disconnected port")
+				}
+
+				match port.id().as_str() {
+					"data" => match data {
+						CopperData::Bytes { source, mime } => {
+							self.data.as_mut().unwrap().consume(mime, source);
+						}
+
+						_ => return Err(ProcessSignalError::InputWithBadType),
+					},
+
+					_ => return Err(ProcessSignalError::InputPortDoesntExist),
+				}
+			}
 		}
+
 		return Ok(());
 	}
 
@@ -160,12 +167,14 @@ impl Node<CopperData> for Hash {
 		&mut self,
 		send_data: &dyn Fn(PipelinePortID, CopperData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
-		match &mut self.data {
-			DataSource::Uninitialized => {
-				return Ok(NodeState::Pending("args not ready"));
+		match self.data.as_mut() {
+			None => return Err(RunNodeError::RequiredInputNotConnected),
+
+			Some(DataSource::Uninitialized) => {
+				return Ok(NodeState::Pending("input not ready"));
 			}
 
-			DataSource::Url { data, .. } => {
+			Some(DataSource::Url { data, .. }) => {
 				self.hasher
 					.as_mut()
 					.unwrap()
@@ -178,7 +187,7 @@ impl Node<CopperData> for Hash {
 				return Ok(NodeState::Done);
 			}
 
-			DataSource::Binary { data, is_done, .. } => {
+			Some(DataSource::Binary { data, is_done, .. }) => {
 				while let Some(data) = data.pop_front() {
 					self.hasher
 						.as_mut()

@@ -56,6 +56,9 @@ pub enum NodeParameterValue<DataType: PipelineData> {
 	/// A yes or a no
 	Boolean(bool),
 
+	/// An integer
+	Integer(u32),
+
 	/// A type of pipeline data
 	///
 	/// `DataStubType` MUST NOT be deserialized transparently,

@@ -7,9 +7,11 @@ use std::{
 use tracing::{debug, info, warn};
 
 use crate::pipeline::{
-	job::{PipelineJob, PipelineJobError, PipelineJobState},
+	job::{PipelineJob, PipelineJobState, RunJobError},
 	spec::PipelineSpec,
 };
+
+use super::job::CreateJobError;
 
 pub struct PipelineRunnerOptions {
 	/// The size of each job's threadpool.
@@ -52,7 +54,7 @@ pub struct FailedJob<DataType: PipelineData> {
 	pub node_states: Vec<(bool, NodeState)>,
 
 	/// The reason this pipeline failed.
-	pub error: PipelineJobError,
+	pub error: RunJobError,
 }
 
 /// A prepared data processing pipeline.
@@ -102,7 +104,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		&mut self,
 		context: ContextType,
 		pipeline: Arc<PipelineSpec<DataType, ContextType>>,
-	) -> u128 {
+	) -> Result<u128, CreateJobError> {
 		debug!(
 			message = "Adding job",
 			pipeline = ?pipeline.name,
@@ -113,10 +115,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			&self.dispatcher,
 			context,
 			self.config.node_threads,
-		);
+		)?;
+
 		self.job_id_counter = self.job_id_counter.wrapping_add(1);
 		self.job_queue.push_back((self.job_id_counter, runner));
-		return self.job_id_counter;
+		return Ok(self.job_id_counter);
 	}
 
 	/// Iterate over all active jobs
@@ -208,13 +211,12 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 						});
 						r.take();
 					}
-					Err(err) => {
+					Err(error) => {
 						warn!(
 							message = "Job failed",
 							job_id = id,
 							pipeline = ?x.get_pipeline().name,
-							in_node = ?err.node,
-							error = ?err.error,
+							?error
 						);
 
 						// Drop failed jobs
@@ -222,7 +224,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 							job_id: *id,
 							pipeline: x.get_pipeline().name.clone(),
 							input: x.get_input().clone(),
-							error: err,
+							error,
 
 							node_states: x
 								.get_pipeline()

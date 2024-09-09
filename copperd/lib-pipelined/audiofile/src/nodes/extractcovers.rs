@@ -2,8 +2,8 @@ use crate::flac::proc::pictures::FlacPictureReader;
 use copper_util::mime::MimeType;
 use pipelined_node_base::{
 	base::{
-		InitNodeError, Node, NodeInfo, NodeParameterValue, NodeState, PipelineData, PipelinePortID,
-		RunNodeError,
+		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PipelinePortID,
+		ProcessSignalError, RunNodeError,
 	},
 	data::{BytesSource, CopperData, CopperDataStub},
 	helpers::DataSource,
@@ -12,43 +12,12 @@ use pipelined_node_base::{
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, io::Read, sync::Arc};
 
-/// Info for a [`ExtractCovers`] node
-pub struct ExtractCoversInfo {
-	inputs: BTreeMap<PipelinePortID, CopperDataStub>,
-	outputs: BTreeMap<PipelinePortID, CopperDataStub>,
-}
-
-impl ExtractCoversInfo {
-	/// Generate node info from parameters
-	pub fn new(
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
-	) -> Result<Self, InitNodeError> {
-		if params.is_empty() {
-			return Err(InitNodeError::BadParameterCount { expected: 0 });
-		}
-
-		Ok(Self {
-			inputs: BTreeMap::from([(PipelinePortID::new("data"), CopperDataStub::Bytes)]),
-			outputs: BTreeMap::from([(PipelinePortID::new("cover_data"), CopperDataStub::Bytes)]),
-		})
-	}
-}
-
-impl NodeInfo<CopperData> for ExtractCoversInfo {
-	fn inputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
-		&self.inputs
-	}
-
-	fn outputs(&self) -> &BTreeMap<PipelinePortID, <CopperData as PipelineData>::DataStubType> {
-		&self.outputs
-	}
-}
-
 /// Extract covers from an audio file
 pub struct ExtractCovers {
-	info: ExtractCoversInfo,
 	blob_fragment_size: u64,
-	data: DataSource,
+
+	/// None if disconnected, `Uninitialized` if unset
+	data: Option<DataSource>,
 	reader: FlacPictureReader,
 }
 
@@ -58,43 +27,72 @@ impl ExtractCovers {
 		ctx: &CopperContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<CopperData>>,
 	) -> Result<Self, InitNodeError> {
+		if params.is_empty() {
+			return Err(InitNodeError::BadParameterCount { expected: 0 });
+		}
+
 		Ok(Self {
-			info: ExtractCoversInfo::new(params)?,
 			blob_fragment_size: ctx.blob_fragment_size,
 			reader: FlacPictureReader::new(),
-			data: DataSource::Uninitialized,
+			data: None,
 		})
 	}
 }
 
+// Inputs: "data", Bytes
+// Outputs: "cover_data", Bytes
 impl Node<CopperData> for ExtractCovers {
-	fn get_info(&self) -> &dyn NodeInfo<CopperData> {
-		&self.info
-	}
-
-	fn take_input(
-		&mut self,
-		target_port: PipelinePortID,
-		input_data: CopperData,
-	) -> Result<(), RunNodeError> {
-		match target_port.id().as_str() {
-			"data" => match input_data {
-				CopperData::Bytes { source, mime } => {
-					if mime != MimeType::Flac {
-						return Err(RunNodeError::UnsupportedFormat(format!(
-							"cannot extract covers from `{}`",
-							mime
-						)));
+	fn process_signal(&mut self, signal: NodeSignal<CopperData>) -> Result<(), ProcessSignalError> {
+		match signal {
+			NodeSignal::ConnectInput { port } => match port.id().as_str() {
+				"data" => {
+					if self.data.is_some() {
+						unreachable!("tried to connect an input twice")
 					}
-
-					self.data.consume(mime, source);
+					self.data = Some(DataSource::Uninitialized)
 				}
-
-				_ => unreachable!("Unexpected input type"),
+				_ => return Err(ProcessSignalError::InputPortDoesntExist),
 			},
 
-			_ => unreachable!("Received data at invalid port"),
+			NodeSignal::DisconnectInput { port } => match port.id().as_str() {
+				"data" => {
+					if self.data.is_none() {
+						unreachable!("tried to disconnect an input that hasn't been connected")
+					}
+
+					if matches!(self.data, Some(DataSource::Uninitialized)) {
+						return Err(ProcessSignalError::RequiredInputEmpty);
+					}
+				}
+				_ => return Err(ProcessSignalError::InputPortDoesntExist),
+			},
+
+			NodeSignal::ReceiveInput { port, data } => {
+				if self.data.is_none() {
+					unreachable!("received input to a disconnected port")
+				}
+
+				match port.id().as_str() {
+					"data" => match data {
+						CopperData::Bytes { source, mime } => {
+							if mime != MimeType::Flac {
+								return Err(ProcessSignalError::UnsupportedFormat(format!(
+									"cannot read tags from `{}`",
+									mime
+								)));
+							}
+
+							self.data.as_mut().unwrap().consume(mime, source);
+						}
+
+						_ => return Err(ProcessSignalError::InputWithBadType),
+					},
+
+					_ => return Err(ProcessSignalError::InputPortDoesntExist),
+				}
+			}
 		}
+
 		return Ok(());
 	}
 
@@ -102,13 +100,14 @@ impl Node<CopperData> for ExtractCovers {
 		&mut self,
 		send_data: &dyn Fn(PipelinePortID, CopperData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
-		// Push latest data into cover reader
-		match &mut self.data {
-			DataSource::Uninitialized => {
+		match self.data.as_mut() {
+			None => return Err(RunNodeError::RequiredInputNotConnected),
+
+			Some(DataSource::Uninitialized) => {
 				return Ok(NodeState::Pending("No data received"));
 			}
 
-			DataSource::Binary { data, is_done, .. } => {
+			Some(DataSource::Binary { data, is_done, .. }) => {
 				while let Some(d) = data.pop_front() {
 					self.reader
 						.push_data(&d)
@@ -121,7 +120,7 @@ impl Node<CopperData> for ExtractCovers {
 				}
 			}
 
-			DataSource::Url { data, .. } => {
+			Some(DataSource::Url { data, .. }) => {
 				let mut v = Vec::new();
 				let n = data.take(self.blob_fragment_size).read_to_end(&mut v)?;
 				self.reader

@@ -1,8 +1,8 @@
 use copper_util::graph::util::GraphNodeIdx;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use pipelined_node_base::base::{
-	Node, NodeDispatcher, NodeState, PipelineData, PipelineJobContext, PipelineNodeID,
-	PipelinePortID, RunNodeError,
+	InitNodeError, Node, NodeDispatcher, NodeSignal, NodeState, PipelineData, PipelineJobContext,
+	PipelineNodeID, PipelinePortID, ProcessSignalError, RunNodeError,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{
@@ -18,30 +18,84 @@ use tracing::trace;
 use crate::pipeline::spec::{EdgeSpec, PipelineSpec};
 
 //
-// MARK: Helpers
+// MARK: Errors
 //
 
 #[derive(Debug)]
-#[allow(clippy::manual_non_exhaustive)]
-pub struct PipelineJobError {
-	// Prevent creation of this error outside this module
-	_private: (),
+pub enum RunJobError {
+	RunNodeError {
+		node: PipelineNodeID,
+		error: RunNodeError,
+	},
 
-	pub node: PipelineNodeID,
-	pub error: RunNodeError,
+	ProcessSignalError {
+		node: PipelineNodeID,
+		error: ProcessSignalError,
+	},
 }
 
-impl Display for PipelineJobError {
+impl Display for RunJobError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "Error in node `{}`: `{}`", self.node, self.error)
+		match self {
+			Self::RunNodeError { error, node } => {
+				write!(f, "Error in node `{node}`: `{error}`")
+			}
+			Self::ProcessSignalError { error, node } => {
+				write!(f, "Error in node `{node}`: `{error}`")
+			}
+		}
 	}
 }
 
-impl Error for PipelineJobError {
+impl Error for RunJobError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		Some(&self.error)
+		match self {
+			Self::RunNodeError { error, .. } => Some(error),
+			Self::ProcessSignalError { error, .. } => Some(error),
+		}
 	}
 }
+
+#[derive(Debug)]
+#[allow(clippy::manual_non_exhaustive)]
+pub enum CreateJobError {
+	InitNodeError(InitNodeError),
+	AcceptSignalError(ProcessSignalError),
+}
+
+impl Display for CreateJobError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::InitNodeError(_) => write!(f, "error while instantiating nodes"),
+			Self::AcceptSignalError(_) => write!(f, "error processing signal"),
+		}
+	}
+}
+
+impl Error for CreateJobError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::InitNodeError(e) => Some(e),
+			Self::AcceptSignalError(e) => Some(e),
+		}
+	}
+}
+
+impl From<InitNodeError> for CreateJobError {
+	fn from(value: InitNodeError) -> Self {
+		Self::InitNodeError(value)
+	}
+}
+
+impl From<ProcessSignalError> for CreateJobError {
+	fn from(value: ProcessSignalError) -> Self {
+		Self::AcceptSignalError(value)
+	}
+}
+
+//
+// MARK: Helpers
+//
 
 /// The state of a [`PipelineJob`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,10 +111,10 @@ struct NodeInstanceContainer<DataType: PipelineData> {
 	/// The node's id
 	id: PipelineNodeID,
 
-	/// A queue of inputs to send to this node
-	// This will be `None` only if the node is done,
+	/// A queue of signals to send to this node
+	/// This will be `None` only if the node is done,
 	/// since done nodes don't take input.
-	input_queue: Option<VecDeque<(PipelinePortID, DataType)>>,
+	signal_queue: Option<VecDeque<NodeSignal<DataType>>>,
 
 	/// This node's status
 	state: NodeRunState,
@@ -121,10 +175,10 @@ pub struct PipelineJob<DataType: PipelineData, ContextType: PipelineJobContext<D
 	/// Mutable instances of each node in this pipeline
 	node_instances: Vec<NodeInstanceContainer<DataType>>,
 
-	/// The value each edge in this pipeline carries
-	edge_values: Vec<EdgeState>,
+	/// The state of each edge in this pipeline
+	edge_states: Vec<EdgeState>,
 
-	/// A threadpool of node runners
+	/// A pool of node runner threads
 	workers: Vec<Option<JoinHandle<()>>>,
 
 	/// A copy of this is given to every node.
@@ -208,58 +262,42 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		dispatcher: &NodeDispatcher<DataType, ContextType>,
 		context: ContextType,
 		worker_threads: usize,
-	) -> Self {
+	) -> Result<Self, CreateJobError> {
 		let instant_now = Instant::now();
+
+		// Create node instances
 		trace!(message = "Making node instances", pipeline_name = ?pipeline.name);
-		let node_instances = pipeline
-			.graph
-			.iter_nodes_idx()
-			.map(|(idx, node_data)| {
-				let node = dispatcher
-					.init_node(
-						&context,
-						&node_data.node_type,
-						&node_data.node_params,
-						node_data.id.id(),
-					)
-					// We already checked node type in `Builder`
-					.unwrap()
-					.unwrap();
+		let mut node_instances = Vec::new();
+		for (idx, node_data) in pipeline.graph.iter_nodes_idx() {
+			let mut node = dispatcher
+				.init_node(
+					&context,
+					&node_data.node_type,
+					&node_data.node_params,
+					node_data.id.id(),
+				)?
+				.unwrap();
 
-				let mut input_queue = VecDeque::new();
-
-				// Send empty data to disconnected inputs
-				let mut port_is_empty = node
-					.get_info()
-					.inputs()
-					.iter()
-					.map(|(id, _)| (id.clone(), true))
-					.collect::<BTreeMap<_, _>>();
-				for i in pipeline.graph.edges_ending_at(idx) {
-					let edge = &pipeline.graph.get_edge(*i).2;
-					if edge.is_after() {
-						continue;
-					}
-					*port_is_empty.get_mut(&edge.target_port().unwrap()).unwrap() = false;
-				}
-				for (port, is_empty) in port_is_empty.into_iter() {
-					if is_empty {
-						input_queue.push_back((
-							port.clone(),
-							DataType::disconnected(*node.get_info().inputs().get(&port).unwrap()),
-						));
-					}
+			// Tell nodes which input ports expect data
+			for i in pipeline.graph.edges_ending_at(idx) {
+				let edge = &pipeline.graph.get_edge(*i).2;
+				if edge.is_after() {
+					continue;
 				}
 
-				NodeInstanceContainer {
-					id: node_data.id.clone(),
-					input_queue: Some(input_queue),
-					last_run: instant_now,
-					state: NodeRunState::NotRunning(NodeState::Pending("not started")),
-					node: Arc::new(Mutex::new(Some(node))),
-				}
-			})
-			.collect::<Vec<_>>();
+				node.process_signal(NodeSignal::ConnectInput {
+					port: edge.target_port().unwrap().clone(),
+				})?;
+			}
+
+			node_instances.push(NodeInstanceContainer {
+				id: node_data.id.clone(),
+				signal_queue: Some(VecDeque::new()),
+				last_run: instant_now,
+				state: NodeRunState::NotRunning(NodeState::Pending("not started")),
+				node: Arc::new(Mutex::new(Some(node))),
+			});
+		}
 
 		// The data inside each edge.
 		// We consume node data once it is read so that unneeded memory may be freed.
@@ -293,18 +331,18 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			Receiver<(GraphNodeIdx, Result<NodeState, RunNodeError>)>,
 		) = unbounded();
 
-		Self {
+		return Ok(Self {
 			context,
 			pipeline,
 			node_instances,
-			edge_values,
+			edge_states: edge_values,
 			workers: (0..worker_threads).map(|_| None).collect(),
 			send_data,
 			receive_data,
 			send_status,
 			receive_status,
 			node_run_offset: 0,
-		}
+		});
 	}
 
 	/// Update this job: process state changes that occurred since we last called `run()`,
@@ -313,7 +351,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	/// This method should be called often, but not too often.
 	/// All computation is done in a thread pool, `run()`'s responsibility
 	/// is to update state and schedule new nodes.
-	pub(super) fn run(&mut self) -> Result<PipelineJobState, PipelineJobError> {
+	pub(super) fn run(&mut self) -> Result<PipelineJobState, RunJobError> {
 		// Run nodes in a better order, and maybe skip a few.
 
 		// Handle all changes that occurred since we last called `run()`
@@ -351,7 +389,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 
 	/// Helper function, written here only for convenience.
 	/// If we can add the node with index `n` to the thread pool, do so.
-	fn try_start_node(&mut self, node: GraphNodeIdx) -> Result<(), PipelineJobError> {
+	fn try_start_node(&mut self, node: GraphNodeIdx) -> Result<(), RunJobError> {
 		// Skip nodes we've already run and nodes that are running right now.
 		let n = self.node_instances[node.as_usize()].state;
 		let node_id = self.node_instances[node.as_usize()].id.clone();
@@ -371,13 +409,13 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			let mut locked_node = node_instance.lock().unwrap();
 
 			while !node_instance_container
-				.input_queue
+				.signal_queue
 				.as_ref()
 				.unwrap()
 				.is_empty()
 			{
 				let data = node_instance_container
-					.input_queue
+					.signal_queue
 					.as_mut()
 					.unwrap()
 					.pop_front()
@@ -386,9 +424,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				locked_node
 					.as_mut()
 					.unwrap()
-					.take_input(data.0, data.1)
-					.map_err(|error| PipelineJobError {
-						_private: (),
+					.process_signal(data)
+					.map_err(|error| RunJobError::ProcessSignalError {
 						node: node_id.clone(),
 						error,
 					})?;
@@ -402,7 +439,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			.edges_ending_at(node)
 			.iter()
 			.any(
-				|edge_idx| match self.edge_values.get(edge_idx.as_usize()).unwrap() {
+				|edge_idx| match self.edge_states.get(edge_idx.as_usize()).unwrap() {
 					EdgeState::Data => false,
 					EdgeState::AfterWaiting => true,
 					EdgeState::AfterReady => false,
@@ -494,7 +531,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	/// Handle all messages nodes have sent up to this point.
 	/// This MUST be done between successive calls of
 	/// `run()` on any one node.
-	fn handle_all_messages(&mut self) -> Result<(), PipelineJobError> {
+	fn handle_all_messages(&mut self) -> Result<(), RunJobError> {
+		// Route the data that was sent in the last call to run()
 		for (node, port, data) in self.receive_data.try_iter() {
 			// Send data to all inputs connected to this output
 			for edge_idx in self.pipeline.graph.edges_starting_at(node) {
@@ -506,19 +544,24 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 
 				// Don't give input to nodes that are done
 				if !node.state.is_done() {
-					node.input_queue
+					node.signal_queue
 						.as_mut()
 						.unwrap()
-						.push_back((edge.target_port().unwrap(), data.clone()));
+						.push_back(NodeSignal::ReceiveInput {
+							port: edge.target_port().unwrap(),
+							data: data.clone(),
+						});
 				}
 			}
 		}
 
+		// Handle nodes that finished their call to `run()`
+		// This does NOT mean that the node is done running---it could be run() again.
 		for (node, res) in self.receive_status.try_iter() {
 			match res {
 				Err(x) => {
-					return Err(PipelineJobError {
-						_private: (),
+					// `node.run()` finished with an error
+					return Err(RunJobError::RunNodeError {
 						node: self.node_instances[node.as_usize()].id.clone(),
 						error: x,
 					});
@@ -529,22 +572,29 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 					if status.is_done() {
 						// When a node finishes successfully, mark all
 						// `after` edges that start at that node as "ready".
-						for edge_idx in
-							self.pipeline
-								.graph
-								.edges_starting_at(node)
-								.iter()
-								.filter(|edge_idx| {
-									let edge = &self.pipeline.graph.get_edge(**edge_idx).2;
-									edge.is_after()
-								}) {
-							*self.edge_values.get_mut(edge_idx.as_usize()).unwrap() =
-								EdgeState::AfterReady;
+						for edge_idx in self.pipeline.graph.edges_starting_at(node).iter() {
+							let (_from_node, to_node, edge) =
+								&self.pipeline.graph.get_edge(*edge_idx);
+
+							match edge {
+								EdgeSpec::After => {
+									*self.edge_states.get_mut(edge_idx.as_usize()).unwrap() =
+										EdgeState::AfterReady;
+								}
+								EdgeSpec::PortToPort((_from_port, to_port)) => self.node_instances
+									[to_node.as_usize()]
+								.signal_queue
+								.as_mut()
+								.unwrap()
+								.push_back(NodeSignal::DisconnectInput {
+									port: to_port.clone(),
+								}),
+							}
 						}
 
 						// Drop any node instance that is done.
 						// This cleans up all resources that node used, and prevents
-						// deadlocks caused by dangling Blob receivers.
+						// deadlocks caused by dangling receivers.
 						//
 						// This intentionally panics if the mutex is already locked.
 						// That should never happen!
@@ -557,7 +607,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 						let mut x = self.node_instances[node.as_usize()].node.lock().unwrap();
 						drop(x.take());
 						drop(x);
-						drop(self.node_instances[node.as_usize()].input_queue.take());
+						drop(self.node_instances[node.as_usize()].signal_queue.take());
 
 						// Quick sanity check
 						assert!(self.node_instances[node.as_usize()]
@@ -565,7 +615,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 							.try_lock()
 							.unwrap()
 							.is_none());
-						assert!(self.node_instances[node.as_usize()].input_queue.is_none());
+						assert!(self.node_instances[node.as_usize()].signal_queue.is_none());
 					}
 				}
 			}
