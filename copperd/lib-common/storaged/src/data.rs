@@ -119,16 +119,56 @@ impl AttrData {
 			Self::Reference { class, .. } => AttrDataStub::Reference { class: *class },
 		}
 	}
+}
 
-	/// Convert this into a [`CopperData`].
-	/// Returns [`None`] only if this is [`Self::Blob`].
-	pub fn to_pipeline_data(self) -> Option<CopperData> {
-		return Some(match self {
+impl TryFrom<CopperData> for AttrData {
+	type Error = ();
+
+	fn try_from(value: CopperData) -> Result<Self, Self::Error> {
+		return Ok(match value {
+			CopperData::None { data_type } => Self::None {
+				data_type: data_type.into(),
+			},
+
+			CopperData::Blob { .. } => return Err(()),
+			CopperData::Text { value } => Self::Text { value },
+			CopperData::Boolean { value } => Self::Boolean { value },
+			CopperData::Hash { hash_type, data } => Self::Hash { hash_type, data },
+
+			CopperData::Reference { class, item } => Self::Reference {
+				class: class.into(),
+				item: item.into(),
+			},
+
+			CopperData::Float {
+				value,
+				is_non_negative,
+			} => Self::Float {
+				value,
+				is_non_negative,
+			},
+
+			CopperData::Integer {
+				value,
+				is_non_negative,
+			} => Self::Integer {
+				value,
+				is_non_negative,
+			},
+		});
+	}
+}
+
+impl TryInto<CopperData> for AttrData {
+	type Error = ();
+
+	fn try_into(self) -> Result<CopperData, Self::Error> {
+		return Ok(match self {
 			Self::None { data_type } => CopperData::None {
 				data_type: data_type.into(),
 			},
 
-			Self::Blob { .. } => return None,
+			Self::Blob { .. } => return Err(()),
 			Self::Text { value } => CopperData::Text { value },
 			Self::Boolean { value } => CopperData::Boolean { value },
 			Self::Hash { hash_type, data } => CopperData::Hash { hash_type, data },
@@ -208,6 +248,22 @@ impl Into<CopperDataStub> for AttrDataStub {
 			Self::Hash { hash_type } => CopperDataStub::Hash { hash_type },
 			Self::Reference { class } => CopperDataStub::Reference {
 				class: u32::from(class),
+			},
+		}
+	}
+}
+
+impl From<CopperDataStub> for AttrDataStub {
+	fn from(value: CopperDataStub) -> Self {
+		match value {
+			CopperDataStub::Text => Self::Text,
+			CopperDataStub::Blob => Self::Blob,
+			CopperDataStub::Integer { is_non_negative } => Self::Integer { is_non_negative },
+			CopperDataStub::Float { is_non_negative } => Self::Integer { is_non_negative },
+			CopperDataStub::Boolean => Self::Boolean,
+			CopperDataStub::Hash { hash_type } => Self::Hash { hash_type },
+			CopperDataStub::Reference { class } => Self::Reference {
+				class: class.into(),
 			},
 		}
 	}
