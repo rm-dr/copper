@@ -1,6 +1,6 @@
 use axum::{extract::DefaultBodyLimit, Router};
-use pipelined_node_base::{
-	data::{CopperData, CopperDataStub},
+use copper_pipelined::{
+	data::{PipeData, PipeDataStub},
 	CopperContext,
 };
 use std::sync::Arc;
@@ -17,7 +17,7 @@ use crate::{config::PipelinedConfig, pipeline::runner::PipelineRunner};
 #[derive(Clone)]
 pub struct RouterState {
 	pub config: Arc<PipelinedConfig>,
-	pub runner: Arc<Mutex<PipelineRunner<CopperData, CopperContext>>>,
+	pub runner: Arc<Mutex<PipelineRunner<PipeData, CopperContext>>>,
 }
 
 #[derive(OpenApi)]
@@ -32,8 +32,8 @@ pub struct RouterState {
 	),
 	// All schema structs defined outside `crate::api` go here
 	components(schemas(
-		CopperDataStub,
-		CopperData,
+		PipeDataStub,
+		PipeData,
 	))
 )]
 struct ApiDoc;

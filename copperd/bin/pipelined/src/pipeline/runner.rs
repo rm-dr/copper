@@ -1,4 +1,4 @@
-use pipelined_node_base::base::{NodeDispatcher, NodeState, PipelineData, PipelineJobContext};
+use copper_pipelined::base::{NodeDispatcher, NodeState, PipelineData, PipelineJobContext};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::{BTreeMap, VecDeque},

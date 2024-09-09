@@ -1,8 +1,8 @@
 use copper_util::graph::util::GraphNodeIdx;
 use crossbeam::channel::{unbounded, Receiver, Sender};
-use pipelined_node_base::base::{
-	InitNodeError, Node, NodeDispatcher, NodeSignal, NodeState, PipelineData, PipelineJobContext,
-	PipelineNodeID, PipelinePortID, ProcessSignalError, RunNodeError,
+use copper_pipelined::base::{
+	InitNodeError, Node, NodeDispatcher, NodeId, NodeSignal, NodeState, PipelineData,
+	PipelineJobContext, PortName, ProcessSignalError, RunNodeError,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{
@@ -24,12 +24,12 @@ use crate::pipeline::spec::{EdgeSpec, PipelineSpec};
 #[derive(Debug)]
 pub enum RunJobError {
 	RunNodeError {
-		node: PipelineNodeID,
+		node: NodeId,
 		error: RunNodeError,
 	},
 
 	ProcessSignalError {
-		node: PipelineNodeID,
+		node: NodeId,
 		error: ProcessSignalError,
 	},
 }
@@ -109,7 +109,7 @@ pub(super) enum PipelineJobState {
 
 struct NodeInstanceContainer<DataType: PipelineData> {
 	/// The node's id
-	id: PipelineNodeID,
+	id: NodeId,
 
 	/// A queue of signals to send to this node
 	/// This will be `None` only if the node is done,
@@ -187,7 +187,7 @@ pub struct PipelineJob<DataType: PipelineData, ContextType: PipelineJobContext<D
 		// The node that sent this message
 		GraphNodeIdx,
 		// The port index of this output
-		PipelinePortID,
+		PortName,
 		// The data that output produced
 		DataType,
 	)>,
@@ -197,7 +197,7 @@ pub struct PipelineJob<DataType: PipelineData, ContextType: PipelineJobContext<D
 		// The node that sent this message
 		GraphNodeIdx,
 		// The port index of this output
-		PipelinePortID,
+		PortName,
 		// The data that output produced
 		DataType,
 	)>,
@@ -243,7 +243,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 
 	/// Get the current state of all nodes in this job
 	/// Returns `None` if an unknown node name is provided.
-	pub fn get_node_status(&self, node: &PipelineNodeID) -> Option<(bool, NodeState)> {
+	pub fn get_node_status(&self, node: &NodeId) -> Option<(bool, NodeState)> {
 		self.node_instances
 			.iter()
 			.find(|x| &x.id == node)
@@ -318,8 +318,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		// Contents are (node index, port index, data)
 		#[allow(clippy::type_complexity)]
 		let (send_data, receive_data): (
-			Sender<(GraphNodeIdx, PipelinePortID, DataType)>,
-			Receiver<(GraphNodeIdx, PipelinePortID, DataType)>,
+			Sender<(GraphNodeIdx, PortName, DataType)>,
+			Receiver<(GraphNodeIdx, PortName, DataType)>,
 		) = unbounded();
 
 		// Channel for node status. A node's return status is sent here when it finishes.

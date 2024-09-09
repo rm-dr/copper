@@ -491,12 +491,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "copper-pipelined"
+version = "0.1.0"
+dependencies = [
+ "copper-storaged",
+ "copper-util",
+ "reqwest",
+ "serde",
+ "smartstring",
+ "url",
+ "utoipa",
+]
+
+[[package]]
 name = "copper-storaged"
 version = "0.1.0"
 dependencies = [
  "copper-util",
  "itertools",
- "pipelined-node-base",
  "serde",
  "smartstring",
  "utoipa",
@@ -1823,12 +1835,12 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "axum-extra",
+ "copper-pipelined",
  "copper-util",
  "crossbeam",
  "futures",
  "pipelined-audiofile",
  "pipelined-basic",
- "pipelined-node-base",
  "pipelined-storaged",
  "serde",
  "serde_json",
@@ -1847,10 +1859,11 @@ name = "pipelined-audiofile"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "copper-pipelined",
+ "copper-storaged",
  "copper-util",
  "itertools",
  "paste",
- "pipelined-node-base",
  "rand",
  "serde_with",
  "sha2",
@@ -1861,37 +1874,22 @@ dependencies = [
 name = "pipelined-basic"
 version = "0.1.0"
 dependencies = [
+ "copper-pipelined",
  "copper-util",
  "md5",
- "pipelined-node-base",
  "serde_json",
  "sha2",
  "smartstring",
-]
-
-[[package]]
-name = "pipelined-node-base"
-version = "0.1.0"
-dependencies = [
- "copper-util",
- "md5",
- "reqwest",
- "serde",
- "serde_json",
- "sha2",
- "smartstring",
- "url",
- "utoipa",
 ]
 
 [[package]]
 name = "pipelined-storaged"
 version = "0.1.0"
 dependencies = [
+ "copper-pipelined",
  "copper-storaged",
  "copper-util",
  "itertools",
- "pipelined-node-base",
  "reqwest",
  "serde",
  "serde_json",
@@ -2818,11 +2816,11 @@ dependencies = [
  "async-trait",
  "axum",
  "copper-migrate",
+ "copper-pipelined",
  "copper-storaged",
  "copper-util",
  "futures",
  "itertools",
- "pipelined-node-base",
  "reqwest",
  "serde",
  "serde_json",

@@ -1,8 +1,8 @@
 use api::RouterState;
 use config::PipelinedConfig;
+use copper_pipelined::{data::PipeData, CopperContext};
 use futures::TryFutureExt;
 use pipeline::runner::{PipelineRunner, PipelineRunnerOptions};
-use pipelined_node_base::{data::CopperData, CopperContext};
 use std::{error::Error, future::IntoFuture, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{error, info};
@@ -23,7 +23,7 @@ async fn main() {
 		.init();
 
 	// Prep runner
-	let mut runner: PipelineRunner<CopperData, CopperContext> =
+	let mut runner: PipelineRunner<PipeData, CopperContext> =
 		PipelineRunner::new(PipelineRunnerOptions {
 			node_threads: config.threads_per_job,
 			max_active_jobs: config.parallel_jobs,

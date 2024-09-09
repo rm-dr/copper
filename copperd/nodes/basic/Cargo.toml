@@ -1,0 +1,26 @@
+[package]
+name = "pipelined-basic"
+description = ""
+categories = { workspace = true }
+keywords = { workspace = true }
+version = { workspace = true }
+rust-version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+copper-util = { workspace = true }
+copper-pipelined = { workspace = true }
+
+smartstring = { workspace = true }
+sha2 = { workspace = true }
+md5 = { workspace = true }
+serde_json = { workspace = true }

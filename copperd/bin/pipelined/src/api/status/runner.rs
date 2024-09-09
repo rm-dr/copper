@@ -5,7 +5,7 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use pipelined_node_base::base::{NodeState, PipelineNodeID};
+use copper_pipelined::base::{NodeId, NodeState};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -49,7 +49,7 @@ pub(super) struct RunningJobStatus {
 pub(super) struct RunningNodeStatus {
 	/// This node's name
 	#[schema(value_type = String)]
-	pub name: PipelineNodeID,
+	pub name: NodeId,
 
 	/// This node's state
 	pub state: RunningNodeState,

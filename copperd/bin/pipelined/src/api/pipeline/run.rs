@@ -5,8 +5,8 @@ use axum::{
 	Json,
 };
 use copper_util::mime::MimeType;
-use pipelined_node_base::{
-	data::{BytesSource, CopperData},
+use copper_pipelined::{
+	data::{BytesSource, PipeData},
 	CopperContext,
 };
 use serde::Deserialize;
@@ -23,7 +23,7 @@ use crate::{
 #[derive(Deserialize, ToSchema, Debug)]
 pub(super) struct AddJobParams {
 	pub pipeline_name: String,
-	pub pipeline_spec: PipelineJson<CopperData>,
+	pub pipeline_spec: PipelineJson<PipeData>,
 
 	#[schema(value_type = BTreeMap<String, AddJobInput>)]
 	pub input: BTreeMap<SmartString<LazyCompact>, AddJobInput>,
@@ -73,7 +73,7 @@ pub(super) async fn run_pipeline(
 				mime,
 				url,
 			} => {
-				let path = CopperData::Blob {
+				let path = PipeData::Blob {
 					mime,
 					source: BytesSource::Url { url },
 				};

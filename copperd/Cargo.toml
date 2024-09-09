@@ -24,7 +24,7 @@ rpath = false
 
 
 [workspace]
-members = ["bin/*", "lib-common/*", "lib-pipelined/*"]
+members = ["bin/*", "lib/*", "nodes/*"]
 default-members = ["bin/pipelined", "bin/storaged"]
 resolver = "2"
 
@@ -63,14 +63,14 @@ new_without_default = "allow"
 
 [workspace.dependencies]
 # Shared libraries
-copper-util = { path = "lib-common/util" }
-copper-migrate = { path = "lib-common/migrate" }
-copper-storaged = { path = "lib-common/storaged" }
-# Pipelined libraries
-pipelined-audiofile = { path = "lib-pipelined/audiofile" }
-pipelined-node-base = { path = "lib-pipelined/node-base" }
-pipelined-storaged = { path = "lib-pipelined/storaged" }
-pipelined-basic = { path = "lib-pipelined/basic" }
+copper-util = { path = "lib/util" }
+copper-migrate = { path = "lib/migrate" }
+copper-storaged = { path = "lib/storaged" }
+copper-pipelined = { path = "lib/pipelined" }
+# Node implementations
+pipelined-basic = { path = "nodes/basic" }
+pipelined-storaged = { path = "nodes/storaged" }
+pipelined-audiofile = { path = "nodes/audiofile" }
 
 
 # Logging

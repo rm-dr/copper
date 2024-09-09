@@ -1,7 +1,7 @@
 use copper_util::graph::{finalized::FinalizedGraph, graph::Graph};
-use pipelined_node_base::base::{
-	NodeDispatcher, NodeParameterValue, PipelineData, PipelineJobContext, PipelineNodeID,
-	PipelinePortID, INPUT_NODE_TYPE_NAME,
+use copper_pipelined::base::{
+	NodeDispatcher, NodeId, NodeParameterValue, PipelineData, PipelineJobContext, PortName,
+	INPUT_NODE_TYPE_NAME,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{
@@ -157,7 +157,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	}
 
 	/// Iterate over all nodes in this pipeline
-	pub fn iter_node_ids(&self) -> impl Iterator<Item = &PipelineNodeID> {
+	pub fn iter_node_ids(&self) -> impl Iterator<Item = &NodeId> {
 		self.graph.iter_nodes().map(|n| &n.id)
 	}
 
@@ -166,11 +166,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		&self.name
 	}
 
-	pub fn get_node(&self, node_id: &PipelineNodeID) -> Option<&NodeSpec<DataType>> {
+	pub fn get_node(&self, node_id: &NodeId) -> Option<&NodeSpec<DataType>> {
 		self.graph.iter_nodes().find(|n| n.id == *node_id)
 	}
 
-	pub fn input_nodes(&self) -> Vec<(PipelineNodeID, <DataType as PipelineData>::DataStubType)> {
+	pub fn input_nodes(&self) -> Vec<(NodeId, <DataType as PipelineData>::DataStubType)> {
 		self.graph
 			.iter_nodes()
 			.filter(|n| n.node_type == INPUT_NODE_TYPE_NAME)
@@ -194,7 +194,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 #[derive(Debug)]
 pub struct NodeSpec<DataType: PipelineData> {
 	/// The node's id
-	pub id: PipelineNodeID,
+	pub id: NodeId,
 
 	/// This node's type
 	pub node_type: SmartString<LazyCompact>,
@@ -209,7 +209,7 @@ pub enum EdgeSpec {
 	/// PTP edges carry data between nodes.
 	///
 	/// Contents are (from_port, to_port)
-	PortToPort((PipelinePortID, PipelinePortID)),
+	PortToPort((PortName, PortName)),
 
 	/// An edge from a node to a node, specifying
 	/// that the second *must* wait for the first.
@@ -228,7 +228,7 @@ impl EdgeSpec {
 	}
 
 	/// Get the port this edge starts at
-	pub fn source_port(&self) -> Option<PipelinePortID> {
+	pub fn source_port(&self) -> Option<PortName> {
 		match self {
 			Self::PortToPort((s, _)) => Some(s.clone()),
 			Self::After => None,
@@ -236,7 +236,7 @@ impl EdgeSpec {
 	}
 
 	/// Get the port this edge ends at
-	pub fn target_port(&self) -> Option<PipelinePortID> {
+	pub fn target_port(&self) -> Option<PortName> {
 		match self {
 			Self::PortToPort((_, t)) => Some(t.clone()),
 			Self::After => None,
@@ -257,7 +257,7 @@ pub enum PipelineBuildError {
 		edge_id: SmartString<LazyCompact>,
 
 		/// The node id that doesn't exist
-		invalid_node_id: PipelineNodeID,
+		invalid_node_id: NodeId,
 	},
 
 	/// This pipeline has a cycle and is thus invalid
