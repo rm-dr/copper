@@ -20,6 +20,10 @@ workspace = true
 copper-util = { workspace = true }
 copper-storaged = { workspace = true }
 
+tokio = { workspace = true }
+tracing = { workspace = true }
+futures = { workspace = true }
+aws-sdk-s3 = { workspace = true }
 reqwest = { workspace = true }
 url = { workspace = true }
 serde = { workspace = true }

@@ -5,6 +5,7 @@ use copper_pipelined::{
 	},
 	data::{PipeData, PipeDataStub},
 	helpers::ConnectedInput,
+	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
@@ -52,8 +53,12 @@ impl IfNone {
 // - "ifnone", <T>
 // Outputs:
 // - "out", <T>
-impl Node<PipeData> for IfNone {
-	fn process_signal(&mut self, signal: NodeSignal<PipeData>) -> Result<(), ProcessSignalError> {
+impl Node<PipeData, CopperContext> for IfNone {
+	fn process_signal(
+		&mut self,
+		_ctx: &CopperContext,
+		signal: NodeSignal<PipeData>,
+	) -> Result<(), ProcessSignalError> {
 		match signal {
 			NodeSignal::ConnectInput { port } => match port.id().as_str() {
 				"data" => self.data.connect(),
@@ -109,6 +114,7 @@ impl Node<PipeData> for IfNone {
 
 	fn run(
 		&mut self,
+		_ctx: &CopperContext,
 		send_data: &dyn Fn(PortName, PipeData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		if !(self.data.is_connected() && self.ifnone.is_connected()) {

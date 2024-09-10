@@ -20,8 +20,8 @@ pub fn register(
 		Ok(Box::new(constant::Constant::new(params)?))
 	})?;
 
-	dispatcher.register_node("Hash", BTreeMap::new(), &|_ctx, params, _| {
-		Ok(Box::new(hash::Hash::new(params)?))
+	dispatcher.register_node("Hash", BTreeMap::new(), &|ctx, params, _| {
+		Ok(Box::new(hash::Hash::new(ctx, params)?))
 	})?;
 
 	dispatcher.register_node("IfNone", BTreeMap::new(), &|_ctx, params, _| {

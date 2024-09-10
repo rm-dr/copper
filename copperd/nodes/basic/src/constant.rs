@@ -4,6 +4,7 @@ use copper_pipelined::{
 		ProcessSignalError, RunNodeError,
 	},
 	data::PipeData,
+	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
@@ -39,8 +40,12 @@ impl Constant {
 	}
 }
 
-impl Node<PipeData> for Constant {
-	fn process_signal(&mut self, signal: NodeSignal<PipeData>) -> Result<(), ProcessSignalError> {
+impl Node<PipeData, CopperContext> for Constant {
+	fn process_signal(
+		&mut self,
+		_ctx: &CopperContext,
+		signal: NodeSignal<PipeData>,
+	) -> Result<(), ProcessSignalError> {
 		match signal {
 			NodeSignal::ConnectInput { .. } => {
 				return Err(ProcessSignalError::InputPortDoesntExist)
@@ -60,6 +65,7 @@ impl Node<PipeData> for Constant {
 
 	fn run(
 		&mut self,
+		_ctx: &CopperContext,
 		send_data: &dyn Fn(PortName, PipeData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		send_data(PortName::new("out"), self.value.clone())?;

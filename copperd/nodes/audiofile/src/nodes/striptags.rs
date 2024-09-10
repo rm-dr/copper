@@ -7,26 +7,24 @@ use copper_pipelined::{
 		ProcessSignalError, RunNodeError,
 	},
 	data::{BytesSource, PipeData},
-	helpers::DataSource,
+	helpers::{BytesSourceArrayReader, ConnectedInput, OpenBytesSourceReader, S3Reader},
 	CopperContext,
 };
 use copper_util::MimeType;
+use futures::executor::block_on;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, io::Read, sync::Arc};
 
 /// Strip all metadata from an audio file
 pub struct StripTags {
-	blob_fragment_size: u64,
-
-	/// None if disconnected, `Uninitialized` if unset
-	data: Option<DataSource>,
+	data: ConnectedInput<OpenBytesSourceReader>,
 	strip: FlacMetaStrip,
 }
 
 impl StripTags {
 	/// Create a new [`StripTags`] node
 	pub fn new(
-		ctx: &CopperContext,
+		_ctx: &CopperContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
 	) -> Result<Self, InitNodeError> {
 		if params.is_empty() {
@@ -34,65 +32,71 @@ impl StripTags {
 		}
 
 		Ok(Self {
-			blob_fragment_size: ctx.blob_fragment_size,
 			strip: FlacMetaStrip::new(),
-			data: None,
+			data: ConnectedInput::NotConnected,
 		})
 	}
 }
 
 // Input: "data" - Blob
 // Output: "out" - Blob
-impl Node<PipeData> for StripTags {
-	fn process_signal(&mut self, signal: NodeSignal<PipeData>) -> Result<(), ProcessSignalError> {
+impl Node<PipeData, CopperContext> for StripTags {
+	fn process_signal(
+		&mut self,
+		ctx: &CopperContext,
+		signal: NodeSignal<PipeData>,
+	) -> Result<(), ProcessSignalError> {
 		match signal {
 			NodeSignal::ConnectInput { port } => match port.id().as_str() {
-				"data" => {
-					if self.data.is_some() {
-						unreachable!("tried to connect an input twice")
-					}
-					self.data = Some(DataSource::Uninitialized)
-				}
+				"data" => self.data.connect(),
 				_ => return Err(ProcessSignalError::InputPortDoesntExist),
 			},
 
 			NodeSignal::DisconnectInput { port } => match port.id().as_str() {
 				"data" => {
-					if self.data.is_none() {
-						unreachable!("tried to disconnect an input that hasn't been connected")
+					if !self.data.is_connected() {
+						unreachable!("disconnected an input that hasn't been connected")
 					}
-
-					if matches!(self.data, Some(DataSource::Uninitialized)) {
+					if !self.data.is_set() {
 						return Err(ProcessSignalError::RequiredInputEmpty);
 					}
 				}
 				_ => return Err(ProcessSignalError::InputPortDoesntExist),
 			},
 
-			NodeSignal::ReceiveInput { port, data } => {
-				if self.data.is_none() {
-					unreachable!("received input to a disconnected port")
-				}
-
-				match port.id().as_str() {
-					"data" => match data {
-						PipeData::Blob { source, mime } => {
-							if mime != MimeType::Flac {
-								return Err(ProcessSignalError::UnsupportedFormat(format!(
-									"cannot strip tags from `{}`",
-									mime
-								)));
-							}
-
-							self.data.as_mut().unwrap().consume(mime, source);
+			NodeSignal::ReceiveInput { port, data } => match port.id().as_str() {
+				"data" => match data {
+					PipeData::Blob { source, mime } => {
+						if mime != MimeType::Flac {
+							return Err(ProcessSignalError::UnsupportedFormat(format!(
+								"cannot read tags from `{}`",
+								mime
+							)));
 						}
 
-						_ => return Err(ProcessSignalError::InputWithBadType),
-					},
+						match source {
+							BytesSource::Array { .. } => {
+								self.data.set(OpenBytesSourceReader::Array(
+									BytesSourceArrayReader::new(Some(mime), source).unwrap(),
+								));
+							}
 
-					_ => return Err(ProcessSignalError::InputPortDoesntExist),
-				}
-			}
+							BytesSource::S3 { key } => {
+								self.data
+									.set(OpenBytesSourceReader::S3(block_on(S3Reader::new(
+										ctx.objectstore_client.clone(),
+										&ctx.objectstore_bucket,
+										key,
+									))))
+							}
+						}
+					}
+
+					_ => return Err(ProcessSignalError::InputWithBadType),
+				},
+
+				_ => return Err(ProcessSignalError::InputPortDoesntExist),
+			},
 		}
 
 		return Ok(());
@@ -100,17 +104,19 @@ impl Node<PipeData> for StripTags {
 
 	fn run(
 		&mut self,
+		ctx: &CopperContext,
 		send_data: &dyn Fn(PortName, PipeData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
-		// Push latest data into metadata stripper
-		match self.data.as_mut() {
-			None => return Err(RunNodeError::RequiredInputNotConnected),
+		if !self.data.is_connected() {
+			return Err(RunNodeError::RequiredInputNotConnected);
+		}
 
-			Some(DataSource::Uninitialized) => {
-				return Ok(NodeState::Pending("input not ready"));
-			}
+		if !self.data.is_set() {
+			return Ok(NodeState::Pending("input not ready"));
+		}
 
-			Some(DataSource::Binary { data, is_done, .. }) => {
+		match self.data.value_mut().unwrap() {
+			OpenBytesSourceReader::Array(BytesSourceArrayReader { data, is_done, .. }) => {
 				while let Some(d) = data.pop_front() {
 					self.strip
 						.push_data(&d)
@@ -123,18 +129,14 @@ impl Node<PipeData> for StripTags {
 				}
 			}
 
-			Some(DataSource::Url { data, .. }) => {
+			OpenBytesSourceReader::S3(r) => {
 				let mut v = Vec::new();
-
-				// Read in parts so we don't never have to load the whole
-				// file into memory
-				let n = data.take(self.blob_fragment_size).read_to_end(&mut v)?;
-
+				r.take(ctx.blob_fragment_size).read(&mut v).unwrap();
 				self.strip
 					.push_data(&v)
 					.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 
-				if n == 0 {
+				if r.is_done() {
 					self.strip
 						.finish()
 						.map_err(|e| RunNodeError::Other(Box::new(e)))?;

@@ -21,6 +21,7 @@ copper-util = { workspace = true }
 copper-pipelined = { workspace = true }
 copper-storaged = { workspace = true }
 
+futures = { workspace = true }
 smartstring = { workspace = true }
 itertools = { workspace = true }
 serde_with = { workspace = true }

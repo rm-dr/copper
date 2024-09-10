@@ -11,9 +11,10 @@ pub enum MimeType {
 	// Instead, we use #[schema(value_type = String)] on any mimetype fields.
 	// TODO: manually implement ToSchema here.
 	/// A mimetype we didn't recognize
-	Unknown(String),
+	Other(String),
 
 	/// An unstructured binary blob
+	/// Use this whenever a mime type is unknown
 	Blob,
 
 	// Images
@@ -42,7 +43,7 @@ impl FromStr for MimeType {
 			"audio/flac" => Self::Flac,
 			_ => {
 				warn!(message = "Encountered unknown mimetype", mime_string = s);
-				Self::Unknown(s.into())
+				Self::Other(s.into())
 			}
 		})
 	}
@@ -73,7 +74,7 @@ impl Display for MimeType {
 
 			Self::Flac => write!(f, "audio/flac"),
 			Self::Mp3 => write!(f, "audio/mp3"),
-			Self::Unknown(x) => write!(f, "{}", x),
+			Self::Other(x) => write!(f, "{}", x),
 		}
 	}
 }
@@ -116,7 +117,7 @@ impl MimeType {
 	pub fn extension(&self) -> &str {
 		match self {
 			Self::Blob => "",
-			Self::Unknown(_) => "",
+			Self::Other(_) => "",
 
 			Self::Flac => ".flac",
 			Self::Mp3 => ".mp3",

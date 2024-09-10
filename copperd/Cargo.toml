@@ -72,15 +72,15 @@ pipelined-basic = { path = "nodes/basic" }
 pipelined-storaged = { path = "nodes/storaged" }
 pipelined-audiofile = { path = "nodes/audiofile" }
 
-# Logging
+# Services
+# (the versions of these might matter A LOT)
+aws-sdk-s3 = "1.48.0"
+aws-config = "1.5.5"
+
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
-# Parallism & async
 crossbeam = "0.8.4"
 futures = "0.3.30"
-
-# Utility
 smartstring = { version = "1.0.1", features = ["serde"] }
 sha2 = "0.10.8"
 petgraph = "0.6.5"
@@ -96,8 +96,6 @@ base64 = "0.22.1"
 async-trait = "0.1.81"
 envy = "0.4.2"
 dotenvy = "0.15.7"
-
-# Network
 reqwest = { version = "0.12.4", features = [
 	"json",
 	"blocking",
@@ -111,13 +109,9 @@ axum = { version = "0.7.5", features = ["ws", "multipart", "macros"] }
 axum-extra = { version = "0.9.3", features = ["cookie"] }
 tower-http = { version = "0.5.2", features = ["trace"] }
 tower = { version = "0.4", features = ["util"] }
-
-
-# Serde
 serde = { version = "1.0.201", features = ["serde_derive", "rc"] }
 serde_json = "1.0.68"
 serde_with = "3.8.1"
-# Other
 sqlx = { version = "0.7", features = ["sqlite", "runtime-async-std"] }
 utoipa = { version = "5.0.0-alpha.0", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "7.1.1-alpha.0", features = [

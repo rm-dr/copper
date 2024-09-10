@@ -107,7 +107,7 @@ pub(super) enum PipelineJobState {
 	Done,
 }
 
-struct NodeInstanceContainer<DataType: PipelineData> {
+struct NodeInstanceContainer<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	/// The node's id
 	id: NodeId,
 
@@ -124,7 +124,7 @@ struct NodeInstanceContainer<DataType: PipelineData> {
 
 	/// The node. This will be `None` if the node is done,
 	/// so that its resources are dropped.
-	node: Arc<Mutex<Option<Box<dyn Node<DataType>>>>>,
+	node: Arc<Mutex<Option<Box<dyn Node<DataType, ContextType>>>>>,
 }
 
 /// A wrapper around [`PipelineNodeState`] that keeps
@@ -170,10 +170,10 @@ pub struct PipelineJob<DataType: PipelineData, ContextType: PipelineJobContext<D
 	/// The pipeline we're running
 	pipeline: Arc<PipelineSpec<DataType, ContextType>>,
 
-	pub(crate) context: ContextType,
+	pub(crate) context: Arc<ContextType>,
 
 	/// Mutable instances of each node in this pipeline
-	node_instances: Vec<NodeInstanceContainer<DataType>>,
+	node_instances: Vec<NodeInstanceContainer<DataType, ContextType>>,
 
 	/// The state of each edge in this pipeline
 	edge_states: Vec<EdgeState>,
@@ -287,9 +287,12 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 					continue;
 				}
 
-				node.process_signal(NodeSignal::ConnectInput {
-					port: edge.target_port().unwrap().clone(),
-				})?;
+				node.process_signal(
+					&context,
+					NodeSignal::ConnectInput {
+						port: edge.target_port().unwrap().clone(),
+					},
+				)?;
 			}
 
 			node_instances.push(NodeInstanceContainer {
@@ -334,7 +337,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		) = unbounded();
 
 		return Ok(Self {
-			context,
+			context: Arc::new(context),
 			pipeline,
 			node_instances,
 			edge_states: edge_values,
@@ -430,7 +433,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				locked_node
 					.as_mut()
 					.unwrap()
-					.process_signal(data)
+					.process_signal(&self.context, data)
 					.map_err(|error| RunJobError::ProcessSignalError {
 						node: node_id.clone(),
 						error,
@@ -480,7 +483,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			let mut node_instance_opt = node_instance.try_lock().unwrap();
 			let node_instance = node_instance_opt.as_mut().unwrap();
 
-			let res = node_instance.run(&|port, data| {
+			let res = node_instance.run(&self.context, &|port, data| {
 				// This should never fail, since we never close the receiver.
 				send_data.send((node, port, data)).unwrap();
 				Ok(())
@@ -494,6 +497,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			);
 			send_status.send((node, res)).unwrap();
 		} else {
+			let ctx = self.context.clone();
 			let mut worker = Some(std::thread::spawn(move || {
 				trace!(
 					message = "Running node",
@@ -506,7 +510,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				let mut node_instance_opt = node_instance.try_lock().unwrap();
 				let node_instance = node_instance_opt.as_mut().unwrap();
 
-				let res = node_instance.run(&|port, data| {
+				let res = node_instance.run(&ctx, &|port, data| {
 					// This should never fail, since we never close the receiver.
 					send_data.send((node, port, data)).unwrap();
 					Ok(())

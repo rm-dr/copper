@@ -1,4 +1,4 @@
-use super::{PipelineData, PortName, ProcessSignalError, RunNodeError};
+use super::{PipelineData, PipelineJobContext, PortName, ProcessSignalError, RunNodeError};
 
 /// The state of a [`PipelineNode`] at a point in time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,13 +61,12 @@ pub enum NodeSignal<DataType: PipelineData> {
 	///
 	/// `ReceiveInput` should never be received with a port that hasn't yet been connected.
 	/// This should cause an `unreachable!` panic.
-	ReceiveInput {
-		port: PortName,
-		data: DataType,
-	},
+	ReceiveInput { port: PortName, data: DataType },
 }
 
-pub trait Node<DataType: PipelineData>: Sync + Send {
+pub trait Node<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>:
+	Sync + Send
+{
 	/// If true, run this node in the main loop instead of starting a thread.
 	///
 	/// This should be `true` for nodes that do no heavy computation, and
@@ -77,12 +76,17 @@ pub trait Node<DataType: PipelineData>: Sync + Send {
 		false
 	}
 
-	fn process_signal(&mut self, signal: NodeSignal<DataType>) -> Result<(), ProcessSignalError>;
+	fn process_signal(
+		&mut self,
+		ctx: &ContextType,
+		signal: NodeSignal<DataType>,
+	) -> Result<(), ProcessSignalError>;
 
 	/// Run this node.
 	/// This is always run in a worker thread.
 	fn run(
 		&mut self,
+		ctx: &ContextType,
 		send_data: &dyn Fn(PortName, DataType) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError>;
 }

@@ -7,12 +7,13 @@ use copper_pipelined::{
 		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PortName,
 		ProcessSignalError, RunNodeError,
 	},
-	data::PipeData,
-	helpers::DataSource,
+	data::{BytesSource, PipeData},
+	helpers::{BytesSourceArrayReader, ConnectedInput, OpenBytesSourceReader, S3Reader},
 	CopperContext,
 };
 use copper_storaged::AttrDataStub;
 use copper_util::MimeType;
+use futures::executor::block_on;
 use itertools::Itertools;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, io::Read};
@@ -20,18 +21,14 @@ use std::{collections::BTreeMap, io::Read};
 /// Extract tags from audio metadata
 pub struct ExtractTags {
 	tags: BTreeMap<PortName, TagType>,
-
-	blob_fragment_size: u64,
 	reader: FlacBlockReader,
-
-	/// None if disconnected, `Uninitialized` if unset
-	data: Option<DataSource>,
+	data: ConnectedInput<OpenBytesSourceReader>,
 }
 
 impl ExtractTags {
 	/// Create a new [`ExtractTags`] node
 	pub fn new(
-		ctx: &CopperContext,
+		_ctx: &CopperContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
 	) -> Result<Self, InitNodeError> {
 		if params.len() != 1 {
@@ -84,8 +81,7 @@ impl ExtractTags {
 				.map(|x| (PortName::new(Into::<&str>::into(&x)), x))
 				.collect(),
 
-			blob_fragment_size: ctx.blob_fragment_size,
-			data: None,
+			data: ConnectedInput::NotConnected,
 			reader: FlacBlockReader::new(FlacBlockSelector {
 				pick_vorbiscomment: true,
 				..Default::default()
@@ -96,26 +92,24 @@ impl ExtractTags {
 
 // Inputs: "data" - Bytes
 // Outputs: variable, depends on tags
-impl Node<PipeData> for ExtractTags {
-	fn process_signal(&mut self, signal: NodeSignal<PipeData>) -> Result<(), ProcessSignalError> {
+impl Node<PipeData, CopperContext> for ExtractTags {
+	fn process_signal(
+		&mut self,
+		ctx: &CopperContext,
+		signal: NodeSignal<PipeData>,
+	) -> Result<(), ProcessSignalError> {
 		match signal {
 			NodeSignal::ConnectInput { port } => match port.id().as_str() {
-				"data" => {
-					if self.data.is_some() {
-						unreachable!("tried to connect an input twice")
-					}
-					self.data = Some(DataSource::Uninitialized)
-				}
+				"data" => self.data.connect(),
 				_ => return Err(ProcessSignalError::InputPortDoesntExist),
 			},
 
 			NodeSignal::DisconnectInput { port } => match port.id().as_str() {
 				"data" => {
-					if self.data.is_none() {
-						unreachable!("tried to disconnect an input that hasn't been connected")
+					if !self.data.is_connected() {
+						unreachable!("disconnected an input that hasn't been connected")
 					}
-
-					if matches!(self.data, Some(DataSource::Uninitialized)) {
+					if !self.data.is_set() {
 						return Err(ProcessSignalError::RequiredInputEmpty);
 					}
 				}
@@ -132,7 +126,22 @@ impl Node<PipeData> for ExtractTags {
 							)));
 						}
 
-						self.data.as_mut().unwrap().consume(mime, source);
+						match source {
+							BytesSource::Array { .. } => {
+								self.data.set(OpenBytesSourceReader::Array(
+									BytesSourceArrayReader::new(Some(mime), source).unwrap(),
+								));
+							}
+
+							BytesSource::S3 { key } => {
+								self.data
+									.set(OpenBytesSourceReader::S3(block_on(S3Reader::new(
+										ctx.objectstore_client.clone(),
+										&ctx.objectstore_bucket,
+										key,
+									))))
+							}
+						}
 					}
 
 					_ => return Err(ProcessSignalError::InputWithBadType),
@@ -147,17 +156,19 @@ impl Node<PipeData> for ExtractTags {
 
 	fn run(
 		&mut self,
+		ctx: &CopperContext,
 		send_data: &dyn Fn(PortName, PipeData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
-		// Push latest data into tag reader
-		match self.data.as_mut() {
-			None => return Err(RunNodeError::RequiredInputNotConnected),
+		if !self.data.is_connected() {
+			return Err(RunNodeError::RequiredInputNotConnected);
+		}
 
-			Some(DataSource::Uninitialized) => {
-				return Ok(NodeState::Pending("waiting for data"));
-			}
+		if !self.data.is_set() {
+			return Ok(NodeState::Pending("input not ready"));
+		}
 
-			Some(DataSource::Binary { data, is_done, .. }) => {
+		match self.data.value_mut().unwrap() {
+			OpenBytesSourceReader::Array(BytesSourceArrayReader { data, is_done, .. }) => {
 				while let Some(d) = data.pop_front() {
 					self.reader
 						.push_data(&d)
@@ -170,14 +181,14 @@ impl Node<PipeData> for ExtractTags {
 				}
 			}
 
-			Some(DataSource::Url { data, .. }) => {
+			OpenBytesSourceReader::S3(r) => {
 				let mut v = Vec::new();
-				let n = data.take(self.blob_fragment_size).read_to_end(&mut v)?;
+				r.take(ctx.blob_fragment_size).read_to_end(&mut v).unwrap();
 				self.reader
 					.push_data(&v)
 					.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 
-				if n == 0 {
+				if r.is_done() {
 					self.reader
 						.finish()
 						.map_err(|e| RunNodeError::Other(Box::new(e)))?;

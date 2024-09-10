@@ -79,8 +79,12 @@ impl AddItem {
 
 // Inputs: depends on class
 // Outputs: None
-impl Node<PipeData> for AddItem {
-	fn process_signal(&mut self, signal: NodeSignal<PipeData>) -> Result<(), ProcessSignalError> {
+impl Node<PipeData, CopperContext> for AddItem {
+	fn process_signal(
+		&mut self,
+		_ctx: &CopperContext,
+		signal: NodeSignal<PipeData>,
+	) -> Result<(), ProcessSignalError> {
 		match signal {
 			NodeSignal::ConnectInput { port } => {
 				if !self.ports.contains_key(&port) {
@@ -138,6 +142,7 @@ impl Node<PipeData> for AddItem {
 
 	fn run(
 		&mut self,
+		_ctx: &CopperContext,
 		_send_data: &dyn Fn(PortName, PipeData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		// Set default values for all disconnected inputs

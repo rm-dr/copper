@@ -29,6 +29,9 @@ pipelined-audiofile = { workspace = true }
 pipelined-storaged = { workspace = true }
 pipelined-basic = { workspace = true }
 
+
+aws-sdk-s3 = { workspace = true }
+aws-config = { workspace = true }
 reqwest = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true }

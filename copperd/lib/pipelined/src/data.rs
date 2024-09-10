@@ -3,7 +3,6 @@ use copper_util::{HashType, MimeType};
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
-use url::Url;
 use utoipa::ToSchema;
 
 use crate::base::{PipelineData, PipelineDataStub};
@@ -73,8 +72,8 @@ pub enum BytesSource {
 		fragment: Arc<Vec<u8>>,
 		is_last: bool,
 	},
-	Url {
-		url: Url,
+	S3 {
+		key: String,
 	},
 }
 

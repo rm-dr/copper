@@ -14,7 +14,7 @@ type NodeInitFnType<DataType, ContextType> = &'static (dyn Fn(
 	&BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
 	// This node's name
 	&str,
-) -> Result<Box<dyn Node<DataType>>, InitNodeError>
+) -> Result<Box<dyn Node<DataType, ContextType>>, InitNodeError>
               + Send
               + Sync);
 
@@ -107,7 +107,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		node_type: &str,
 		node_params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
 		node_name: &str,
-	) -> Result<Option<Box<dyn Node<DataType>>>, InitNodeError> {
+	) -> Result<Option<Box<dyn Node<DataType, ContextType>>>, InitNodeError> {
 		if let Some(node) = self.nodes.get(node_type) {
 			return Ok(Some((node.node_init)(context, node_params, node_name)?));
 		} else {

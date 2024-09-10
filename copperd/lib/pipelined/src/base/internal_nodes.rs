@@ -42,10 +42,14 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	}
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Node<DataType>
+impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Node<DataType, ContextType>
 	for Input<DataType, ContextType>
 {
-	fn process_signal(&mut self, signal: NodeSignal<DataType>) -> Result<(), ProcessSignalError> {
+	fn process_signal(
+		&mut self,
+		_ctx: &ContextType,
+		signal: NodeSignal<DataType>,
+	) -> Result<(), ProcessSignalError> {
 		match signal {
 			NodeSignal::ConnectInput { .. } => {
 				return Err(ProcessSignalError::InputPortDoesntExist)
@@ -67,6 +71,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Node<Dat
 
 	fn run(
 		&mut self,
+		_ctx: &ContextType,
 		send_data: &dyn Fn(PortName, DataType) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
 		send_data(PortName::new("out"), self.value.clone())?;

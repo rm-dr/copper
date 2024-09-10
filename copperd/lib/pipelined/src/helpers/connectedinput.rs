@@ -41,4 +41,11 @@ impl<'a, T> ConnectedInput<T> {
 			_ => None,
 		};
 	}
+
+	pub fn value_mut(&'a mut self) -> Option<&'a mut T> {
+		return match self {
+			Self::Set { value } => Some(value),
+			_ => None,
+		};
+	}
 }
