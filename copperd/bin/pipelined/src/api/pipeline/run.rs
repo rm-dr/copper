@@ -4,8 +4,12 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
-use copper_pipelined::{data::PipeData, CopperContext};
-use copper_storaged::{client::ReqwestStoragedClient, AttrData};
+use copper_pipelined::{
+	data::{BytesSource, PipeData},
+	CopperContext,
+};
+use copper_storaged::AttrData;
+use copper_util::MimeType;
 use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
@@ -62,18 +66,24 @@ pub(super) async fn run_pipeline(
 	let mut input = BTreeMap::new();
 	for (name, value) in payload.input {
 		// TODO: handle special cases (unwrap)
-		input.insert(name, PipeData::try_from(value).unwrap());
+		match value {
+			AttrData::Blob { object_key } => input.insert(
+				name,
+				PipeData::Blob {
+					mime: MimeType::Flac,
+					source: BytesSource::S3 { key: object_key },
+				},
+			),
+
+			_ => input.insert(name, PipeData::try_from(value).unwrap()),
+		};
 	}
 
 	let context = CopperContext {
 		blob_fragment_size: state.config.pipelined_blob_fragment_size,
-		storaged_client: Arc::new(
-			ReqwestStoragedClient::new(
-				state.config.pipelined_storaged_addr.clone(),
-				&state.config.pipelined_storaged_secret,
-			)
-			.unwrap(),
-		),
+		objectstore_bucket: state.config.pipelined_objectstore_bucket.clone(),
+		storaged_client: state.storaged_client.clone(),
+		objectstore_client: state.objectstore_client.clone(),
 		input,
 	};
 

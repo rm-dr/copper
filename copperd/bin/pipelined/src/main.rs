@@ -1,10 +1,13 @@
 use api::RouterState;
+use aws_config::{BehaviorVersion, Region};
+use aws_sdk_s3::config::Credentials;
 use config::PipelinedConfig;
-use copper_pipelined::{data::PipeData, CopperContext};
+use copper_pipelined::{data::PipeData, helpers::S3Reader, CopperContext};
+use copper_storaged::client::ReqwestStoragedClient;
 use copper_util::load_env;
-use futures::TryFutureExt;
+use futures::{executor::block_on, TryFutureExt};
 use pipeline::runner::{PipelineRunner, PipelineRunnerOptions};
-use std::{error::Error, future::IntoFuture, sync::Arc};
+use std::{error::Error, future::IntoFuture, io::BufReader, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info};
 
@@ -23,6 +26,25 @@ async fn main() {
 		.init();
 
 	debug!(message = "Loaded config from environment", ?config);
+
+	let cred = Credentials::new(
+		&config.pipelined_objectstore_key_id,
+		&config.pipelined_objectstore_key_secret,
+		None,
+		None,
+		"pipelined .env",
+	);
+
+	// Config for minio
+	let s3_config = aws_sdk_s3::config::Builder::new()
+		.behavior_version(BehaviorVersion::v2024_03_28())
+		.endpoint_url(&config.pipelined_objectstore_url)
+		.credentials_provider(cred)
+		.region(Region::new("us-west"))
+		.force_path_style(true)
+		.build();
+
+	let client = Arc::new(aws_sdk_s3::Client::from_conf(s3_config));
 
 	// Prep runner
 	let mut runner: PipelineRunner<PipeData, CopperContext> =
@@ -51,8 +73,19 @@ async fn main() {
 
 	// Note how these are all async locks
 	let state = RouterState {
-		config,
 		runner: Arc::new(Mutex::new(runner)),
+
+		storaged_client: Arc::new(
+			ReqwestStoragedClient::new(
+				config.pipelined_storaged_addr.clone(),
+				&config.pipelined_storaged_secret,
+			)
+			.unwrap(),
+		),
+
+		objectstore_client: client,
+
+		config,
 	};
 
 	let listener =
@@ -101,7 +134,6 @@ async fn run_pipes(state: RouterState) -> Result<(), Box<dyn Error>> {
 	loop {
 		let mut runner = state.runner.lock().await;
 		runner.run();
-		drop(runner);
 
 		// Sleep a little bit so we don't waste cpu cycles.
 		// If this is too long, we'll slow down pipeline runners,

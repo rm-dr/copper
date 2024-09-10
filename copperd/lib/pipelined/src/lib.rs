@@ -14,6 +14,8 @@ pub struct CopperContext {
 	pub input: BTreeMap<SmartString<LazyCompact>, PipeData>,
 
 	pub storaged_client: Arc<dyn StoragedClient>,
+	pub objectstore_client: Arc<aws_sdk_s3::Client>,
+	pub objectstore_bucket: String,
 }
 
 impl PipelineJobContext<PipeData> for CopperContext {

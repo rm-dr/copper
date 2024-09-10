@@ -44,6 +44,15 @@ pub struct PipelinedConfig {
 	///
 	/// Anyone with this key can call all `pipelined` endpoints.
 	pub pipelined_secret: String,
+
+	/// Object store key id
+	pub pipelined_objectstore_key_id: String,
+	/// Object store secret
+	pub pipelined_objectstore_key_secret: String,
+	/// Object store url
+	pub pipelined_objectstore_url: String,
+	/// Object store bucket
+	pub pipelined_objectstore_bucket: String,
 }
 
 impl PipelinedConfig {
@@ -69,8 +78,14 @@ impl PipelinedConfig {
 	pub fn to_env_filter(&self) -> String {
 		[
 			format!("tower_http={}", LogLevel::Warn),
-			format!("pipelined={}", LogLevel::Info),
-			LogLevel::Warn.to_string(),
+			format!("s3={}", LogLevel::Warn),
+			format!("aws_sdk_s3={}", LogLevel::Warn),
+			format!("aws_smithy_runtime={}", LogLevel::Warn),
+			format!("aws_smithy_runtime_api={}", LogLevel::Warn),
+			format!("aws_sigv4={}", LogLevel::Warn),
+			format!("hyper={}", LogLevel::Warn),
+			format!("pipelined={}", LogLevel::Trace),
+			LogLevel::Trace.to_string(),
 		]
 		.join(",")
 	}

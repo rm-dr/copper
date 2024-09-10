@@ -1,6 +1,6 @@
 //! Types and instances of data we can store in an attribute
 
-use copper_util::{HashType, MimeType};
+use copper_util::HashType;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
@@ -55,12 +55,8 @@ pub enum AttrData {
 
 	/// Binary data stored in S3
 	Blob {
-		/// This data's media type
-		#[schema(value_type = String)]
-		mime: MimeType,
-
-		/// The data
-		url: String,
+		/// The object's key
+		object_key: String,
 	},
 
 	/// A reference to an item in another class

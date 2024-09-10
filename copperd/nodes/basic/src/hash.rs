@@ -3,15 +3,17 @@ use copper_pipelined::{
 		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PortName,
 		ProcessSignalError, RunNodeError,
 	},
-	data::PipeData,
-	helpers::DataSource,
+	data::{BytesSource, PipeData},
+	helpers::{BytesSourceArrayReader, ConnectedInput, OpenBytesSourceReader, S3Reader},
+	CopperContext,
 };
 use copper_util::HashType;
+use futures::executor::block_on;
 use sha2::{Digest, Sha256, Sha512};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::BTreeMap,
-	io::{Cursor, Read},
+	io::{BufReader, Cursor, Read},
 };
 
 enum HashComputer {
@@ -75,8 +77,7 @@ impl HashComputer {
 }
 
 pub struct Hash {
-	/// None if disconnected, `Uninitialized` if unset
-	data: Option<DataSource>,
+	data: ConnectedInput<OpenBytesSourceReader>,
 	hasher: Option<HashComputer>,
 }
 
@@ -84,6 +85,7 @@ pub struct Hash {
 // Outputs: "hash", Hash
 impl Hash {
 	pub fn new(
+		_ctx: &CopperContext,
 		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
 	) -> Result<Self, InitNodeError> {
 		if params.len() != 1 {
@@ -108,55 +110,60 @@ impl Hash {
 		};
 
 		Ok(Self {
-			data: None,
+			data: ConnectedInput::NotConnected,
 			hasher: Some(HashComputer::new(hash_type)),
 		})
 	}
 }
 
-impl Node<PipeData> for Hash {
-	fn process_signal(&mut self, signal: NodeSignal<PipeData>) -> Result<(), ProcessSignalError> {
+impl Node<PipeData, CopperContext> for Hash {
+	fn process_signal(
+		&mut self,
+		ctx: &CopperContext,
+		signal: NodeSignal<PipeData>,
+	) -> Result<(), ProcessSignalError> {
 		match signal {
 			NodeSignal::ConnectInput { port } => match port.id().as_str() {
-				"data" => {
-					if self.data.is_some() {
-						unreachable!("tried to connect an input twice")
-					}
-					self.data = Some(DataSource::Uninitialized)
-				}
+				"data" => self.data.connect(),
 				_ => return Err(ProcessSignalError::InputPortDoesntExist),
 			},
 
 			NodeSignal::DisconnectInput { port } => match port.id().as_str() {
 				"data" => {
-					if self.data.is_none() {
-						unreachable!("tried to disconnect an input that hasn't been connected")
+					if !self.data.is_connected() {
+						unreachable!("disconnected an input that hasn't been connected")
 					}
-
-					if matches!(self.data, Some(DataSource::Uninitialized)) {
+					if !self.data.is_set() {
 						return Err(ProcessSignalError::RequiredInputEmpty);
 					}
 				}
 				_ => return Err(ProcessSignalError::InputPortDoesntExist),
 			},
 
-			NodeSignal::ReceiveInput { port, data } => {
-				if self.data.is_none() {
-					unreachable!("received input to a disconnected port")
-				}
-
-				match port.id().as_str() {
-					"data" => match data {
-						PipeData::Blob { source, mime } => {
-							self.data.as_mut().unwrap().consume(mime, source);
+			NodeSignal::ReceiveInput { port, data } => match port.id().as_str() {
+				"data" => match data {
+					PipeData::Blob { source, mime } => match source {
+						BytesSource::Array { .. } => {
+							self.data.set(OpenBytesSourceReader::Array(
+								BytesSourceArrayReader::new(Some(mime), source).unwrap(),
+							));
 						}
 
-						_ => return Err(ProcessSignalError::InputWithBadType),
+						BytesSource::S3 { key } => {
+							self.data
+								.set(OpenBytesSourceReader::S3(block_on(S3Reader::new(
+									ctx.objectstore_client.clone(),
+									&ctx.objectstore_bucket,
+									key,
+								))))
+						}
 					},
 
-					_ => return Err(ProcessSignalError::InputPortDoesntExist),
-				}
-			}
+					_ => return Err(ProcessSignalError::InputWithBadType),
+				},
+
+				_ => return Err(ProcessSignalError::InputPortDoesntExist),
+			},
 		}
 
 		return Ok(());
@@ -164,26 +171,19 @@ impl Node<PipeData> for Hash {
 
 	fn run(
 		&mut self,
+		ctx: &CopperContext,
 		send_data: &dyn Fn(PortName, PipeData) -> Result<(), RunNodeError>,
 	) -> Result<NodeState, RunNodeError> {
-		match self.data.as_mut() {
-			None => return Err(RunNodeError::RequiredInputNotConnected),
+		if !self.data.is_connected() {
+			return Err(RunNodeError::RequiredInputNotConnected);
+		}
 
-			Some(DataSource::Uninitialized) => {
-				return Ok(NodeState::Pending("input not ready"));
-			}
+		if !self.data.is_set() {
+			return Ok(NodeState::Pending("args not ready"));
+		}
 
-			Some(DataSource::Url { data, .. }) => {
-				self.hasher
-					.as_mut()
-					.unwrap()
-					.update(&mut Cursor::new(&**data))?;
-
-				send_data(PortName::new("hash"), self.hasher.take().unwrap().finish())?;
-				return Ok(NodeState::Done);
-			}
-
-			Some(DataSource::Binary { data, is_done, .. }) => {
+		match self.data.value_mut().unwrap() {
+			OpenBytesSourceReader::Array(BytesSourceArrayReader { data, is_done, .. }) => {
 				while let Some(data) = data.pop_front() {
 					self.hasher
 						.as_mut()
@@ -197,6 +197,13 @@ impl Node<PipeData> for Hash {
 				} else {
 					return Ok(NodeState::Pending("waiting for data"));
 				}
+			}
+
+			OpenBytesSourceReader::S3(r) => {
+				let mut r = BufReader::new(r);
+				self.hasher.as_mut().unwrap().update(&mut r).unwrap();
+				send_data(PortName::new("hash"), self.hasher.take().unwrap().finish())?;
+				return Ok(NodeState::Done);
 			}
 		};
 	}

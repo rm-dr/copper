@@ -4,7 +4,7 @@ use copper_pipelined::{
 	data::{PipeData, PipeDataStub},
 	CopperContext,
 };
-use copper_storaged::{AttrData, AttrDataStub};
+use copper_storaged::{client::StoragedClient, AttrData, AttrDataStub};
 use copper_util::HashType;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -30,6 +30,8 @@ use crate::{
 pub struct RouterState {
 	pub config: Arc<PipelinedConfig>,
 	pub runner: Arc<Mutex<PipelineRunner<PipeData, CopperContext>>>,
+	pub storaged_client: Arc<dyn StoragedClient>,
+	pub objectstore_client: Arc<aws_sdk_s3::Client>,
 }
 
 struct BearerSecurityAddon;
