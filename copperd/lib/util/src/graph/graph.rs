@@ -72,6 +72,12 @@ where
 		self.nodes.get(usize::from(node_idx)).unwrap()
 	}
 
+	/// Get a node by index
+	#[inline]
+	pub fn get_node_mut(&mut self, node_idx: GraphNodeIdx) -> &mut NodeType {
+		self.nodes.get_mut(usize::from(node_idx)).unwrap()
+	}
+
 	/// The number of nodes in this graph
 	#[inline]
 	pub fn len_nodes(&self) -> usize {
@@ -84,10 +90,24 @@ where
 		self.nodes.iter()
 	}
 
+	/// Iterate over all edges in this graph
+	#[inline]
+	pub fn iter_nodes_mut(&mut self) -> impl Iterator<Item = &mut NodeType> {
+		self.nodes.iter_mut()
+	}
+
 	/// Iterate over all edges in this graph, including edge index
 	#[inline]
 	pub fn iter_nodes_idx(&self) -> impl Iterator<Item = (GraphNodeIdx, &NodeType)> {
 		self.iter_nodes()
+			.enumerate()
+			.map(|(a, b)| (GraphNodeIdx(a), b))
+	}
+
+	/// Iterate over all edges in this graph, including edge index
+	#[inline]
+	pub fn iter_nodes_idx_mut(&mut self) -> impl Iterator<Item = (GraphNodeIdx, &mut NodeType)> {
+		self.iter_nodes_mut()
 			.enumerate()
 			.map(|(a, b)| (GraphNodeIdx(a), b))
 	}
@@ -107,8 +127,23 @@ where
 
 	/// Get an edge by index
 	#[inline]
-	pub fn get_edge(&self, edge_idx: GraphEdgeIdx) -> &(GraphNodeIdx, GraphNodeIdx, EdgeType) {
-		self.edges.get(usize::from(edge_idx)).unwrap()
+	pub fn get_edge(&self, edge_idx: GraphEdgeIdx) -> (GraphNodeIdx, GraphNodeIdx, &EdgeType) {
+		self.edges
+			.get(usize::from(edge_idx))
+			.map(|(f, t, v)| (*f, *t, v))
+			.unwrap()
+	}
+
+	/// Get an edge by index
+	#[inline]
+	pub fn get_edge_mut(
+		&mut self,
+		edge_idx: GraphEdgeIdx,
+	) -> (GraphNodeIdx, GraphNodeIdx, &mut EdgeType) {
+		self.edges
+			.get_mut(usize::from(edge_idx))
+			.map(|(f, t, v)| (*f, *t, v))
+			.unwrap()
 	}
 
 	/// The number of edges in this graph
@@ -119,16 +154,34 @@ where
 
 	/// Iterate over all edges in this graph
 	#[inline]
-	pub fn iter_edges(&self) -> impl Iterator<Item = &(GraphNodeIdx, GraphNodeIdx, EdgeType)> {
-		self.edges.iter()
+	pub fn iter_edges(&self) -> impl Iterator<Item = (GraphNodeIdx, GraphNodeIdx, &EdgeType)> {
+		self.edges.iter().map(|(f, t, v)| (*f, *t, v))
+	}
+
+	/// Iterate over all edges in this graph
+	#[inline]
+	pub fn iter_edges_mut(
+		&mut self,
+	) -> impl Iterator<Item = (GraphNodeIdx, GraphNodeIdx, &mut EdgeType)> {
+		self.edges.iter_mut().map(|(f, t, v)| (*f, *t, v))
 	}
 
 	/// Iterate over all edges in this graph, including edge index
 	#[inline]
 	pub fn iter_edges_idx(
 		&self,
-	) -> impl Iterator<Item = (GraphEdgeIdx, &(GraphNodeIdx, GraphNodeIdx, EdgeType))> {
+	) -> impl Iterator<Item = (GraphEdgeIdx, (GraphNodeIdx, GraphNodeIdx, &EdgeType))> {
 		self.iter_edges()
+			.enumerate()
+			.map(|(a, b)| (GraphEdgeIdx(a), b))
+	}
+
+	/// Iterate over all edges in this graph, including edge index
+	#[inline]
+	pub fn iter_edges_idx_mut(
+		&mut self,
+	) -> impl Iterator<Item = (GraphEdgeIdx, (GraphNodeIdx, GraphNodeIdx, &mut EdgeType))> {
+		self.iter_edges_mut()
 			.enumerate()
 			.map(|(a, b)| (GraphEdgeIdx(a), b))
 	}
@@ -138,7 +191,7 @@ where
 	pub fn has_cycle(&self) -> bool {
 		let mut fake_graph = GraphMap::<usize, (), Directed>::new();
 		for (from, to, _) in self.iter_edges() {
-			fake_graph.add_edge((*from).into(), (*to).into(), ());
+			fake_graph.add_edge(from.into(), to.into(), ());
 		}
 		toposort(&fake_graph, None).is_err()
 	}
