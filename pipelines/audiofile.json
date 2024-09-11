@@ -1,0 +1,206 @@
+{
+	"input": {
+		"testdata": {
+			"type": "Blob",
+			"object_key": "Avril Lavigne - Complicated.flac"
+		}
+	},
+	"pipeline_name": "audiofile",
+	"pipeline_spec": {
+		"edges": {
+			"1": {
+				"source": {
+					"node": "testdata",
+					"port": "out"
+				},
+				"target": {
+					"node": "strip",
+					"port": "data"
+				},
+				"edge_type": "Data"
+			},
+			"2": {
+				"source": {
+					"node": "testdata",
+					"port": "out"
+				},
+				"target": {
+					"node": "extract",
+					"port": "data"
+				},
+				"edge_type": "Data"
+			},
+			"4": {
+				"source": {
+					"node": "hash",
+					"port": "hash"
+				},
+				"target": {
+					"node": "add",
+					"port": "audio_hash"
+				},
+				"edge_type": "Data"
+			},
+			"5": {
+				"source": {
+					"node": "strip",
+					"port": "out"
+				},
+				"target": {
+					"node": "hash",
+					"port": "data"
+				},
+				"edge_type": "Data"
+			},
+
+			"7": {
+				"source": {
+					"node": "extract",
+					"port": "Title"
+				},
+				"target": {
+					"node": "add",
+					"port": "title"
+				},
+				"edge_type": "Data"
+			},
+			"8": {
+				"source": {
+					"node": "extract",
+					"port": "Album"
+				},
+				"target": {
+					"node": "add",
+					"port": "album"
+				},
+				"edge_type": "Data"
+			},
+			"9": {
+				"source": {
+					"node": "extract",
+					"port": "Artist"
+				},
+				"target": {
+					"node": "add",
+					"port": "artist"
+				},
+				"edge_type": "Data"
+			},
+			"10": {
+				"source": {
+					"node": "extract",
+					"port": "AlbumArtist"
+				},
+				"target": {
+					"node": "add",
+					"port": "albumartist"
+				},
+				"edge_type": "Data"
+			},
+			"11": {
+				"source": {
+					"node": "extract",
+					"port": "TrackNumber"
+				},
+				"target": {
+					"node": "add",
+					"port": "tracknumber"
+				},
+				"edge_type": "Data"
+			},
+			"12": {
+				"source": {
+					"node": "extract",
+					"port": "Year"
+				},
+				"target": {
+					"node": "add",
+					"port": "year"
+				},
+				"edge_type": "Data"
+			},
+			"13": {
+				"source": {
+					"node": "extract",
+					"port": "Genre"
+				},
+				"target": {
+					"node": "add",
+					"port": "genre"
+				},
+				"edge_type": "Data"
+			},
+			"14": {
+				"source": {
+					"node": "extract",
+					"port": "ISRC"
+				},
+				"target": {
+					"node": "add",
+					"port": "ISRC"
+				},
+				"edge_type": "Data"
+			},
+			"15": {
+				"source": {
+					"node": "extract",
+					"port": "Lyrics"
+				},
+				"target": {
+					"node": "add",
+					"port": "lyrics"
+				},
+				"edge_type": "Data"
+			}
+		},
+		"nodes": {
+			"testdata": {
+				"node_type": "Input",
+				"params": {}
+			},
+			"strip": {
+				"node_type": "StripTags"
+			},
+			"extract": {
+				"node_type": "ExtractTags",
+				"params": {
+					"tags": {
+						"parameter_type": "List",
+						"value": [
+							{ "parameter_type": "String", "value": "Title" },
+							{ "parameter_type": "String", "value": "Album" },
+							{ "parameter_type": "String", "value": "Artist" },
+							{ "parameter_type": "String", "value": "Year" },
+							{ "parameter_type": "String", "value": "Genre" },
+							{ "parameter_type": "String", "value": "ISRC" },
+							{ "parameter_type": "String", "value": "Lyrics" },
+							{
+								"parameter_type": "String",
+								"value": "AlbumArtist"
+							},
+							{
+								"parameter_type": "String",
+								"value": "TrackNumber"
+							}
+						]
+					}
+				}
+			},
+			"hash": {
+				"node_type": "Hash",
+				"params": {
+					"hash_type": {
+						"parameter_type": "String",
+						"value": "SHA256"
+					}
+				}
+			},
+			"add": {
+				"node_type": "AddItem",
+				"params": {
+					"class": { "parameter_type": "Integer", "value": 2 }
+				}
+			}
+		}
+	}
+}
