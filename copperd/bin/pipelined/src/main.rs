@@ -2,12 +2,12 @@ use api::RouterState;
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::config::Credentials;
 use config::PipelinedConfig;
-use copper_pipelined::{data::PipeData, helpers::S3Reader, CopperContext};
+use copper_pipelined::{data::PipeData, CopperContext};
 use copper_storaged::client::ReqwestStoragedClient;
 use copper_util::load_env;
-use futures::{executor::block_on, TryFutureExt};
+use futures::TryFutureExt;
 use pipeline::runner::{PipelineRunner, PipelineRunnerOptions};
-use std::{error::Error, future::IntoFuture, io::BufReader, sync::Arc};
+use std::{error::Error, future::IntoFuture, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info};
 
@@ -49,7 +49,6 @@ async fn main() {
 	// Prep runner
 	let mut runner: PipelineRunner<PipeData, CopperContext> =
 		PipelineRunner::new(PipelineRunnerOptions {
-			node_threads: config.pipelined_threads_per_job,
 			max_active_jobs: config.pipelined_parallel_jobs,
 		});
 
@@ -133,7 +132,7 @@ async fn main() {
 async fn run_pipes(state: RouterState) -> Result<(), Box<dyn Error>> {
 	loop {
 		let mut runner = state.runner.lock().await;
-		runner.run();
+		runner.run().await;
 
 		// Sleep a little bit so we don't waste cpu cycles.
 		// If this is too long, we'll slow down pipeline runners,

@@ -1,6 +1,5 @@
 use axum::http::HeaderMap;
 use copper_util::LogLevel;
-use reqwest::Url;
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use tracing::{debug, info};
@@ -18,10 +17,6 @@ pub struct PipelinedConfig {
 	#[serde(default = "PipelinedConfig::default_parallel_jobs")]
 	pub pipelined_parallel_jobs: usize,
 
-	/// How many threads each job may use
-	#[serde(default = "PipelinedConfig::default_job_threads")]
-	pub pipelined_threads_per_job: usize,
-
 	/// Maximum request body size, in bytes
 	/// If you're using a reverse proxy, make sure it
 	/// also accepts requests of this size!
@@ -34,7 +29,7 @@ pub struct PipelinedConfig {
 
 	/// IP and port of the `storaged` daemon we'll use
 	/// Should look like `http://127.0.0.1:3030`
-	pub pipelined_storaged_addr: Url,
+	pub pipelined_storaged_addr: String,
 
 	/// The secret used to authenticate calls to storaged.
 	pub pipelined_storaged_secret: String,
@@ -61,12 +56,6 @@ impl PipelinedConfig {
 	}
 
 	fn default_parallel_jobs() -> usize {
-		// TODO: detect using threads
-		4
-	}
-
-	fn default_job_threads() -> usize {
-		// TODO: detect using threads
 		4
 	}
 
