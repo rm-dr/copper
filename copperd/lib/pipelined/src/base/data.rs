@@ -1,6 +1,5 @@
 use serde::de::DeserializeOwned;
-use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, fmt::Debug};
+use std::fmt::Debug;
 
 /// An immutable bit of data inside a pipeline.
 ///
@@ -37,12 +36,8 @@ where
 	fn is_subset_of(&self, superset: &Self) -> bool;
 }
 
-/// Arbitrary additional information for a pipeline job.
-pub trait PipelineJobContext<DataType>
+pub trait PipelineJobContext
 where
 	Self: Send + Sync + 'static,
-	DataType: PipelineData,
 {
-	/// Get the inputs we passed to this pipeline
-	fn get_input(&self) -> &BTreeMap<SmartString<LazyCompact>, DataType>;
 }

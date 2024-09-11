@@ -1,81 +1,40 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{error::Error, fmt::Display};
 
-/// An error we encounter when initializing a node
-#[derive(Debug)]
-pub enum InitNodeError {
-	/// We got an unexpected number of parameters
-	BadParameterCount {
-		/// How many we expected
-		expected: usize,
-	},
-
-	/// A parameter had an unexpected type
-	BadParameterType {
-		/// The parameter
-		param_name: SmartString<LazyCompact>,
-	},
-
-	/// We expected a parameter, but it wasn't there
-	MissingParameter {
-		/// The parameter that was missing
-		param_name: SmartString<LazyCompact>,
-	},
-
-	/// Generic parameter error
-	BadParameterOther {
-		/// The parameter that caused the error
-		param_name: SmartString<LazyCompact>,
-
-		/// A description of the error
-		message: String,
-	},
-
-	/// An arbitrary error
-	Other(Box<dyn Error + Sync + Send + 'static>),
-}
-
-impl Display for InitNodeError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::Other(_) => write!(f, "Generic error"),
-			Self::BadParameterOther {
-				message,
-				param_name,
-			} => write!(f, "Bad parameter `{param_name}`: {message}"),
-			Self::BadParameterCount { expected } => {
-				write!(f, "Bad number of parameters: expected {expected}")
-			}
-			Self::BadParameterType { param_name } => {
-				write!(f, "Bad type for parameter `{param_name}`")
-			}
-			Self::MissingParameter { param_name } => {
-				write!(f, "Missing parameter `{param_name}`")
-			}
-		}
-	}
-}
-
-impl Error for InitNodeError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::Other(x) => Some(x.as_ref()),
-			_ => return None,
-		}
-	}
-}
+use super::PortName;
 
 /// An error we encounter while running a node
 #[derive(Debug)]
 pub enum RunNodeError {
+	/// We expected a parameter, but it wasn't there
+	UnexpectedParameter { parameter: SmartString<LazyCompact> },
+
+	/// A parameter had an unexpected type
+	BadParameterType { parameter: SmartString<LazyCompact> },
+
+	/// We expected a parameter, but it wasn't there
+	MissingParameter { parameter: SmartString<LazyCompact> },
+
+	/// Generic parameter error
+	BadParameterOther {
+		parameter: SmartString<LazyCompact>,
+		message: String,
+	},
+
+	/// We did not receive a required input
+	MissingInput { port: PortName },
+
+	/// We received an input on a port we don't recognize
+	UnrecognizedInput { port: PortName },
+
+	/// We received data with an invalid type on the given port
+	BadInputType { port: PortName },
+
 	/// A generic I/O error
 	IoError(std::io::Error),
 
 	/// An arbitrary error
 	Other(Box<dyn Error + Sync + Send + 'static>),
-
-	/// A required input was not connected before calling `run()`
-	RequiredInputNotConnected,
 }
 
 impl Display for RunNodeError {
@@ -83,10 +42,31 @@ impl Display for RunNodeError {
 		match self {
 			Self::IoError(_) => write!(f, "I/O error"),
 			Self::Other(_) => write!(f, "Generic error"),
-			Self::RequiredInputNotConnected => write!(
-				f,
-				"a required input was not connected before running a node"
-			),
+
+			Self::BadParameterOther { message, parameter } => {
+				write!(f, "Bad parameter `{parameter}`: {message}")
+			}
+
+			Self::BadParameterType { parameter } => {
+				write!(f, "Bad type for parameter `{parameter}`")
+			}
+
+			Self::MissingParameter { parameter } => {
+				write!(f, "Missing parameter `{parameter}`")
+			}
+
+			Self::UnexpectedParameter { parameter } => {
+				write!(f, "Unexpected parameter `{parameter}`")
+			}
+
+			Self::MissingInput { port } => write!(f, "we did not receive input on port `{port}`"),
+			Self::UnrecognizedInput { port } => {
+				write!(f, "received input on unrecognized port `{port}`")
+			}
+
+			Self::BadInputType { port } => {
+				write!(f, "received bad data type on port `{port}`")
+			}
 		}
 	}
 }

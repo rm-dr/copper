@@ -53,12 +53,12 @@ impl S3Reader {
 	}
 
 	pub fn is_done(&self) -> bool {
-		error!(c = self.cursor, s = self.size);
-		return self.cursor == self.size - 1;
+		return self.cursor == self.size;
 	}
 }
 
 impl Read for S3Reader {
+	// TODO: make this async
 	fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
 		let len_left = usize::try_from(self.size - self.cursor).unwrap();
 		if len_left == 0 || buf.len() == 0 {

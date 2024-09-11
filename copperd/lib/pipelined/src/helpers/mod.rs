@@ -1,9 +1,6 @@
 mod bytessourcereader;
 pub use bytessourcereader::*;
 
-mod connectedinput;
-pub use connectedinput::*;
-
 mod s3reader;
 pub use s3reader::*;
 

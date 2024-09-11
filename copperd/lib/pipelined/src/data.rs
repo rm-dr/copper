@@ -26,9 +26,6 @@ use crate::base::{PipelineData, PipelineDataStub};
 #[derive(Deserialize, Debug, Clone, ToSchema)]
 #[serde(tag = "type")]
 pub enum PipeData {
-	/// Typed, unset data
-	None { data_type: AttrDataStub },
-
 	/// A block of text
 	Text { value: SmartString<LazyCompact> },
 
@@ -82,10 +79,6 @@ impl PipelineData for PipeData {
 
 	fn as_stub(&self) -> Self::DataStubType {
 		match self {
-			Self::None { data_type } => PipeDataStub::Plain {
-				data_type: *data_type,
-			},
-
 			Self::Text { .. } => PipeDataStub::Plain {
 				data_type: AttrDataStub::Text,
 			},
@@ -127,25 +120,17 @@ impl PipelineData for PipeData {
 	}
 }
 
-impl PipeData {
-	pub fn is_none(&self) -> bool {
-		matches!(self, Self::None { .. })
-	}
-}
-
 impl TryFrom<AttrData> for PipeData {
 	type Error = ();
 
 	fn try_from(value: AttrData) -> Result<Self, Self::Error> {
 		return Ok(match value {
 			AttrData::Blob { .. } => return Err(()),
+			AttrData::None { .. } => return Err(()),
+
 			AttrData::Text { value } => Self::Text { value },
 			AttrData::Boolean { value } => Self::Boolean { value },
 			AttrData::Hash { hash_type, data } => Self::Hash { hash_type, data },
-
-			AttrData::None { data_type } => Self::None {
-				data_type: data_type.into(),
-			},
 
 			AttrData::Reference { class, item } => Self::Reference {
 				class: class.into(),
@@ -180,10 +165,6 @@ impl TryInto<AttrData> for PipeData {
 			Self::Text { value } => AttrData::Text { value },
 			Self::Boolean { value } => AttrData::Boolean { value },
 			Self::Hash { hash_type, data } => AttrData::Hash { hash_type, data },
-
-			Self::None { data_type } => AttrData::None {
-				data_type: data_type,
-			},
 
 			Self::Reference { class, item } => AttrData::Reference {
 				class: class.into(),

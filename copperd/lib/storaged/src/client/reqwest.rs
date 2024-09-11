@@ -73,7 +73,7 @@ impl StoragedClient for ReqwestStoragedClient {
 		transaction: Transaction,
 	) -> Result<(), StoragedRequestError> {
 		self.client
-			.post(self.storaged_url.join("/apply").unwrap())
+			.post(self.storaged_url.join("/transaction/apply").unwrap())
 			.header(
 				header::AUTHORIZATION,
 				format!("Bearer {}", self.storaged_secret),

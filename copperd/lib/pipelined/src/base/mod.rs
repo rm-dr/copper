@@ -17,7 +17,3 @@ pub use labels::*;
 
 mod dispatcher;
 pub use dispatcher::*;
-
-mod internal_nodes;
-
-pub const INPUT_NODE_TYPE_NAME: &str = "Input";
