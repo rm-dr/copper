@@ -16,7 +16,6 @@ use utoipa::{
 use utoipa_swagger_ui::SwaggerUi;
 
 mod pipeline;
-mod status;
 
 use crate::{
 	config::PipelinedConfig,
@@ -50,7 +49,6 @@ impl Modify for BearerSecurityAddon {
 #[openapi(
 	modifiers(&BearerSecurityAddon),
 	nest(
-		(path = "/status", api = status::StatusApi),
 		(path = "/pipeline", api = pipeline::PipelineApi),
 	),
 	tags(
@@ -77,7 +75,6 @@ pub(super) fn router(state: RouterState) -> Router {
 	Router::new()
 		.merge(SwaggerUi::new("/docs").url("/docs/openapi.json", ApiDoc::openapi()))
 		//
-		.nest("/status", status::router())
 		.nest("/pipeline", pipeline::router())
 		//
 		.layer(TraceLayer::new_for_http())

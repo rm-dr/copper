@@ -8,11 +8,7 @@ use run::*;
 use super::RouterState;
 
 #[derive(OpenApi)]
-#[openapi(
-	tags(),
-	paths(run_pipeline),
-	components(schemas(AddJobRequest, AddJobResponse))
-)]
+#[openapi(tags(), paths(run_pipeline), components(schemas(AddJobRequest)))]
 pub(super) struct PipelineApi;
 
 pub(super) fn router() -> Router<RouterState> {

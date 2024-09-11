@@ -1,7 +1,7 @@
 {
+	"job_id": "text",
 	"input": { "testdata": { "type": "Text", "value": "this is test data" } },
-	"pipeline_name": "test",
-	"pipeline_spec": {
+	"pipeline": {
 		"edges": {
 			"e": {
 				"source": {

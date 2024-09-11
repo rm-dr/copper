@@ -1,12 +1,12 @@
 {
+	"job_id": "audiofile",
 	"input": {
 		"testdata": {
 			"type": "Blob",
 			"object_key": "Avril Lavigne - Complicated.flac"
 		}
 	},
-	"pipeline_name": "audiofile",
-	"pipeline_spec": {
+	"pipeline": {
 		"edges": {
 			"1": {
 				"source": {

@@ -10,31 +10,23 @@ use copper_pipelined::{
 };
 use copper_storaged::AttrData;
 use copper_util::MimeType;
-use futures::executor::block_on;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, sync::Arc};
-use tracing::error;
+use std::collections::BTreeMap;
 use utoipa::ToSchema;
 
-use crate::{
-	pipeline::{json::PipelineJson, spec::PipelineSpec},
-	RouterState,
-};
+use crate::{pipeline::json::PipelineJson, RouterState};
 
 #[derive(Deserialize, ToSchema, Debug)]
 pub(super) struct AddJobRequest {
-	pub pipeline_name: String,
-	pub pipeline_spec: PipelineJson<PipeData>,
+	/// The pipeline
+	pub pipeline: PipelineJson<PipeData>,
+
+	/// A unique id for this job
+	pub job_id: SmartString<LazyCompact>,
 
 	#[schema(value_type = BTreeMap<String, AttrData>)]
 	pub input: BTreeMap<SmartString<LazyCompact>, AttrData>,
-}
-
-/// Input that is passed to the pipeline we're running
-#[derive(Serialize, ToSchema, Debug)]
-pub(super) struct AddJobResponse {
-	new_job_id: u128,
 }
 
 /// Start a pipeline job
@@ -42,7 +34,7 @@ pub(super) struct AddJobResponse {
 	post,
 	path = "/run",
 	responses(
-		(status = 200, description = "Job queued successfully", body = AddJobResponse),
+		(status = 200, description = "Job queued successfully"),
 		(status = 404, description = "Invalid dataset or pipeline", body = String),
 		(status = 500, description = "Internal server error", body = String),
 		(status = 401, description = "Unauthorized")
@@ -61,7 +53,7 @@ pub(super) async fn run_pipeline(
 		return StatusCode::UNAUTHORIZED.into_response();
 	};
 
-	let runner = state.runner.lock().await;
+	let mut runner = state.runner.lock().await;
 
 	let mut input = BTreeMap::new();
 	for (name, value) in payload.input {
@@ -84,43 +76,11 @@ pub(super) async fn run_pipeline(
 		objectstore_bucket: state.config.pipelined_objectstore_bucket.clone(),
 		storaged_client: state.storaged_client.clone(),
 		objectstore_client: state.objectstore_client.clone(),
-		input,
+		job_id: payload.job_id.clone(),
 	};
 
-	let pipe = PipelineSpec::build(
-		runner.get_dispatcher(),
-		&payload.pipeline_name,
-		&payload.pipeline_spec,
-	)
-	.unwrap();
+	// TODO: pipeline name -> jobid
+	runner.add_job(context, payload.pipeline, &payload.job_id, input);
 
-	// Prevent a deadlock with below code
-	drop(runner);
-
-	// Allow `add_job` to block
-	let x = state.runner.clone();
-	let new_job_result = tokio::task::spawn_blocking(move || {
-		let mut y = block_on(x.lock());
-		y.add_job(context, Arc::new(pipe))
-	})
-	.await;
-
-	match new_job_result {
-		Ok(Ok(new_job_id)) => {
-			return (StatusCode::OK, Json(AddJobResponse { new_job_id })).into_response();
-		}
-
-		Ok(Err(e)) => {
-			return (
-				StatusCode::BAD_REQUEST,
-				Json(format!("Could not create job: {e:?}")),
-			)
-				.into_response()
-		}
-
-		Err(e) => {
-			error!(message = "Join error while starting job", error = ?e);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-		}
-	}
+	return StatusCode::OK.into_response();
 }

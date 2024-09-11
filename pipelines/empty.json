@@ -1,7 +1,7 @@
 {
+	"job_id": "empty",
 	"input": {},
-	"pipeline_name": "test",
-	"pipeline_spec": {
+	"pipeline": {
 		"edges": {},
 		"nodes": {}
 	}
