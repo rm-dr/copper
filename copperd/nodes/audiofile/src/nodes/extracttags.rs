@@ -10,7 +10,11 @@ use copper_pipelined::{
 	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, io::Read, sync::Arc};
+use std::{
+	collections::BTreeMap,
+	io::{Cursor, Read},
+	sync::Arc,
+};
 
 /// Extract tags from audio metadata
 pub struct ExtractTags {}
@@ -121,7 +125,17 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 
 			OpenBytesSourceReader::S3(r) => {
 				let mut v = Vec::new();
-				r.read_to_end(&mut v).unwrap();
+
+				let mut buf = [0u8; 1_000_000];
+				loop {
+					let l = r.read(&mut buf).await.unwrap();
+					if l == 0 {
+						break;
+					} else {
+						std::io::copy(&mut Cursor::new(&buf).take(l.try_into().unwrap()), &mut v)
+							.unwrap();
+					}
+				}
 				reader
 					.push_data(&v)
 					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
@@ -154,6 +168,8 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 									value: tag_value.clone(),
 								})),
 							);
+						} else {
+							out.insert(port.clone(), NodeOutput::Plain(None));
 						}
 					}
 				}

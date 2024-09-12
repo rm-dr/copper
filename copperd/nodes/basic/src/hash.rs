@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256, Sha512};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::BTreeMap,
-	io::{BufReader, Read},
+	io::{BufReader, Cursor, Read},
 };
 
 enum HashComputer {
@@ -168,9 +168,19 @@ impl Node<PipeData, CopperContext> for Hash {
 				return Ok(out);
 			}
 
-			OpenBytesSourceReader::S3(r) => {
-				let mut r = BufReader::new(r);
-				hasher.update(&mut r).unwrap();
+			OpenBytesSourceReader::S3(mut r) => {
+				let mut buf = [0u8; 1_000_000];
+				loop {
+					let l = r.read(&mut buf).await.unwrap();
+					if l != 0 {
+						break;
+					} else {
+						hasher
+							.update(&mut Cursor::new(&buf).take(l.try_into().unwrap()))
+							.unwrap();
+					}
+				}
+
 				out.insert(
 					PortName::new("hash"),
 					NodeOutput::Plain(Some(hasher.finish())),

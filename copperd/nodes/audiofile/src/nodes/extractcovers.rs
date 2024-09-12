@@ -7,7 +7,11 @@ use copper_pipelined::{
 	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, io::Read, sync::Arc};
+use std::{
+	collections::BTreeMap,
+	io::{Cursor, Read},
+	sync::Arc,
+};
 
 pub struct ExtractCovers {}
 
@@ -85,7 +89,18 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 
 			OpenBytesSourceReader::S3(r) => {
 				let mut v = Vec::new();
-				r.take(ctx.blob_fragment_size).read_to_end(&mut v).unwrap();
+
+				let mut buf = [0u8; 1_000_000];
+				loop {
+					let l = r.read(&mut buf).await.unwrap();
+					if l == 0 {
+						break;
+					} else {
+						std::io::copy(&mut Cursor::new(&buf).take(l.try_into().unwrap()), &mut v)
+							.unwrap();
+					}
+				}
+
 				reader
 					.push_data(&v)
 					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
