@@ -1,11 +1,9 @@
 use std::{
-	io::{Read, Seek, SeekFrom, Write},
+	io::{Seek, SeekFrom, Write},
 	sync::Arc,
 };
 
 use copper_util::MimeType;
-use futures::executor::block_on;
-use tracing::error;
 
 pub struct S3Reader {
 	client: Arc<aws_sdk_s3::Client>,
@@ -57,9 +55,8 @@ impl S3Reader {
 	}
 }
 
-impl Read for S3Reader {
-	// TODO: make this async
-	fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
+impl S3Reader {
+	pub async fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
 		let len_left = usize::try_from(self.size - self.cursor).unwrap();
 		if len_left == 0 || buf.len() == 0 {
 			return Ok(0);
@@ -69,20 +66,20 @@ impl Read for S3Reader {
 		let len_to_read = buf.len().min(len_left);
 		let end_byte = start_byte + len_to_read - 1;
 
-		let b = block_on(
-			self.client
-				.get_object()
-				.bucket(&self.bucket)
-				.key(&self.key)
-				.range(format!("bytes={start_byte}-{end_byte}"))
-				.send(),
-		)
-		.unwrap();
+		let b = self
+			.client
+			.get_object()
+			.bucket(&self.bucket)
+			.key(&self.key)
+			.range(format!("bytes={start_byte}-{end_byte}"))
+			.send()
+			.await
+			.unwrap();
 
 		// Looks like `bytes 31000000-31999999/33921176``
 		// println!("{:?}", b.content_range);
 
-		let mut bytes = block_on(b.body.collect())?.into_bytes();
+		let mut bytes = b.body.collect().await?.into_bytes();
 		bytes.truncate(len_to_read);
 		let l = bytes.len();
 		buf.write_all(&bytes)?;
