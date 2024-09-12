@@ -14,8 +14,6 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 ## 📦 Daemon cleanup
 - [ ] remove panics/unwraps
 - [ ] Minor TODOs in code (search all files)
-- [ ] stream big files in `/items/attr`
-- [ ] Remove allow dead code (after implementing features)
 
 ## 📦 Fixes
 - [ ] Server deadlocks with two parallel clients
@@ -103,12 +101,7 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Show dataset metadata in dataset page
   - size, item count
 
-## Dataset caching
-- [ ] Cache built pipelines
-- [ ] Cache common metastore gets
-
 ## CRUD Jobs
-- [ ] Clean up pipeline error handling
 - [ ] Show job log in upload page
 - [ ] Job log page:
   - Failed jobs with message
@@ -206,23 +199,10 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Clean up permission model (make a lib)
 - [ ] Disable no-permission buttons in group tree (ui)
 
-## Other datasets
-- mysql + ?
-- object store?
-- No blobs at all (with fast db backend)
-- Each dataset has its own types?
 
 ## Hash blobs
 - integrity check?
 - deduplicate
-
-## Pipeline builder
-- an invalid pipeline should deserialize, but should not build
-- (gives user opportunity to fix errors)
-- [ ] Better type checking
-  - [ ] `string | null` types
-  - [ ] Catch as many errors as possible when building pipeline
-- [ ] Warnings (disconnected inputs)
 
 ## Read-only "views" into data?
 - allow other apps to use our db (jellyfin, syncthing, etc)
@@ -248,10 +228,6 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] Make sure all these hold on CRUD
 
 ## Automatic dataset backups
-
-## Pipelines as transactions
-- If a pipe fails, a dataset should not have partial state
-- how should we clean up?
 
 ## Virtual attributes
 - Attributes computed by a pipeline, auto-updated on change
