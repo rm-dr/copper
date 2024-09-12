@@ -9,7 +9,9 @@ use std::{
 	error::Error,
 	fmt::{Debug, Display},
 	marker::PhantomData,
+	sync::Arc,
 };
+use tokio::task::JoinSet;
 use tracing::{debug, trace, warn};
 
 use super::json::PipelineJson;
@@ -64,8 +66,21 @@ impl Error for PipelineBuildError {
 }
 
 //
-// MARK: Nodes & Edges
+// MARK: Helper structs
 //
+
+struct NodeResult<DataType: PipelineData> {
+	result: Result<BTreeMap<PortName, NodeOutput<DataType>>, RunNodeError>,
+	node_idx: GraphNodeIdx,
+	node_id: NodeId,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum NodeState {
+	NotStarted,
+	Running,
+	Done,
+}
 
 #[derive(Debug)]
 struct NodeSpec<DataType: PipelineData> {
@@ -78,8 +93,8 @@ struct NodeSpec<DataType: PipelineData> {
 	/// This node's parameters.
 	pub node_params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
 
-	/// If true, this node has been run
-	pub has_been_run: bool,
+	/// This node's state
+	pub state: NodeState,
 }
 
 #[derive(Debug)]
@@ -175,6 +190,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 						EdgeSpec::After { released } => *released = true,
 					}
 				}
+
+				graph.get_node_mut(idx).state = NodeState::Done;
 			} else {
 				panic!("Missing input")
 			}
@@ -209,7 +226,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 		for (node_id, node_spec) in &json.nodes {
 			let n = graph.add_node(NodeSpec {
 				id: node_id.clone(),
-				has_been_run: false,
+				state: NodeState::NotStarted,
 				node_params: node_spec.params.clone(),
 				node_type: node_spec.node_type.clone(),
 			});
@@ -301,7 +318,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 
 	pub async fn run(
 		mut self,
-		context: &ContextType,
+		context: Arc<ContextType>,
 		dispatcher: &NodeDispatcher<DataType, ContextType>,
 	) -> Result<(), RunNodeError> {
 		trace!(
@@ -310,151 +327,179 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 			graph = ?self.graph
 		);
 
-		let nodes_to_run: Vec<GraphNodeIdx> = self
-			.graph
-			.iter_nodes_idx_mut()
-			.filter_map(|(idx, node)| {
-				if node.node_type == "Input" {
-					node.has_been_run = true;
-					return None;
-				} else {
-					return Some(idx);
-				}
-			})
-			.collect();
+		let all_nodes: Vec<GraphNodeIdx> =
+			self.graph.iter_nodes_idx().map(|(idx, _)| idx).collect();
 
 		// TODO: handle dangling nodes & dangling edges
 		// TODO: handle double edges
-		// (document where what is caught)
-		// TODO: stream big data
 		// TODO: run all nodes at once
 		// TODO: limited threadpool for compute
-		while nodes_to_run
-			.iter()
-			.any(|x| !self.graph.get_node(*x).has_been_run)
-		{
-			for node_idx in &nodes_to_run {
+
+		let mut tasks = JoinSet::new();
+
+		loop {
+			//
+			// Start nodes
+			//
+			for node_idx in &all_nodes {
+				let node_idx = *node_idx;
+
 				// Never run nodes twice
-				if self.graph.get_node(*node_idx).has_been_run {
+				if self.graph.get_node(node_idx).state != NodeState::NotStarted {
 					continue;
 				}
 
-				let can_be_run = self
-					.graph
-					.edges_ending_at(*node_idx)
-					.iter()
-					.all(|edge_idx| {
-						let (_, _, edge) = self.graph.get_edge(*edge_idx);
-						match edge {
-							EdgeSpec::After { released } => *released,
-							EdgeSpec::Data { data, .. } => match data {
-								EdgeDataContainer::Unset => false,
-								EdgeDataContainer::Some(_) => true,
-								EdgeDataContainer::Consumed => unreachable!(),
-							},
-						}
-					});
+				let can_be_run = self.graph.edges_ending_at(node_idx).iter().all(|edge_idx| {
+					let (_, _, edge) = self.graph.get_edge(*edge_idx);
+					match edge {
+						EdgeSpec::After { released } => *released,
+						EdgeSpec::Data { data, .. } => match data {
+							EdgeDataContainer::Unset => false,
+							EdgeDataContainer::Some(_) => true,
+							EdgeDataContainer::Consumed => unreachable!(),
+						},
+					}
+				});
 
 				if !can_be_run {
-					let node = self.graph.get_node(*node_idx);
+					continue;
+				}
 
-					trace!(
-						message = "Node can't be run",
-						node_type = ?node.node_type,
-						node_id = ?node.id,
-						job_id = ?self.job_id
-					);
-				} else {
-					// Initialize and run
-					let node = self.graph.get_node(*node_idx);
-					trace!(
-						message = "Running node",
-						node_type= ?node.node_type,
-						node_id = ?node.id,
-						job_id = ?self.job_id,
-					);
+				// Initialize and run
+				let node = self.graph.get_node(node_idx);
+				trace!(
+					message = "Running node",
+					node_type= ?node.node_type,
+					node_id = ?node.id,
+					job_id = ?self.job_id,
+				);
 
-					// Take all inputs
-					let node_run_input: BTreeMap<PortName, NodeOutput<DataType>> = {
-						let input_edges = Vec::from(self.graph.edges_ending_at(*node_idx));
-						input_edges
-							.into_iter()
-							.filter_map(|edge_idx| {
-								let (_, _, edge) = self.graph.get_edge_mut(edge_idx);
-								match edge {
-									EdgeSpec::After { .. } => None,
-									EdgeSpec::Data {
-										data, target_port, ..
-									} => Some((target_port.clone(), data.take().unwrap())),
-								}
-							})
-							.collect()
-					};
-
-					// Borrow again as mutable
-					let node = self.graph.get_node_mut(*node_idx);
-					let node_id = node.id.id().clone();
-					let node_type = node.node_type.clone();
-
-					// This should never fail, node types are checked at build time
-					let node_inst = dispatcher.init_node(&node.node_type).unwrap();
-					let mut res = node_inst
-						.run(context, node.node_params.clone(), node_run_input)
-						.await?;
-					node.has_been_run = true;
-
-					trace!(
-						message = "Node finished",
-						node_type= ?node.node_type,
-						node_id = ?node.id,
-						job_id = ?self.job_id,
-					);
-
-					// Send output to edges
-					for (from_node, _to_node, edge) in self.graph.iter_edges_mut() {
-						if from_node != *node_idx {
-							continue;
-						}
-
-						match edge {
-							EdgeSpec::After { released } => *released = true,
-							EdgeSpec::Data {
-								data, source_port, ..
-							} => {
-								if !matches!(data, EdgeDataContainer::Unset) {
-									panic!(
-										"tried to set edge data twice. node={:?}, port={:?}",
-										node_id, source_port
-									)
-								}
-
-								let output = res.remove(&source_port);
-								if let Some(output) = output {
-									let (a, b) = output.dupe();
-									*data = EdgeDataContainer::Some(a);
-									res.insert(source_port.clone(), b);
-								} else {
-									warn!(
-										message = "An edge is connected to a node's output, but didn't receive data",
-										source_node_type = ?node_type,
-										source_node = ?node_id,
-										source_port = ?source_port
-									);
-									return Err(RunNodeError::UnrecognizedOutput {
-										port: source_port.clone(),
-									});
-								}
+				// Take all inputs
+				let node_run_input: BTreeMap<PortName, NodeOutput<DataType>> = {
+					let input_edges = Vec::from(self.graph.edges_ending_at(node_idx));
+					input_edges
+						.into_iter()
+						.filter_map(|edge_idx| {
+							let (_, _, edge) = self.graph.get_edge_mut(edge_idx);
+							match edge {
+								EdgeSpec::After { .. } => None,
+								EdgeSpec::Data {
+									data, target_port, ..
+								} => Some((target_port.clone(), data.take().unwrap())),
 							}
-						}
+						})
+						.collect()
+				};
+
+				// Borrow again as mutable
+				let node = self.graph.get_node_mut(node_idx);
+				node.state = NodeState::Running;
+
+				let ctx = context.clone();
+				let params = node.node_params.clone();
+				let node_id = node.id.clone();
+				let node_type = node.node_type.clone();
+				let job_id = self.job_id.clone();
+
+				// This should never fail, node types are checked at build time
+				let node_inst = dispatcher.init_node(&node.node_type).unwrap();
+				tasks.spawn(async move {
+					let result = node_inst.run(&ctx, params, node_run_input).await;
+
+					trace!(
+						message = "Node task finished",
+						?node_type,
+						?node_id,
+						?job_id,
+					);
+
+					NodeResult {
+						result,
+						node_idx,
+						node_id,
+					}
+				});
+			}
+
+			//
+			// Process task results
+			//
+			while let Some(res) = tasks.try_join_next() {
+				let res = res?;
+
+				trace!(
+					message = "Node is done",
+					node_id = ?res.node_id,
+					job_id = ?self.job_id,
+				);
+				self.process_task_result(res).await?;
+			}
+
+			//
+			// Exit if we have no more tasks to run
+			// (i.e, if there are no pending tasks AND all nodes are done)
+			//
+			if tasks.is_empty()
+				&& all_nodes
+					.iter()
+					.all(|x| self.graph.get_node(*x).state == NodeState::Done)
+			{
+				break;
+			}
+		}
+
+		return Ok(());
+	}
+
+	//
+	// MARK: Process task result
+	//
+	async fn process_task_result(&mut self, res: NodeResult<DataType>) -> Result<(), RunNodeError> {
+		let node = self.graph.get_node_mut(res.node_idx);
+		node.state = NodeState::Done;
+
+		let node_idx = res.node_idx;
+		let node_id = node.id.clone();
+		let node_type = node.node_type.clone();
+		let mut res = res.result?;
+
+		// Send output to edges
+		for (from_node, _to_node, edge) in self.graph.iter_edges_mut() {
+			if from_node != node_idx {
+				continue;
+			}
+
+			match edge {
+				EdgeSpec::After { released } => *released = true,
+				EdgeSpec::Data {
+					data, source_port, ..
+				} => {
+					if !matches!(data, EdgeDataContainer::Unset) {
+						panic!(
+							"tried to set edge data twice. node={:?}, port={:?}",
+							node_id, source_port
+						)
+					}
+
+					let output = res.remove(&source_port);
+					if let Some(output) = output {
+						let (a, b) = output.dupe();
+						*data = EdgeDataContainer::Some(a);
+						res.insert(source_port.clone(), b);
+					} else {
+						warn!(
+							message = "An edge is connected to a node's output, but didn't receive data",
+							source_node_type = ?node_type,
+							source_node = ?node_id,
+							source_port = ?source_port
+						);
+						return Err(RunNodeError::UnrecognizedOutput {
+							port: source_port.clone(),
+						});
 					}
 				}
 			}
 		}
-
-		trace!(
-			message = "Successfully finished job",
-			job_id = ?self.job_id
-		);
 
 		return Ok(());
 	}

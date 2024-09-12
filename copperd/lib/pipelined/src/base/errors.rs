@@ -1,6 +1,6 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{error::Error, fmt::Display, sync::Arc};
-use tokio::sync::oneshot;
+use tokio::{sync::oneshot, task::JoinError};
 
 use super::PortName;
 
@@ -44,6 +44,10 @@ pub enum RunNodeError {
 	/// an input to this node
 	InputReceiveError(oneshot::error::RecvError),
 
+	/// We encountered a RecvError while awaiting
+	/// an input to this node
+	TaskJoinError(Arc<JoinError>),
+
 	/// An arbitrary error
 	Other(Arc<dyn Error + Sync + Send + 'static>),
 }
@@ -55,6 +59,7 @@ impl Display for RunNodeError {
 			Self::MissingInput { port } => write!(f, "we did not receive input on port `{port}`"),
 			Self::Other(_) => write!(f, "Generic error"),
 			Self::InputReceiveError(_) => write!(f, "error while receiving input"),
+			Self::TaskJoinError(_) => write!(f, "error while joining task"),
 
 			Self::BadInputType { port } => {
 				write!(f, "received bad data type on port `{port}`")
@@ -96,6 +101,7 @@ impl Error for RunNodeError {
 		match self {
 			Self::Other(x) => Some(x.as_ref()),
 			Self::InputReceiveError(x) => Some(x),
+			Self::TaskJoinError(x) => Some(x),
 			_ => return None,
 		}
 	}
@@ -110,6 +116,12 @@ impl From<std::io::Error> for RunNodeError {
 impl From<oneshot::error::RecvError> for RunNodeError {
 	fn from(value: oneshot::error::RecvError) -> Self {
 		Self::InputReceiveError(value)
+	}
+}
+
+impl From<JoinError> for RunNodeError {
+	fn from(value: JoinError) -> Self {
+		Self::TaskJoinError(Arc::new(value))
 	}
 }
 

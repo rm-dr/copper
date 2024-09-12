@@ -1,6 +1,9 @@
 use copper_pipelined::base::{NodeDispatcher, PipelineData, PipelineJobContext};
 use smartstring::{LazyCompact, SmartString};
-use std::collections::{BTreeMap, VecDeque};
+use std::{
+	collections::{BTreeMap, VecDeque},
+	sync::Arc,
+};
 use tracing::debug;
 
 use crate::pipeline::job::PipelineJob;
@@ -67,7 +70,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 			debug!(message = "Running job", ?job_id);
 			let x = PipelineJob::<DataType, ContextType>::new(&job_id, inputs, &pipeline).unwrap();
 
-			x.run(&context, &self.dispatcher).await.unwrap();
+			x.run(Arc::new(context), &self.dispatcher).await.unwrap();
 		}
 	}
 }
