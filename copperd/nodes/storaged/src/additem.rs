@@ -1,183 +1,124 @@
+use async_trait::async_trait;
 use copper_pipelined::{
-	base::{
-		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PortName,
-		ProcessSignalError, RunNodeError,
-	},
-	data::PipeData,
-	helpers::ConnectedInput,
+	base::{Node, NodeParameterValue, PipelineData, PortName, RunNodeError},
+	data::{PipeData, PipeDataStub},
 	CopperContext,
 };
-use copper_storaged::{
-	client::StoragedClient, AttrData, AttributeId, AttributeInfo, ClassId, Transaction,
-	TransactionAction,
-};
-use futures::executor::block_on;
+use copper_storaged::{AttrData, AttributeInfo, ClassId, Transaction, TransactionAction};
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, sync::Arc};
+use std::collections::BTreeMap;
+use tracing::{debug, trace};
 
-pub struct AddItem {
-	class: ClassId,
-	client: Arc<dyn StoragedClient>,
+pub struct AddItem {}
 
-	ports: BTreeMap<PortName, AttributeInfo>,
-	attrs: BTreeMap<AttributeId, PortName>,
-	data: BTreeMap<AttributeId, ConnectedInput<AttrData>>,
-}
-
-impl AddItem {
-	pub fn new(
+// Inputs: depends on class
+// Outputs: None
+#[async_trait]
+impl Node<PipeData, CopperContext> for AddItem {
+	async fn run(
+		&self,
 		ctx: &CopperContext,
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-	) -> Result<Self, InitNodeError> {
-		if params.len() != 1 {
-			return Err(InitNodeError::BadParameterCount { expected: 1 });
-		}
-
-		let class: ClassId = if let Some(value) = params.get("class") {
+		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
+		mut input: BTreeMap<PortName, PipeData>,
+	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
+		//
+		// Extract parameters
+		//
+		let class: ClassId = if let Some(value) = params.remove("class") {
 			match value {
-				NodeParameterValue::Integer(x) => (*x).into(),
+				NodeParameterValue::Integer(x) => x.into(),
 				_ => {
-					return Err(InitNodeError::BadParameterType {
-						param_name: "class".into(),
+					return Err(RunNodeError::BadParameterType {
+						parameter: "class".into(),
 					})
 				}
 			}
 		} else {
-			return Err(InitNodeError::MissingParameter {
-				param_name: "class".into(),
+			return Err(RunNodeError::MissingParameter {
+				parameter: "class".into(),
 			});
 		};
+		if let Some((param, _)) = params.first_key_value() {
+			return Err(RunNodeError::UnexpectedParameter {
+				parameter: param.clone(),
+			});
+		}
 
-		let ports: BTreeMap<PortName, AttributeInfo> =
-			block_on(ctx.storaged_client.get_class(class))
-				.map_err(|e| InitNodeError::Other(Box::new(e)))?
-				.ok_or(InitNodeError::BadParameterOther {
-					param_name: "class".into(),
-					message: "this class doesn't exist".into(),
-				})?
-				.attributes
-				.into_iter()
-				.map(|x| (PortName::new(x.name.as_str()), x))
-				.collect();
-
-		let data = ports
-			.iter()
-			.map(|(_, v)| (v.id, ConnectedInput::NotConnected))
+		//
+		// Set up attribute table
+		// (extract inputs)
+		//
+		debug!(message = "Getting attributes");
+		let mut attributes: BTreeMap<PortName, (AttributeInfo, Option<AttrData>)> = ctx
+			.storaged_client
+			.get_class(class)
+			.await
+			.map_err(|e| RunNodeError::Other(Box::new(e)))?
+			.ok_or(RunNodeError::BadParameterOther {
+				parameter: "class".into(),
+				message: "this class doesn't exist".into(),
+			})?
+			.attributes
+			.into_iter()
+			.map(|x| (PortName::new(x.name.as_str()), (x, None)))
 			.collect();
 
-		let attrs = ports.iter().map(|(k, v)| (v.id, k.clone())).collect();
+		// Fill attribute table
+		while let Some((port, data)) = input.pop_first() {
+			trace!(message = "Receiving data from port", ?port);
 
-		Ok(Self {
-			class,
-			client: ctx.storaged_client.clone(),
-			ports,
-			data,
-			attrs,
-		})
-	}
-}
-
-// Inputs: depends on class
-// Outputs: None
-impl Node<PipeData, CopperContext> for AddItem {
-	fn process_signal(
-		&mut self,
-		_ctx: &CopperContext,
-		signal: NodeSignal<PipeData>,
-	) -> Result<(), ProcessSignalError> {
-		match signal {
-			NodeSignal::ConnectInput { port } => {
-				if !self.ports.contains_key(&port) {
-					return Err(ProcessSignalError::InputPortDoesntExist);
-				}
-				let attr = self.ports.get_mut(&port).unwrap();
-				self.data.get_mut(&attr.id).unwrap().connect();
+			if !attributes.contains_key(&port) {
+				return Err(RunNodeError::UnrecognizedInput { port });
 			}
 
-			NodeSignal::DisconnectInput { port } => {
-				if !self.ports.contains_key(&port) {
-					return Err(ProcessSignalError::InputPortDoesntExist);
-				}
-				let attr = self.ports.get_mut(&port).unwrap();
-
-				if !self.data.get(&attr.id).unwrap().is_connected() {
-					unreachable!("port was disconnected before it was connected")
+			match data {
+				PipeData::Blob { .. } => {
+					unimplemented!()
 				}
 
-				if !self.data.get(&attr.id).unwrap().is_set() {
-					return Err(ProcessSignalError::RequiredInputEmpty);
-				}
-			}
+				x => {
+					let attr = attributes.get_mut(&port).unwrap();
 
-			NodeSignal::ReceiveInput { port, data } => {
-				if !self.ports.contains_key(&port) {
-					return Err(ProcessSignalError::InputPortDoesntExist);
-				}
-				let attr = self.ports.get(&port).unwrap();
-				let attr_data = self.data.get_mut(&attr.id).unwrap();
-
-				if !attr_data.is_connected() {
-					unreachable!("got input before connecting port")
-				}
-
-				if attr_data.is_set() {
-					// TODO: no panic.
-					// Error when set twice?
-					panic!()
-				}
-
-				match data {
-					PipeData::Blob { .. } => {
-						unimplemented!()
+					// Check data type
+					match x.as_stub() {
+						PipeDataStub::Plain { data_type } => {
+							if data_type != attr.0.data_type {
+								return Err(RunNodeError::BadInputType { port });
+							}
+						}
 					}
 
-					// This should never panic, since we handle panicing cases above.
-					x => attr_data.set(x.try_into().unwrap()),
-				};
-			}
+					attr.1 = Some(x.try_into().unwrap())
+				}
+			};
 		}
 
-		return Ok(());
-	}
-
-	fn run(
-		&mut self,
-		_ctx: &CopperContext,
-		_send_data: &dyn Fn(PortName, PipeData) -> Result<(), RunNodeError>,
-	) -> Result<NodeState, RunNodeError> {
-		// Set default values for all disconnected inputs
-		for (attr_id, data) in self.data.iter_mut() {
-			if !data.is_connected() {
-				let attr = self.ports.get(self.attrs.get(attr_id).unwrap()).unwrap();
-				data.connect();
-				data.set(AttrData::None {
-					data_type: attr.data_type,
-				})
-			}
-		}
-
-		// Make sure we've received all data
-		for data in self.data.values() {
-			if data.is_connected() && !data.is_set() {
-				return Ok(NodeState::Pending("waiting for inputs"));
-			}
-		}
-
-		// Set up transaction
+		//
+		// Set up and send transaction
+		//
 		let transaction = Transaction {
 			actions: vec![TransactionAction::AddItem {
-				to_class: self.class,
-				attributes: self
-					.data
-					.iter()
-					.map(|(k, v)| (k.clone(), v.value().unwrap().clone()))
+				to_class: class,
+				attributes: attributes
+					.into_iter()
+					.map(|(_, (k, d))| {
+						(
+							k.id,
+							d.unwrap_or(AttrData::None {
+								data_type: k.data_type,
+							}),
+						)
+					})
 					.collect(),
 			}],
 		};
 
-		block_on(self.client.apply_transaction(transaction))
+		debug!(message = "Sending transaction", ?transaction);
+		ctx.storaged_client
+			.apply_transaction(transaction)
+			.await
 			.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 
-		return Ok(NodeState::Done);
+		return Ok(BTreeMap::new());
 	}
 }
