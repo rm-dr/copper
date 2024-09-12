@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{Node, NodeParameterValue, PipelineData, PortName, RunNodeError},
+	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
 	data::PipeData,
 	CopperContext,
 };
@@ -20,8 +20,8 @@ impl Node<PipeData, CopperContext> for IfNone {
 		&self,
 		_ctx: &CopperContext,
 		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-		mut input: BTreeMap<PortName, PipeData>,
-	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
+		mut input: BTreeMap<PortName, NodeOutput<PipeData>>,
+	) -> Result<BTreeMap<PortName, NodeOutput<PipeData>>, RunNodeError> {
 		//
 		// Extract parameters
 		//
@@ -34,29 +34,55 @@ impl Node<PipeData, CopperContext> for IfNone {
 		//
 		// Extract input
 		//
-		let ifnone = input.remove(&PortName::new("ifnone"));
-		if ifnone.is_none() {
-			return Err(RunNodeError::MissingInput {
-				port: PortName::new("ifnone"),
-			});
-		}
-		let ifnone = ifnone.unwrap();
-		let data = input.remove(&PortName::new("data"));
+
+		// Note that we do not have enough information to catch type errors here.
+		// We cannot check if the type of `data` matches the type of `ifnone`.
+		// This may not be a problem (UI prevents this, and you deserve confusion if
+		// you're hand-crafting json), but it would be nice to catch this anyway.
+		// TODO: possible solutions are static type analysis (in build()) or
+		// a typed `None` pipeline data container.
+
+		// We need data right away, so await it now
+		let data = match input.remove(&PortName::new("data")) {
+			Some(x) => x.get_value().await?,
+			None => {
+				return Err(RunNodeError::MissingInput {
+					port: PortName::new("data"),
+				});
+			}
+		};
+
+		// Don't await `ifnone` yet, we shouldn't need to wait for it
+		// unless `data` is None.
+		let ifnone = match input.remove(&PortName::new("ifnone")) {
+			Some(x) => x,
+			None => {
+				return Err(RunNodeError::MissingInput {
+					port: PortName::new("ifnone"),
+				});
+			}
+		};
 
 		if let Some((port, _)) = input.pop_first() {
 			return Err(RunNodeError::UnrecognizedInput { port });
 		}
-		if data.is_some() && ifnone.as_stub() != data.as_ref().unwrap().as_stub() {
-			return Err(RunNodeError::BadInputType {
-				port: PortName::new("ifnone"),
-			});
-		}
 
+		// If `data` is set, no need to await `ifnone`.
+		// Return it right away. Note that we do this AFTER
+		// extracting the `ifnone` output, so that all output get checked
+		// even if `data` is `some`.
 		//
-		// Return the correct value
-		//
+		// TODO: statically check types?
+		if let Some(data) = data {
+			let mut out = BTreeMap::new();
+			out.insert(PortName::new("out"), NodeOutput::Plain(Some(data)));
+			return Ok(out);
+		};
+
+		// Don't await `ifnone` here, send it immediately so
+		// downstream nodes can start right away.
 		let mut out = BTreeMap::new();
-		out.insert(PortName::new("out"), data.unwrap_or(ifnone));
+		out.insert(PortName::new("out"), ifnone);
 		return Ok(out);
 	}
 }

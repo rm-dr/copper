@@ -868,6 +868,7 @@ dependencies = [
  "futures",
  "serde",
  "smartstring",
+ "tokio",
  "tracing",
  "utoipa",
 ]
@@ -2423,6 +2424,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "smartstring",
+ "tokio",
 ]
 
 [[package]]

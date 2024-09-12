@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{Node, NodeParameterValue, PipelineData, PortName, RunNodeError},
+	base::{Node, NodeOutput, NodeParameterValue, PipelineData, PortName, RunNodeError},
 	data::{PipeData, PipeDataStub},
 	CopperContext,
 };
 use copper_storaged::{AttrData, AttributeInfo, ClassId, Transaction, TransactionAction};
 use smartstring::{LazyCompact, SmartString};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 use tracing::{debug, trace};
 
 pub struct AddItem {}
@@ -19,8 +19,8 @@ impl Node<PipeData, CopperContext> for AddItem {
 		&self,
 		ctx: &CopperContext,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-		mut input: BTreeMap<PortName, PipeData>,
-	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
+		mut input: BTreeMap<PortName, NodeOutput<PipeData>>,
+	) -> Result<BTreeMap<PortName, NodeOutput<PipeData>>, RunNodeError> {
 		//
 		// Extract parameters
 		//
@@ -53,7 +53,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 			.storaged_client
 			.get_class(class)
 			.await
-			.map_err(|e| RunNodeError::Other(Box::new(e)))?
+			.map_err(|e| RunNodeError::Other(Arc::new(e)))?
 			.ok_or(RunNodeError::BadParameterOther {
 				parameter: "class".into(),
 				message: "this class doesn't exist".into(),
@@ -71,12 +71,12 @@ impl Node<PipeData, CopperContext> for AddItem {
 				return Err(RunNodeError::UnrecognizedInput { port });
 			}
 
-			match data {
-				PipeData::Blob { .. } => {
+			match data.get_value().await? {
+				Some(PipeData::Blob { .. }) => {
 					unimplemented!()
 				}
 
-				x => {
+				Some(x) => {
 					let attr = attributes.get_mut(&port).unwrap();
 
 					// Check data type
@@ -90,6 +90,8 @@ impl Node<PipeData, CopperContext> for AddItem {
 
 					attr.1 = Some(x.try_into().unwrap())
 				}
+
+				None => {}
 			};
 		}
 
@@ -117,7 +119,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 		ctx.storaged_client
 			.apply_transaction(transaction)
 			.await
-			.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+			.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 		return Ok(BTreeMap::new());
 	}

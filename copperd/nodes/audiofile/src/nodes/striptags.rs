@@ -3,7 +3,7 @@
 use crate::flac::proc::metastrip::FlacMetaStrip;
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{Node, NodeParameterValue, PortName, RunNodeError},
+	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
 	data::{BytesSource, PipeData},
 	helpers::{BytesSourceArrayReader, OpenBytesSourceReader, S3Reader},
 	CopperContext,
@@ -23,8 +23,8 @@ impl Node<PipeData, CopperContext> for StripTags {
 		&self,
 		ctx: &CopperContext,
 		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-		mut input: BTreeMap<PortName, PipeData>,
-	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
+		mut input: BTreeMap<PortName, NodeOutput<PipeData>>,
+	) -> Result<BTreeMap<PortName, NodeOutput<PipeData>>, RunNodeError> {
 		//
 		// Extract parameters
 		//
@@ -43,8 +43,13 @@ impl Node<PipeData, CopperContext> for StripTags {
 				port: PortName::new("data"),
 			});
 		}
-		let mut data = match data {
-			None => unreachable!(),
+		let mut data = match data.unwrap().get_value().await? {
+			None => {
+				return Err(RunNodeError::RequiredInputNull {
+					port: PortName::new("data"),
+				})
+			}
+
 			Some(PipeData::Blob { mime, source }) => match source {
 				BytesSource::Array { .. } => OpenBytesSourceReader::Array(
 					BytesSourceArrayReader::new(Some(mime), source).unwrap(),
@@ -72,12 +77,12 @@ impl Node<PipeData, CopperContext> for StripTags {
 				while let Some(d) = data.pop_front() {
 					strip
 						.push_data(&d)
-						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 				}
 				if *is_done {
 					strip
 						.finish()
-						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 				}
 			}
 
@@ -86,13 +91,13 @@ impl Node<PipeData, CopperContext> for StripTags {
 				r.read_to_end(&mut v).unwrap();
 				strip
 					.push_data(&v)
-					.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 				assert!(r.is_done());
 
 				strip
 					.finish()
-					.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 			}
 		}
 
@@ -109,13 +114,13 @@ impl Node<PipeData, CopperContext> for StripTags {
 		// TODO: do not load into memory
 		out.insert(
 			PortName::new("out"),
-			PipeData::Blob {
+			NodeOutput::Plain(Some(PipeData::Blob {
 				mime: MimeType::Flac,
 				source: BytesSource::Array {
 					fragment: Arc::new(bytes),
 					is_last: true,
 				},
-			},
+			})),
 		);
 
 		return Ok(out);

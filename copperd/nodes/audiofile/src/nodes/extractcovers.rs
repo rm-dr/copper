@@ -1,7 +1,7 @@
 use crate::flac::proc::pictures::FlacPictureReader;
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{Node, NodeParameterValue, PortName, RunNodeError},
+	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
 	data::{BytesSource, PipeData},
 	helpers::{BytesSourceArrayReader, OpenBytesSourceReader, S3Reader},
 	CopperContext,
@@ -19,8 +19,8 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 		&self,
 		ctx: &CopperContext,
 		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-		mut input: BTreeMap<PortName, PipeData>,
-	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
+		mut input: BTreeMap<PortName, NodeOutput<PipeData>>,
+	) -> Result<BTreeMap<PortName, NodeOutput<PipeData>>, RunNodeError> {
 		//
 		// Extract parameters
 		//
@@ -39,8 +39,13 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 				port: PortName::new("data"),
 			});
 		}
-		let mut data = match data {
-			None => unreachable!(),
+		let mut data = match data.unwrap().get_value().await? {
+			None => {
+				return Err(RunNodeError::RequiredInputNull {
+					port: PortName::new("data"),
+				})
+			}
+
 			Some(PipeData::Blob { mime, source }) => match source {
 				BytesSource::Array { .. } => OpenBytesSourceReader::Array(
 					BytesSourceArrayReader::new(Some(mime), source).unwrap(),
@@ -51,6 +56,7 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 						.await,
 				),
 			},
+
 			_ => {
 				return Err(RunNodeError::BadInputType {
 					port: PortName::new("data"),
@@ -68,12 +74,12 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 				while let Some(d) = data.pop_front() {
 					reader
 						.push_data(&d)
-						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 				}
 				if *is_done {
 					reader
 						.finish()
-						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 				}
 			}
 
@@ -82,12 +88,12 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 				r.take(ctx.blob_fragment_size).read_to_end(&mut v).unwrap();
 				reader
 					.push_data(&v)
-					.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 				if r.is_done() {
 					reader
 						.finish()
-						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 				}
 			}
 		}
@@ -99,13 +105,13 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 		if let Some(picture) = reader.pop_picture() {
 			out.insert(
 				PortName::new("cover_data"),
-				PipeData::Blob {
+				NodeOutput::Plain(Some(PipeData::Blob {
 					mime: picture.mime.clone(),
 					source: BytesSource::Array {
 						fragment: Arc::new(picture.img_data),
 						is_last: true,
 					},
-				},
+				})),
 			);
 		}
 

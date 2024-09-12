@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{Node, NodeParameterValue, PortName, RunNodeError},
+	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
 	data::PipeData,
 	CopperContext,
 };
@@ -15,8 +15,8 @@ impl Node<PipeData, CopperContext> for Constant {
 		&self,
 		_ctx: &CopperContext,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-		mut input: BTreeMap<PortName, PipeData>,
-	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
+		mut input: BTreeMap<PortName, NodeOutput<PipeData>>,
+	) -> Result<BTreeMap<PortName, NodeOutput<PipeData>>, RunNodeError> {
 		//
 		// Extract parameters
 		//
@@ -51,7 +51,7 @@ impl Node<PipeData, CopperContext> for Constant {
 		// Return the value we were given
 		//
 		let mut out = BTreeMap::new();
-		out.insert(PortName::new("out"), value);
+		out.insert(PortName::new("out"), NodeOutput::Plain(Some(value)));
 		return Ok(out);
 	}
 }

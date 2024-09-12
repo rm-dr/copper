@@ -4,13 +4,13 @@ use crate::{
 };
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{Node, NodeParameterValue, PortName, RunNodeError},
+	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
 	data::{BytesSource, PipeData},
 	helpers::{BytesSourceArrayReader, OpenBytesSourceReader, S3Reader},
 	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, io::Read};
+use std::{collections::BTreeMap, io::Read, sync::Arc};
 
 /// Extract tags from audio metadata
 pub struct ExtractTags {}
@@ -23,8 +23,8 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 		&self,
 		ctx: &CopperContext,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-		mut input: BTreeMap<PortName, PipeData>,
-	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
+		mut input: BTreeMap<PortName, NodeOutput<PipeData>>,
+	) -> Result<BTreeMap<PortName, NodeOutput<PipeData>>, RunNodeError> {
 		//
 		// Extract parameters
 		//
@@ -72,8 +72,13 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 				port: PortName::new("data"),
 			});
 		}
-		let mut data = match data {
-			None => unreachable!(),
+		let mut data = match data.unwrap().get_value().await? {
+			None => {
+				return Err(RunNodeError::RequiredInputNull {
+					port: PortName::new("data"),
+				})
+			}
+
 			Some(PipeData::Blob { mime, source }) => match source {
 				BytesSource::Array { .. } => OpenBytesSourceReader::Array(
 					BytesSourceArrayReader::new(Some(mime), source).unwrap(),
@@ -84,6 +89,7 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 						.await,
 				),
 			},
+
 			_ => {
 				return Err(RunNodeError::BadInputType {
 					port: PortName::new("data"),
@@ -104,12 +110,12 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 				while let Some(d) = data.pop_front() {
 					reader
 						.push_data(&d)
-						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 				}
 				if *is_done {
 					reader
 						.finish()
-						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 				}
 			}
 
@@ -118,12 +124,12 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 				r.read_to_end(&mut v).unwrap();
 				reader
 					.push_data(&v)
-					.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 				if r.is_done() {
 					reader
 						.finish()
-						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 				} else {
 					panic!()
 				}
@@ -144,9 +150,9 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 						{
 							out.insert(
 								port.clone(),
-								PipeData::Text {
+								NodeOutput::Plain(Some(PipeData::Text {
 									value: tag_value.clone(),
-								},
+								})),
 							);
 						}
 					}

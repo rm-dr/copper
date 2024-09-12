@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{Node, NodeParameterValue, PortName, RunNodeError},
+	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
 	data::{BytesSource, PipeData},
 	helpers::{BytesSourceArrayReader, OpenBytesSourceReader, S3Reader},
 	CopperContext,
@@ -83,8 +83,8 @@ impl Node<PipeData, CopperContext> for Hash {
 		&self,
 		ctx: &CopperContext,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-		mut input: BTreeMap<PortName, PipeData>,
-	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
+		mut input: BTreeMap<PortName, NodeOutput<PipeData>>,
+	) -> Result<BTreeMap<PortName, NodeOutput<PipeData>>, RunNodeError> {
 		//
 		// Extract parameters
 		//
@@ -119,8 +119,14 @@ impl Node<PipeData, CopperContext> for Hash {
 				port: PortName::new("data"),
 			});
 		}
-		let data = match data {
-			None => unreachable!(),
+
+		let data = match data.unwrap().get_value().await? {
+			None => {
+				return Err(RunNodeError::RequiredInputNull {
+					port: PortName::new("data"),
+				})
+			}
+
 			Some(PipeData::Blob { mime, source }) => match source {
 				BytesSource::Array { .. } => OpenBytesSourceReader::Array(
 					BytesSourceArrayReader::new(Some(mime), source).unwrap(),
@@ -131,6 +137,7 @@ impl Node<PipeData, CopperContext> for Hash {
 						.await,
 				),
 			},
+
 			_ => {
 				return Err(RunNodeError::BadInputType {
 					port: PortName::new("data"),
@@ -154,14 +161,20 @@ impl Node<PipeData, CopperContext> for Hash {
 					hasher.update(&mut r).unwrap();
 				}
 
-				out.insert(PortName::new("hash"), hasher.finish());
+				out.insert(
+					PortName::new("hash"),
+					NodeOutput::Plain(Some(hasher.finish())),
+				);
 				return Ok(out);
 			}
 
 			OpenBytesSourceReader::S3(r) => {
 				let mut r = BufReader::new(r);
 				hasher.update(&mut r).unwrap();
-				out.insert(PortName::new("hash"), hasher.finish());
+				out.insert(
+					PortName::new("hash"),
+					NodeOutput::Plain(Some(hasher.finish())),
+				);
 				return Ok(out);
 			}
 		};
