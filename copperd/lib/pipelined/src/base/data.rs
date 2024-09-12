@@ -6,9 +6,8 @@ use std::fmt::Debug;
 /// These should be easy to clone. [`PipelineData`]s that
 /// carry something big should wrap it in an [`std::sync::Arc`].
 ///
-/// The `Deserialize` implementation of this struct MUST NOT be transparent.
-/// It should always be some sort of object. See the dispatcher param enums
-/// for more details.
+/// The [`DeserializeOwned`] implementation of this object MUST NOT be transparent.
+/// See the dispatcher param enums for more details.
 pub trait PipelineData
 where
 	Self: DeserializeOwned + Debug + Clone + Send + Sync + 'static,

@@ -1,10 +1,11 @@
 use smartstring::{LazyCompact, SmartString};
-use std::{error::Error, fmt::Display};
+use std::{error::Error, fmt::Display, sync::Arc};
+use tokio::sync::oneshot;
 
 use super::PortName;
 
 /// An error we encounter while running a node
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RunNodeError {
 	/// We expected a parameter, but it wasn't there
 	UnexpectedParameter { parameter: SmartString<LazyCompact> },
@@ -24,24 +25,44 @@ pub enum RunNodeError {
 	/// We did not receive a required input
 	MissingInput { port: PortName },
 
+	/// A required input was connected, but received null data
+	RequiredInputNull { port: PortName },
+
 	/// We received an input on a port we don't recognize
 	UnrecognizedInput { port: PortName },
 
 	/// We received data with an invalid type on the given port
 	BadInputType { port: PortName },
 
+	/// An edge was connected to an output port of a node that doesn't exist
+	UnrecognizedOutput { port: PortName },
+
 	/// A generic I/O error
-	IoError(std::io::Error),
+	IoError(Arc<std::io::Error>),
+
+	/// We encountered a RecvError while awaiting
+	/// an input to this node
+	InputReceiveError(oneshot::error::RecvError),
 
 	/// An arbitrary error
-	Other(Box<dyn Error + Sync + Send + 'static>),
+	Other(Arc<dyn Error + Sync + Send + 'static>),
 }
 
 impl Display for RunNodeError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::IoError(_) => write!(f, "I/O error"),
+			Self::MissingInput { port } => write!(f, "we did not receive input on port `{port}`"),
 			Self::Other(_) => write!(f, "Generic error"),
+			Self::InputReceiveError(_) => write!(f, "error while receiving input"),
+
+			Self::BadInputType { port } => {
+				write!(f, "received bad data type on port `{port}`")
+			}
+
+			Self::RequiredInputNull { port } => {
+				write!(f, "received null data on required port `{port}`")
+			}
 
 			Self::BadParameterOther { message, parameter } => {
 				write!(f, "Bad parameter `{parameter}`: {message}")
@@ -59,13 +80,12 @@ impl Display for RunNodeError {
 				write!(f, "Unexpected parameter `{parameter}`")
 			}
 
-			Self::MissingInput { port } => write!(f, "we did not receive input on port `{port}`"),
 			Self::UnrecognizedInput { port } => {
 				write!(f, "received input on unrecognized port `{port}`")
 			}
 
-			Self::BadInputType { port } => {
-				write!(f, "received bad data type on port `{port}`")
+			Self::UnrecognizedOutput { port } => {
+				write!(f, "edge connected to an unrecognized output port `{port}`")
 			}
 		}
 	}
@@ -75,6 +95,7 @@ impl Error for RunNodeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::Other(x) => Some(x.as_ref()),
+			Self::InputReceiveError(x) => Some(x),
 			_ => return None,
 		}
 	}
@@ -82,7 +103,13 @@ impl Error for RunNodeError {
 
 impl From<std::io::Error> for RunNodeError {
 	fn from(value: std::io::Error) -> Self {
-		Self::IoError(value)
+		Self::IoError(Arc::new(value))
+	}
+}
+
+impl From<oneshot::error::RecvError> for RunNodeError {
+	fn from(value: oneshot::error::RecvError) -> Self {
+		Self::InputReceiveError(value)
 	}
 }
 

@@ -25,5 +25,6 @@ tracing = { workspace = true }
 futures = { workspace = true }
 aws-sdk-s3 = { workspace = true }
 serde = { workspace = true }
+tokio = { workspace = true }
 smartstring = { workspace = true }
 utoipa = { workspace = true }

@@ -1,6 +1,6 @@
 use copper_pipelined::base::{
-	NodeDispatcher, NodeId, NodeParameterValue, PipelineData, PipelineJobContext, PortName,
-	RunNodeError,
+	NodeDispatcher, NodeId, NodeOutput, NodeParameterValue, PipelineData, PipelineJobContext,
+	PortName, RunNodeError,
 };
 use copper_util::graph::{finalized::FinalizedGraph, graph::Graph, util::GraphNodeIdx};
 use smartstring::{LazyCompact, SmartString};
@@ -10,7 +10,7 @@ use std::{
 	fmt::{Debug, Display},
 	marker::PhantomData,
 };
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 use super::json::PipelineJson;
 use crate::pipeline::json::EdgeType;
@@ -82,14 +82,32 @@ struct NodeSpec<DataType: PipelineData> {
 	pub has_been_run: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 enum EdgeDataContainer<DataType: PipelineData> {
 	Unset,
-	Empty,
-	Some(DataType),
+	Some(NodeOutput<DataType>),
+	Consumed,
 }
 
-#[derive(Debug, Clone)]
+impl<DataType: PipelineData> EdgeDataContainer<DataType> {
+	/// Takes the value out of this container, leaving [`EdgeDataContainer::Consumed`] in its place.
+	/// Does nothing and returns None if this isn't [`EdgeDataContainer::Some`].
+	pub fn take(&mut self) -> Option<NodeOutput<DataType>> {
+		match self {
+			Self::Some(_) => {
+				let x = std::mem::replace(self, Self::Consumed);
+
+				return Some(match x {
+					Self::Some(x) => x,
+					_ => unreachable!(),
+				});
+			}
+			_ => None,
+		}
+	}
+}
+
+#[derive(Debug)]
 enum EdgeSpec<DataType: PipelineData> {
 	/// A edge that carries data
 	Data {
@@ -152,7 +170,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 					let (_, _, edge) = graph.get_edge_mut(edge_idx);
 					match edge {
 						EdgeSpec::Data { data, .. } => {
-							*data = EdgeDataContainer::Some(i_val.clone())
+							*data = EdgeDataContainer::Some(NodeOutput::Plain(Some(i_val.clone())))
 						}
 						EdgeSpec::After { released } => *released = true,
 					}
@@ -321,7 +339,6 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 					continue;
 				}
 
-				let mut node_run_input: BTreeMap<PortName, DataType> = BTreeMap::new();
 				let can_be_run = self
 					.graph
 					.edges_ending_at(*node_idx)
@@ -330,23 +347,17 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 						let (_, _, edge) = self.graph.get_edge(*edge_idx);
 						match edge {
 							EdgeSpec::After { released } => *released,
-							EdgeSpec::Data {
-								data, target_port, ..
-							} => match data {
+							EdgeSpec::Data { data, .. } => match data {
 								EdgeDataContainer::Unset => false,
-								EdgeDataContainer::Empty => true,
-								EdgeDataContainer::Some(data) => {
-									node_run_input.insert(target_port.clone(), data.clone());
-									return true;
-								}
+								EdgeDataContainer::Some(_) => true,
+								EdgeDataContainer::Consumed => unreachable!(),
 							},
 						}
 					});
 
-				let node = self.graph.get_node_mut(*node_idx);
-				let node_id = node.id.id().clone();
-
 				if !can_be_run {
+					let node = self.graph.get_node(*node_idx);
+
 					trace!(
 						message = "Node can't be run",
 						node_type = ?node.node_type,
@@ -355,6 +366,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 					);
 				} else {
 					// Initialize and run
+					let node = self.graph.get_node(*node_idx);
 					trace!(
 						message = "Running node",
 						node_type= ?node.node_type,
@@ -362,13 +374,33 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 						job_id = ?self.job_id,
 					);
 
+					// Take all inputs
+					let node_run_input: BTreeMap<PortName, NodeOutput<DataType>> = {
+						let input_edges = Vec::from(self.graph.edges_ending_at(*node_idx));
+						input_edges
+							.into_iter()
+							.filter_map(|edge_idx| {
+								let (_, _, edge) = self.graph.get_edge_mut(edge_idx);
+								match edge {
+									EdgeSpec::After { .. } => None,
+									EdgeSpec::Data {
+										data, target_port, ..
+									} => Some((target_port.clone(), data.take().unwrap())),
+								}
+							})
+							.collect()
+					};
+
+					// Borrow again as mutable
+					let node = self.graph.get_node_mut(*node_idx);
+					let node_id = node.id.id().clone();
+					let node_type = node.node_type.clone();
+
 					// This should never fail, node types are checked at build time
 					let node_inst = dispatcher.init_node(&node.node_type).unwrap();
-
 					let mut res = node_inst
 						.run(context, node.node_params.clone(), node_run_input)
 						.await?;
-
 					node.has_been_run = true;
 
 					trace!(
@@ -398,10 +430,19 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 
 								let output = res.remove(&source_port);
 								if let Some(output) = output {
-									*data = EdgeDataContainer::Some(output)
+									let (a, b) = output.dupe();
+									*data = EdgeDataContainer::Some(a);
+									res.insert(source_port.clone(), b);
 								} else {
-									trace!(message = "Setting edge as `Empty`", source_node = ?node_id, source_port = ?source_port);
-									*data = EdgeDataContainer::Empty;
+									warn!(
+										message = "An edge is connected to a node's output, but didn't receive data",
+										source_node_type = ?node_type,
+										source_node = ?node_id,
+										source_port = ?source_port
+									);
+									return Err(RunNodeError::UnrecognizedOutput {
+										port: source_port.clone(),
+									});
 								}
 							}
 						}
