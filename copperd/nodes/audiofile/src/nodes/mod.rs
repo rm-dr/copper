@@ -16,20 +16,20 @@ pub fn register(
 	dispatcher: &mut NodeDispatcher<PipeData, CopperContext>,
 ) -> Result<(), RegisterNodeError> {
 	dispatcher
-		.register_node("StripTags", BTreeMap::new(), &|ctx, params, _| {
-			Ok(Box::new(striptags::StripTags::new(ctx, params)?))
+		.register_node("StripTags", BTreeMap::new(), &|| {
+			Box::new(striptags::StripTags {})
 		})
 		.unwrap();
 
 	dispatcher
-		.register_node("ExtractCovers", BTreeMap::new(), &|ctx, params, _| {
-			Ok(Box::new(extractcovers::ExtractCovers::new(ctx, params)?))
+		.register_node("ExtractCovers", BTreeMap::new(), &|| {
+			Box::new(extractcovers::ExtractCovers {})
 		})
 		.unwrap();
 
 	dispatcher
-		.register_node("ExtractTags", BTreeMap::new(), &|ctx, params, _| {
-			Ok(Box::new(extracttags::ExtractTags::new(ctx, params)?))
+		.register_node("ExtractTags", BTreeMap::new(), &|| {
+			Box::new(extracttags::ExtractTags {})
 		})
 		.unwrap();
 

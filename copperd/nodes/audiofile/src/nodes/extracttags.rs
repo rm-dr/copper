@@ -2,180 +2,112 @@ use crate::{
 	common::tagtype::TagType,
 	flac::blockread::{FlacBlock, FlacBlockReader, FlacBlockSelector},
 };
+use async_trait::async_trait;
 use copper_pipelined::{
-	base::{
-		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PortName,
-		ProcessSignalError, RunNodeError,
-	},
+	base::{Node, NodeParameterValue, PortName, RunNodeError},
 	data::{BytesSource, PipeData},
-	helpers::{BytesSourceArrayReader, ConnectedInput, OpenBytesSourceReader, S3Reader},
+	helpers::{BytesSourceArrayReader, OpenBytesSourceReader, S3Reader},
 	CopperContext,
 };
-use copper_storaged::AttrDataStub;
-use copper_util::MimeType;
-use futures::executor::block_on;
-use itertools::Itertools;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, io::Read};
 
 /// Extract tags from audio metadata
-pub struct ExtractTags {
-	tags: BTreeMap<PortName, TagType>,
-	reader: FlacBlockReader,
-	data: ConnectedInput<OpenBytesSourceReader>,
-}
+pub struct ExtractTags {}
 
-impl ExtractTags {
-	/// Create a new [`ExtractTags`] node
-	pub fn new(
-		_ctx: &CopperContext,
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-	) -> Result<Self, InitNodeError> {
-		if params.len() != 1 {
-			return Err(InitNodeError::BadParameterCount { expected: 0 });
-		}
-
-		let mut tags: Vec<TagType> = Vec::new();
-		if let Some(taglist) = params.get("tags") {
+// Inputs: "data" - Bytes
+// Outputs: variable, depends on tags
+#[async_trait]
+impl Node<PipeData, CopperContext> for ExtractTags {
+	async fn run(
+		&self,
+		ctx: &CopperContext,
+		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
+		mut input: BTreeMap<PortName, PipeData>,
+	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
+		//
+		// Extract parameters
+		//
+		let mut tags: BTreeMap<PortName, TagType> = BTreeMap::new();
+		if let Some(taglist) = params.remove("tags") {
 			match taglist {
 				NodeParameterValue::List(list) => {
 					for t in list {
 						match t {
-							NodeParameterValue::String(s) => tags.push(s.as_str().into()),
+							NodeParameterValue::String(s) => {
+								tags.insert(PortName::new(s.as_str()), s.as_str().into());
+							}
 							_ => {
-								return Err(InitNodeError::BadParameterType {
-									param_name: "tags".into(),
+								return Err(RunNodeError::BadParameterType {
+									parameter: "tags".into(),
 								})
 							}
 						}
 					}
 				}
 				_ => {
-					return Err(InitNodeError::BadParameterType {
-						param_name: "tags".into(),
+					return Err(RunNodeError::BadParameterType {
+						parameter: "tags".into(),
 					})
 				}
 			}
 		} else {
-			return Err(InitNodeError::MissingParameter {
-				param_name: "tags".into(),
+			return Err(RunNodeError::MissingParameter {
+				parameter: "tags".into(),
 			});
 		}
 
-		Ok(Self {
-			/*
-			outputs: {
-				let mut out = BTreeMap::new();
-				for t in &tags {
-					out.insert(
-						PipelinePortID::new(Into::<&str>::into(t)),
-						CopperDataStub::Text,
-					);
-				}
-				out
-			},
-			*/
-			tags: tags
-				.into_iter()
-				.unique()
-				.map(|x| (PortName::new(Into::<&str>::into(&x)), x))
-				.collect(),
-
-			data: ConnectedInput::NotConnected,
-			reader: FlacBlockReader::new(FlacBlockSelector {
-				pick_vorbiscomment: true,
-				..Default::default()
-			}),
-		})
-	}
-}
-
-// Inputs: "data" - Bytes
-// Outputs: variable, depends on tags
-impl Node<PipeData, CopperContext> for ExtractTags {
-	fn process_signal(
-		&mut self,
-		ctx: &CopperContext,
-		signal: NodeSignal<PipeData>,
-	) -> Result<(), ProcessSignalError> {
-		match signal {
-			NodeSignal::ConnectInput { port } => match port.id().as_str() {
-				"data" => self.data.connect(),
-				_ => return Err(ProcessSignalError::InputPortDoesntExist),
-			},
-
-			NodeSignal::DisconnectInput { port } => match port.id().as_str() {
-				"data" => {
-					if !self.data.is_connected() {
-						unreachable!("disconnected an input that hasn't been connected")
-					}
-					if !self.data.is_set() {
-						return Err(ProcessSignalError::RequiredInputEmpty);
-					}
-				}
-				_ => return Err(ProcessSignalError::InputPortDoesntExist),
-			},
-
-			NodeSignal::ReceiveInput { port, data } => match port.id().as_str() {
-				"data" => match data {
-					PipeData::Blob { source, mime } => {
-						if mime != MimeType::Flac {
-							return Err(ProcessSignalError::UnsupportedFormat(format!(
-								"cannot read tags from `{}`",
-								mime
-							)));
-						}
-
-						match source {
-							BytesSource::Array { .. } => {
-								self.data.set(OpenBytesSourceReader::Array(
-									BytesSourceArrayReader::new(Some(mime), source).unwrap(),
-								));
-							}
-
-							BytesSource::S3 { key } => {
-								self.data
-									.set(OpenBytesSourceReader::S3(block_on(S3Reader::new(
-										ctx.objectstore_client.clone(),
-										&ctx.objectstore_bucket,
-										key,
-									))))
-							}
-						}
-					}
-
-					_ => return Err(ProcessSignalError::InputWithBadType),
-				},
-
-				_ => return Err(ProcessSignalError::InputPortDoesntExist),
-			},
+		if let Some((param, _)) = params.first_key_value() {
+			return Err(RunNodeError::UnexpectedParameter {
+				parameter: param.clone(),
+			});
 		}
 
-		return Ok(());
-	}
-
-	fn run(
-		&mut self,
-		ctx: &CopperContext,
-		send_data: &dyn Fn(PortName, PipeData) -> Result<(), RunNodeError>,
-	) -> Result<NodeState, RunNodeError> {
-		if !self.data.is_connected() {
-			return Err(RunNodeError::RequiredInputNotConnected);
+		//
+		// Extract arguments
+		//
+		let data = input.remove(&PortName::new("data"));
+		if data.is_none() {
+			return Err(RunNodeError::MissingInput {
+				port: PortName::new("data"),
+			});
 		}
+		let mut data = match data {
+			None => unreachable!(),
+			Some(PipeData::Blob { mime, source }) => match source {
+				BytesSource::Array { .. } => OpenBytesSourceReader::Array(
+					BytesSourceArrayReader::new(Some(mime), source).unwrap(),
+				),
 
-		if !self.data.is_set() {
-			return Ok(NodeState::Pending("input not ready"));
-		}
+				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
+					S3Reader::new(ctx.objectstore_client.clone(), &ctx.objectstore_bucket, key)
+						.await,
+				),
+			},
+			_ => {
+				return Err(RunNodeError::BadInputType {
+					port: PortName::new("data"),
+				})
+			}
+		};
 
-		match self.data.value_mut().unwrap() {
+		let mut reader = FlacBlockReader::new(FlacBlockSelector {
+			pick_vorbiscomment: true,
+			..Default::default()
+		});
+
+		//
+		// Setup is done, extract tags
+		//
+		match &mut data {
 			OpenBytesSourceReader::Array(BytesSourceArrayReader { data, is_done, .. }) => {
 				while let Some(d) = data.pop_front() {
-					self.reader
+					reader
 						.push_data(&d)
 						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 				}
 				if *is_done {
-					self.reader
+					reader
 						.finish()
 						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 				}
@@ -183,52 +115,51 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 
 			OpenBytesSourceReader::S3(r) => {
 				let mut v = Vec::new();
-				r.take(ctx.blob_fragment_size).read_to_end(&mut v).unwrap();
-				self.reader
+				r.read_to_end(&mut v).unwrap();
+				reader
 					.push_data(&v)
 					.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 
 				if r.is_done() {
-					self.reader
+					reader
 						.finish()
 						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
+				} else {
+					panic!()
 				}
 			}
 		}
 
-		// Read and send tags
-		if self.reader.has_block() {
-			let b = self.reader.pop_block().unwrap();
+		//
+		// Return tags
+		//
+		let mut out = BTreeMap::new();
+		while reader.has_block() {
+			let b = reader.pop_block().unwrap();
 			match b {
 				FlacBlock::VorbisComment(comment) => {
-					for (port, tag_type) in self.tags.iter() {
+					for (port, tag_type) in tags.iter() {
 						if let Some((_, tag_value)) =
 							comment.comment.comments.iter().find(|(t, _)| t == tag_type)
 						{
-							send_data(
+							out.insert(
 								port.clone(),
 								PipeData::Text {
 									value: tag_value.clone(),
 								},
-							)?;
-						} else {
-							send_data(
-								port.clone(),
-								PipeData::None {
-									data_type: AttrDataStub::Text,
-								},
-							)?;
+							);
 						}
 					}
 				}
+
+				// `reader` filters blocks for us
 				_ => unreachable!(),
 			}
 
 			// We should only have one comment block
-			assert!(!self.reader.has_block());
-			return Ok(NodeState::Done);
+			assert!(!reader.has_block());
 		}
 
-		return Ok(NodeState::Pending("Waiting for data"));
+		return Ok(out);
 	}
 }

@@ -1,128 +1,77 @@
 use crate::flac::proc::pictures::FlacPictureReader;
+use async_trait::async_trait;
 use copper_pipelined::{
-	base::{
-		InitNodeError, Node, NodeParameterValue, NodeSignal, NodeState, PortName,
-		ProcessSignalError, RunNodeError,
-	},
+	base::{Node, NodeParameterValue, PortName, RunNodeError},
 	data::{BytesSource, PipeData},
-	helpers::{BytesSourceArrayReader, ConnectedInput, OpenBytesSourceReader, S3Reader},
+	helpers::{BytesSourceArrayReader, OpenBytesSourceReader, S3Reader},
 	CopperContext,
 };
-use copper_storaged::AttrDataStub;
-use copper_util::MimeType;
-use futures::executor::block_on;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, io::Read, sync::Arc};
 
-/// Extract covers from an audio file
-pub struct ExtractCovers {
-	data: ConnectedInput<OpenBytesSourceReader>,
-	reader: FlacPictureReader,
-}
+pub struct ExtractCovers {}
 
-impl ExtractCovers {
-	/// Create a new [`ExtractCovers`] node
-	pub fn new(
-		_ctx: &CopperContext,
-		params: &BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-	) -> Result<Self, InitNodeError> {
-		if params.is_empty() {
-			return Err(InitNodeError::BadParameterCount { expected: 0 });
-		}
-
-		Ok(Self {
-			reader: FlacPictureReader::new(),
-			data: ConnectedInput::NotConnected,
-		})
-	}
-}
-
-// Inputs: "data", Bytes
-// Outputs: "cover_data", Bytes
+// Inputs: "data" - Bytes
+// Outputs: variable, depends on tags
+#[async_trait]
 impl Node<PipeData, CopperContext> for ExtractCovers {
-	fn process_signal(
-		&mut self,
+	async fn run(
+		&self,
 		ctx: &CopperContext,
-		signal: NodeSignal<PipeData>,
-	) -> Result<(), ProcessSignalError> {
-		match signal {
-			NodeSignal::ConnectInput { port } => match port.id().as_str() {
-				"data" => self.data.connect(),
-				_ => return Err(ProcessSignalError::InputPortDoesntExist),
-			},
-
-			NodeSignal::DisconnectInput { port } => match port.id().as_str() {
-				"data" => {
-					if !self.data.is_connected() {
-						unreachable!("disconnected an input that hasn't been connected")
-					}
-					if !self.data.is_set() {
-						return Err(ProcessSignalError::RequiredInputEmpty);
-					}
-				}
-				_ => return Err(ProcessSignalError::InputPortDoesntExist),
-			},
-
-			NodeSignal::ReceiveInput { port, data } => match port.id().as_str() {
-				"data" => match data {
-					PipeData::Blob { source, mime } => {
-						if mime != MimeType::Flac {
-							return Err(ProcessSignalError::UnsupportedFormat(format!(
-								"cannot read tags from `{}`",
-								mime
-							)));
-						}
-
-						match source {
-							BytesSource::Array { .. } => {
-								self.data.set(OpenBytesSourceReader::Array(
-									BytesSourceArrayReader::new(Some(mime), source).unwrap(),
-								));
-							}
-
-							BytesSource::S3 { key } => {
-								self.data
-									.set(OpenBytesSourceReader::S3(block_on(S3Reader::new(
-										ctx.objectstore_client.clone(),
-										&ctx.objectstore_bucket,
-										key,
-									))))
-							}
-						}
-					}
-
-					_ => return Err(ProcessSignalError::InputWithBadType),
-				},
-
-				_ => return Err(ProcessSignalError::InputPortDoesntExist),
-			},
+		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
+		mut input: BTreeMap<PortName, PipeData>,
+	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
+		//
+		// Extract parameters
+		//
+		if let Some((param, _)) = params.first_key_value() {
+			return Err(RunNodeError::UnexpectedParameter {
+				parameter: param.clone(),
+			});
 		}
 
-		return Ok(());
-	}
-
-	fn run(
-		&mut self,
-		ctx: &CopperContext,
-		send_data: &dyn Fn(PortName, PipeData) -> Result<(), RunNodeError>,
-	) -> Result<NodeState, RunNodeError> {
-		if !self.data.is_connected() {
-			return Err(RunNodeError::RequiredInputNotConnected);
+		//
+		// Extract arguments
+		//
+		let data = input.remove(&PortName::new("data"));
+		if data.is_none() {
+			return Err(RunNodeError::MissingInput {
+				port: PortName::new("data"),
+			});
 		}
+		let mut data = match data {
+			None => unreachable!(),
+			Some(PipeData::Blob { mime, source }) => match source {
+				BytesSource::Array { .. } => OpenBytesSourceReader::Array(
+					BytesSourceArrayReader::new(Some(mime), source).unwrap(),
+				),
 
-		if !self.data.is_set() {
-			return Ok(NodeState::Pending("input not ready"));
-		}
+				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
+					S3Reader::new(ctx.objectstore_client.clone(), &ctx.objectstore_bucket, key)
+						.await,
+				),
+			},
+			_ => {
+				return Err(RunNodeError::BadInputType {
+					port: PortName::new("data"),
+				})
+			}
+		};
 
-		match self.data.value_mut().unwrap() {
+		let mut reader = FlacPictureReader::new();
+
+		//
+		// Setup is done, extract covers
+		//
+		match &mut data {
 			OpenBytesSourceReader::Array(BytesSourceArrayReader { data, is_done, .. }) => {
 				while let Some(d) = data.pop_front() {
-					self.reader
+					reader
 						.push_data(&d)
 						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 				}
 				if *is_done {
-					self.reader
+					reader
 						.finish()
 						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 				}
@@ -130,22 +79,25 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 
 			OpenBytesSourceReader::S3(r) => {
 				let mut v = Vec::new();
-				r.take(ctx.blob_fragment_size).read(&mut v).unwrap();
-				self.reader
+				r.take(ctx.blob_fragment_size).read_to_end(&mut v).unwrap();
+				reader
 					.push_data(&v)
 					.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 
 				if r.is_done() {
-					self.reader
+					reader
 						.finish()
 						.map_err(|e| RunNodeError::Other(Box::new(e)))?;
 				}
 			}
 		}
 
+		//
 		// Send the first cover we find
-		if let Some(picture) = self.reader.pop_picture() {
-			send_data(
+		//
+		let mut out = BTreeMap::new();
+		if let Some(picture) = reader.pop_picture() {
+			out.insert(
 				PortName::new("cover_data"),
 				PipeData::Blob {
 					mime: picture.mime.clone(),
@@ -154,18 +106,9 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 						is_last: true,
 					},
 				},
-			)?;
-			return Ok(NodeState::Done);
-		} else if self.reader.is_done() {
-			send_data(
-				PortName::new("cover_data"),
-				PipeData::None {
-					data_type: AttrDataStub::Blob,
-				},
-			)?;
-			return Ok(NodeState::Done);
+			);
 		}
 
-		return Ok(NodeState::Pending("No pictures yet"));
+		return Ok(out);
 	}
 }
