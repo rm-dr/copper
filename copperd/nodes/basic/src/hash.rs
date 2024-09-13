@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
+	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::{BytesSource, PipeData},
 	helpers::{OpenBytesSourceReader, S3Reader},
 	CopperContext,
@@ -12,7 +12,8 @@ use std::{
 	collections::BTreeMap,
 	io::{Cursor, Read},
 };
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc};
+use tracing::{debug, trace};
 
 enum HashComputer {
 	MD5 { context: md5::Context },
@@ -83,9 +84,11 @@ impl Node<PipeData, CopperContext> for Hash {
 	async fn run(
 		&self,
 		ctx: &CopperContext,
+		this_node: ThisNodeInfo,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-		mut input: BTreeMap<PortName, NodeOutput<PipeData>>,
-	) -> Result<BTreeMap<PortName, NodeOutput<PipeData>>, RunNodeError> {
+		mut input: BTreeMap<PortName, Option<PipeData>>,
+		output: mpsc::Sender<NodeOutput<PipeData>>,
+	) -> Result<(), RunNodeError<PipeData>> {
 		//
 		// Extract parameters
 		//
@@ -121,7 +124,11 @@ impl Node<PipeData, CopperContext> for Hash {
 			});
 		}
 
-		let data = match data.unwrap().get_value().await? {
+		trace!(
+			message = "Inputs ready, preparing data reader",
+			node_id = ?this_node.id
+		);
+		let data = match data.unwrap() {
 			None => {
 				return Err(RunNodeError::RequiredInputNull {
 					port: PortName::new("data"),
@@ -149,20 +156,39 @@ impl Node<PipeData, CopperContext> for Hash {
 		//
 		// Compute hash
 		//
+		debug!(
+			message = "Computing hash",
+			node_id = ?this_node.id
+		);
 		let mut hasher = HashComputer::new(hash_type);
-		let mut out = BTreeMap::new();
 
 		match data {
 			OpenBytesSourceReader::Array(mut receiver) => {
+				trace!(
+					message = "Hashing from array",
+					node_id = ?this_node.id,
+				);
+
 				loop {
 					let rec = receiver.recv().await;
 					match rec {
 						Ok(d) => {
+							trace!(
+								message = "Got array bytes",
+								length = d.len(),
+								node_id = ?this_node.id,
+							);
+
+							// Take and return ownership of `hasher`
 							hasher = tokio::task::spawn_blocking(move || {
-								hasher.update(&mut Cursor::new(&*d)).unwrap();
-								hasher // Take and return ownership of `hasher`
+								let res = hasher.update(&mut Cursor::new(&*d));
+								if let Err(e) = res {
+									return Err(e);
+								} else {
+									return Ok(hasher);
+								}
 							})
-							.await?
+							.await??
 						}
 
 						Err(broadcast::error::RecvError::Lagged(_)) => {
@@ -177,28 +203,51 @@ impl Node<PipeData, CopperContext> for Hash {
 			}
 
 			OpenBytesSourceReader::S3(mut r) => {
+				trace!(
+					message = "Hashing from S3",
+					node_id = ?this_node.id,
+				);
+
 				let mut buf = [0u8; 1_000_000];
 				loop {
 					let l = r.read(&mut buf).await.unwrap();
+					trace!(
+						message = "Read bytes",
+						n_bytes = l,
+						node_id = ?this_node.id,
+					);
+
 					if l != 0 {
 						break;
 					} else {
+						// Take and return ownership of `hasher`
 						hasher = tokio::task::spawn_blocking(move || {
-							hasher
-								.update(&mut Cursor::new(&buf).take(l.try_into().unwrap()))
-								.unwrap();
-							hasher
+							let res =
+								hasher.update(&mut Cursor::new(&buf).take(l.try_into().unwrap()));
+							if let Err(e) = res {
+								return Err(e);
+							} else {
+								return Ok(hasher);
+							}
 						})
-						.await?;
+						.await??;
 					}
 				}
 			}
 		};
 
-		out.insert(
-			PortName::new("hash"),
-			NodeOutput::Plain(Some(hasher.finish())),
+		debug!(
+			message = "Hash ready, sending output",
+			node_id = ?this_node.id
 		);
-		return Ok(out);
+		output
+			.send(NodeOutput {
+				node: this_node,
+				port: PortName::new("hash"),
+				data: Some(hasher.finish()),
+			})
+			.await?;
+
+		return Ok(());
 	}
 }

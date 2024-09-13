@@ -1,12 +1,15 @@
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{Node, NodeOutput, NodeParameterValue, PipelineData, PortName, RunNodeError},
+	base::{
+		Node, NodeOutput, NodeParameterValue, PipelineData, PortName, RunNodeError, ThisNodeInfo,
+	},
 	data::{PipeData, PipeDataStub},
 	CopperContext,
 };
 use copper_storaged::{AttrData, AttributeInfo, ClassId, Transaction, TransactionAction};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
+use tokio::sync::mpsc;
 use tracing::{debug, trace};
 
 pub struct AddItem {}
@@ -18,9 +21,11 @@ impl Node<PipeData, CopperContext> for AddItem {
 	async fn run(
 		&self,
 		ctx: &CopperContext,
+		_this_node: ThisNodeInfo,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-		mut input: BTreeMap<PortName, NodeOutput<PipeData>>,
-	) -> Result<BTreeMap<PortName, NodeOutput<PipeData>>, RunNodeError> {
+		mut input: BTreeMap<PortName, Option<PipeData>>,
+		_output: mpsc::Sender<NodeOutput<PipeData>>,
+	) -> Result<(), RunNodeError<PipeData>> {
 		//
 		// Extract parameters
 		//
@@ -71,7 +76,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 				return Err(RunNodeError::UnrecognizedInput { port });
 			}
 
-			match data.get_value().await? {
+			match data {
 				Some(PipeData::Blob { .. }) => {
 					unimplemented!()
 				}
@@ -121,6 +126,6 @@ impl Node<PipeData, CopperContext> for AddItem {
 			.await
 			.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
-		return Ok(BTreeMap::new());
+		return Ok(());
 	}
 }

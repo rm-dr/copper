@@ -1,14 +1,14 @@
 use crate::flac::proc::pictures::FlacPictureReader;
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
+	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::{BytesSource, PipeData},
 	helpers::{OpenBytesSourceReader, S3Reader},
 	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc};
 
 pub struct ExtractCovers {}
 
@@ -19,9 +19,11 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 	async fn run(
 		&self,
 		ctx: &CopperContext,
+		this_node: ThisNodeInfo,
 		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-		mut input: BTreeMap<PortName, NodeOutput<PipeData>>,
-	) -> Result<BTreeMap<PortName, NodeOutput<PipeData>>, RunNodeError> {
+		mut input: BTreeMap<PortName, Option<PipeData>>,
+		output: mpsc::Sender<NodeOutput<PipeData>>,
+	) -> Result<(), RunNodeError<PipeData>> {
 		//
 		// Extract parameters
 		//
@@ -40,7 +42,7 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 				port: PortName::new("data"),
 			});
 		}
-		let data = match data.unwrap().get_value().await? {
+		let data = match data.unwrap() {
 			None => {
 				return Err(RunNodeError::RequiredInputNull {
 					port: PortName::new("data"),
@@ -95,17 +97,17 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 			}
 
 			OpenBytesSourceReader::S3(mut r) => {
-				let mut buf = [0u8; 1_000_000];
+				let mut read_buf = vec![0u8; ctx.blob_fragment_size];
 
 				loop {
-					let l = r.read(&mut buf).await?;
+					let l = r.read(&mut read_buf).await?;
 
 					if l == 0 {
 						assert!(r.is_done());
 						break;
 					} else {
 						reader
-							.push_data(&buf[0..l])
+							.push_data(&read_buf[0..l])
 							.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 					}
 				}
@@ -120,21 +122,34 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 		//
 		// Send the first cover we find
 		//
-		let mut out = BTreeMap::new();
 		if let Some(picture) = reader.pop_picture() {
-			let (tx, rx) = broadcast::channel(10);
-			out.insert(
-				PortName::new("cover_data"),
-				NodeOutput::Plain(Some(PipeData::Blob {
-					mime: picture.mime.clone(),
-					source: BytesSource::Stream {
-						sender: tx.clone(),
-						receiver: rx,
-					},
-				})),
-			);
+			// Pictures are loaded into memory anyway, so we don't need to stream them.
+			let (tx, rx) = broadcast::channel(1);
+			tx.send(Arc::new(picture.img_data))?;
+
+			output
+				.send(NodeOutput {
+					node: this_node,
+					port: PortName::new("cover_data"),
+					data: Some(PipeData::Blob {
+						mime: picture.mime.clone(),
+						source: BytesSource::Stream {
+							sender: tx.clone(),
+							receiver: rx,
+						},
+					}),
+				})
+				.await?;
+		} else {
+			output
+				.send(NodeOutput {
+					node: this_node,
+					port: PortName::new("cover_data"),
+					data: None,
+				})
+				.await?;
 		}
 
-		return Ok(out);
+		return Ok(());
 	}
 }

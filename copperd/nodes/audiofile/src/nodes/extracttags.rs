@@ -4,14 +4,14 @@ use crate::{
 };
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
+	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::{BytesSource, PipeData},
 	helpers::{OpenBytesSourceReader, S3Reader},
 	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc};
 
 /// Extract tags from audio metadata
 pub struct ExtractTags {}
@@ -23,9 +23,11 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 	async fn run(
 		&self,
 		ctx: &CopperContext,
+		this_node: ThisNodeInfo,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-		mut input: BTreeMap<PortName, NodeOutput<PipeData>>,
-	) -> Result<BTreeMap<PortName, NodeOutput<PipeData>>, RunNodeError> {
+		mut input: BTreeMap<PortName, Option<PipeData>>,
+		output: mpsc::Sender<NodeOutput<PipeData>>,
+	) -> Result<(), RunNodeError<PipeData>> {
 		//
 		// Extract parameters
 		//
@@ -73,7 +75,7 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 				port: PortName::new("data"),
 			});
 		}
-		let data = match data.unwrap().get_value().await? {
+		let data = match data.unwrap() {
 			None => {
 				return Err(RunNodeError::RequiredInputNull {
 					port: PortName::new("data"),
@@ -131,17 +133,17 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 			}
 
 			OpenBytesSourceReader::S3(mut r) => {
-				let mut buf = [0u8; 1_000_000];
+				let mut read_buf = vec![0u8; ctx.blob_fragment_size];
 
 				loop {
-					let l = r.read(&mut buf).await?;
+					let l = r.read(&mut read_buf).await?;
 
 					if l == 0 {
 						assert!(r.is_done());
 						break;
 					} else {
 						reader
-							.push_data(&buf[0..l])
+							.push_data(&read_buf[0..l])
 							.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 					}
 				}
@@ -156,7 +158,6 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 		//
 		// Return tags
 		//
-		let mut out = BTreeMap::new();
 		while reader.has_block() {
 			let b = reader.pop_block().unwrap();
 			match b {
@@ -165,14 +166,23 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 						if let Some((_, tag_value)) =
 							comment.comment.comments.iter().find(|(t, _)| t == tag_type)
 						{
-							out.insert(
-								port.clone(),
-								NodeOutput::Plain(Some(PipeData::Text {
-									value: tag_value.clone(),
-								})),
-							);
+							output
+								.send(NodeOutput {
+									node: this_node.clone(),
+									port: port.clone(),
+									data: Some(PipeData::Text {
+										value: tag_value.clone(),
+									}),
+								})
+								.await?;
 						} else {
-							out.insert(port.clone(), NodeOutput::Plain(None));
+							output
+								.send(NodeOutput {
+									node: this_node.clone(),
+									port: port.clone(),
+									data: None,
+								})
+								.await?;
 						}
 					}
 				}
@@ -185,6 +195,6 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 			assert!(!reader.has_block());
 		}
 
-		return Ok(out);
+		return Ok(());
 	}
 }

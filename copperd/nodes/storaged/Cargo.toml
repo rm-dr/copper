@@ -21,5 +21,6 @@ copper-pipelined = { workspace = true }
 copper-storaged = { workspace = true }
 
 tracing = { workspace = true }
+tokio = { workspace = true }
 async-trait = { workspace = true }
 smartstring = { workspace = true }

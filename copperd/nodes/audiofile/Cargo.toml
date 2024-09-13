@@ -20,6 +20,7 @@ workspace = true
 copper-util = { workspace = true }
 copper-pipelined = { workspace = true }
 
+tracing = { workspace = true }
 smartstring = { workspace = true }
 serde_with = { workspace = true }
 tokio = { workspace = true }

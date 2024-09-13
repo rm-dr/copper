@@ -6,8 +6,6 @@ use copper_pipelined::{
 	CopperContext,
 };
 
-// TODO: move to another lib
-
 mod constant;
 mod hash;
 mod ifnone;

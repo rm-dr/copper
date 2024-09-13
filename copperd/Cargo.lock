@@ -2410,6 +2410,7 @@ dependencies = [
  "sha2",
  "smartstring",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -2424,6 +2425,7 @@ dependencies = [
  "sha2",
  "smartstring",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -2434,6 +2436,7 @@ dependencies = [
  "copper-pipelined",
  "copper-storaged",
  "smartstring",
+ "tokio",
  "tracing",
 ]
 

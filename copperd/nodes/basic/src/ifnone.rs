@@ -1,11 +1,12 @@
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
+	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
 	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
+use tokio::sync::mpsc;
 
 pub struct IfNone {}
 
@@ -19,9 +20,11 @@ impl Node<PipeData, CopperContext> for IfNone {
 	async fn run(
 		&self,
 		_ctx: &CopperContext,
+		this_node: ThisNodeInfo,
 		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-		mut input: BTreeMap<PortName, NodeOutput<PipeData>>,
-	) -> Result<BTreeMap<PortName, NodeOutput<PipeData>>, RunNodeError> {
+		mut input: BTreeMap<PortName, Option<PipeData>>,
+		output: mpsc::Sender<NodeOutput<PipeData>>,
+	) -> Result<(), RunNodeError<PipeData>> {
 		//
 		// Extract parameters
 		//
@@ -44,7 +47,7 @@ impl Node<PipeData, CopperContext> for IfNone {
 
 		// We need data right away, so await it now
 		let data = match input.remove(&PortName::new("data")) {
-			Some(x) => x.get_value().await?,
+			Some(x) => x,
 			None => {
 				return Err(RunNodeError::MissingInput {
 					port: PortName::new("data"),
@@ -74,15 +77,23 @@ impl Node<PipeData, CopperContext> for IfNone {
 		//
 		// TODO: statically check types?
 		if let Some(data) = data {
-			let mut out = BTreeMap::new();
-			out.insert(PortName::new("out"), NodeOutput::Plain(Some(data)));
-			return Ok(out);
+			output
+				.send(NodeOutput {
+					node: this_node,
+					port: PortName::new("out"),
+					data: Some(data),
+				})
+				.await?;
+			return Ok(());
 		};
 
-		// Don't await `ifnone` here, send it immediately so
-		// downstream nodes can start right away.
-		let mut out = BTreeMap::new();
-		out.insert(PortName::new("out"), ifnone);
-		return Ok(out);
+		output
+			.send(NodeOutput {
+				node: this_node,
+				port: PortName::new("out"),
+				data: ifnone,
+			})
+			.await?;
+		return Ok(());
 	}
 }

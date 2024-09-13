@@ -1,11 +1,12 @@
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
+	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
 	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
+use tokio::sync::mpsc;
 
 pub struct Constant {}
 
@@ -14,9 +15,11 @@ impl Node<PipeData, CopperContext> for Constant {
 	async fn run(
 		&self,
 		_ctx: &CopperContext,
+		this_node: ThisNodeInfo,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
-		mut input: BTreeMap<PortName, NodeOutput<PipeData>>,
-	) -> Result<BTreeMap<PortName, NodeOutput<PipeData>>, RunNodeError> {
+		mut input: BTreeMap<PortName, Option<PipeData>>,
+		output: mpsc::Sender<NodeOutput<PipeData>>,
+	) -> Result<(), RunNodeError<PipeData>> {
 		//
 		// Extract parameters
 		//
@@ -50,8 +53,14 @@ impl Node<PipeData, CopperContext> for Constant {
 		//
 		// Return the value we were given
 		//
-		let mut out = BTreeMap::new();
-		out.insert(PortName::new("out"), NodeOutput::Plain(Some(value)));
-		return Ok(out);
+		output
+			.send(NodeOutput {
+				node: this_node,
+				port: PortName::new("out"),
+				data: Some(value),
+			})
+			.await?;
+
+		return Ok(());
 	}
 }

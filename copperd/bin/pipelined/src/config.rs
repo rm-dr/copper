@@ -11,7 +11,14 @@ pub struct PipelinedConfig {
 	/// The maximum size, in bytes, of a binary fragment in the pipeline.
 	/// Smaller values slow down pipelines; larger values use more memory.
 	#[serde(default = "PipelinedConfig::default_frag_size")]
-	pub pipelined_blob_fragment_size: u64,
+	pub pipelined_blob_fragment_size: usize,
+
+	/// The message capacity of binary stream channels.
+	///
+	/// Smaller values increase the probability of pipeline runs failing due to an
+	/// overflowing channel, larger values use more memory.
+	#[serde(default = "PipelinedConfig::default_channel_size")]
+	pub pipelined_stream_channel_size: usize,
 
 	/// How many pipeline jobs to run at once
 	#[serde(default = "PipelinedConfig::default_parallel_jobs")]
@@ -51,8 +58,12 @@ pub struct PipelinedConfig {
 }
 
 impl PipelinedConfig {
-	fn default_frag_size() -> u64 {
+	fn default_frag_size() -> usize {
 		2_000_000
+	}
+
+	fn default_channel_size() -> usize {
+		16
 	}
 
 	fn default_parallel_jobs() -> usize {
