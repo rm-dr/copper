@@ -5,7 +5,7 @@
 			"type": "lldb",
 			"request": "launch",
 			"name": "Debug",
-			"program": "${workspaceRoot}/copperd/target/debug/copperd",
+			"program": "${workspaceRoot}/copperd/target/debug/pipelined",
 			"args": [],
 			"cwd": "${workspaceRoot}/copperd/",
 			"sourceLanguages": ["rust"]
