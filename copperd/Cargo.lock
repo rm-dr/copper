@@ -865,11 +865,9 @@ dependencies = [
  "aws-sdk-s3",
  "copper-storaged",
  "copper-util",
- "futures",
  "serde",
  "smartstring",
  "tokio",
- "tracing",
  "utoipa",
 ]
 
@@ -2411,6 +2409,7 @@ dependencies = [
  "serde_with",
  "sha2",
  "smartstring",
+ "tokio",
 ]
 
 [[package]]

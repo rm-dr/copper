@@ -21,8 +21,6 @@ copper-util = { workspace = true }
 copper-storaged = { workspace = true }
 
 async-trait = { workspace = true }
-tracing = { workspace = true }
-futures = { workspace = true }
 aws-sdk-s3 = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }

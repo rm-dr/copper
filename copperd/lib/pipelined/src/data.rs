@@ -3,6 +3,7 @@ use copper_util::{HashType, MimeType};
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
+use tokio::sync::broadcast;
 use utoipa::ToSchema;
 
 use crate::base::{PipelineData, PipelineDataStub};
@@ -63,15 +64,31 @@ pub enum PipeData {
 	},
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum BytesSource {
-	Array {
-		fragment: Arc<Vec<u8>>,
-		is_last: bool,
+	Stream {
+		/// Used to clone this variant.
+		/// Should never be used by clients.
+		sender: broadcast::Sender<Arc<Vec<u8>>>,
+		receiver: broadcast::Receiver<Arc<Vec<u8>>>,
 	},
 	S3 {
 		key: String,
 	},
+}
+
+impl Clone for BytesSource {
+	fn clone(&self) -> Self {
+		match self {
+			Self::S3 { .. } => self.clone(),
+			Self::Stream { sender, .. } => {
+				return Self::Stream {
+					sender: sender.clone(),
+					receiver: sender.subscribe(),
+				}
+			}
+		}
+	}
 }
 
 impl PipelineData for PipeData {

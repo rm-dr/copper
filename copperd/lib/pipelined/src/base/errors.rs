@@ -48,6 +48,11 @@ pub enum RunNodeError {
 	/// an input to this node
 	TaskJoinError(Arc<JoinError>),
 
+	/// We tried to read from a byte stream, but that stream overflowed
+	/// and we missed data. If this happens, either a node isn't reading
+	/// stream data fast enough, or our max buffer size is too small.
+	StreamReceiverLagged,
+
 	/// An arbitrary error
 	Other(Arc<dyn Error + Sync + Send + 'static>),
 }
@@ -60,6 +65,7 @@ impl Display for RunNodeError {
 			Self::Other(_) => write!(f, "Generic error"),
 			Self::InputReceiveError(_) => write!(f, "error while receiving input"),
 			Self::TaskJoinError(_) => write!(f, "error while joining task"),
+			Self::StreamReceiverLagged => write!(f, "stream receiver lagged"),
 
 			Self::BadInputType { port } => {
 				write!(f, "received bad data type on port `{port}`")

@@ -22,6 +22,7 @@ copper-pipelined = { workspace = true }
 
 smartstring = { workspace = true }
 serde_with = { workspace = true }
+tokio = { workspace = true }
 base64 = { workspace = true }
 async-trait = { workspace = true }
 

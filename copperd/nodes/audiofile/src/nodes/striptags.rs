@@ -5,16 +5,13 @@ use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
 	data::{BytesSource, PipeData},
-	helpers::{BytesSourceArrayReader, OpenBytesSourceReader, S3Reader},
+	helpers::{OpenBytesSourceReader, S3Reader},
 	CopperContext,
 };
 use copper_util::MimeType;
 use smartstring::{LazyCompact, SmartString};
-use std::{
-	collections::BTreeMap,
-	io::{Cursor, Read},
-	sync::Arc,
-};
+use std::{collections::BTreeMap, sync::Arc};
+use tokio::sync::broadcast;
 
 /// Strip all metadata from an audio file
 pub struct StripTags {}
@@ -47,18 +44,15 @@ impl Node<PipeData, CopperContext> for StripTags {
 				port: PortName::new("data"),
 			});
 		}
-		let mut data = match data.unwrap().get_value().await? {
+		let data = match data.unwrap().get_value().await? {
 			None => {
 				return Err(RunNodeError::RequiredInputNull {
 					port: PortName::new("data"),
 				})
 			}
 
-			Some(PipeData::Blob { mime, source }) => match source {
-				BytesSource::Array { .. } => OpenBytesSourceReader::Array(
-					BytesSourceArrayReader::new(Some(mime), source).unwrap(),
-				),
-
+			Some(PipeData::Blob { source, .. }) => match source {
+				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Array(receiver),
 				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
 					S3Reader::new(ctx.objectstore_client.clone(), &ctx.objectstore_bucket, key)
 						.await,
@@ -71,72 +65,114 @@ impl Node<PipeData, CopperContext> for StripTags {
 			}
 		};
 
-		let mut strip = FlacMetaStrip::new();
-
 		//
-		// Setup is done, strip tags
-		//
-		match &mut data {
-			OpenBytesSourceReader::Array(BytesSourceArrayReader { data, is_done, .. }) => {
-				while let Some(d) = data.pop_front() {
-					strip
-						.push_data(&d)
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-				}
-				if *is_done {
-					strip
-						.finish()
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-				}
-			}
-
-			OpenBytesSourceReader::S3(r) => {
-				let mut v = Vec::new();
-				let mut buf = [0u8; 1_000_000];
-				loop {
-					let l = r.read(&mut buf).await.unwrap();
-
-					if l == 0 {
-						break;
-					} else {
-						std::io::copy(&mut Cursor::new(&buf).take(l.try_into().unwrap()), &mut v)
-							.unwrap();
-					}
-				}
-
-				strip
-					.push_data(&v)
-					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-
-				assert!(r.is_done());
-
-				strip
-					.finish()
-					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-			}
-		}
-
-		//
-		// Read and send stripped data
+		// Prepare stream output
 		//
 		let mut out = BTreeMap::new();
-		let mut bytes = Vec::new();
-
-		while strip.has_data() {
-			strip.read_data(&mut bytes).unwrap();
-		}
-
-		// TODO: do not load into memory
+		let (tx, rx) = broadcast::channel(10);
 		out.insert(
 			PortName::new("out"),
 			NodeOutput::Plain(Some(PipeData::Blob {
 				mime: MimeType::Flac,
-				source: BytesSource::Array {
-					fragment: Arc::new(bytes),
-					is_last: true,
+				source: BytesSource::Stream {
+					sender: tx.clone(),
+					receiver: rx,
 				},
 			})),
 		);
+
+		//
+		// Start another task to strip tags
+		//
+		let h = tokio::spawn(async move {
+			let mut strip = FlacMetaStrip::new();
+
+			match data {
+				OpenBytesSourceReader::Array(mut receiver) => {
+					let mut out_bytes = Vec::new();
+
+					loop {
+						let rec = receiver.recv().await;
+						match rec {
+							Ok(d) => {
+								strip
+									.push_data(&d)
+									.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+							}
+
+							Err(broadcast::error::RecvError::Lagged(_)) => {
+								return Err(RunNodeError::StreamReceiverLagged)
+							}
+
+							Err(broadcast::error::RecvError::Closed) => {
+								break;
+							}
+						}
+
+						while strip.has_data() {
+							strip.read_data(&mut out_bytes).unwrap();
+						}
+
+						if out_bytes.len() >= 1000 {
+							// TODO: config sizes
+							// TODO: no unwrap
+							// TODO: return tasks
+							let x = std::mem::replace(&mut out_bytes, Vec::new());
+							tx.send(Arc::new(x)).unwrap();
+						}
+					}
+
+					strip
+						.finish()
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+
+					while strip.has_data() {
+						strip.read_data(&mut out_bytes).unwrap();
+					}
+
+					tx.send(Arc::new(out_bytes)).unwrap();
+				}
+
+				OpenBytesSourceReader::S3(mut r) => {
+					let mut out_bytes = Vec::new();
+					let mut buf = [0u8; 1_000_000];
+
+					loop {
+						let l = r.read(&mut buf).await?;
+
+						if l == 0 {
+							assert!(r.is_done());
+							break;
+						} else {
+							strip
+								.push_data(&buf[0..l])
+								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+						}
+
+						while strip.has_data() {
+							strip.read_data(&mut out_bytes).unwrap();
+						}
+
+						if out_bytes.len() >= 1000 {
+							let x = std::mem::replace(&mut out_bytes, Vec::new());
+							tx.send(Arc::new(x)).unwrap();
+						}
+					}
+
+					strip
+						.finish()
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+
+					while strip.has_data() {
+						strip.read_data(&mut out_bytes).unwrap();
+					}
+
+					tx.send(Arc::new(out_bytes)).unwrap();
+				}
+			}
+
+			Ok(())
+		});
 
 		return Ok(out);
 	}

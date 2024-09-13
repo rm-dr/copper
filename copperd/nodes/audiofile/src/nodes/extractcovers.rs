@@ -3,15 +3,12 @@ use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
 	data::{BytesSource, PipeData},
-	helpers::{BytesSourceArrayReader, OpenBytesSourceReader, S3Reader},
+	helpers::{OpenBytesSourceReader, S3Reader},
 	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
-use std::{
-	collections::BTreeMap,
-	io::{Cursor, Read},
-	sync::Arc,
-};
+use std::{collections::BTreeMap, sync::Arc};
+use tokio::sync::broadcast;
 
 pub struct ExtractCovers {}
 
@@ -43,17 +40,15 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 				port: PortName::new("data"),
 			});
 		}
-		let mut data = match data.unwrap().get_value().await? {
+		let data = match data.unwrap().get_value().await? {
 			None => {
 				return Err(RunNodeError::RequiredInputNull {
 					port: PortName::new("data"),
 				})
 			}
 
-			Some(PipeData::Blob { mime, source }) => match source {
-				BytesSource::Array { .. } => OpenBytesSourceReader::Array(
-					BytesSourceArrayReader::new(Some(mime), source).unwrap(),
-				),
+			Some(PipeData::Blob { source, .. }) => match source {
+				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Array(receiver),
 
 				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
 					S3Reader::new(ctx.objectstore_client.clone(), &ctx.objectstore_bucket, key)
@@ -73,43 +68,52 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 		//
 		// Setup is done, extract covers
 		//
-		match &mut data {
-			OpenBytesSourceReader::Array(BytesSourceArrayReader { data, is_done, .. }) => {
-				while let Some(d) = data.pop_front() {
-					reader
-						.push_data(&d)
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-				}
-				if *is_done {
-					reader
-						.finish()
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-				}
-			}
-
-			OpenBytesSourceReader::S3(r) => {
-				let mut v = Vec::new();
-
-				let mut buf = [0u8; 1_000_000];
+		match data {
+			OpenBytesSourceReader::Array(mut receiver) => {
 				loop {
-					let l = r.read(&mut buf).await.unwrap();
-					if l == 0 {
-						break;
-					} else {
-						std::io::copy(&mut Cursor::new(&buf).take(l.try_into().unwrap()), &mut v)
-							.unwrap();
+					let rec = receiver.recv().await;
+					match rec {
+						Ok(d) => {
+							reader
+								.push_data(&d)
+								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+						}
+
+						Err(broadcast::error::RecvError::Lagged(_)) => {
+							return Err(RunNodeError::StreamReceiverLagged)
+						}
+
+						Err(broadcast::error::RecvError::Closed) => {
+							break;
+						}
 					}
 				}
 
 				reader
-					.push_data(&v)
+					.finish()
 					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+			}
 
-				if r.is_done() {
-					reader
-						.finish()
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+			OpenBytesSourceReader::S3(mut r) => {
+				let mut buf = [0u8; 1_000_000];
+
+				loop {
+					let l = r.read(&mut buf).await?;
+
+					if l == 0 {
+						assert!(r.is_done());
+						break;
+					} else {
+						reader
+							.push_data(&buf[0..l])
+							.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+					}
 				}
+
+				assert!(r.is_done());
+				reader
+					.finish()
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 			}
 		}
 
@@ -118,13 +122,14 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 		//
 		let mut out = BTreeMap::new();
 		if let Some(picture) = reader.pop_picture() {
+			let (tx, rx) = broadcast::channel(10);
 			out.insert(
 				PortName::new("cover_data"),
 				NodeOutput::Plain(Some(PipeData::Blob {
 					mime: picture.mime.clone(),
-					source: BytesSource::Array {
-						fragment: Arc::new(picture.img_data),
-						is_last: true,
+					source: BytesSource::Stream {
+						sender: tx.clone(),
+						receiver: rx,
 					},
 				})),
 			);

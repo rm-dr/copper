@@ -1,14 +1,14 @@
-mod bytessourcereader;
-pub use bytessourcereader::*;
-
 mod s3reader;
-pub use s3reader::*;
+use std::sync::Arc;
+
+use tokio::sync::broadcast;
 
 //
 // MARK: Small helpers
 //
+pub use s3reader::*;
 
 pub enum OpenBytesSourceReader {
-	Array(BytesSourceArrayReader),
+	Array(broadcast::Receiver<Arc<Vec<u8>>>),
 	S3(S3Reader),
 }

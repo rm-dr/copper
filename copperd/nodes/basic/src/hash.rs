@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError},
 	data::{BytesSource, PipeData},
-	helpers::{BytesSourceArrayReader, OpenBytesSourceReader, S3Reader},
+	helpers::{OpenBytesSourceReader, S3Reader},
 	CopperContext,
 };
 use copper_util::HashType;
@@ -10,8 +10,9 @@ use sha2::{Digest, Sha256, Sha512};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::BTreeMap,
-	io::{BufReader, Cursor, Read},
+	io::{Cursor, Read},
 };
+use tokio::sync::broadcast;
 
 enum HashComputer {
 	MD5 { context: md5::Context },
@@ -127,11 +128,8 @@ impl Node<PipeData, CopperContext> for Hash {
 				})
 			}
 
-			Some(PipeData::Blob { mime, source }) => match source {
-				BytesSource::Array { .. } => OpenBytesSourceReader::Array(
-					BytesSourceArrayReader::new(Some(mime), source).unwrap(),
-				),
-
+			Some(PipeData::Blob { source, .. }) => match source {
+				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Array(receiver),
 				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
 					S3Reader::new(ctx.objectstore_client.clone(), &ctx.objectstore_bucket, key)
 						.await,
@@ -155,17 +153,27 @@ impl Node<PipeData, CopperContext> for Hash {
 		let mut out = BTreeMap::new();
 
 		match data {
-			OpenBytesSourceReader::Array(BytesSourceArrayReader { data, .. }) => {
-				for d in data {
-					let mut r = BufReader::new(&**d);
-					hasher.update(&mut r).unwrap();
-				}
+			OpenBytesSourceReader::Array(mut receiver) => {
+				loop {
+					let rec = receiver.recv().await;
+					match rec {
+						Ok(d) => {
+							hasher = tokio::task::spawn_blocking(move || {
+								hasher.update(&mut Cursor::new(&*d)).unwrap();
+								hasher // Take and return ownership of `hasher`
+							})
+							.await?
+						}
 
-				out.insert(
-					PortName::new("hash"),
-					NodeOutput::Plain(Some(hasher.finish())),
-				);
-				return Ok(out);
+						Err(broadcast::error::RecvError::Lagged(_)) => {
+							return Err(RunNodeError::StreamReceiverLagged)
+						}
+
+						Err(broadcast::error::RecvError::Closed) => {
+							break;
+						}
+					}
+				}
 			}
 
 			OpenBytesSourceReader::S3(mut r) => {
@@ -175,18 +183,22 @@ impl Node<PipeData, CopperContext> for Hash {
 					if l != 0 {
 						break;
 					} else {
-						hasher
-							.update(&mut Cursor::new(&buf).take(l.try_into().unwrap()))
-							.unwrap();
+						hasher = tokio::task::spawn_blocking(move || {
+							hasher
+								.update(&mut Cursor::new(&buf).take(l.try_into().unwrap()))
+								.unwrap();
+							hasher
+						})
+						.await?;
 					}
 				}
-
-				out.insert(
-					PortName::new("hash"),
-					NodeOutput::Plain(Some(hasher.finish())),
-				);
-				return Ok(out);
 			}
 		};
+
+		out.insert(
+			PortName::new("hash"),
+			NodeOutput::Plain(Some(hasher.finish())),
+		);
+		return Ok(out);
 	}
 }
