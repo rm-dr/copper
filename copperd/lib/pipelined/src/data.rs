@@ -80,7 +80,7 @@ pub enum BytesSource {
 impl Clone for BytesSource {
 	fn clone(&self) -> Self {
 		match self {
-			Self::S3 { .. } => self.clone(),
+			Self::S3 { key } => Self::S3 { key: key.clone() },
 			Self::Stream { sender, .. } => {
 				return Self::Stream {
 					sender: sender.clone(),
