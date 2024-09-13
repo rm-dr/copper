@@ -483,6 +483,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 
 					let output = res.remove(&source_port);
 					if let Some(output) = output {
+						// TODO: only dupe if we have to
 						let (a, b) = output.dupe();
 						*data = EdgeDataContainer::Some(a);
 						res.insert(source_port.clone(), b);
