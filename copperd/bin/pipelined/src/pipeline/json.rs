@@ -38,16 +38,6 @@ pub(crate) struct NodeJson<DataType: PipelineData> {
 pub(crate) struct EdgeJson {
 	pub source: OutputPort,
 	pub target: InputPort,
-
-	/// What kind of edge is this?
-	pub edge_type: EdgeType,
-}
-
-#[derive(Debug, Deserialize, Clone, Copy, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub(crate) enum EdgeType {
-	Data,
-	After,
 }
 
 #[derive(Debug, Clone, Deserialize, ToSchema)]

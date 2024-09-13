@@ -140,7 +140,6 @@ The goal is a minimal working version: robust and usable, but possibly slow and 
 - [ ] better end condition (only effectful nodes?)
 - [ ] don't run nodes if not necessary (`ifnone`)
   - nodes ask for nodes?
-- [ ] do we need `after` edges?
 - [ ] don't read file if no deps
 - [ ] we used to be able to use multiple file readers to save memory.
   - now what?

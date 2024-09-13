@@ -20,7 +20,7 @@ mod pipeline;
 use crate::{
 	config::PipelinedConfig,
 	pipeline::{
-		json::{EdgeJson, EdgeType, InputPort, NodeJson, OutputPort, PipelineJson},
+		json::{EdgeJson, InputPort, NodeJson, OutputPort, PipelineJson},
 		runner::PipelineRunner,
 	},
 };
@@ -62,7 +62,6 @@ impl Modify for BearerSecurityAddon {
 		EdgeJson,
 		OutputPort,
 		InputPort,
-		EdgeType,
 		NodeParameterValue<PipeData>,
 		AttrData,
 		AttrDataStub,

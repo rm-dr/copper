@@ -11,8 +11,7 @@
 				"target": {
 					"node": "b",
 					"port": "title"
-				},
-				"edge_type": "Data"
+				}
 			}
 		},
 		"nodes": {

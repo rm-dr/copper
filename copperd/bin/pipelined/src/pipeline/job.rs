@@ -15,7 +15,6 @@ use tokio::task::JoinSet;
 use tracing::{debug, trace, warn};
 
 use super::json::PipelineJson;
-use crate::pipeline::json::EdgeType;
 
 //
 // MARK: Errors
@@ -123,17 +122,10 @@ impl<DataType: PipelineData> EdgeDataContainer<DataType> {
 }
 
 #[derive(Debug)]
-enum EdgeSpec<DataType: PipelineData> {
-	/// A edge that carries data
-	Data {
-		source_port: PortName,
-		target_port: PortName,
-		data: EdgeDataContainer<DataType>,
-	},
-
-	/// An edge specifying that the target node
-	/// must wait for the sourc node before running.
-	After { released: bool },
+struct EdgeSpec<DataType: PipelineData> {
+	source_port: PortName,
+	target_port: PortName,
+	data: EdgeDataContainer<DataType>,
 }
 
 //
@@ -183,12 +175,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 
 				for edge_idx in edges {
 					let (_, _, edge) = graph.get_edge_mut(edge_idx);
-					match edge {
-						EdgeSpec::Data { data, .. } => {
-							*data = EdgeDataContainer::Some(NodeOutput::Plain(Some(i_val.clone())))
-						}
-						EdgeSpec::After { released } => *released = true,
-					}
+					edge.data = EdgeDataContainer::Some(NodeOutput::Plain(Some(i_val.clone())))
 				}
 
 				graph.get_node_mut(idx).state = NodeState::Done;
@@ -234,45 +221,12 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 			node_id_map.insert(node_id.clone(), n);
 		}
 
-		// Make sure all "after" edges are valid and create them in the graph.
-		trace!(message = "Making `after` edges", job_id);
-		for (edge_id, edge_spec) in json
-			.edges
-			.iter()
-			.filter(|(_, v)| matches!(v.edge_type, EdgeType::After))
-		{
-			let source =
-				node_id_map
-					.get(&edge_spec.source.node)
-					.ok_or(PipelineBuildError::NoNode {
-						edge_id: edge_id.clone(),
-						invalid_node_id: edge_spec.source.node.clone(),
-					})?;
-			let target =
-				node_id_map
-					.get(&edge_spec.target.node)
-					.ok_or(PipelineBuildError::NoNode {
-						edge_id: edge_id.clone(),
-						invalid_node_id: edge_spec.target.node.clone(),
-					})?;
-
-			graph.add_edge(
-				source.clone(),
-				target.clone(),
-				EdgeSpec::After { released: false },
-			);
-		}
-
-		// Make sure all "data" edges are valid and create them in the graph.
+		// Make sure all edges are valid and create them in the graph.
 		//
 		// We do not check if ports exist & have matching types here,
 		// since not all nodes know their ports at build time.
-		trace!(message = "Making `data` edges", job_id);
-		for (edge_id, edge_spec) in json
-			.edges
-			.iter()
-			.filter(|(_, v)| matches!(v.edge_type, EdgeType::Data))
-		{
+		trace!(message = "Making  edges", job_id);
+		for (edge_id, edge_spec) in json.edges.iter() {
 			// These should never fail
 			let source_node_idx = node_id_map.get(&edge_spec.source.node);
 			if source_node_idx.is_none() {
@@ -294,7 +248,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 			graph.add_edge(
 				*source_node_idx.unwrap(),
 				*target_node_idx.unwrap(),
-				EdgeSpec::Data {
+				EdgeSpec {
 					source_port: edge_spec.source.port.clone(),
 					target_port: edge_spec.target.port.clone(),
 					data: EdgeDataContainer::Unset,
@@ -351,13 +305,10 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 
 				let can_be_run = self.graph.edges_ending_at(node_idx).iter().all(|edge_idx| {
 					let (_, _, edge) = self.graph.get_edge(*edge_idx);
-					match edge {
-						EdgeSpec::After { released } => *released,
-						EdgeSpec::Data { data, .. } => match data {
-							EdgeDataContainer::Unset => false,
-							EdgeDataContainer::Some(_) => true,
-							EdgeDataContainer::Consumed => unreachable!(),
-						},
+					match edge.data {
+						EdgeDataContainer::Unset => false,
+						EdgeDataContainer::Some(_) => true,
+						EdgeDataContainer::Consumed => unreachable!(),
 					}
 				});
 
@@ -381,12 +332,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 						.into_iter()
 						.filter_map(|edge_idx| {
 							let (_, _, edge) = self.graph.get_edge_mut(edge_idx);
-							match edge {
-								EdgeSpec::After { .. } => None,
-								EdgeSpec::Data {
-									data, target_port, ..
-								} => Some((target_port.clone(), data.take().unwrap())),
-							}
+							Some((edge.target_port.clone(), edge.data.take().unwrap()))
 						})
 						.collect()
 				};
@@ -469,36 +415,29 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 				continue;
 			}
 
-			match edge {
-				EdgeSpec::After { released } => *released = true,
-				EdgeSpec::Data {
-					data, source_port, ..
-				} => {
-					if !matches!(data, EdgeDataContainer::Unset) {
-						panic!(
-							"tried to set edge data twice. node={:?}, port={:?}",
-							node_id, source_port
-						)
-					}
+			if !matches!(edge.data, EdgeDataContainer::Unset) {
+				panic!(
+					"tried to set edge data twice. node={:?}, port={:?}",
+					node_id, edge.source_port
+				)
+			}
 
-					let output = res.remove(&source_port);
-					if let Some(output) = output {
-						// TODO: only dupe if we have to
-						let (a, b) = output.dupe();
-						*data = EdgeDataContainer::Some(a);
-						res.insert(source_port.clone(), b);
-					} else {
-						warn!(
-							message = "An edge is connected to a node's output, but didn't receive data",
-							source_node_type = ?node_type,
-							source_node = ?node_id,
-							source_port = ?source_port
-						);
-						return Err(RunNodeError::UnrecognizedOutput {
-							port: source_port.clone(),
-						});
-					}
-				}
+			let output = res.remove(&edge.source_port);
+			if let Some(output) = output {
+				// TODO: only dupe if we have to
+				let (a, b) = output.dupe();
+				edge.data = EdgeDataContainer::Some(a);
+				res.insert(edge.source_port.clone(), b);
+			} else {
+				warn!(
+					message = "An edge is connected to a node's output, but didn't receive data",
+					source_node_type = ?node_type,
+					source_node = ?node_id,
+					source_port = ?edge.source_port
+				);
+				return Err(RunNodeError::UnrecognizedOutput {
+					port: edge.source_port.clone(),
+				});
 			}
 		}
 

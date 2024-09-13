@@ -16,8 +16,7 @@
 				"target": {
 					"node": "strip",
 					"port": "data"
-				},
-				"edge_type": "Data"
+				}
 			},
 			"2": {
 				"source": {
@@ -27,8 +26,7 @@
 				"target": {
 					"node": "extract",
 					"port": "data"
-				},
-				"edge_type": "Data"
+				}
 			},
 			"4": {
 				"source": {
@@ -38,8 +36,7 @@
 				"target": {
 					"node": "add",
 					"port": "audio_hash"
-				},
-				"edge_type": "Data"
+				}
 			},
 			"5": {
 				"source": {
@@ -49,8 +46,7 @@
 				"target": {
 					"node": "hash",
 					"port": "data"
-				},
-				"edge_type": "Data"
+				}
 			},
 
 			"7": {
@@ -61,8 +57,7 @@
 				"target": {
 					"node": "add",
 					"port": "title"
-				},
-				"edge_type": "Data"
+				}
 			},
 			"8": {
 				"source": {
@@ -72,8 +67,7 @@
 				"target": {
 					"node": "add",
 					"port": "album"
-				},
-				"edge_type": "Data"
+				}
 			},
 			"9": {
 				"source": {
@@ -83,8 +77,7 @@
 				"target": {
 					"node": "add",
 					"port": "artist"
-				},
-				"edge_type": "Data"
+				}
 			},
 			"10": {
 				"source": {
@@ -94,8 +87,7 @@
 				"target": {
 					"node": "add",
 					"port": "albumartist"
-				},
-				"edge_type": "Data"
+				}
 			},
 			"11": {
 				"source": {
@@ -105,8 +97,7 @@
 				"target": {
 					"node": "add",
 					"port": "tracknumber"
-				},
-				"edge_type": "Data"
+				}
 			},
 			"12": {
 				"source": {
@@ -116,8 +107,7 @@
 				"target": {
 					"node": "add",
 					"port": "year"
-				},
-				"edge_type": "Data"
+				}
 			},
 			"13": {
 				"source": {
@@ -127,8 +117,7 @@
 				"target": {
 					"node": "add",
 					"port": "genre"
-				},
-				"edge_type": "Data"
+				}
 			},
 			"14": {
 				"source": {
@@ -138,8 +127,7 @@
 				"target": {
 					"node": "add",
 					"port": "ISRC"
-				},
-				"edge_type": "Data"
+				}
 			},
 			"15": {
 				"source": {
@@ -149,8 +137,7 @@
 				"target": {
 					"node": "add",
 					"port": "lyrics"
-				},
-				"edge_type": "Data"
+				}
 			}
 		},
 		"nodes": {
