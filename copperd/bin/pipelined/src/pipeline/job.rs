@@ -1,6 +1,6 @@
 use copper_pipelined::base::{
 	NodeDispatcher, NodeId, NodeOutput, NodeParameterValue, PipelineData, PipelineJobContext,
-	PortName, RunNodeError,
+	PortName, RunNodeError, ThisNodeInfo,
 };
 use copper_util::graph::{finalized::FinalizedGraph, graph::Graph, util::GraphNodeIdx};
 use smartstring::{LazyCompact, SmartString};
@@ -11,8 +11,11 @@ use std::{
 	marker::PhantomData,
 	sync::Arc,
 };
-use tokio::task::JoinSet;
-use tracing::{debug, trace, warn};
+use tokio::{
+	sync::mpsc::{self, error::TryRecvError},
+	task::JoinSet,
+};
+use tracing::{debug, trace};
 
 use super::json::PipelineJson;
 
@@ -69,9 +72,9 @@ impl Error for PipelineBuildError {
 //
 
 struct NodeResult<DataType: PipelineData> {
-	result: Result<BTreeMap<PortName, NodeOutput<DataType>>, RunNodeError>,
-	node_idx: GraphNodeIdx,
+	result: Result<(), RunNodeError<DataType>>,
 	node_id: NodeId,
+	node_idx: GraphNodeIdx,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -99,14 +102,14 @@ struct NodeSpec<DataType: PipelineData> {
 #[derive(Debug)]
 enum EdgeDataContainer<DataType: PipelineData> {
 	Unset,
-	Some(NodeOutput<DataType>),
+	Some(Option<DataType>),
 	Consumed,
 }
 
 impl<DataType: PipelineData> EdgeDataContainer<DataType> {
 	/// Takes the value out of this container, leaving [`EdgeDataContainer::Consumed`] in its place.
 	/// Does nothing and returns None if this isn't [`EdgeDataContainer::Some`].
-	pub fn take(&mut self) -> Option<NodeOutput<DataType>> {
+	pub fn take(&mut self) -> Option<Option<DataType>> {
 		match self {
 			Self::Some(_) => {
 				let x = std::mem::replace(self, Self::Consumed);
@@ -175,7 +178,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 
 				for edge_idx in edges {
 					let (_, _, edge) = graph.get_edge_mut(edge_idx);
-					edge.data = EdgeDataContainer::Some(NodeOutput::Plain(Some(i_val.clone())))
+					edge.data = EdgeDataContainer::Some(Some(i_val.clone()))
 				}
 
 				graph.get_node_mut(idx).state = NodeState::Done;
@@ -274,7 +277,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 		mut self,
 		context: Arc<ContextType>,
 		dispatcher: &NodeDispatcher<DataType, ContextType>,
-	) -> Result<(), RunNodeError> {
+	) -> Result<(), RunNodeError<DataType>> {
 		trace!(
 			message = "Running job",
 			job_id = ?self.job_id,
@@ -284,12 +287,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 		let all_nodes: Vec<GraphNodeIdx> =
 			self.graph.iter_nodes_idx().map(|(idx, _)| idx).collect();
 
-		// TODO: handle dangling nodes & dangling edges
-		// TODO: handle double edges
-		// TODO: run all nodes at once
-		// TODO: limited threadpool for compute
-
 		let mut tasks = JoinSet::new();
+		let (tx, mut rx) = mpsc::channel::<NodeOutput<DataType>>(10);
 
 		loop {
 			//
@@ -326,7 +325,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 				);
 
 				// Take all inputs
-				let node_run_input: BTreeMap<PortName, NodeOutput<DataType>> = {
+				let node_run_input: BTreeMap<PortName, Option<DataType>> = {
 					let input_edges = Vec::from(self.graph.edges_ending_at(node_idx));
 					input_edges
 						.into_iter()
@@ -345,40 +344,86 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 				let params = node.node_params.clone();
 				let node_id = node.id.clone();
 				let node_type = node.node_type.clone();
-				let job_id = self.job_id.clone();
+				let tx = tx.clone();
 
 				// This should never fail, node types are checked at build time
 				let node_inst = dispatcher.init_node(&node.node_type).unwrap();
 				tasks.spawn(async move {
-					let result = node_inst.run(&ctx, params, node_run_input).await;
-
-					trace!(
-						message = "Node task finished",
-						?node_type,
-						?node_id,
-						?job_id,
-					);
+					let result = node_inst
+						.run(
+							&ctx,
+							ThisNodeInfo {
+								id: node_id.clone(),
+								idx: node_idx,
+								node_type: node_type.clone(),
+							},
+							params,
+							node_run_input,
+							tx,
+						)
+						.await;
 
 					NodeResult {
 						result,
-						node_idx,
 						node_id,
+						node_idx,
 					}
 				});
 			}
 
 			//
-			// Process task results
+			// Process node output
+			//
+			loop {
+				match rx.try_recv() {
+					Err(TryRecvError::Empty) => {
+						break;
+					}
+
+					Err(TryRecvError::Disconnected) => {
+						panic!()
+					}
+
+					Ok(x) => self.process_node_output(x).await?,
+				}
+			}
+
+			//
+			// Process finished tasks
 			//
 			while let Some(res) = tasks.try_join_next() {
 				let res = res?;
 
-				trace!(
-					message = "Node is done",
-					node_id = ?res.node_id,
-					job_id = ?self.job_id,
-				);
-				self.process_task_result(res).await?;
+				self.graph.get_node_mut(res.node_idx).state = NodeState::Done;
+
+				if let Err(err) = res.result {
+					trace!(
+						message = "Node run failed",
+						node_id = ?res.node_id,
+						job_id = ?self.job_id,
+						error = format!("{err:?}")
+					);
+					return Err(err);
+				} else {
+					trace!(
+						message = "Node finished without error",
+						node_id = ?res.node_id,
+						job_id = ?self.job_id,
+					);
+				}
+
+				// Make sure all edges starting at this node got output
+				for (from_node, _to_node, edge) in self.graph.iter_edges_mut() {
+					if from_node != res.node_idx {
+						continue;
+					}
+
+					if matches!(edge.data, EdgeDataContainer::Unset) {
+						return Err(RunNodeError::UnrecognizedOutput {
+							port: edge.source_port.clone(),
+						});
+					}
+				}
 			}
 
 			//
@@ -394,51 +439,36 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 			}
 		}
 
+		debug!(message = "Job finished", job_id = ?self.job_id);
+
 		return Ok(());
 	}
 
 	//
 	// MARK: Process task result
 	//
-	async fn process_task_result(&mut self, res: NodeResult<DataType>) -> Result<(), RunNodeError> {
-		let node = self.graph.get_node_mut(res.node_idx);
+	async fn process_node_output(
+		&mut self,
+		out: NodeOutput<DataType>,
+	) -> Result<(), RunNodeError<DataType>> {
+		let node = self.graph.get_node_mut(out.node.idx);
 		node.state = NodeState::Done;
-
-		let node_idx = res.node_idx;
-		let node_id = node.id.clone();
-		let node_type = node.node_type.clone();
-		let mut res = res.result?;
 
 		// Send output to edges
 		for (from_node, _to_node, edge) in self.graph.iter_edges_mut() {
-			if from_node != node_idx {
+			if from_node != out.node.idx || edge.source_port != out.port {
 				continue;
 			}
 
 			if !matches!(edge.data, EdgeDataContainer::Unset) {
-				panic!(
-					"tried to set edge data twice. node={:?}, port={:?}",
-					node_id, edge.source_port
-				)
-			}
-
-			let output = res.remove(&edge.source_port);
-			if let Some(output) = output {
-				// TODO: only dupe if we have to
-				let (a, b) = output.dupe();
-				edge.data = EdgeDataContainer::Some(a);
-				res.insert(edge.source_port.clone(), b);
-			} else {
-				warn!(
-					message = "An edge is connected to a node's output, but didn't receive data",
-					source_node_type = ?node_type,
-					source_node = ?node_id,
-					source_port = ?edge.source_port
-				);
-				return Err(RunNodeError::UnrecognizedOutput {
+				return Err(RunNodeError::OutputPortSetTwice {
+					node_id: out.node.id,
+					node_type: out.node.node_type,
 					port: edge.source_port.clone(),
 				});
 			}
+
+			edge.data = EdgeDataContainer::Some(out.data.clone());
 		}
 
 		return Ok(());

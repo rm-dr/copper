@@ -1,12 +1,17 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{error::Error, fmt::Display, sync::Arc};
-use tokio::{sync::oneshot, task::JoinError};
+use tokio::{sync::mpsc, task::JoinError};
 
-use super::PortName;
+use super::{NodeId, NodeOutput, PipelineData, PortName};
 
 /// An error we encounter while running a node
 #[derive(Debug, Clone)]
-pub enum RunNodeError {
+pub enum RunNodeError<DataType: PipelineData> {
+	//
+	// MARK: Errors in pipeline definition
+	//
+	//
+	//
 	/// We expected a parameter, but it wasn't there
 	UnexpectedParameter { parameter: SmartString<LazyCompact> },
 
@@ -37,16 +42,13 @@ pub enum RunNodeError {
 	/// An edge was connected to an output port of a node that doesn't exist
 	UnrecognizedOutput { port: PortName },
 
+	//
+	// MARK: Node runtime errors
+	//
+	//
+	//
 	/// A generic I/O error
 	IoError(Arc<std::io::Error>),
-
-	/// We encountered a RecvError while awaiting
-	/// an input to this node
-	InputReceiveError(oneshot::error::RecvError),
-
-	/// We encountered a RecvError while awaiting
-	/// an input to this node
-	TaskJoinError(Arc<JoinError>),
 
 	/// We tried to read from a byte stream, but that stream overflowed
 	/// and we missed data. If this happens, either a node isn't reading
@@ -55,16 +57,43 @@ pub enum RunNodeError {
 
 	/// An arbitrary error
 	Other(Arc<dyn Error + Sync + Send + 'static>),
+
+	//
+	// MARK: Critical errors
+	// (If we encounter these, our code is wrong)
+	//
+	//
+	//
+	/// We encountered a SendError while sending node output
+	OutputSendError(mpsc::error::SendError<NodeOutput<DataType>>),
+
+	/// A node task threw a JoinError
+	NodeTaskJoinError(Arc<JoinError>),
+
+	/// One output port got input twice
+	OutputPortSetTwice {
+		node_id: NodeId,
+		node_type: SmartString<LazyCompact>,
+		port: PortName,
+	},
 }
 
-impl Display for RunNodeError {
+impl<DataType: PipelineData> Display for RunNodeError<DataType> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::IoError(_) => write!(f, "I/O error"),
 			Self::MissingInput { port } => write!(f, "we did not receive input on port `{port}`"),
 			Self::Other(_) => write!(f, "Generic error"),
-			Self::InputReceiveError(_) => write!(f, "error while receiving input"),
-			Self::TaskJoinError(_) => write!(f, "error while joining task"),
+			Self::OutputPortSetTwice {
+				node_id,
+				node_type,
+				port,
+			} => write!(
+				f,
+				"node {node_id} ({node_type}) sent data to output {port} twice."
+			),
+			Self::OutputSendError(_) => write!(f, "error while sending output"),
+			Self::NodeTaskJoinError(_) => write!(f, "error while joining task"),
 			Self::StreamReceiverLagged => write!(f, "stream receiver lagged"),
 
 			Self::BadInputType { port } => {
@@ -102,32 +131,34 @@ impl Display for RunNodeError {
 	}
 }
 
-impl Error for RunNodeError {
+impl<DataType: PipelineData> Error for RunNodeError<DataType> {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::Other(x) => Some(x.as_ref()),
-			Self::InputReceiveError(x) => Some(x),
-			Self::TaskJoinError(x) => Some(x),
+			Self::OutputSendError(x) => Some(x),
+			Self::NodeTaskJoinError(x) => Some(x),
 			_ => return None,
 		}
 	}
 }
 
-impl From<std::io::Error> for RunNodeError {
+impl<DataType: PipelineData> From<std::io::Error> for RunNodeError<DataType> {
 	fn from(value: std::io::Error) -> Self {
 		Self::IoError(Arc::new(value))
 	}
 }
 
-impl From<oneshot::error::RecvError> for RunNodeError {
-	fn from(value: oneshot::error::RecvError) -> Self {
-		Self::InputReceiveError(value)
+impl<DataType: PipelineData> From<mpsc::error::SendError<NodeOutput<DataType>>>
+	for RunNodeError<DataType>
+{
+	fn from(value: mpsc::error::SendError<NodeOutput<DataType>>) -> Self {
+		Self::OutputSendError(value)
 	}
 }
 
-impl From<JoinError> for RunNodeError {
+impl<DataType: PipelineData> From<JoinError> for RunNodeError<DataType> {
 	fn from(value: JoinError) -> Self {
-		Self::TaskJoinError(Arc::new(value))
+		Self::NodeTaskJoinError(Arc::new(value))
 	}
 }
 
