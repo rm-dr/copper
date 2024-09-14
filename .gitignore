@@ -1,5 +1,11 @@
-# Only global ignores go here.
-# Each project dir provides its own .gitignore.
+# Root ignores
+/data
+
+# Generic ignores
+*.sqlite
 *.ignore
 .lycheecache
-/data
+
+# Copperd ignores
+copperd/target
+copperd/data
