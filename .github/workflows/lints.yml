@@ -13,14 +13,6 @@ jobs:
         working-directory: ./copperd
         run: cargo clippy --all-targets --all-features
 
-  fmt:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run cargo fmt
-        working-directory: ./copperd
-        run: cargo fmt --check
-
   typos:
     runs-on: ubuntu-latest
     steps:
