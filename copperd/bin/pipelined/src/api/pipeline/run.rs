@@ -73,9 +73,8 @@ pub(super) async fn run_pipeline(
 	let context = CopperContext {
 		blob_fragment_size: state.config.pipelined_blob_fragment_size,
 		stream_channel_capacity: state.config.pipelined_stream_channel_size,
-		objectstore_bucket: state.config.pipelined_objectstore_bucket.clone(),
-		storaged_client: state.storaged_client.clone(),
 		objectstore_client: state.objectstore_client.clone(),
+		storaged_client: state.storaged_client.clone(),
 		job_id: payload.job_id.clone(),
 	};
 

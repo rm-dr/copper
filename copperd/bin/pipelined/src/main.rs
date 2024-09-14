@@ -2,7 +2,7 @@ use api::RouterState;
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::config::Credentials;
 use config::{PipelinedConfig, ASYNC_POLL_AWAIT_MS};
-use copper_pipelined::{data::PipeData, CopperContext};
+use copper_pipelined::{data::PipeData, helpers::S3Client, CopperContext};
 use copper_storaged::client::ReqwestStoragedClient;
 use copper_util::load_env;
 use futures::TryFutureExt;
@@ -84,7 +84,9 @@ async fn main() {
 			.unwrap(),
 		),
 
-		objectstore_client: client,
+		objectstore_client: Arc::new(
+			S3Client::new(client.clone(), &config.pipelined_objectstore_bucket).await,
+		),
 
 		config,
 	};

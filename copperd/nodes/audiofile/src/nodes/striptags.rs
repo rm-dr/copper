@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::{BytesSource, PipeData},
-	helpers::{OpenBytesSourceReader, S3Reader},
+	helpers::OpenBytesSourceReader,
 	CopperContext,
 };
 use copper_util::MimeType;
@@ -56,10 +56,9 @@ impl Node<PipeData, CopperContext> for StripTags {
 
 			Some(PipeData::Blob { source, .. }) => match source {
 				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Array(receiver),
-				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
-					S3Reader::new(ctx.objectstore_client.clone(), &ctx.objectstore_bucket, key)
-						.await,
-				),
+				BytesSource::S3 { key } => {
+					OpenBytesSourceReader::S3(ctx.objectstore_client.create_reader(&key).await)
+				}
 			},
 			_ => {
 				return Err(RunNodeError::BadInputType {
