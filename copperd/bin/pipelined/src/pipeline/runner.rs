@@ -78,7 +78,6 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 	pub async fn run(&mut self) -> Result<(), JoinError> {
 		//
 		// Process finished jobs
-		// TODO: save finished jobs in state
 		//
 		while let Some(res) = self.running_jobs.try_join_next() {
 			let res = res?;

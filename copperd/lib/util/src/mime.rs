@@ -4,12 +4,12 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 use tracing::warn;
 
 /// A media type, conveniently parsed
+///
+/// We INTENTIONALLY do not implement `ToSchema` on MimeType, since it generates a bad impl.
+/// Instead, we use #[schema(value_type = String)] on any mimetype fields.
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Clone, SerializeDisplay, DeserializeFromStr)]
 pub enum MimeType {
-	// We INTENTIONALLY do not implement `ToSchema` on MimeType, since it generates a bad impl.
-	// Instead, we use #[schema(value_type = String)] on any mimetype fields.
-	// TODO: manually implement ToSchema here.
 	/// A mimetype we didn't recognize
 	Other(String),
 

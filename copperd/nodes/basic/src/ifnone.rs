@@ -70,12 +70,6 @@ impl Node<PipeData, CopperContext> for IfNone {
 			return Err(RunNodeError::UnrecognizedInput { port });
 		}
 
-		// If `data` is set, no need to await `ifnone`.
-		// Return it right away. Note that we do this AFTER
-		// extracting the `ifnone` output, so that all output get checked
-		// even if `data` is `some`.
-		//
-		// TODO: statically check types?
 		if let Some(data) = data {
 			output
 				.send(NodeOutput {

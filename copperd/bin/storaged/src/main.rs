@@ -1,8 +1,3 @@
-//! Copper's storage daemon
-//!
-//! This daemon stores datasets and wraps all operations on them.
-//! TODO: more details
-
 use api::RouterState;
 use axum::Router;
 use config::StoragedConfig;

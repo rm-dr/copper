@@ -57,7 +57,6 @@ pub(super) async fn run_pipeline(
 
 	let mut input = BTreeMap::new();
 	for (name, value) in payload.input {
-		// TODO: handle special cases (unwrap)
 		match value {
 			AttrData::Blob { object_key } => input.insert(
 				name,
@@ -80,7 +79,6 @@ pub(super) async fn run_pipeline(
 		job_id: payload.job_id.clone(),
 	};
 
-	// TODO: pipeline name -> jobid
 	runner.add_job(context, payload.pipeline, &payload.job_id, input);
 
 	return StatusCode::OK.into_response();

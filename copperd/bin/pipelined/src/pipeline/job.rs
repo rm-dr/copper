@@ -340,7 +340,6 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 		let input_nodes: Vec<(GraphNodeIdx, NodeId)> = finalized_graph
 			.iter_nodes_idx()
 			.filter_map(|(idx, node)| {
-				// TODO: const & reserve in dispatcher
 				if node.node_type == INPUT_NODE_TYPE {
 					return Some((idx, node.id.clone()));
 				} else {
@@ -352,7 +351,6 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 		// ...and "run" them.
 		for (idx, node_id) in input_nodes {
 			if let Some(i_val) = input.get(node_id.id()) {
-				// TODO: no clone
 				let edges = Vec::from(finalized_graph.edges_starting_at(idx));
 
 				for edge_idx in edges {

@@ -11,7 +11,6 @@ pub enum AddDatasetError {
 	DbError(Box<dyn Error + Send + Sync>),
 
 	/// A dataset with this name already exists
-	/// TODO: scope to user
 	UniqueViolation,
 
 	/// We tried to create a dataset with an invalid name

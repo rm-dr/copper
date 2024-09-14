@@ -71,7 +71,6 @@ impl Node<PipeData, CopperContext> for StripTags {
 		//
 		// Send output handle
 		//
-		// TODO: channel size
 		let (tx, rx) = broadcast::channel(ctx.stream_channel_capacity);
 		output
 			.send(NodeOutput {
@@ -130,9 +129,6 @@ impl Node<PipeData, CopperContext> for StripTags {
 					}
 
 					if out_bytes.len() >= ctx.blob_fragment_size {
-						// TODO: config sizes
-						// TODO: no unwrap
-						// TODO: return tasks
 						let x = std::mem::replace(&mut out_bytes, Vec::new());
 						tx.send(Arc::new(x))?;
 					}
