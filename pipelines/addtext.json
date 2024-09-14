@@ -5,7 +5,7 @@
 		"edges": {
 			"e": {
 				"source": {
-					"node": "testdata",
+					"node": "input",
 					"port": "out"
 				},
 				"target": {
@@ -15,9 +15,14 @@
 			}
 		},
 		"nodes": {
-			"testdata": {
+			"input": {
 				"node_type": "Input",
-				"params": {}
+				"params": {
+					"input_name": {
+						"parameter_type": "String",
+						"value": "testdata"
+					}
+				}
 			},
 			"b": {
 				"node_type": "AddItem",

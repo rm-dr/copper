@@ -44,6 +44,9 @@ pub enum PipelineBuildError {
 
 	/// We expected an input, but it wasn't provided
 	MissingInput { input: SmartString<LazyCompact> },
+
+	/// An input node wasn't specified properly
+	InvalidInputNode { node: NodeId },
 }
 
 impl Display for PipelineBuildError {
@@ -69,6 +72,10 @@ impl Display for PipelineBuildError {
 
 			Self::MissingInput { input } => {
 				writeln!(f, "missing pipeline input `{input}`")
+			}
+
+			Self::InvalidInputNode { node } => {
+				writeln!(f, "Input node `{node}` is invalid")
 			}
 		}
 	}
@@ -335,11 +342,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 
 		trace!(message = "Filling edges connected to input nodes", job_id);
 		// Find input nodes...
-		let input_nodes: Vec<(GraphNodeIdx, NodeId)> = finalized_graph
+		let input_nodes: Vec<GraphNodeIdx> = finalized_graph
 			.iter_nodes_idx()
 			.filter_map(|(idx, node)| {
 				if node.node_type == INPUT_NODE_TYPE {
-					return Some((idx, node.id.clone()));
+					return Some(idx);
 				} else {
 					return None;
 				}
@@ -347,8 +354,24 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 			.collect();
 
 		// ...and "run" them.
-		for (idx, node_id) in input_nodes {
-			if let Some(i_val) = input.get(node_id.id()) {
+		for idx in input_nodes {
+			let node = finalized_graph.get_node(idx);
+			let input_param =
+				node.node_params
+					.get("input_name")
+					.ok_or(PipelineBuildError::InvalidInputNode {
+						node: node.id.clone(),
+					})?;
+			let input_name: SmartString<LazyCompact> = match input_param {
+				NodeParameterValue::String(s) => s.clone(),
+				_ => {
+					return Err(PipelineBuildError::InvalidInputNode {
+						node: node.id.clone(),
+					})
+				}
+			};
+
+			if let Some(i_val) = input.get(&input_name) {
 				let edges = Vec::from(finalized_graph.edges_starting_at(idx));
 
 				for edge_idx in edges {
@@ -358,9 +381,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 
 				finalized_graph.get_node_mut(idx).state = NodeState::Done;
 			} else {
-				return Err(PipelineBuildError::MissingInput {
-					input: node_id.id().clone(),
-				});
+				return Err(PipelineBuildError::MissingInput { input: input_name });
 			}
 		}
 
