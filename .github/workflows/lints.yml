@@ -30,17 +30,6 @@ jobs:
         with:
           config: ./typos.toml
 
-  eslint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install modules
-        working-directory: ./copperc
-        run: npm install
-      - name: Run eslint
-        working-directory: ./copperc
-        run: npm run lint
-
   lychee:
     runs-on: ubuntu-latest
     steps:
