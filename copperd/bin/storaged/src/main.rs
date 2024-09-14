@@ -107,6 +107,7 @@ mod tests {
 			Request::builder()
 				.method(method)
 				.header(axum::http::header::CONTENT_TYPE, "application/json")
+				.header(axum::http::header::AUTHORIZATION, "Bearer i_m_secret")
 				.uri(url)
 				.body(Body::from(serde_json::to_string(&body).unwrap()))
 				.unwrap(),
