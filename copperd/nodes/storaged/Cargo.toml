@@ -24,3 +24,4 @@ tracing = { workspace = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 smartstring = { workspace = true }
+rand = { workspace = true }

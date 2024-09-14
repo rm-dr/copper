@@ -48,7 +48,16 @@
 					"port": "data"
 				}
 			},
-
+			"6": {
+				"source": {
+					"node": "strip",
+					"port": "out"
+				},
+				"target": {
+					"node": "add",
+					"port": "audio_data"
+				}
+			},
 			"7": {
 				"source": {
 					"node": "extract",

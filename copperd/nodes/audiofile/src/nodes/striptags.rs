@@ -4,7 +4,7 @@ use crate::flac::proc::metastrip::FlacMetaStrip;
 use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
-	data::{BytesSource, PipeData},
+	data::{BytesSource, BytesStreamPacket, PipeData},
 	helpers::OpenBytesSourceReader,
 	CopperContext,
 };
@@ -12,7 +12,7 @@ use copper_util::MimeType;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc};
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 /// Strip all metadata from an audio file
 pub struct StripTags {}
@@ -108,8 +108,11 @@ impl Node<PipeData, CopperContext> for StripTags {
 					match rec {
 						Ok(d) => {
 							strip
-								.push_data(&d)
+								.push_data(&d.data)
 								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+							if d.is_last {
+								break;
+							}
 						}
 
 						Err(broadcast::error::RecvError::Lagged(_)) => {
@@ -117,6 +120,11 @@ impl Node<PipeData, CopperContext> for StripTags {
 						}
 
 						Err(broadcast::error::RecvError::Closed) => {
+							warn!(
+								message = "Receiver was closed before receiving last packet",
+								node_id = ?this_node.id,
+								node_type = ?this_node.node_type
+							);
 							break;
 						}
 					}
@@ -129,7 +137,11 @@ impl Node<PipeData, CopperContext> for StripTags {
 
 					if out_bytes.len() >= ctx.blob_fragment_size {
 						let x = std::mem::replace(&mut out_bytes, Vec::new());
-						tx.send(Arc::new(x))?;
+						tx.send(BytesStreamPacket {
+							data: Arc::new(x),
+							is_last: false,
+						})
+						.map_err(|_| RunNodeError::StreamSendError)?;
 					}
 				}
 
@@ -143,7 +155,11 @@ impl Node<PipeData, CopperContext> for StripTags {
 						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 				}
 
-				tx.send(Arc::new(out_bytes))?;
+				tx.send(BytesStreamPacket {
+					data: Arc::new(out_bytes),
+					is_last: true,
+				})
+				.map_err(|_| RunNodeError::StreamSendError)?;
 			}
 
 			OpenBytesSourceReader::S3(mut r) => {
@@ -185,7 +201,11 @@ impl Node<PipeData, CopperContext> for StripTags {
 							n_bytes = x.len(),
 							node_id = ?this_node.id
 						);
-						tx.send(Arc::new(x))?;
+						tx.send(BytesStreamPacket {
+							data: Arc::new(x),
+							is_last: false,
+						})
+						.map_err(|_| RunNodeError::StreamSendError)?;
 					}
 				}
 
@@ -208,7 +228,11 @@ impl Node<PipeData, CopperContext> for StripTags {
 					n_bytes = out_bytes.len(),
 					node_id = ?this_node.id
 				);
-				tx.send(Arc::new(out_bytes))?;
+				tx.send(BytesStreamPacket {
+					data: Arc::new(out_bytes),
+					is_last: true,
+				})
+				.map_err(|_| RunNodeError::StreamSendError)?;
 			}
 		}
 

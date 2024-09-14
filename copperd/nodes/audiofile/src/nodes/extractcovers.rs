@@ -2,13 +2,14 @@ use crate::flac::proc::pictures::FlacPictureReader;
 use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
-	data::{BytesSource, PipeData},
+	data::{BytesSource, BytesStreamPacket, PipeData},
 	helpers::OpenBytesSourceReader,
 	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc};
+use tracing::warn;
 
 pub struct ExtractCovers {}
 
@@ -76,8 +77,12 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 					match rec {
 						Ok(d) => {
 							reader
-								.push_data(&d)
+								.push_data(&d.data)
 								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+
+							if d.is_last {
+								break;
+							}
 						}
 
 						Err(broadcast::error::RecvError::Lagged(_)) => {
@@ -85,6 +90,11 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 						}
 
 						Err(broadcast::error::RecvError::Closed) => {
+							warn!(
+								message = "Receiver was closed before receiving last packet",
+								node_id = ?this_node.id,
+								node_type = ?this_node.node_type
+							);
 							break;
 						}
 					}
@@ -124,7 +134,11 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 		if let Some(picture) = reader.pop_picture() {
 			// Pictures are loaded into memory anyway, so we don't need to stream them.
 			let (tx, rx) = broadcast::channel(1);
-			tx.send(Arc::new(picture.img_data))?;
+			tx.send(BytesStreamPacket {
+				data: Arc::new(picture.img_data),
+				is_last: true,
+			})
+			.map_err(|_| RunNodeError::StreamSendError)?;
 
 			output
 				.send(NodeOutput {

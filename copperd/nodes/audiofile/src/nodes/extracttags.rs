@@ -12,6 +12,7 @@ use copper_pipelined::{
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc};
+use tracing::warn;
 
 /// Extract tags from audio metadata
 pub struct ExtractTags {}
@@ -112,8 +113,11 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 					match rec {
 						Ok(d) => {
 							reader
-								.push_data(&d)
+								.push_data(&d.data)
 								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+							if d.is_last {
+								break;
+							}
 						}
 
 						Err(broadcast::error::RecvError::Lagged(_)) => {
@@ -121,6 +125,11 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 						}
 
 						Err(broadcast::error::RecvError::Closed) => {
+							warn!(
+								message = "Receiver was closed before receiving last packet",
+								node_id = ?this_node.id,
+								node_type = ?this_node.node_type
+							);
 							break;
 						}
 					}
