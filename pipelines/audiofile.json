@@ -1,7 +1,7 @@
 {
 	"job_id": "audiofile",
 	"input": {
-		"testdata": {
+		"file_data": {
 			"type": "Blob",
 			"object_key": "Avril Lavigne - Complicated.flac"
 		}
@@ -10,7 +10,7 @@
 		"edges": {
 			"1": {
 				"source": {
-					"node": "testdata",
+					"node": "input",
 					"port": "out"
 				},
 				"target": {
@@ -20,7 +20,7 @@
 			},
 			"2": {
 				"source": {
-					"node": "testdata",
+					"node": "input",
 					"port": "out"
 				},
 				"target": {
@@ -150,9 +150,14 @@
 			}
 		},
 		"nodes": {
-			"testdata": {
+			"input": {
 				"node_type": "Input",
-				"params": {}
+				"params": {
+					"input_name": {
+						"parameter_type": "String",
+						"value": "file_data"
+					}
+				}
 			},
 			"strip": {
 				"node_type": "StripTags"
