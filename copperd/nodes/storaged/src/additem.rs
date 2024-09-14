@@ -78,7 +78,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 			}
 
 			match data {
-				Some(PipeData::Blob { source, .. }) => {
+				Some(PipeData::Blob { source }) => {
 					// TODO: recompute if exists
 					let new_obj_key: String = rand::thread_rng()
 						.sample_iter(&Alphanumeric)
@@ -86,44 +86,57 @@ impl Node<PipeData, CopperContext> for AddItem {
 						.map(char::from)
 						.collect();
 
-					let mut upload = ctx
-						.objectstore_client
-						.create_multipart_upload(&new_obj_key)
-						.await;
-
 					let mut part_counter = 1;
 
-					match source {
-						BytesSource::Stream { mut receiver, .. } => loop {
-							let rec = receiver.recv().await;
-							match rec {
-								Ok(d) => {
-									upload.upload_part(&d.data, part_counter).await;
-									part_counter += 1;
-									if d.is_last {
+					let upload = match source {
+						BytesSource::Stream {
+							mut receiver, mime, ..
+						} => {
+							let mut upload = ctx
+								.objectstore_client
+								.create_multipart_upload(&new_obj_key, mime)
+								.await;
+
+							loop {
+								let rec = receiver.recv().await;
+
+								match rec {
+									Ok(d) => {
+										upload.upload_part(&d.data, part_counter).await;
+										part_counter += 1;
+										if d.is_last {
+											break;
+										}
+									}
+
+									Err(broadcast::error::RecvError::Lagged(_)) => {
+										return Err(RunNodeError::StreamReceiverLagged)
+									}
+
+									Err(broadcast::error::RecvError::Closed) => {
+										warn!(
+											message = "Receiver was closed before receiving last packet",
+											node_id = ?this_node.id,
+											node_type = ?this_node.node_type
+										);
 										break;
 									}
 								}
-
-								Err(broadcast::error::RecvError::Lagged(_)) => {
-									return Err(RunNodeError::StreamReceiverLagged)
-								}
-
-								Err(broadcast::error::RecvError::Closed) => {
-									warn!(
-										message = "Receiver was closed before receiving last packet",
-										node_id = ?this_node.id,
-										node_type = ?this_node.node_type
-									);
-									break;
-								}
 							}
-						},
+
+							upload
+						}
 
 						BytesSource::S3 { key } => {
 							let mut reader = ctx.objectstore_client.create_reader(&key).await;
 
+							let mut upload = ctx
+								.objectstore_client
+								.create_multipart_upload(&new_obj_key, reader.mime().clone())
+								.await;
+
 							let mut read_buf = vec![0u8; ctx.blob_fragment_size];
+
 							loop {
 								let l = reader.read(&mut read_buf).await.unwrap();
 
@@ -134,6 +147,8 @@ impl Node<PipeData, CopperContext> for AddItem {
 									part_counter += 1;
 								}
 							}
+
+							upload
 						}
 					};
 

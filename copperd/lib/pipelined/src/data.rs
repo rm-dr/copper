@@ -47,9 +47,6 @@ pub enum PipeData {
 	/// This will be stored in the metadata db.
 	#[serde(skip)]
 	Blob {
-		/// This data's media type
-		mime: MimeType,
-
 		/// The data
 		source: BytesSource,
 	},
@@ -78,6 +75,9 @@ pub struct BytesStreamPacket {
 #[derive(Debug)]
 pub enum BytesSource {
 	Stream {
+		/// This data's media type
+		mime: MimeType,
+
 		/// Used to clone this variant. This should never be used by clients.
 		sender: broadcast::Sender<BytesStreamPacket>,
 		receiver: broadcast::Receiver<BytesStreamPacket>,
@@ -91,8 +91,9 @@ impl Clone for BytesSource {
 	fn clone(&self) -> Self {
 		match self {
 			Self::S3 { key } => Self::S3 { key: key.clone() },
-			Self::Stream { sender, .. } => {
+			Self::Stream { sender, mime, .. } => {
 				return Self::Stream {
+					mime: mime.clone(),
 					sender: sender.clone(),
 					receiver: sender.subscribe(),
 				}

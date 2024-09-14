@@ -76,8 +76,8 @@ impl Node<PipeData, CopperContext> for StripTags {
 				node: this_node.clone(),
 				port: PortName::new("out"),
 				data: Some(PipeData::Blob {
-					mime: MimeType::Flac,
 					source: BytesSource::Stream {
+						mime: MimeType::Flac,
 						sender: tx.clone(),
 						receiver: rx,
 					},

@@ -145,8 +145,8 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 					node: this_node,
 					port: PortName::new("cover_data"),
 					data: Some(PipeData::Blob {
-						mime: picture.mime.clone(),
 						source: BytesSource::Stream {
+							mime: picture.mime.clone(),
 							sender: tx.clone(),
 							receiver: rx,
 						},
