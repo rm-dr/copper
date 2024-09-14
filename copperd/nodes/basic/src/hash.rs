@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::{BytesSource, PipeData},
-	helpers::{OpenBytesSourceReader, S3Reader},
+	helpers::OpenBytesSourceReader,
 	CopperContext,
 };
 use copper_util::HashType;
@@ -13,7 +13,7 @@ use std::{
 	io::{Cursor, Read},
 };
 use tokio::sync::{broadcast, mpsc};
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 enum HashComputer {
 	MD5 { context: md5::Context },
@@ -137,10 +137,9 @@ impl Node<PipeData, CopperContext> for Hash {
 
 			Some(PipeData::Blob { source, .. }) => match source {
 				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Array(receiver),
-				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
-					S3Reader::new(ctx.objectstore_client.clone(), &ctx.objectstore_bucket, key)
-						.await,
-				),
+				BytesSource::S3 { key } => {
+					OpenBytesSourceReader::S3(ctx.objectstore_client.create_reader(&key).await)
+				}
 			},
 
 			_ => {
@@ -171,24 +170,30 @@ impl Node<PipeData, CopperContext> for Hash {
 
 				loop {
 					let rec = receiver.recv().await;
+
 					match rec {
 						Ok(d) => {
 							trace!(
 								message = "Got array bytes",
-								length = d.len(),
+								length = d.data.len(),
 								node_id = ?this_node.id,
+								is_last = d.is_last,
 							);
 
 							// Take and return ownership of `hasher`
 							hasher = tokio::task::spawn_blocking(move || {
-								let res = hasher.update(&mut Cursor::new(&*d));
+								let res = hasher.update(&mut Cursor::new(&*d.data));
 								if let Err(e) = res {
 									return Err(e);
 								} else {
 									return Ok(hasher);
 								}
 							})
-							.await??
+							.await??;
+
+							if d.is_last {
+								break;
+							}
 						}
 
 						Err(broadcast::error::RecvError::Lagged(_)) => {
@@ -196,6 +201,11 @@ impl Node<PipeData, CopperContext> for Hash {
 						}
 
 						Err(broadcast::error::RecvError::Closed) => {
+							warn!(
+								message = "Receiver was closed before receiving last packet",
+								node_id = ?this_node.id,
+								node_type = ?this_node.node_type
+							);
 							break;
 						}
 					}
@@ -208,9 +218,9 @@ impl Node<PipeData, CopperContext> for Hash {
 					node_id = ?this_node.id,
 				);
 
-				let mut buf = [0u8; 1_000_000];
+				let mut read_buf = vec![0u8; ctx.blob_fragment_size];
 				loop {
-					let l = r.read(&mut buf).await.unwrap();
+					let l = r.read(&mut read_buf).await.unwrap();
 					trace!(
 						message = "Read bytes",
 						n_bytes = l,
@@ -220,14 +230,14 @@ impl Node<PipeData, CopperContext> for Hash {
 					if l != 0 {
 						break;
 					} else {
-						// Take and return ownership of `hasher`
-						hasher = tokio::task::spawn_blocking(move || {
-							let res =
-								hasher.update(&mut Cursor::new(&buf).take(l.try_into().unwrap()));
+						// Take and return ownership of `hasher` and `read_buf`
+						(hasher, read_buf) = tokio::task::spawn_blocking(move || {
+							let res = hasher
+								.update(&mut Cursor::new(&read_buf).take(l.try_into().unwrap()));
 							if let Err(e) = res {
 								return Err(e);
 							} else {
-								return Ok(hasher);
+								return Ok((hasher, read_buf));
 							}
 						})
 						.await??;

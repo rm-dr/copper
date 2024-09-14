@@ -3,14 +3,15 @@ use copper_pipelined::{
 	base::{
 		Node, NodeOutput, NodeParameterValue, PipelineData, PortName, RunNodeError, ThisNodeInfo,
 	},
-	data::{PipeData, PipeDataStub},
+	data::{BytesSource, PipeData, PipeDataStub},
 	CopperContext,
 };
 use copper_storaged::{AttrData, AttributeInfo, ClassId, Transaction, TransactionAction};
+use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::mpsc;
-use tracing::{debug, trace};
+use tokio::sync::{broadcast, mpsc};
+use tracing::{debug, trace, warn};
 
 pub struct AddItem {}
 
@@ -21,7 +22,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 	async fn run(
 		&self,
 		ctx: &CopperContext,
-		_this_node: ThisNodeInfo,
+		this_node: ThisNodeInfo,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 		_output: mpsc::Sender<NodeOutput<PipeData>>,
@@ -77,8 +78,71 @@ impl Node<PipeData, CopperContext> for AddItem {
 			}
 
 			match data {
-				Some(PipeData::Blob { .. }) => {
-					unimplemented!()
+				Some(PipeData::Blob { source, .. }) => {
+					// TODO: recompute if exists
+					let new_obj_key: String = rand::thread_rng()
+						.sample_iter(&Alphanumeric)
+						.take(32)
+						.map(char::from)
+						.collect();
+
+					let mut upload = ctx
+						.objectstore_client
+						.create_multipart_upload(&new_obj_key)
+						.await;
+
+					let mut part_counter = 1;
+
+					match source {
+						BytesSource::Stream { mut receiver, .. } => loop {
+							let rec = receiver.recv().await;
+							match rec {
+								Ok(d) => {
+									upload.upload_part(&d.data, part_counter).await;
+									part_counter += 1;
+									if d.is_last {
+										break;
+									}
+								}
+
+								Err(broadcast::error::RecvError::Lagged(_)) => {
+									return Err(RunNodeError::StreamReceiverLagged)
+								}
+
+								Err(broadcast::error::RecvError::Closed) => {
+									warn!(
+										message = "Receiver was closed before receiving last packet",
+										node_id = ?this_node.id,
+										node_type = ?this_node.node_type
+									);
+									break;
+								}
+							}
+						},
+
+						BytesSource::S3 { key } => {
+							let mut reader = ctx.objectstore_client.create_reader(&key).await;
+
+							let mut read_buf = vec![0u8; ctx.blob_fragment_size];
+							loop {
+								let l = reader.read(&mut read_buf).await.unwrap();
+
+								if l != 0 {
+									break;
+								} else {
+									upload.upload_part(&read_buf, part_counter).await;
+									part_counter += 1;
+								}
+							}
+						}
+					};
+
+					upload.finish().await;
+
+					let attr = attributes.get_mut(&port).unwrap();
+					attr.1 = Some(AttrData::Blob {
+						object_key: new_obj_key,
+					})
 				}
 
 				Some(x) => {

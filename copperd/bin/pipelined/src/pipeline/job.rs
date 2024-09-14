@@ -76,9 +76,7 @@ impl Display for PipelineBuildError {
 
 impl Error for PipelineBuildError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			_ => None,
-		}
+		None
 	}
 }
 
@@ -393,7 +391,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 		// This is a problem, because this loop will block the async runtime,
 		// which prevents interesting things from happening.
 		//
-		// We've thus sprinkled `yield_now` througout this loop.
+		// We've thus added `yield_now` to this loop.
 		loop {
 			//
 			// Start nodes
@@ -424,9 +422,9 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 					let input_edges = Vec::from(self.graph.edges_ending_at(node_idx));
 					input_edges
 						.into_iter()
-						.filter_map(|edge_idx| {
+						.map(|edge_idx| {
 							let (_, _, edge) = self.graph.get_edge_mut(edge_idx);
-							Some((edge.target_port.clone(), edge.data.take().unwrap()))
+							(edge.target_port.clone(), edge.data.take().unwrap())
 						})
 						.collect()
 				};

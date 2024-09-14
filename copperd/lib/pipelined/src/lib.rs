@@ -4,6 +4,7 @@ pub mod helpers;
 
 use base::PipelineJobContext;
 use copper_storaged::client::StoragedClient;
+use helpers::S3Client;
 use smartstring::{LazyCompact, SmartString};
 use std::sync::Arc;
 
@@ -21,8 +22,7 @@ pub struct CopperContext {
 	pub stream_channel_capacity: usize,
 
 	pub storaged_client: Arc<dyn StoragedClient>,
-	pub objectstore_client: Arc<aws_sdk_s3::Client>,
-	pub objectstore_bucket: String,
+	pub objectstore_client: Arc<S3Client>,
 	pub job_id: SmartString<LazyCompact>,
 }
 

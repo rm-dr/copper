@@ -1,9 +1,6 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{error::Error, fmt::Display, sync::Arc};
-use tokio::{
-	sync::{broadcast, mpsc},
-	task::JoinError,
-};
+use tokio::{sync::mpsc, task::JoinError};
 
 use super::{NodeId, NodeOutput, PipelineData, PortName};
 
@@ -71,7 +68,7 @@ pub enum RunNodeError<DataType: PipelineData> {
 	OutputSendError(mpsc::error::SendError<NodeOutput<DataType>>),
 
 	/// We encountered a SendError while sending a stream fragment
-	StreamSendError(Arc<broadcast::error::SendError<Arc<Vec<u8>>>>),
+	StreamSendError,
 
 	/// A node task threw a JoinError
 	NodeTaskJoinError(Arc<JoinError>),
@@ -101,7 +98,7 @@ impl<DataType: PipelineData> Display for RunNodeError<DataType> {
 			Self::OutputSendError(_) => write!(f, "error while sending output"),
 			Self::NodeTaskJoinError(_) => write!(f, "error while joining task"),
 			Self::StreamReceiverLagged => write!(f, "stream receiver lagged"),
-			Self::StreamSendError(_) => write!(f, "error while sending stream"),
+			Self::StreamSendError => write!(f, "error while sending stream"),
 
 			Self::BadInputType { port } => {
 				write!(f, "received bad data type on port `{port}`")
@@ -144,7 +141,6 @@ impl<DataType: PipelineData> Error for RunNodeError<DataType> {
 			Self::Other(x) => Some(x.as_ref()),
 			Self::OutputSendError(x) => Some(x),
 			Self::NodeTaskJoinError(x) => Some(x),
-			Self::StreamSendError(x) => Some(x),
 			_ => return None,
 		}
 	}
@@ -161,14 +157,6 @@ impl<DataType: PipelineData> From<mpsc::error::SendError<NodeOutput<DataType>>>
 {
 	fn from(value: mpsc::error::SendError<NodeOutput<DataType>>) -> Self {
 		Self::OutputSendError(value)
-	}
-}
-
-impl<DataType: PipelineData> From<broadcast::error::SendError<Arc<Vec<u8>>>>
-	for RunNodeError<DataType>
-{
-	fn from(value: broadcast::error::SendError<Arc<Vec<u8>>>) -> Self {
-		Self::StreamSendError(Arc::new(value))
 	}
 }
 
@@ -213,8 +201,6 @@ impl Display for ProcessSignalError {
 
 impl Error for ProcessSignalError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			_ => return None,
-		}
+		return None;
 	}
 }

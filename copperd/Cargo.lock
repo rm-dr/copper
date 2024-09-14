@@ -2435,6 +2435,7 @@ dependencies = [
  "async-trait",
  "copper-pipelined",
  "copper-storaged",
+ "rand",
  "smartstring",
  "tokio",
  "tracing",

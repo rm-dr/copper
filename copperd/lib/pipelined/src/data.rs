@@ -64,14 +64,23 @@ pub enum PipeData {
 	},
 }
 
+#[derive(Clone)]
+pub struct BytesStreamPacket {
+	pub data: Arc<Vec<u8>>,
+
+	/// If this is true, this is the last packet that will be sent.
+	///
+	/// We need this to know when our receiver is closed.
+	/// The channel won't be dropped, since we store a copy of the sender.
+	pub is_last: bool,
+}
+
 #[derive(Debug)]
 pub enum BytesSource {
 	Stream {
-		/// Used to clone this variant. This should never be used by clients,
-		/// and MUST be dropped when we start reading `receiver`. If it isn't,
-		/// the channel won't be closed and we'll be stuck waiting for our data to end.
-		sender: broadcast::Sender<Arc<Vec<u8>>>,
-		receiver: broadcast::Receiver<Arc<Vec<u8>>>,
+		/// Used to clone this variant. This should never be used by clients.
+		sender: broadcast::Sender<BytesStreamPacket>,
+		receiver: broadcast::Receiver<BytesStreamPacket>,
 	},
 	S3 {
 		key: String,
@@ -149,11 +158,7 @@ impl TryFrom<AttrData> for PipeData {
 			AttrData::Text { value } => Self::Text { value },
 			AttrData::Boolean { value } => Self::Boolean { value },
 			AttrData::Hash { hash_type, data } => Self::Hash { hash_type, data },
-
-			AttrData::Reference { class, item } => Self::Reference {
-				class: class.into(),
-				item: item.into(),
-			},
+			AttrData::Reference { class, item } => Self::Reference { class, item },
 
 			AttrData::Float {
 				value,
@@ -183,11 +188,7 @@ impl TryInto<AttrData> for PipeData {
 			Self::Text { value } => AttrData::Text { value },
 			Self::Boolean { value } => AttrData::Boolean { value },
 			Self::Hash { hash_type, data } => AttrData::Hash { hash_type, data },
-
-			Self::Reference { class, item } => AttrData::Reference {
-				class: class.into(),
-				item: item.into(),
-			},
+			Self::Reference { class, item } => AttrData::Reference { class, item },
 
 			Self::Float {
 				value,

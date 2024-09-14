@@ -2,6 +2,7 @@ use axum::{extract::DefaultBodyLimit, Router};
 use copper_pipelined::{
 	base::NodeParameterValue,
 	data::{PipeData, PipeDataStub},
+	helpers::S3Client,
 	CopperContext,
 };
 use copper_storaged::{client::StoragedClient, AttrData, AttrDataStub};
@@ -30,7 +31,7 @@ pub struct RouterState {
 	pub config: Arc<PipelinedConfig>,
 	pub runner: Arc<Mutex<PipelineRunner<PipeData, CopperContext>>>,
 	pub storaged_client: Arc<dyn StoragedClient>,
-	pub objectstore_client: Arc<aws_sdk_s3::Client>,
+	pub objectstore_client: Arc<S3Client>,
 }
 
 struct BearerSecurityAddon;
