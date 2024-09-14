@@ -4,6 +4,15 @@ use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use tracing::{debug, info};
 
+/// `await` for this many ms between successive polls
+/// of pipeline tasks. This constant is used in a few
+/// different contexts, but it's purpose remains the same.
+///
+/// If this duration is too long, we'll waste time waiting
+/// but if it is too short we'll cpu cycles checking
+/// unfinished futures and switching tasks.
+pub const ASYNC_POLL_AWAIT_MS: u64 = 10;
+
 /// Note that the field of this struct are not capitalized.
 /// Envy is case-insensitive, and expects Rust fields to be snake_case.
 #[derive(Debug, Deserialize)]
@@ -21,8 +30,8 @@ pub struct PipelinedConfig {
 	pub pipelined_stream_channel_size: usize,
 
 	/// How many pipeline jobs to run at once
-	#[serde(default = "PipelinedConfig::default_parallel_jobs")]
-	pub pipelined_parallel_jobs: usize,
+	#[serde(default = "PipelinedConfig::default_max_running_jobs")]
+	pub pipelined_max_running_jobs: usize,
 
 	/// Maximum request body size, in bytes
 	/// If you're using a reverse proxy, make sure it
@@ -66,7 +75,7 @@ impl PipelinedConfig {
 		16
 	}
 
-	fn default_parallel_jobs() -> usize {
+	fn default_max_running_jobs() -> usize {
 		4
 	}
 
@@ -84,7 +93,12 @@ impl PipelinedConfig {
 			format!("aws_smithy_runtime_api={}", LogLevel::Warn),
 			format!("aws_sigv4={}", LogLevel::Warn),
 			format!("hyper={}", LogLevel::Warn),
+			format!("pipelined::pipeline::job={}", LogLevel::Debug),
 			format!("pipelined={}", LogLevel::Trace),
+			// Node implementations
+			format!("pipelined_storaged={}", LogLevel::Warn),
+			format!("pipelined_basic={}", LogLevel::Warn),
+			format!("pipelined_audiofile={}", LogLevel::Warn),
 			LogLevel::Trace.to_string(),
 		]
 		.join(",")

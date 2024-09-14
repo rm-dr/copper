@@ -1,6 +1,6 @@
 use copper_pipelined::base::{
-	NodeDispatcher, NodeId, NodeOutput, NodeParameterValue, PipelineData, PipelineJobContext,
-	PortName, RunNodeError, ThisNodeInfo,
+	Node, NodeDispatcher, NodeId, NodeOutput, NodeParameterValue, PipelineData, PipelineJobContext,
+	PortName, RunNodeError, ThisNodeInfo, INPUT_NODE_TYPE,
 };
 use copper_util::graph::{finalized::FinalizedGraph, graph::Graph, util::GraphNodeIdx};
 use smartstring::{LazyCompact, SmartString};
@@ -13,11 +13,12 @@ use std::{
 };
 use tokio::{
 	sync::mpsc::{self, error::TryRecvError},
-	task::JoinSet,
+	task::{JoinError, JoinSet},
 };
 use tracing::{debug, trace};
 
 use super::json::PipelineJson;
+use crate::config::ASYNC_POLL_AWAIT_MS;
 
 //
 // MARK: Errors
@@ -35,8 +36,14 @@ pub enum PipelineBuildError {
 		invalid_node_id: NodeId,
 	},
 
+	/// We found a node with an invalid type
+	BadNodeType { bad_type: SmartString<LazyCompact> },
+
 	/// This pipeline has a cycle and is thus invalid
 	HasCycle,
+
+	/// We expected an input, but it wasn't provided
+	MissingInput { input: SmartString<LazyCompact> },
 }
 
 impl Display for PipelineBuildError {
@@ -52,8 +59,16 @@ impl Display for PipelineBuildError {
 				)
 			}
 
+			Self::BadNodeType { bad_type } => {
+				writeln!(f, "invalid node type `{bad_type}`")
+			}
+
 			Self::HasCycle => {
 				writeln!(f, "this pipeline has a cycle")
+			}
+
+			Self::MissingInput { input } => {
+				writeln!(f, "missing pipeline input `{input}`")
 			}
 		}
 	}
@@ -77,15 +92,58 @@ struct NodeResult<DataType: PipelineData> {
 	node_idx: GraphNodeIdx,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum NodeState {
-	NotStarted,
+enum NodeState<DataType: PipelineData, ContextType: PipelineJobContext> {
+	// Store this node's instance here, so we can take ownership
+	// of it when we run.
+	NotStarted {
+		instance: Box<dyn Node<DataType, ContextType>>,
+	},
 	Running,
 	Done,
 }
 
-#[derive(Debug)]
-struct NodeSpec<DataType: PipelineData> {
+impl<DataType: PipelineData, ContextType: PipelineJobContext> Debug
+	for NodeState<DataType, ContextType>
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::NotStarted { .. } => write!(f, "NotStarted"),
+			Self::Done => write!(f, "Done"),
+			Self::Running => write!(f, "Running"),
+		}
+	}
+}
+
+impl<DataType: PipelineData, ContextType: PipelineJobContext> NodeState<DataType, ContextType> {
+	fn has_been_started(&self) -> bool {
+		return matches!(self, Self::Running | Self::Done);
+	}
+
+	fn is_running(&self) -> bool {
+		return matches!(self, Self::Running);
+	}
+
+	fn is_done(&self) -> bool {
+		return matches!(self, Self::Done);
+	}
+
+	/// Turn `Self::NotStarted` into `Self::Running` and return `instance`.
+	/// Returns `None` otherwise.
+	fn start(&mut self) -> Option<Box<dyn Node<DataType, ContextType>>> {
+		match self {
+			Self::NotStarted { .. } => {
+				let x = std::mem::replace(self, Self::Running);
+				match x {
+					Self::NotStarted { instance } => Some(instance),
+					_ => unreachable!(),
+				}
+			}
+			_ => None,
+		}
+	}
+}
+
+struct NodeSpec<DataType: PipelineData, ContextType: PipelineJobContext> {
 	/// The node's id
 	pub id: NodeId,
 
@@ -96,7 +154,22 @@ struct NodeSpec<DataType: PipelineData> {
 	pub node_params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
 
 	/// This node's state
-	pub state: NodeState,
+	pub state: NodeState<DataType, ContextType>,
+}
+
+// We need to do this ourselves, since the ContextType generic
+// confuses #[derive(Debug)].
+impl<DataType: PipelineData, ContextType: PipelineJobContext> Debug
+	for NodeSpec<DataType, ContextType>
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("NodeSpec")
+			.field("id", &self.id)
+			.field("node_type", &self.node_type)
+			.field("node_params", &self.node_params)
+			.field("state", &self.state)
+			.finish()
+	}
 }
 
 #[derive(Debug)]
@@ -146,52 +219,21 @@ pub struct PipelineJob<DataType: PipelineData, ContextType: PipelineJobContext> 
 	_pb: PhantomData<ContextType>,
 	pub job_id: SmartString<LazyCompact>,
 
-	graph: FinalizedGraph<NodeSpec<DataType>, EdgeSpec<DataType>>,
+	graph: FinalizedGraph<NodeSpec<DataType, ContextType>, EdgeSpec<DataType>>,
 }
 
 impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataType, ContextType> {
 	pub fn new(
+		dispatcher: &NodeDispatcher<DataType, ContextType>,
 		job_id: &str,
 		input: BTreeMap<SmartString<LazyCompact>, DataType>,
 		json: &PipelineJson<DataType>,
 	) -> Result<Self, PipelineBuildError> {
-		let mut graph = Self::build(job_id, json)?;
-
-		// Find input nodes...
-		let input_nodes: Vec<(GraphNodeIdx, NodeId)> = graph
-			.iter_nodes_idx()
-			.filter_map(|(idx, node)| {
-				// TODO: const & reserve in dispatcher
-				if node.node_type != "Input" {
-					return None;
-				} else {
-					return Some((idx, node.id.clone()));
-				}
-			})
-			.collect();
-
-		// ...and "run" them.
-		for (idx, node_id) in input_nodes {
-			if let Some(i_val) = input.get(node_id.id()) {
-				// TODO: no clone
-				let edges = Vec::from(graph.edges_starting_at(idx));
-
-				for edge_idx in edges {
-					let (_, _, edge) = graph.get_edge_mut(edge_idx);
-					edge.data = EdgeDataContainer::Some(Some(i_val.clone()))
-				}
-
-				graph.get_node_mut(idx).state = NodeState::Done;
-			} else {
-				panic!("Missing input")
-			}
-		}
-
 		return Ok(Self {
 			_pa: PhantomData {},
 			_pb: PhantomData {},
 			job_id: job_id.into(),
-			graph,
+			graph: Self::build(dispatcher, job_id, json, input)?,
 		});
 	}
 
@@ -201,10 +243,15 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 
 	/// Build a pipeline from its deserialized form
 	fn build(
+		dispatcher: &NodeDispatcher<DataType, ContextType>,
 		job_id: &str,
 		json: &PipelineJson<DataType>,
-	) -> Result<FinalizedGraph<NodeSpec<DataType>, EdgeSpec<DataType>>, PipelineBuildError> {
-		debug!(message = "Building pipeline graph", job_id);
+		input: BTreeMap<SmartString<LazyCompact>, DataType>,
+	) -> Result<
+		FinalizedGraph<NodeSpec<DataType, ContextType>, EdgeSpec<DataType>>,
+		PipelineBuildError,
+	> {
+		trace!(message = "Building pipeline graph", job_id);
 
 		// The graph that stores this pipeline
 		let mut graph = Graph::new();
@@ -214,21 +261,42 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 		// Create all nodes in the graph
 		trace!(message = "Making nodes", job_id);
 		for (node_id, node_spec) in &json.nodes {
-			let n = graph.add_node(NodeSpec {
-				id: node_id.clone(),
-				state: NodeState::NotStarted,
-				node_params: node_spec.params.clone(),
-				node_type: node_spec.node_type.clone(),
-			});
+			if node_spec.node_type == INPUT_NODE_TYPE {
+				let n = graph.add_node(NodeSpec {
+					id: node_id.clone(),
+					// Input nodes are never run, start them as "done".
+					// They are filled in at the end of this method.
+					state: NodeState::Done,
+					node_params: node_spec.params.clone(),
+					node_type: node_spec.node_type.clone(),
+				});
+				node_id_map.insert(node_id.clone(), n);
+			} else {
+				let node_instance = dispatcher.init_node(&node_spec.node_type);
+				if node_instance.is_none() {
+					return Err(PipelineBuildError::BadNodeType {
+						bad_type: node_spec.node_type.clone(),
+					});
+				}
 
-			node_id_map.insert(node_id.clone(), n);
+				let n = graph.add_node(NodeSpec {
+					id: node_id.clone(),
+					state: NodeState::NotStarted {
+						instance: node_instance.unwrap(),
+					},
+					node_params: node_spec.params.clone(),
+					node_type: node_spec.node_type.clone(),
+				});
+
+				node_id_map.insert(node_id.clone(), n);
+			}
 		}
 
 		// Make sure all edges are valid and create them in the graph.
 		//
 		// We do not check if ports exist & have matching types here,
 		// since not all nodes know their ports at build time.
-		trace!(message = "Making  edges", job_id);
+		trace!(message = "Making edges", job_id);
 		for (edge_id, edge_spec) in json.edges.iter() {
 			// These should never fail
 			let source_node_idx = node_id_map.get(&edge_spec.source.node);
@@ -265,19 +333,50 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 			return Err(PipelineBuildError::HasCycle);
 		}
 
+		let mut finalized_graph = graph.finalize();
+
+		trace!(message = "Filling edges connected to input nodes", job_id);
+		// Find input nodes...
+		let input_nodes: Vec<(GraphNodeIdx, NodeId)> = finalized_graph
+			.iter_nodes_idx()
+			.filter_map(|(idx, node)| {
+				// TODO: const & reserve in dispatcher
+				if node.node_type == INPUT_NODE_TYPE {
+					return Some((idx, node.id.clone()));
+				} else {
+					return None;
+				}
+			})
+			.collect();
+
+		// ...and "run" them.
+		for (idx, node_id) in input_nodes {
+			if let Some(i_val) = input.get(node_id.id()) {
+				// TODO: no clone
+				let edges = Vec::from(finalized_graph.edges_starting_at(idx));
+
+				for edge_idx in edges {
+					let (_, _, edge) = finalized_graph.get_edge_mut(edge_idx);
+					edge.data = EdgeDataContainer::Some(Some(i_val.clone()))
+				}
+
+				finalized_graph.get_node_mut(idx).state = NodeState::Done;
+			} else {
+				return Err(PipelineBuildError::MissingInput {
+					input: node_id.id().clone(),
+				});
+			}
+		}
+
 		trace!(message = "Pipeline graph is ready", job_id);
-		return Ok(graph.finalize());
+		return Ok(finalized_graph);
 	}
 
 	//
 	// MARK: Run
 	//
 
-	pub async fn run(
-		mut self,
-		context: Arc<ContextType>,
-		dispatcher: &NodeDispatcher<DataType, ContextType>,
-	) -> Result<(), RunNodeError<DataType>> {
+	pub async fn run(mut self, context: Arc<ContextType>) -> Result<(), RunNodeError<DataType>> {
 		trace!(
 			message = "Running job",
 			job_id = ?self.job_id,
@@ -288,8 +387,15 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 			self.graph.iter_nodes_idx().map(|(idx, _)| idx).collect();
 
 		let mut tasks = JoinSet::new();
-		let (tx, mut rx) = mpsc::channel::<NodeOutput<DataType>>(10);
+		let (tx, mut rx) = mpsc::channel::<NodeOutput<DataType>>(30);
 
+		// The below loop hits no awaits until something interesting happens
+		// (node finished, input received, etc)
+		//
+		// This is a problem, because this loop will block the async runtime,
+		// which prevents interesting things from happening.
+		//
+		// We've thus sprinkled `yield_now` througout this loop.
 		loop {
 			//
 			// Start nodes
@@ -298,7 +404,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 				let node_idx = *node_idx;
 
 				// Never run nodes twice
-				if self.graph.get_node(node_idx).state != NodeState::NotStarted {
+				if self.graph.get_node(node_idx).state.has_been_started() {
 					continue;
 				}
 
@@ -315,15 +421,6 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 					continue;
 				}
 
-				// Initialize and run
-				let node = self.graph.get_node(node_idx);
-				trace!(
-					message = "Running node",
-					node_type= ?node.node_type,
-					node_id = ?node.id,
-					job_id = ?self.job_id,
-				);
-
 				// Take all inputs
 				let node_run_input: BTreeMap<PortName, Option<DataType>> = {
 					let input_edges = Vec::from(self.graph.edges_ending_at(node_idx));
@@ -338,17 +435,32 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 
 				// Borrow again as mutable
 				let node = self.graph.get_node_mut(node_idx);
-				node.state = NodeState::Running;
-
 				let ctx = context.clone();
 				let params = node.node_params.clone();
 				let node_id = node.id.clone();
 				let node_type = node.node_type.clone();
 				let tx = tx.clone();
+				let node_inst = node.state.start().unwrap();
+				let job_id = self.job_id.clone();
 
-				// This should never fail, node types are checked at build time
-				let node_inst = dispatcher.init_node(&node.node_type).unwrap();
+				debug!(
+					message = "Starting node",
+					node_type = ?node_type,
+					node_id = ?node_id,
+					job_id = ?job_id,
+					tasks = tasks.len(),
+				);
+
 				tasks.spawn(async move {
+					// This log helps detect a blocked async runtime
+					// (i.e, tokio is stuck if you see "Starting node" and not "Started node")
+					trace!(
+						message = "Started node",
+						node_type = ?node_type,
+						node_id = ?node_id,
+						job_id = ?job_id,
+					);
+
 					let result = node_inst
 						.run(
 							&ctx,
@@ -371,6 +483,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 				});
 			}
 
+			tokio::task::yield_now().await;
+
 			//
 			// Process node output
 			//
@@ -384,46 +498,17 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 						panic!()
 					}
 
-					Ok(x) => self.process_node_output(x).await?,
+					Ok(x) => self.process_node_output(x)?,
 				}
 			}
+
+			tokio::task::yield_now().await;
 
 			//
 			// Process finished tasks
 			//
 			while let Some(res) = tasks.try_join_next() {
-				let res = res?;
-
-				self.graph.get_node_mut(res.node_idx).state = NodeState::Done;
-
-				if let Err(err) = res.result {
-					trace!(
-						message = "Node run failed",
-						node_id = ?res.node_id,
-						job_id = ?self.job_id,
-						error = format!("{err:?}")
-					);
-					return Err(err);
-				} else {
-					trace!(
-						message = "Node finished without error",
-						node_id = ?res.node_id,
-						job_id = ?self.job_id,
-					);
-				}
-
-				// Make sure all edges starting at this node got output
-				for (from_node, _to_node, edge) in self.graph.iter_edges_mut() {
-					if from_node != res.node_idx {
-						continue;
-					}
-
-					if matches!(edge.data, EdgeDataContainer::Unset) {
-						return Err(RunNodeError::UnrecognizedOutput {
-							port: edge.source_port.clone(),
-						});
-					}
-				}
+				self.process_finished_node(res)?
 			}
 
 			//
@@ -433,26 +518,30 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 			if tasks.is_empty()
 				&& all_nodes
 					.iter()
-					.all(|x| self.graph.get_node(*x).state == NodeState::Done)
+					.all(|x| self.graph.get_node(*x).state.is_done())
 			{
 				break;
 			}
-		}
 
-		debug!(message = "Job finished", job_id = ?self.job_id);
+			tokio::time::sleep(std::time::Duration::from_millis(ASYNC_POLL_AWAIT_MS)).await;
+		}
 
 		return Ok(());
 	}
 
 	//
-	// MARK: Process task result
+	// MARK: Process task results
 	//
-	async fn process_node_output(
+	fn process_node_output(
 		&mut self,
 		out: NodeOutput<DataType>,
 	) -> Result<(), RunNodeError<DataType>> {
-		let node = self.graph.get_node_mut(out.node.idx);
-		node.state = NodeState::Done;
+		trace!(
+			message = "Processing node output",
+			node_type= ?out.node.node_type,
+			node_id = ?out.node.id,
+			job_id = ?self.job_id,
+		);
 
 		// Send output to edges
 		for (from_node, _to_node, edge) in self.graph.iter_edges_mut() {
@@ -469,6 +558,52 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 			}
 
 			edge.data = EdgeDataContainer::Some(out.data.clone());
+		}
+
+		return Ok(());
+	}
+
+	fn process_finished_node(
+		&mut self,
+		res: Result<NodeResult<DataType>, JoinError>,
+	) -> Result<(), RunNodeError<DataType>> {
+		let res = res?;
+		let node = self.graph.get_node_mut(res.node_idx);
+
+		assert!(
+			node.state.is_running(),
+			"Expected node to be running. node: {node:?}"
+		);
+
+		node.state = NodeState::Done;
+
+		if let Err(err) = res.result {
+			debug!(
+				message = "Node run failed",
+				node_id = ?res.node_id,
+				job_id = ?self.job_id,
+				error = format!("{err:?}")
+			);
+			return Err(err);
+		} else {
+			debug!(
+				message = "Node finished without error",
+				node_id = ?res.node_id,
+				job_id = ?self.job_id,
+			);
+		}
+
+		// Make sure all edges starting at this node got output
+		for (from_node, _to_node, edge) in self.graph.iter_edges_mut() {
+			if from_node != res.node_idx {
+				continue;
+			}
+
+			if matches!(edge.data, EdgeDataContainer::Unset) {
+				return Err(RunNodeError::UnrecognizedOutput {
+					port: edge.source_port.clone(),
+				});
+			}
 		}
 
 		return Ok(());

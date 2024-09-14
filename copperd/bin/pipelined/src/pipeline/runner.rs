@@ -1,19 +1,25 @@
-use copper_pipelined::base::{NodeDispatcher, PipelineData, PipelineJobContext};
+use copper_pipelined::base::{NodeDispatcher, PipelineData, PipelineJobContext, RunNodeError};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::{BTreeMap, VecDeque},
 	sync::Arc,
 };
+use tokio::task::{JoinError, JoinSet};
 use tracing::debug;
 
-use crate::pipeline::job::PipelineJob;
-
 use super::json::PipelineJson;
+use crate::pipeline::job::PipelineJob;
 
 pub struct PipelineRunnerOptions {
 	/// The maximum number of jobs we'll run at once
-	/// TODO: rename
-	pub max_active_jobs: usize,
+	pub max_running_jobs: usize,
+}
+
+struct JobEntry<DataType: PipelineData, ContextType: PipelineJobContext> {
+	id: SmartString<LazyCompact>,
+	context: Arc<ContextType>,
+	pipeline: PipelineJson<DataType>,
+	inputs: BTreeMap<SmartString<LazyCompact>, DataType>,
 }
 
 /// A prepared data processing pipeline.
@@ -24,11 +30,12 @@ pub struct PipelineRunner<DataType: PipelineData, ContextType: PipelineJobContex
 	dispatcher: NodeDispatcher<DataType, ContextType>,
 
 	/// Jobs that are queued to run
-	job_queue: VecDeque<(
-		SmartString<LazyCompact>,
-		ContextType,
-		PipelineJson<DataType>,
-		BTreeMap<SmartString<LazyCompact>, DataType>,
+	job_queue: VecDeque<JobEntry<DataType, ContextType>>,
+
+	/// Jobs that are running right now
+	running_jobs: JoinSet<(
+		JobEntry<DataType, ContextType>,
+		Result<(), RunNodeError<DataType>>,
 	)>,
 }
 
@@ -38,15 +45,15 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 	/// Initialize a new runner
 	pub fn new(config: PipelineRunnerOptions) -> Self {
 		Self {
-			job_queue: VecDeque::new(),
-
 			config,
 			dispatcher: NodeDispatcher::new(),
+
+			job_queue: VecDeque::new(),
+			running_jobs: JoinSet::new(),
 		}
 	}
 
-	/// Add a job to this runner's queue.
-	/// Returns the new job's id.
+	/// Add a job to this runner's queue
 	pub fn add_job(
 		&mut self,
 		context: ContextType,
@@ -54,9 +61,13 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 		job_id: &str,
 		inputs: BTreeMap<SmartString<LazyCompact>, DataType>,
 	) {
-		debug!(message = "Adding job", job_id);
-		self.job_queue
-			.push_back((job_id.into(), context, pipeline, inputs));
+		debug!(message = "Adding job to queue", job_id);
+		self.job_queue.push_back(JobEntry {
+			id: job_id.into(),
+			context: Arc::new(context),
+			pipeline,
+			inputs,
+		});
 	}
 
 	/// Get this runner's node dispatcher
@@ -64,13 +75,57 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 		&mut self.dispatcher
 	}
 
-	pub async fn run(&mut self) {
-		// TODO: no unwrap, don't run a whole node on this call
-		if let Some((job_id, context, pipeline, inputs)) = self.job_queue.pop_front() {
-			debug!(message = "Running job", ?job_id);
-			let x = PipelineJob::<DataType, ContextType>::new(&job_id, inputs, &pipeline).unwrap();
+	pub async fn run(&mut self) -> Result<(), JoinError> {
+		//
+		// Process finished jobs
+		// TODO: save finished jobs in state
+		//
+		while let Some(res) = self.running_jobs.try_join_next() {
+			let res = res?;
 
-			x.run(Arc::new(context), &self.dispatcher).await.unwrap();
+			if let Err(err) = res.1 {
+				debug!(
+					message = "Job failed",
+					job_id = ?res.0.id,
+					error = format!("{err:?}")
+				);
+			} else {
+				debug!(
+					message = "Job finished with no errors",
+					job_id = ?res.0.id,
+				);
+			}
 		}
+
+		//
+		// Start new jobs, if there is space in the set
+		// and jobs in the queue.
+		//
+		while self.running_jobs.len() < self.config.max_running_jobs && !self.job_queue.is_empty() {
+			let queued_job = self.job_queue.pop_front().unwrap();
+
+			debug!(
+				message = "Starting job",
+				job_id = ?queued_job.id,
+				running_jobs = self.running_jobs.len(),
+				max_running_jobs = self.config.max_running_jobs,
+				queued_jobs = self.job_queue.len()
+			);
+
+			let job = PipelineJob::<DataType, ContextType>::new(
+				&self.dispatcher,
+				&queued_job.id,
+				queued_job.inputs.clone(),
+				&queued_job.pipeline,
+			)
+			.unwrap();
+
+			self.running_jobs.spawn(async {
+				let x = job.run(queued_job.context.clone()).await;
+				(queued_job, x)
+			});
+		}
+
+		return Ok(());
 	}
 }

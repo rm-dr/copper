@@ -1,7 +1,7 @@
 use api::RouterState;
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::config::Credentials;
-use config::PipelinedConfig;
+use config::{PipelinedConfig, ASYNC_POLL_AWAIT_MS};
 use copper_pipelined::{data::PipeData, CopperContext};
 use copper_storaged::client::ReqwestStoragedClient;
 use copper_util::load_env;
@@ -15,6 +15,8 @@ mod api;
 mod config;
 mod pipeline;
 
+// #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
+// #[tokio::main(flavor = "current_thread")]
 #[tokio::main]
 async fn main() {
 	let config = Arc::new(load_env::<PipelinedConfig>());
@@ -49,7 +51,7 @@ async fn main() {
 	// Prep runner
 	let mut runner: PipelineRunner<PipeData, CopperContext> =
 		PipelineRunner::new(PipelineRunnerOptions {
-			max_active_jobs: config.pipelined_parallel_jobs,
+			max_running_jobs: config.pipelined_max_running_jobs,
 		});
 
 	{
@@ -132,11 +134,9 @@ async fn main() {
 async fn run_pipes(state: RouterState) -> Result<(), Box<dyn Error>> {
 	loop {
 		let mut runner = state.runner.lock().await;
-		runner.run().await;
+		runner.run().await?;
 
 		// Sleep a little bit so we don't waste cpu cycles.
-		// If this is too long, we'll slow down pipeline runners,
-		// but if it's too short we'll waste cycles checking pending threads.
-		tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+		tokio::time::sleep(std::time::Duration::from_millis(ASYNC_POLL_AWAIT_MS)).await;
 	}
 }

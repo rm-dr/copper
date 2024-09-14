@@ -7,6 +7,8 @@ use super::{Node, NodeParameterSpec, PipelineData, PipelineJobContext};
 type NodeInitFnType<DataType, ContextType> =
 	&'static (dyn Fn() -> Box<dyn Node<DataType, ContextType>> + Send + Sync);
 
+pub const INPUT_NODE_TYPE: &str = "Input";
+
 /// An error we encounter when trying to register a node
 #[derive(Debug)]
 pub enum RegisterNodeError {
@@ -61,7 +63,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 		parameters: BTreeMap<SmartString<LazyCompact>, NodeParameterSpec<DataType>>,
 		node_init: NodeInitFnType<DataType, ContextType>,
 	) -> Result<(), RegisterNodeError> {
-		if self.nodes.contains_key(type_name) {
+		if self.nodes.contains_key(type_name) || type_name == INPUT_NODE_TYPE {
 			return Err(RegisterNodeError::AlreadyExists);
 		}
 
