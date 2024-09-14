@@ -2,8 +2,8 @@
 
 use async_trait::async_trait;
 use copper_storaged::{
-	AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo, ItemId,
-	ItemInfo, Transaction,
+	AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo,
+	Transaction,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -12,7 +12,6 @@ use super::errors::{
 	attribute::{AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError},
 	class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
 	dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
-	item::{DeleteItemError, GetItemError},
 	transaction::ApplyTransactionError,
 };
 
@@ -96,16 +95,6 @@ where
 
 	/// Delete an attribute
 	async fn del_attribute(&self, attribute: AttributeId) -> Result<(), DeleteAttributeError>;
-
-	//
-	// MARK: Item
-	//
-
-	/// Get item details
-	async fn get_item(&self, item: ItemId) -> Result<ItemInfo, GetItemError>;
-
-	/// Delete an item
-	async fn del_item(&self, item: ItemId) -> Result<(), DeleteItemError>;
 
 	//
 	// MARK: Transactions

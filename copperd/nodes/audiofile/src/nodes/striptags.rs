@@ -136,7 +136,7 @@ impl Node<PipeData, CopperContext> for StripTags {
 					}
 
 					if out_bytes.len() >= ctx.blob_fragment_size {
-						let x = std::mem::replace(&mut out_bytes, Vec::new());
+						let x = std::mem::take(&mut out_bytes);
 						tx.send(BytesStreamPacket {
 							data: Arc::new(x),
 							is_last: false,
@@ -195,7 +195,7 @@ impl Node<PipeData, CopperContext> for StripTags {
 					}
 
 					if out_bytes.len() >= ctx.blob_fragment_size {
-						let x = std::mem::replace(&mut out_bytes, Vec::new());
+						let x = std::mem::take(&mut out_bytes);
 						debug!(
 							message = "Sending bytes",
 							n_bytes = x.len(),

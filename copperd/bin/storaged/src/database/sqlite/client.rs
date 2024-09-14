@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use copper_storaged::{
-	AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo, ItemId,
-	ItemInfo, Transaction, TransactionAction,
+	AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo,
+	Transaction, TransactionAction,
 };
 use copper_util::MimeType;
 use serde::{Deserialize, Serialize};
@@ -17,7 +17,6 @@ use crate::{
 			},
 			class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
 			dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
-			item::{DeleteItemError, GetItemError},
 			transaction::ApplyTransactionError,
 		},
 	},
@@ -237,7 +236,7 @@ impl DatabaseClient for SqliteDatabaseClient {
 				.map(|row| AttributeInfo {
 					id: row.get::<u32, _>("id").into(),
 					class: row.get::<u32, _>("id").into(),
-					order: row.get::<u32, _>("attr_order").into(),
+					order: row.get::<u32, _>("attr_order"),
 					name: row.get::<String, _>("pretty_name").into(),
 					data_type: serde_json::from_str(row.get::<&str, _>("data_type")).unwrap(),
 					is_unique: row.get("is_unique"),
@@ -413,7 +412,7 @@ impl DatabaseClient for SqliteDatabaseClient {
 			Ok(res) => Ok(AttributeInfo {
 				id: res.get::<u32, _>("id").into(),
 				class: res.get::<u32, _>("id").into(),
-				order: res.get::<u32, _>("attr_order").into(),
+				order: res.get::<u32, _>("attr_order"),
 				name: res.get::<String, _>("pretty_name").into(),
 				data_type: serde_json::from_str(res.get::<&str, _>("data_type")).unwrap(),
 				is_unique: res.get("is_unique"),
@@ -492,18 +491,6 @@ impl DatabaseClient for SqliteDatabaseClient {
 			.map_err(|e| DeleteAttributeError::DbError(Box::new(e)))?;
 
 		return Ok(());
-	}
-
-	//
-	// MARK: Item
-	//
-
-	async fn get_item(&self, item: ItemId) -> Result<ItemInfo, GetItemError> {
-		unimplemented!()
-	}
-
-	async fn del_item(&self, item: ItemId) -> Result<(), DeleteItemError> {
-		unimplemented!()
 	}
 
 	//

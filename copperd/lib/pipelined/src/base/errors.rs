@@ -201,8 +201,6 @@ impl Display for ProcessSignalError {
 
 impl Error for ProcessSignalError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			_ => return None,
-		}
+		return None;
 	}
 }

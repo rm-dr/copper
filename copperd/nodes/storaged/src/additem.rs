@@ -98,7 +98,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 							let rec = receiver.recv().await;
 							match rec {
 								Ok(d) => {
-									upload.upload_part(&*d.data, part_counter).await;
+									upload.upload_part(&d.data, part_counter).await;
 									part_counter += 1;
 									if d.is_last {
 										break;

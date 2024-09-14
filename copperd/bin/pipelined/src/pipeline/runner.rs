@@ -33,6 +33,7 @@ pub struct PipelineRunner<DataType: PipelineData, ContextType: PipelineJobContex
 	job_queue: VecDeque<JobEntry<DataType, ContextType>>,
 
 	/// Jobs that are running right now
+	#[allow(clippy::type_complexity)]
 	running_jobs: JoinSet<(
 		JobEntry<DataType, ContextType>,
 		Result<(), RunNodeError<DataType>>,

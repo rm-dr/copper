@@ -15,16 +15,12 @@ async fn make_app(config: Arc<StoragedConfig>) -> Router {
 	// Connect to database
 	let db = match SqliteDatabaseClient::open(&config.storaged_db_addr).await {
 		Ok(db) => db,
-		Err(SqliteDatabaseOpenError::DbError(e)) => {
+		Err(SqliteDatabaseOpenError::Database(e)) => {
 			error!(message = "SQL error while opening database", err = ?e);
 			std::process::exit(1);
 		}
-		Err(SqliteDatabaseOpenError::MigrateError(e)) => {
+		Err(SqliteDatabaseOpenError::Migrate(e)) => {
 			error!(message = "Migration error while opening database", err = ?e);
-			std::process::exit(1);
-		}
-		Err(SqliteDatabaseOpenError::IoError(e)) => {
-			error!(message = "I/O error while opening database", err = ?e);
 			std::process::exit(1);
 		}
 	};
@@ -81,7 +77,7 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-	use std::{path::PathBuf, usize};
+	use std::path::PathBuf;
 
 	use super::*;
 	use axum::{

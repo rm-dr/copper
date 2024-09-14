@@ -158,11 +158,7 @@ impl TryFrom<AttrData> for PipeData {
 			AttrData::Text { value } => Self::Text { value },
 			AttrData::Boolean { value } => Self::Boolean { value },
 			AttrData::Hash { hash_type, data } => Self::Hash { hash_type, data },
-
-			AttrData::Reference { class, item } => Self::Reference {
-				class: class.into(),
-				item: item.into(),
-			},
+			AttrData::Reference { class, item } => Self::Reference { class, item },
 
 			AttrData::Float {
 				value,
@@ -192,11 +188,7 @@ impl TryInto<AttrData> for PipeData {
 			Self::Text { value } => AttrData::Text { value },
 			Self::Boolean { value } => AttrData::Boolean { value },
 			Self::Hash { hash_type, data } => AttrData::Hash { hash_type, data },
-
-			Self::Reference { class, item } => AttrData::Reference {
-				class: class.into(),
-				item: item.into(),
-			},
+			Self::Reference { class, item } => AttrData::Reference { class, item },
 
 			Self::Float {
 				value,

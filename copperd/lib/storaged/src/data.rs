@@ -90,7 +90,7 @@ impl AttrData {
 	/// Convert this data instance to its type
 	pub fn to_stub(&self) -> AttrDataStub {
 		match self {
-			Self::None { data_type } => data_type.clone(),
+			Self::None { data_type } => *data_type,
 			Self::Blob { .. } => AttrDataStub::Blob,
 			Self::Boolean { .. } => AttrDataStub::Boolean,
 			Self::Text { .. } => AttrDataStub::Text,

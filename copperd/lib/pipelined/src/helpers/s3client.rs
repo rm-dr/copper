@@ -42,10 +42,7 @@ impl<'a> S3Client {
 			key: key.into(),
 			cursor: 0,
 			size: b.content_length.unwrap().try_into().unwrap(),
-			mime: b
-				.content_type
-				.map(|x| MimeType::try_from(x).unwrap())
-				.unwrap_or(MimeType::Blob),
+			mime: b.content_type.map(MimeType::from).unwrap_or(MimeType::Blob),
 		};
 	}
 
@@ -82,7 +79,7 @@ pub struct S3Reader<'a> {
 impl S3Reader<'_> {
 	pub async fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
 		let len_left = usize::try_from(self.size - self.cursor).unwrap();
-		if len_left == 0 || buf.len() == 0 {
+		if len_left == 0 || buf.is_empty() {
 			return Ok(0);
 		}
 
