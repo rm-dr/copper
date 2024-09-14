@@ -46,12 +46,17 @@ impl<'a> S3Client {
 		};
 	}
 
-	pub async fn create_multipart_upload(&'a self, key: &str) -> MultipartUpload<'a> {
+	pub async fn create_multipart_upload(
+		&'a self,
+		key: &str,
+		mime: MimeType,
+	) -> MultipartUpload<'a> {
 		let multipart_upload_res = self
 			.client
 			.create_multipart_upload()
 			.bucket(&self.bucket)
 			.key(key)
+			.content_type(&mime)
 			.send()
 			.await
 			.unwrap();
@@ -73,7 +78,7 @@ pub struct S3Reader<'a> {
 	key: SmartString<LazyCompact>,
 	cursor: u64,
 	size: u64,
-	pub mime: MimeType,
+	mime: MimeType,
 }
 
 impl S3Reader<'_> {
@@ -112,6 +117,10 @@ impl S3Reader<'_> {
 
 	pub fn is_done(&self) -> bool {
 		return self.cursor == self.size;
+	}
+
+	pub fn mime(&self) -> &MimeType {
+		&self.mime
 	}
 }
 

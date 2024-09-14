@@ -9,7 +9,6 @@ use copper_pipelined::{
 	CopperContext,
 };
 use copper_storaged::AttrData;
-use copper_util::MimeType;
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
@@ -61,7 +60,6 @@ pub(super) async fn run_pipeline(
 			AttrData::Blob { object_key } => input.insert(
 				name,
 				PipeData::Blob {
-					mime: MimeType::Flac,
 					source: BytesSource::S3 { key: object_key },
 				},
 			),

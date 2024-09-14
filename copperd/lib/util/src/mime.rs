@@ -91,6 +91,12 @@ impl From<&str> for MimeType {
 	}
 }
 
+impl Into<String> for &MimeType {
+	fn into(self) -> String {
+		self.to_string()
+	}
+}
+
 impl MimeType {
 	// Must match `From<String>` above
 
