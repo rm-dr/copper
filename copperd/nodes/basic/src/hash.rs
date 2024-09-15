@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
-	data::{BytesSource, PipeData},
-	helpers::OpenBytesSourceReader,
+	data::PipeData,
+	helpers::BytesSourceReader,
 	CopperContext,
 };
 use copper_util::HashType;
@@ -11,10 +11,9 @@ use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::BTreeMap,
 	io::{Cursor, Read},
-	sync::Arc,
 };
-use tokio::sync::{broadcast, mpsc};
-use tracing::{debug, trace, warn};
+use tokio::sync::mpsc;
+use tracing::{debug, trace};
 
 enum HashComputer {
 	MD5 { context: md5::Context },
@@ -125,28 +124,23 @@ impl Node<PipeData, CopperContext> for Hash {
 				port: PortName::new("data"),
 			});
 		}
+		if let Some((port, _)) = input.pop_first() {
+			return Err(RunNodeError::UnrecognizedInput { port });
+		}
 
 		trace!(
-			message = "Inputs ready, preparing data reader",
+			message = "Inputs ready, preparing reader",
 			node_id = ?this_node.id
 		);
-		let data = match data.unwrap() {
+
+		let mut reader = match data.unwrap() {
 			None => {
 				return Err(RunNodeError::RequiredInputNull {
 					port: PortName::new("data"),
 				})
 			}
 
-			Some(PipeData::Blob { source, .. }) => match source {
-				BytesSource::Array { data, .. } => OpenBytesSourceReader::Array(data),
-				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Stream(receiver),
-				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
-					ctx.objectstore_client
-						.create_reader(&key)
-						.await
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?,
-				),
-			},
+			Some(PipeData::Blob { source, .. }) => BytesSourceReader::open(ctx, source).await?,
 
 			_ => {
 				return Err(RunNodeError::BadInputType {
@@ -154,9 +148,6 @@ impl Node<PipeData, CopperContext> for Hash {
 				})
 			}
 		};
-		if let Some((port, _)) = input.pop_first() {
-			return Err(RunNodeError::UnrecognizedInput { port });
-		}
 
 		//
 		// Compute hash
@@ -167,111 +158,17 @@ impl Node<PipeData, CopperContext> for Hash {
 		);
 		let mut hasher = HashComputer::new(hash_type);
 
-		match data {
-			OpenBytesSourceReader::Array(data) => {
-				trace!(
-					message = "Hashing from array",
-					node_id = ?this_node.id,
-				);
-
-				// Take and return ownership of `hasher`
-				hasher = tokio::task::spawn_blocking(move || {
-					let res = hasher.update(&mut Cursor::new(&*data));
-					if let Err(e) = res {
-						return Err(e);
-					} else {
-						return Ok(hasher);
-					}
-				})
-				.await??;
-			}
-
-			OpenBytesSourceReader::Stream(mut receiver) => {
-				trace!(
-					message = "Hashing from stream",
-					node_id = ?this_node.id,
-				);
-
-				loop {
-					let rec = receiver.recv().await;
-
-					match rec {
-						Ok(d) => {
-							trace!(
-								message = "Got array bytes",
-								length = d.data.len(),
-								node_id = ?this_node.id,
-								is_last = d.is_last,
-							);
-
-							// Take and return ownership of `hasher`
-							hasher = tokio::task::spawn_blocking(move || {
-								let res = hasher.update(&mut Cursor::new(&*d.data));
-								if let Err(e) = res {
-									return Err(e);
-								} else {
-									return Ok(hasher);
-								}
-							})
-							.await??;
-
-							if d.is_last {
-								break;
-							}
-						}
-
-						Err(broadcast::error::RecvError::Lagged(_)) => {
-							return Err(RunNodeError::StreamReceiverLagged)
-						}
-
-						Err(broadcast::error::RecvError::Closed) => {
-							warn!(
-								message = "Receiver was closed before receiving last packet",
-								node_id = ?this_node.id,
-								node_type = ?this_node.node_type
-							);
-							break;
-						}
-					}
+		while let Some(data) = reader.next_fragment(ctx.blob_fragment_size).await? {
+			hasher = tokio::task::spawn_blocking(move || {
+				let res = hasher.update(&mut Cursor::new(&*data));
+				if let Err(e) = res {
+					return Err(e);
+				} else {
+					return Ok(hasher);
 				}
-			}
-
-			OpenBytesSourceReader::S3(mut r) => {
-				trace!(
-					message = "Hashing from S3",
-					node_id = ?this_node.id,
-				);
-
-				let mut read_buf = vec![0u8; ctx.blob_fragment_size];
-				loop {
-					let l = r
-						.read(&mut read_buf)
-						.await
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-					trace!(
-						message = "Read bytes",
-						n_bytes = l,
-						node_id = ?this_node.id,
-					);
-
-					if l != 0 {
-						break;
-					} else {
-						// Take and return ownership of `hasher` and `read_buf`
-						(hasher, read_buf) = tokio::task::spawn_blocking(move || {
-							let res = hasher
-								.update(&mut Cursor::new(&read_buf).take(l.try_into().unwrap()));
-							if let Err(e) = res {
-								return Err(e);
-							} else {
-								return Ok((hasher, read_buf));
-							}
-						})
-						.await??;
-					}
-				}
-			}
-		};
+			})
+			.await??;
+		}
 
 		debug!(
 			message = "Hash ready, sending output",

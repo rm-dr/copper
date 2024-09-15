@@ -1,15 +1,16 @@
 use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
-	data::{BytesSource, PipeData},
+	data::PipeData,
+	helpers::BytesSourceReader,
 	CopperContext,
 };
 use copper_storaged::{AttrData, AttributeInfo, ClassId, ResultOrDirect, TransactionAction};
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::{broadcast, mpsc};
-use tracing::{debug, trace, warn};
+use tokio::sync::mpsc;
+use tracing::{debug, trace};
 
 pub struct AddItem {}
 
@@ -93,99 +94,21 @@ impl Node<PipeData, CopperContext> for AddItem {
 
 					let mut part_counter = 1;
 
-					let upload = match source {
-						BytesSource::Array { mime, data } => {
-							let mut upload = ctx
-								.objectstore_client
-								.create_multipart_upload(&new_obj_key, mime)
-								.await
-								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+					let mut reader = BytesSourceReader::open(ctx, source).await?;
 
-							upload
-								.upload_part(&data, 1)
-								.await
-								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+					let mut upload = ctx
+						.objectstore_client
+						.create_multipart_upload(&new_obj_key, reader.mime().clone())
+						.await
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
-							upload
-						}
-
-						BytesSource::Stream {
-							mut receiver, mime, ..
-						} => {
-							let mut upload = ctx
-								.objectstore_client
-								.create_multipart_upload(&new_obj_key, mime)
-								.await
-								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-
-							loop {
-								let rec = receiver.recv().await;
-
-								match rec {
-									Ok(d) => {
-										upload
-											.upload_part(&d.data, part_counter)
-											.await
-											.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-										part_counter += 1;
-										if d.is_last {
-											break;
-										}
-									}
-
-									Err(broadcast::error::RecvError::Lagged(_)) => {
-										return Err(RunNodeError::StreamReceiverLagged)
-									}
-
-									Err(broadcast::error::RecvError::Closed) => {
-										warn!(
-											message = "Receiver was closed before receiving last packet",
-											node_id = ?this_node.id,
-											node_type = ?this_node.node_type
-										);
-										break;
-									}
-								}
-							}
-
-							upload
-						}
-
-						BytesSource::S3 { key } => {
-							let mut reader = ctx
-								.objectstore_client
-								.create_reader(&key)
-								.await
-								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-
-							let mut upload = ctx
-								.objectstore_client
-								.create_multipart_upload(&new_obj_key, reader.mime().clone())
-								.await
-								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-
-							let mut read_buf = vec![0u8; ctx.blob_fragment_size];
-
-							loop {
-								let l = reader
-									.read(&mut read_buf)
-									.await
-									.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-
-								if l != 0 {
-									break;
-								} else {
-									upload
-										.upload_part(&read_buf, part_counter)
-										.await
-										.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-									part_counter += 1;
-								}
-							}
-
-							upload
-						}
-					};
+					while let Some(data) = reader.next_fragment(ctx.blob_fragment_size).await? {
+						upload
+							.upload_part(&data, part_counter)
+							.await
+							.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+						part_counter += 1;
+					}
 
 					upload
 						.finish()

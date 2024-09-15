@@ -5,14 +5,14 @@ use crate::{
 use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
-	data::{BytesSource, PipeData},
-	helpers::OpenBytesSourceReader,
+	data::PipeData,
+	helpers::BytesSourceReader,
 	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::{broadcast, mpsc};
-use tracing::warn;
+use tokio::sync::mpsc;
+use tracing::{debug, trace};
 
 /// Extract tags from audio metadata
 pub struct ExtractTags {}
@@ -76,24 +76,23 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 				port: PortName::new("data"),
 			});
 		}
-		let data = match data.unwrap() {
+		if let Some((port, _)) = input.pop_first() {
+			return Err(RunNodeError::UnrecognizedInput { port });
+		}
+
+		trace!(
+			message = "Inputs ready, preparing reader",
+			node_id = ?this_node.id
+		);
+
+		let mut reader = match data.unwrap() {
 			None => {
 				return Err(RunNodeError::RequiredInputNull {
 					port: PortName::new("data"),
 				})
 			}
 
-			Some(PipeData::Blob { source, .. }) => match source {
-				BytesSource::Array { data, .. } => OpenBytesSourceReader::Array(data),
-				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Stream(receiver),
-
-				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
-					ctx.objectstore_client
-						.create_reader(&key)
-						.await
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?,
-				),
-			},
+			Some(PipeData::Blob { source, .. }) => BytesSourceReader::open(ctx, source).await?,
 
 			_ => {
 				return Err(RunNodeError::BadInputType {
@@ -102,89 +101,34 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 			}
 		};
 
-		let mut reader = FlacBlockReader::new(FlacBlockSelector {
+		//
+		// Setup is done, extract tags
+		//
+		debug!(
+			message = "Extracting tags",
+			node_id = ?this_node.id
+		);
+
+		let mut block_reader = FlacBlockReader::new(FlacBlockSelector {
 			pick_vorbiscomment: true,
 			..Default::default()
 		});
 
-		//
-		// Setup is done, extract tags
-		//
-		match data {
-			OpenBytesSourceReader::Array(data) => {
-				reader
-					.push_data(&data)
-					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-
-				reader
-					.finish()
-					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-			}
-
-			OpenBytesSourceReader::Stream(mut receiver) => {
-				loop {
-					let rec = receiver.recv().await;
-					match rec {
-						Ok(d) => {
-							reader
-								.push_data(&d.data)
-								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-							if d.is_last {
-								break;
-							}
-						}
-
-						Err(broadcast::error::RecvError::Lagged(_)) => {
-							return Err(RunNodeError::StreamReceiverLagged)
-						}
-
-						Err(broadcast::error::RecvError::Closed) => {
-							warn!(
-								message = "Receiver was closed before receiving last packet",
-								node_id = ?this_node.id,
-								node_type = ?this_node.node_type
-							);
-							break;
-						}
-					}
-				}
-
-				reader
-					.finish()
-					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-			}
-
-			OpenBytesSourceReader::S3(mut r) => {
-				let mut read_buf = vec![0u8; ctx.blob_fragment_size];
-
-				loop {
-					let l = r
-						.read(&mut read_buf)
-						.await
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-
-					if l == 0 {
-						assert!(r.is_done());
-						break;
-					} else {
-						reader
-							.push_data(&read_buf[0..l])
-							.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-					}
-				}
-
-				assert!(r.is_done());
-				reader
-					.finish()
-					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-			}
+		while let Some(data) = reader.next_fragment(ctx.blob_fragment_size).await? {
+			block_reader
+				.push_data(&data)
+				.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 		}
+
+		block_reader
+			.finish()
+			.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 		//
 		// Return tags
 		//
-		while reader.has_block() {
-			let b = reader.pop_block().unwrap();
+		while block_reader.has_block() {
+			let b = block_reader.pop_block().unwrap();
 			match b {
 				FlacBlock::VorbisComment(comment) => {
 					for (port, tag_type) in tags.iter() {
@@ -217,7 +161,7 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 			}
 
 			// We should only have one comment block
-			assert!(!reader.has_block());
+			assert!(!block_reader.has_block());
 		}
 
 		return Ok(());
