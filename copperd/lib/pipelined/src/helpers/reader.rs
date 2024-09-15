@@ -1,10 +1,9 @@
 use copper_util::MimeType;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use crate::{
 	base::RunNodeError,
-	data::{BytesSource, FragmentArray, PipeData},
+	data::{BytesSource, PipeData},
 	CopperContext,
 };
 
@@ -17,7 +16,7 @@ pub enum BytesSourceReader<'a> {
 	},
 
 	Stream {
-		data: Arc<Mutex<FragmentArray>>,
+		receiver: async_broadcast::Receiver<Arc<Vec<u8>>>,
 		mime: MimeType,
 	},
 	S3(S3Reader<'a>),
@@ -34,10 +33,7 @@ impl<'a> BytesSourceReader<'a> {
 				mime,
 			},
 
-			BytesSource::Stream { fragments, mime } => Self::Stream {
-				data: fragments,
-				mime,
-			},
+			BytesSource::Stream { receiver, mime } => Self::Stream { receiver, mime },
 
 			BytesSource::S3 { key } => Self::S3(
 				ctx.objectstore_client
@@ -64,24 +60,29 @@ impl<'a> BytesSourceReader<'a> {
 		match self {
 			Self::Array { data, .. } => return Ok(data.take()),
 
-			Self::Stream { .. } => {
-				todo!()
+			Self::Stream { receiver, .. } => {
+				match receiver.recv().await {
+					Ok(x) => return Ok(Some(x)),
+					Err(async_broadcast::RecvError::Closed) => return Ok(None),
+					Err(async_broadcast::RecvError::Overflowed(_)) => {
+						return Err(RunNodeError::StreamReceiverOverflowed)
+					}
+				};
 			}
 
 			Self::S3(reader) => {
-				let mut read_buf = vec![0u8; max_buffer_size];
+				if reader.is_done() {
+					return Ok(None);
+				}
 
+				let mut read_buf = vec![0u8; max_buffer_size];
 				let l = reader
 					.read(&mut read_buf)
 					.await
 					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
-				if l == 0 {
-					return Ok(None);
-				} else {
-					read_buf.truncate(l);
-					return Ok(Some(Arc::new(read_buf)));
-				}
+				read_buf.truncate(l);
+				return Ok(Some(Arc::new(read_buf)));
 			}
 		}
 	}

@@ -4,14 +4,14 @@ use crate::flac::proc::metastrip::FlacMetaStrip;
 use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
-	data::{BytesSource, BytesStreamPacket, PipeData},
+	data::{BytesSource, PipeData},
 	helpers::BytesSourceReader,
 	CopperContext,
 };
 use copper_util::MimeType;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::mpsc;
 use tracing::{debug, trace};
 
 /// Strip all metadata from an audio file
@@ -70,7 +70,7 @@ impl Node<PipeData, CopperContext> for StripTags {
 		//
 		// Send output handle
 		//
-		let (tx, rx) = broadcast::channel(ctx.stream_channel_capacity);
+		let (tx, rx) = async_broadcast::broadcast(ctx.stream_channel_capacity);
 		output
 			.send(NodeOutput {
 				node: this_node.clone(),
@@ -78,7 +78,6 @@ impl Node<PipeData, CopperContext> for StripTags {
 				data: Some(PipeData::Blob {
 					source: BytesSource::Stream {
 						mime: MimeType::Flac,
-						sender: tx.clone(),
 						receiver: rx,
 					},
 				}),
@@ -105,11 +104,9 @@ impl Node<PipeData, CopperContext> for StripTags {
 				.push_data(&data)
 				.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
-			while strip.has_data() {
-				strip
-					.read_data(&mut out_bytes)
-					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-			}
+			strip
+				.read_data(&mut out_bytes)
+				.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 			if out_bytes.len() >= ctx.blob_fragment_size {
 				let x = std::mem::take(&mut out_bytes);
@@ -118,11 +115,19 @@ impl Node<PipeData, CopperContext> for StripTags {
 					n_bytes = x.len(),
 					node_id = ?this_node.id
 				);
-				tx.send(BytesStreamPacket {
-					data: Arc::new(x),
-					is_last: false,
-				})
-				.map_err(|_| RunNodeError::StreamSendError)?;
+
+				match tx.broadcast(Arc::new(x)).await {
+					Ok(_) => {}
+
+					// Exit early if no receivers exist
+					Err(async_broadcast::SendError(_)) => {
+						debug!(
+							message = "Byte sender is closed, exiting early",
+							node_id = ?this_node.id
+						);
+						return Ok(());
+					}
+				}
 			}
 		}
 
@@ -141,11 +146,19 @@ impl Node<PipeData, CopperContext> for StripTags {
 			n_bytes = out_bytes.len(),
 			node_id = ?this_node.id
 		);
-		tx.send(BytesStreamPacket {
-			data: Arc::new(out_bytes),
-			is_last: true,
-		})
-		.map_err(|_| RunNodeError::StreamSendError)?;
+
+		match tx.broadcast(Arc::new(out_bytes)).await {
+			Ok(_) => {}
+
+			// Exit early if no receivers exist
+			Err(async_broadcast::SendError(_)) => {
+				debug!(
+					message = "Byte sender is closed, exiting early",
+					node_id = ?this_node.id
+				);
+				return Ok(());
+			}
+		}
 
 		return Ok(());
 	}

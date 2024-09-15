@@ -67,6 +67,7 @@ copper-util = { path = "lib/util" }
 copper-migrate = { path = "lib/migrate" }
 copper-storaged = { path = "lib/storaged" }
 copper-pipelined = { path = "lib/pipelined" }
+
 # Node implementations
 pipelined-basic = { path = "nodes/basic" }
 pipelined-storaged = { path = "nodes/storaged" }
@@ -118,3 +119,5 @@ utoipa-swagger-ui = { version = "7.1.1-alpha.0", features = [
 	"axum",
 	"debug-embed",
 ] }
+# Because we can't clone tokio's `broadcast::Receiver`
+async-broadcast = "0.7.1"

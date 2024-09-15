@@ -70,6 +70,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-broadcast"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20cd0e2e25ea8e5f7e9df04578dc6cf5c83577fd09b1a46aaf5c85e1c33f2a7e"
+dependencies = [
+ "event-listener 5.3.1",
+ "event-listener-strategy",
+ "futures-core",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "async-channel"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -861,6 +873,7 @@ dependencies = [
 name = "copper-pipelined"
 version = "0.1.0"
 dependencies = [
+ "async-broadcast",
  "async-trait",
  "aws-sdk-s3",
  "copper-storaged",
@@ -2399,6 +2412,7 @@ dependencies = [
 name = "pipelined-audiofile"
 version = "0.1.0"
 dependencies = [
+ "async-broadcast",
  "async-trait",
  "base64 0.22.1",
  "copper-pipelined",

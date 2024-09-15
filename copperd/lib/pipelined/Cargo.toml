@@ -26,3 +26,4 @@ serde = { workspace = true }
 tokio = { workspace = true }
 smartstring = { workspace = true }
 utoipa = { workspace = true }
+async-broadcast = { workspace = true }

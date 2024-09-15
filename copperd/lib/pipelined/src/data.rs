@@ -2,7 +2,6 @@ use copper_storaged::{AttrData, AttrDataStub};
 use copper_util::{HashType, MimeType};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
-use tokio::sync::broadcast;
 
 use crate::base::PipelineData;
 
@@ -52,53 +51,19 @@ pub enum PipeData {
 	},
 }
 
-#[derive(Clone)]
-pub struct BytesStreamPacket {
-	pub data: Arc<Vec<u8>>,
-
-	/// If this is true, this is the last packet that will be sent.
-	///
-	/// We need this to know when our receiver is closed.
-	/// The channel won't be dropped, since we store a copy of the sender.
-	pub is_last: bool,
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BytesSource {
 	Array {
 		mime: MimeType,
 		data: Arc<Vec<u8>>,
 	},
 	Stream {
-		/// This data's media type
 		mime: MimeType,
-
-		/// Used to clone this variant. This should never be used by clients.
-		sender: broadcast::Sender<BytesStreamPacket>,
-		receiver: broadcast::Receiver<BytesStreamPacket>,
+		receiver: async_broadcast::Receiver<Arc<Vec<u8>>>,
 	},
 	S3 {
 		key: String,
 	},
-}
-
-impl Clone for BytesSource {
-	fn clone(&self) -> Self {
-		match self {
-			Self::S3 { key } => Self::S3 { key: key.clone() },
-			Self::Array { mime, data } => Self::Array {
-				mime: mime.clone(),
-				data: data.clone(),
-			},
-			Self::Stream { sender, mime, .. } => {
-				return Self::Stream {
-					mime: mime.clone(),
-					sender: sender.clone(),
-					receiver: sender.subscribe(),
-				}
-			}
-		}
-	}
 }
 
 impl TryFrom<AttrData> for PipeData {

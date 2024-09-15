@@ -53,7 +53,7 @@ pub enum RunNodeError<DataType: PipelineData> {
 	/// We tried to read from a byte stream, but that stream overflowed
 	/// and we missed data. If this happens, either a node isn't reading
 	/// stream data fast enough, or our max buffer size is too small.
-	StreamReceiverLagged,
+	StreamReceiverOverflowed,
 
 	/// An arbitrary error
 	Other(Arc<dyn Error + Sync + Send + 'static>),
@@ -66,9 +66,6 @@ pub enum RunNodeError<DataType: PipelineData> {
 	//
 	/// We encountered a SendError while sending node output
 	OutputSendError(mpsc::error::SendError<NodeOutput<DataType>>),
-
-	/// We encountered a SendError while sending a stream fragment
-	StreamSendError,
 
 	/// A node task threw a JoinError
 	NodeTaskJoinError(Arc<JoinError>),
@@ -97,8 +94,7 @@ impl<DataType: PipelineData> Display for RunNodeError<DataType> {
 			),
 			Self::OutputSendError(_) => write!(f, "error while sending output"),
 			Self::NodeTaskJoinError(_) => write!(f, "error while joining task"),
-			Self::StreamReceiverLagged => write!(f, "stream receiver lagged"),
-			Self::StreamSendError => write!(f, "error while sending stream"),
+			Self::StreamReceiverOverflowed => write!(f, "stream receiver lagged"),
 
 			Self::BadInputType { port } => {
 				write!(f, "received bad data type on port `{port}`")
