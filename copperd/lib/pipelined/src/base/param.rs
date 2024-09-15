@@ -1,18 +1,10 @@
-use serde::{de::DeserializeOwned, Deserialize};
+use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::collections::{BTreeMap, BTreeSet};
 use utoipa::ToSchema;
 
-use crate::base::PipelineData;
-
 /// The types of node parameters we accept
-pub enum NodeParameterType<DataType: PipelineData> {
-	/// Pipeline data
-	Data {
-		/// The type of data we contain
-		data_type: <DataType as PipelineData>::DataStubType,
-	},
-
+pub enum NodeParameterType {
 	/// A type of pipeline data
 	DataType,
 
@@ -31,40 +23,25 @@ pub enum NodeParameterType<DataType: PipelineData> {
 	/// A list of parameters
 	List {
 		/// The type of item this list holds
-		item_type: Box<NodeParameterType<DataType>>,
+		item_type: Box<NodeParameterType>,
 	},
 
 	/// A map from `String` to parameter
 	Map {
 		/// The type of item this map holds
-		value_type: Box<NodeParameterType<DataType>>,
+		value_type: Box<NodeParameterType>,
 	},
 }
 
 /// The types of node parameters we accept
 #[derive(Debug, Clone, Deserialize, ToSchema)]
-#[serde(bound = "DataType: DeserializeOwned")]
 #[serde(tag = "parameter_type", content = "value")]
-pub enum NodeParameterValue<DataType: PipelineData> {
-	/// Pipeline data
-	///
-	/// `DataType` MUST NOT be deserialized transparently,
-	/// or it may be confused for other value types
-	/// (Most notable, `String`).
-	Data(DataType),
-
+pub enum NodeParameterValue {
 	/// A yes or a no
 	Boolean(bool),
 
 	/// An integer
-	Integer(u32),
-
-	/// A type of pipeline data
-	///
-	/// `DataStubType` MUST NOT be deserialized transparently,
-	/// or it may be confused for other value types
-	/// (Most notable, `String`).
-	DataType(<DataType as PipelineData>::DataStubType),
+	Integer(i64),
 
 	/// A plain string. This is used to carry the value of both
 	/// `String` and `Enum` types. If an `Enum` parameter receives
@@ -73,17 +50,17 @@ pub enum NodeParameterValue<DataType: PipelineData> {
 	String(SmartString<LazyCompact>),
 
 	/// A list of parameters
-	List(Vec<NodeParameterValue<DataType>>),
+	List(Vec<NodeParameterValue>),
 
 	/// A map from `String` to parameter
-	#[schema(value_type = BTreeMap<String, NodeParameterValue<DataType>>)]
-	Map(BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>),
+	#[schema(value_type = BTreeMap<String, NodeParameterValue>)]
+	Map(BTreeMap<SmartString<LazyCompact>, NodeParameterValue>),
 }
 
 /// A description of one parameter a node accepts
-pub struct NodeParameterSpec<DataType: PipelineData> {
+pub struct NodeParameterSpec {
 	/// The type of this parameter
-	pub param_type: NodeParameterType<DataType>,
+	pub param_type: NodeParameterType,
 
 	/// If true, this parameter is optional
 	pub is_optional: bool,

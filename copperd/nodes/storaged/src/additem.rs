@@ -1,9 +1,7 @@
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{
-		Node, NodeOutput, NodeParameterValue, PipelineData, PortName, RunNodeError, ThisNodeInfo,
-	},
-	data::{BytesSource, PipeData, PipeDataStub},
+	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	data::{BytesSource, PipeData},
 	CopperContext,
 };
 use copper_storaged::{AttrData, AttributeInfo, ClassId, Transaction, TransactionAction};
@@ -23,7 +21,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 		&self,
 		ctx: &CopperContext,
 		this_node: ThisNodeInfo,
-		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
+		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 		_output: mpsc::Sender<NodeOutput<PipeData>>,
 	) -> Result<(), RunNodeError<PipeData>> {
@@ -32,7 +30,14 @@ impl Node<PipeData, CopperContext> for AddItem {
 		//
 		let class: ClassId = if let Some(value) = params.remove("class") {
 			match value {
-				NodeParameterValue::Integer(x) => x.into(),
+				NodeParameterValue::Integer(x) => match u32::try_from(x) {
+					Ok(x) => x.into(),
+					Err(_) => {
+						return Err(RunNodeError::BadParameterType {
+							parameter: "class".into(),
+						})
+					}
+				},
 				_ => {
 					return Err(RunNodeError::BadParameterType {
 						parameter: "class".into(),
@@ -178,19 +183,17 @@ impl Node<PipeData, CopperContext> for AddItem {
 					})
 				}
 
+				// try_into should not fail, we've handled all special
+				// cases above.
 				Some(x) => {
 					let attr = attributes.get_mut(&port).unwrap();
+					let as_attr: AttrData = x.try_into().unwrap();
 
-					// Check data type
-					match x.as_stub() {
-						PipeDataStub::Plain { data_type } => {
-							if data_type != attr.0.data_type {
-								return Err(RunNodeError::BadInputType { port });
-							}
-						}
+					if as_attr.to_stub() != attr.0.data_type {
+						return Err(RunNodeError::BadInputType { port });
 					}
 
-					attr.1 = Some(x.try_into().unwrap())
+					attr.1 = Some(as_attr);
 				}
 
 				None => {}

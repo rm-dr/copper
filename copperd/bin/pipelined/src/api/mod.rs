@@ -1,9 +1,6 @@
 use axum::{extract::DefaultBodyLimit, Router};
 use copper_pipelined::{
-	base::NodeParameterValue,
-	data::{PipeData, PipeDataStub},
-	helpers::S3Client,
-	CopperContext,
+	base::NodeParameterValue, data::PipeData, helpers::S3Client, CopperContext,
 };
 use copper_storaged::{client::StoragedClient, AttrData, AttrDataStub};
 use copper_util::HashType;
@@ -56,14 +53,12 @@ impl Modify for BearerSecurityAddon {
 		(name = "pipelined", description = "Copper pipeline runner")
 	),
 	components(schemas(
-		PipeDataStub,
-		PipeData,
-		PipelineJson<PipeData>,
-		NodeJson<PipeData>,
+		PipelineJson,
+		NodeJson,
 		EdgeJson,
 		OutputPort,
 		InputPort,
-		NodeParameterValue<PipeData>,
+		NodeParameterValue,
 		AttrData,
 		AttrDataStub,
 		HashType

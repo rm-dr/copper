@@ -25,7 +25,7 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 		&self,
 		ctx: &CopperContext,
 		this_node: ThisNodeInfo,
-		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
+		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 		output: mpsc::Sender<NodeOutput<PipeData>>,
 	) -> Result<(), RunNodeError<PipeData>> {

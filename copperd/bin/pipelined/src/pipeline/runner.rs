@@ -18,7 +18,7 @@ pub struct PipelineRunnerOptions {
 struct JobEntry<DataType: PipelineData, ContextType: PipelineJobContext> {
 	id: SmartString<LazyCompact>,
 	context: Arc<ContextType>,
-	pipeline: PipelineJson<DataType>,
+	pipeline: PipelineJson,
 	inputs: BTreeMap<SmartString<LazyCompact>, DataType>,
 }
 
@@ -58,7 +58,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 	pub fn add_job(
 		&mut self,
 		context: ContextType,
-		pipeline: PipelineJson<DataType>,
+		pipeline: PipelineJson,
 		job_id: &str,
 		inputs: BTreeMap<SmartString<LazyCompact>, DataType>,
 	) {

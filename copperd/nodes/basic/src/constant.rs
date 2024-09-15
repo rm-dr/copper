@@ -16,7 +16,7 @@ impl Node<PipeData, CopperContext> for Constant {
 		&self,
 		_ctx: &CopperContext,
 		this_node: ThisNodeInfo,
-		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
+		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 		output: mpsc::Sender<NodeOutput<PipeData>>,
 	) -> Result<(), RunNodeError<PipeData>> {
@@ -24,8 +24,14 @@ impl Node<PipeData, CopperContext> for Constant {
 		// Extract parameters
 		//
 		let value = if let Some(value) = params.remove("value") {
+			// Convert parameter into pipeline data
 			match value {
-				NodeParameterValue::Data(data) => data.clone(),
+				NodeParameterValue::String(value) => PipeData::Text { value },
+				NodeParameterValue::Boolean(value) => PipeData::Boolean { value },
+				NodeParameterValue::Integer(value) => PipeData::Integer {
+					value,
+					is_non_negative: false,
+				},
 				_ => {
 					return Err(RunNodeError::BadParameterType {
 						parameter: "value".into(),

@@ -1,12 +1,10 @@
-use copper_storaged::{AttrData, AttrDataStub, ClassId, ItemId};
+use copper_storaged::{AttrData, ClassId, ItemId};
 use copper_util::{HashType, MimeType};
-use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::broadcast;
-use utoipa::ToSchema;
 
-use crate::base::{PipelineData, PipelineDataStub};
+use crate::base::PipelineData;
 
 /// Immutable bits of data inside a pipeline.
 ///
@@ -24,8 +22,7 @@ use crate::base::{PipelineData, PipelineDataStub};
 ///
 /// Also, some types that exist here cannot exist inside a metastore (for example, `Path`, which
 /// represents a file path that is available when the pipeline is run. This path may vanish later.)
-#[derive(Deserialize, Debug, Clone, ToSchema)]
-#[serde(tag = "type")]
+#[derive(Debug, Clone)]
 pub enum PipeData {
 	/// A block of text
 	Text { value: SmartString<LazyCompact> },
@@ -40,18 +37,15 @@ pub enum PipeData {
 	Float { value: f64, is_non_negative: bool },
 
 	/// A checksum
-	#[serde(skip)]
 	Hash { hash_type: HashType, data: Vec<u8> },
 
 	/// Arbitrary binary data.
 	/// This will be stored in the metadata db.
-	#[serde(skip)]
 	Blob {
 		/// The data
 		source: BytesSource,
 	},
 
-	#[serde(skip)]
 	Reference {
 		/// The item's class
 		class: ClassId,
@@ -98,52 +92,6 @@ impl Clone for BytesSource {
 					receiver: sender.subscribe(),
 				}
 			}
-		}
-	}
-}
-
-impl PipelineData for PipeData {
-	type DataStubType = PipeDataStub;
-
-	fn as_stub(&self) -> Self::DataStubType {
-		match self {
-			Self::Text { .. } => PipeDataStub::Plain {
-				data_type: AttrDataStub::Text,
-			},
-
-			Self::Integer {
-				is_non_negative, ..
-			} => PipeDataStub::Plain {
-				data_type: AttrDataStub::Integer {
-					is_non_negative: *is_non_negative,
-				},
-			},
-
-			Self::Boolean { .. } => PipeDataStub::Plain {
-				data_type: AttrDataStub::Boolean,
-			},
-
-			Self::Float {
-				is_non_negative, ..
-			} => PipeDataStub::Plain {
-				data_type: AttrDataStub::Float {
-					is_non_negative: *is_non_negative,
-				},
-			},
-
-			Self::Hash {
-				hash_type: format, ..
-			} => PipeDataStub::Plain {
-				data_type: AttrDataStub::Hash { hash_type: *format },
-			},
-
-			Self::Blob { .. } => PipeDataStub::Plain {
-				data_type: AttrDataStub::Blob,
-			},
-
-			Self::Reference { class, .. } => PipeDataStub::Plain {
-				data_type: AttrDataStub::Reference { class: *class },
-			},
 		}
 	}
 }
@@ -210,18 +158,4 @@ impl TryInto<AttrData> for PipeData {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, ToSchema)]
-#[serde(tag = "type")]
-pub enum PipeDataStub {
-	Plain { data_type: AttrDataStub },
-}
-
-impl PipelineDataStub for PipeDataStub {
-	fn is_subset_of(&self, superset: &Self) -> bool {
-		if self == superset {
-			return true;
-		}
-
-		return false;
-	}
-}
+impl PipelineData for PipeData {}

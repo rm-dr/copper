@@ -156,7 +156,7 @@ struct NodeSpec<DataType: PipelineData, ContextType: PipelineJobContext> {
 	pub node_type: SmartString<LazyCompact>,
 
 	/// This node's parameters.
-	pub node_params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
+	pub node_params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 
 	/// This node's state
 	pub state: NodeState<DataType, ContextType>,
@@ -232,7 +232,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 		dispatcher: &NodeDispatcher<DataType, ContextType>,
 		job_id: &str,
 		input: BTreeMap<SmartString<LazyCompact>, DataType>,
-		json: &PipelineJson<DataType>,
+		json: &PipelineJson,
 	) -> Result<Self, PipelineBuildError> {
 		return Ok(Self {
 			_pa: PhantomData {},
@@ -250,7 +250,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 	fn build(
 		dispatcher: &NodeDispatcher<DataType, ContextType>,
 		job_id: &str,
-		json: &PipelineJson<DataType>,
+		json: &PipelineJson,
 		input: BTreeMap<SmartString<LazyCompact>, DataType>,
 	) -> Result<
 		FinalizedGraph<NodeSpec<DataType, ContextType>, EdgeSpec<DataType>>,

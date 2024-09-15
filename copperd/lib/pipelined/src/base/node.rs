@@ -27,7 +27,7 @@ pub trait Node<DataType: PipelineData, ContextType: PipelineJobContext>: Sync + 
 		&self,
 		ctx: &ContextType,
 		this_node: ThisNodeInfo,
-		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<DataType>>,
+		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		input: BTreeMap<PortName, Option<DataType>>,
 		output: mpsc::Sender<NodeOutput<DataType>>,
 	) -> Result<(), RunNodeError<DataType>>;

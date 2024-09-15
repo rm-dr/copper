@@ -32,7 +32,7 @@ struct RegisteredNode<DataType: PipelineData, ContextType: PipelineJobContext> {
 	node_init: NodeInitFnType<DataType, ContextType>,
 
 	/// The parameters this node takes
-	_parameters: BTreeMap<SmartString<LazyCompact>, NodeParameterSpec<DataType>>,
+	_parameters: BTreeMap<SmartString<LazyCompact>, NodeParameterSpec>,
 }
 
 /// A factory struct that constructs pipeline nodes
@@ -60,7 +60,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 	pub fn register_node(
 		&mut self,
 		type_name: &str,
-		parameters: BTreeMap<SmartString<LazyCompact>, NodeParameterSpec<DataType>>,
+		parameters: BTreeMap<SmartString<LazyCompact>, NodeParameterSpec>,
 		node_init: NodeInitFnType<DataType, ContextType>,
 	) -> Result<(), RegisterNodeError> {
 		if self.nodes.contains_key(type_name) || type_name == INPUT_NODE_TYPE {

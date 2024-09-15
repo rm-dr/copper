@@ -19,7 +19,7 @@ use crate::{pipeline::json::PipelineJson, RouterState};
 #[derive(Deserialize, ToSchema, Debug)]
 pub(super) struct AddJobRequest {
 	/// The pipeline
-	pub pipeline: PipelineJson<PipeData>,
+	pub pipeline: PipelineJson,
 
 	/// A unique id for this job
 	pub job_id: SmartString<LazyCompact>,
