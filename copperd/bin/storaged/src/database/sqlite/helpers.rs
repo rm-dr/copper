@@ -52,7 +52,7 @@ pub(super) async fn add_item(
 			};
 
 		// Make sure type matches
-		if data_type != value.to_stub() {
+		if data_type != value.as_stub() {
 			return Err(AddItemError::AttributeDataTypeMismatch);
 		}
 

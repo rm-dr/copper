@@ -1,9 +1,6 @@
 use copper_pipelined::base::{NodeDispatcher, PipelineData, PipelineJobContext, RunNodeError};
 use smartstring::{LazyCompact, SmartString};
-use std::{
-	collections::{BTreeMap, VecDeque},
-	sync::Arc,
-};
+use std::collections::{BTreeMap, VecDeque};
 use tokio::task::{JoinError, JoinSet};
 use tracing::debug;
 
@@ -15,17 +12,17 @@ pub struct PipelineRunnerOptions {
 	pub max_running_jobs: usize,
 }
 
-struct JobEntry<DataType: PipelineData, ContextType: PipelineJobContext> {
+struct JobEntry<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	id: SmartString<LazyCompact>,
-	context: Arc<ContextType>,
-	pipeline: PipelineJson<DataType>,
+	context: Option<ContextType>,
+	pipeline: PipelineJson,
 	inputs: BTreeMap<SmartString<LazyCompact>, DataType>,
 }
 
 /// A prepared data processing pipeline.
 /// This is guaranteed to be correct:
 /// no dependency cycles, no port type mismatch, etc
-pub struct PipelineRunner<DataType: PipelineData, ContextType: PipelineJobContext> {
+pub struct PipelineRunner<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	config: PipelineRunnerOptions,
 	dispatcher: NodeDispatcher<DataType, ContextType>,
 
@@ -40,7 +37,7 @@ pub struct PipelineRunner<DataType: PipelineData, ContextType: PipelineJobContex
 	)>,
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext>
+impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	PipelineRunner<DataType, ContextType>
 {
 	/// Initialize a new runner
@@ -58,14 +55,14 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 	pub fn add_job(
 		&mut self,
 		context: ContextType,
-		pipeline: PipelineJson<DataType>,
+		pipeline: PipelineJson,
 		job_id: &str,
 		inputs: BTreeMap<SmartString<LazyCompact>, DataType>,
 	) {
 		debug!(message = "Adding job to queue", job_id);
 		self.job_queue.push_back(JobEntry {
 			id: job_id.into(),
-			context: Arc::new(context),
+			context: Some(context),
 			pipeline,
 			inputs,
 		});
@@ -102,7 +99,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 		// and jobs in the queue.
 		//
 		while self.running_jobs.len() < self.config.max_running_jobs && !self.job_queue.is_empty() {
-			let queued_job = self.job_queue.pop_front().unwrap();
+			let mut queued_job = self.job_queue.pop_front().unwrap();
 
 			debug!(
 				message = "Starting job",
@@ -123,7 +120,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 
 			self.running_jobs.spawn(async {
 				// TODO: handle error
-				let x = job.run(queued_job.context.clone()).await;
+				let x = job.run(queued_job.context.take().unwrap()).await;
 				(queued_job, x)
 			});
 		}

@@ -25,7 +25,7 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 		&self,
 		ctx: &CopperContext,
 		this_node: ThisNodeInfo,
-		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
+		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 		output: mpsc::Sender<NodeOutput<PipeData>>,
 	) -> Result<(), RunNodeError<PipeData>> {
@@ -84,7 +84,8 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 			}
 
 			Some(PipeData::Blob { source, .. }) => match source {
-				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Array(receiver),
+				BytesSource::Array { data, .. } => OpenBytesSourceReader::Array(data),
+				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Stream(receiver),
 
 				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
 					ctx.objectstore_client
@@ -110,7 +111,17 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 		// Setup is done, extract tags
 		//
 		match data {
-			OpenBytesSourceReader::Array(mut receiver) => {
+			OpenBytesSourceReader::Array(data) => {
+				reader
+					.push_data(&data)
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+
+				reader
+					.finish()
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+			}
+
+			OpenBytesSourceReader::Stream(mut receiver) => {
 				loop {
 					let rec = receiver.recv().await;
 					match rec {

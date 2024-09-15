@@ -43,6 +43,7 @@ impl Debug for FlacPictureBlock {
 		f.debug_struct("FlacPicture")
 			.field("type", &self.picture_type)
 			.field("mime", &self.mime)
+			.field("img_data.len()", &self.img_data.len())
 			.finish()
 	}
 }

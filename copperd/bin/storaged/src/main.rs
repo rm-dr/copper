@@ -519,7 +519,9 @@ mod tests {
 				&mut app,
 				class_covers_id,
 				"content_hash",
-				AttrDataStub::Blob,
+				AttrDataStub::Hash {
+					hash_type: HashType::SHA256,
+				},
 				AttributeOptions::default(),
 			)
 			.await;
@@ -529,9 +531,7 @@ mod tests {
 				&mut app,
 				class_covers_id,
 				"image",
-				AttrDataStub::Hash {
-					hash_type: HashType::SHA256,
-				},
+				AttrDataStub::Blob,
 				AttributeOptions::default(),
 			)
 			.await;
@@ -709,21 +709,19 @@ mod tests {
 		//
 
 		{
-			let response = apply_transaction(
-				&mut app,
-				Transaction {
-					actions: vec![TransactionAction::AddItem {
-						to_class: class_audiofile_id,
-						attributes: vec![(
-							attr_title_id,
-							AttrData::Text {
-								value: "title!".into(),
-							},
-						)],
-					}],
-				},
-			)
-			.await;
+			let mut transaction = Transaction::new();
+			transaction.add_action(TransactionAction::AddItem {
+				to_class: class_audiofile_id,
+				attributes: vec![(
+					attr_title_id,
+					AttrData::Text {
+						value: "title!".into(),
+					}
+					.into(),
+				)],
+			});
+
+			let response = apply_transaction(&mut app, transaction).await;
 			assert_eq!(response.status(), 200);
 		}
 	}

@@ -1,12 +1,10 @@
 use async_trait::async_trait;
 use copper_pipelined::{
-	base::{
-		Node, NodeOutput, NodeParameterValue, PipelineData, PortName, RunNodeError, ThisNodeInfo,
-	},
-	data::{BytesSource, PipeData, PipeDataStub},
+	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	data::{BytesSource, PipeData},
 	CopperContext,
 };
-use copper_storaged::{AttrData, AttributeInfo, ClassId, Transaction, TransactionAction};
+use copper_storaged::{AttrData, AttributeInfo, ClassId, ResultOrDirect, TransactionAction};
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
@@ -23,16 +21,23 @@ impl Node<PipeData, CopperContext> for AddItem {
 		&self,
 		ctx: &CopperContext,
 		this_node: ThisNodeInfo,
-		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
+		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
-		_output: mpsc::Sender<NodeOutput<PipeData>>,
+		output: mpsc::Sender<NodeOutput<PipeData>>,
 	) -> Result<(), RunNodeError<PipeData>> {
 		//
 		// Extract parameters
 		//
 		let class: ClassId = if let Some(value) = params.remove("class") {
 			match value {
-				NodeParameterValue::Integer(x) => x.into(),
+				NodeParameterValue::Integer(x) => match u32::try_from(x) {
+					Ok(x) => x.into(),
+					Err(_) => {
+						return Err(RunNodeError::BadParameterType {
+							parameter: "class".into(),
+						})
+					}
+				},
 				_ => {
 					return Err(RunNodeError::BadParameterType {
 						parameter: "class".into(),
@@ -55,19 +60,19 @@ impl Node<PipeData, CopperContext> for AddItem {
 		// (extract inputs)
 		//
 		debug!(message = "Getting attributes");
-		let mut attributes: BTreeMap<PortName, (AttributeInfo, Option<AttrData>)> = ctx
-			.storaged_client
-			.get_class(class)
-			.await
-			.map_err(|e| RunNodeError::Other(Arc::new(e)))?
-			.ok_or(RunNodeError::BadParameterOther {
-				parameter: "class".into(),
-				message: "this class doesn't exist".into(),
-			})?
-			.attributes
-			.into_iter()
-			.map(|x| (PortName::new(x.name.as_str()), (x, None)))
-			.collect();
+		let mut attributes: BTreeMap<PortName, (AttributeInfo, Option<ResultOrDirect<AttrData>>)> =
+			ctx.storaged_client
+				.get_class(class)
+				.await
+				.map_err(|e| RunNodeError::Other(Arc::new(e)))?
+				.ok_or(RunNodeError::BadParameterOther {
+					parameter: "class".into(),
+					message: "this class doesn't exist".into(),
+				})?
+				.attributes
+				.into_iter()
+				.map(|x| (PortName::new(x.name.as_str()), (x, None)))
+				.collect();
 
 		// Fill attribute table
 		while let Some((port, data)) = input.pop_first() {
@@ -89,6 +94,21 @@ impl Node<PipeData, CopperContext> for AddItem {
 					let mut part_counter = 1;
 
 					let upload = match source {
+						BytesSource::Array { mime, data } => {
+							let mut upload = ctx
+								.objectstore_client
+								.create_multipart_upload(&new_obj_key, mime)
+								.await
+								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+
+							upload
+								.upload_part(&data, 1)
+								.await
+								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+
+							upload
+						}
+
 						BytesSource::Stream {
 							mut receiver, mime, ..
 						} => {
@@ -173,24 +193,43 @@ impl Node<PipeData, CopperContext> for AddItem {
 						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 					let attr = attributes.get_mut(&port).unwrap();
-					attr.1 = Some(AttrData::Blob {
-						object_key: new_obj_key,
-					})
+
+					attr.1 = Some(
+						AttrData::Blob {
+							object_key: new_obj_key,
+						}
+						.into(),
+					)
+				}
+
+				Some(PipeData::TransactionActionResult {
+					action_idx,
+					result_type,
+				}) => {
+					let attr = attributes.get_mut(&port).unwrap();
+
+					if result_type != attr.0.data_type {
+						return Err(RunNodeError::BadInputType { port });
+					}
+
+					attr.1 = Some(ResultOrDirect::Result {
+						action_idx,
+						expected_type: result_type,
+					});
 				}
 
 				Some(x) => {
 					let attr = attributes.get_mut(&port).unwrap();
+					let as_attr: AttrData = match x.try_into() {
+						Ok(x) => x,
+						Err(_) => return Err(RunNodeError::BadInputType { port }),
+					};
 
-					// Check data type
-					match x.as_stub() {
-						PipeDataStub::Plain { data_type } => {
-							if data_type != attr.0.data_type {
-								return Err(RunNodeError::BadInputType { port });
-							}
-						}
+					if as_attr.as_stub() != attr.0.data_type {
+						return Err(RunNodeError::BadInputType { port });
 					}
 
-					attr.1 = Some(x.try_into().unwrap())
+					attr.1 = Some(as_attr.into());
 				}
 
 				None => {}
@@ -200,28 +239,44 @@ impl Node<PipeData, CopperContext> for AddItem {
 		//
 		// Set up and send transaction
 		//
-		let transaction = Transaction {
-			actions: vec![TransactionAction::AddItem {
-				to_class: class,
-				attributes: attributes
-					.into_iter()
-					.map(|(_, (k, d))| {
-						(
-							k.id,
-							d.unwrap_or(AttrData::None {
+
+		let action = TransactionAction::AddItem {
+			to_class: class,
+			attributes: attributes
+				.into_iter()
+				.map(|(_, (k, d))| {
+					(
+						k.id,
+						d.unwrap_or(
+							AttrData::None {
 								data_type: k.data_type,
-							}),
-						)
-					})
-					.collect(),
-			}],
+							}
+							.into(),
+						),
+					)
+				})
+				.collect(),
 		};
 
-		debug!(message = "Sending transaction", ?transaction);
-		ctx.storaged_client
-			.apply_transaction(transaction)
-			.await
-			.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+		let mut trans = ctx.transaction.lock().await;
+		let result_type = action.result_type().unwrap();
+		debug!(
+			message = "Registering action",
+			?action,
+			action_idx = trans.len()
+		);
+		let action_idx = trans.add_action(action);
+
+		output
+			.send(NodeOutput {
+				node: this_node,
+				port: PortName::new("new_item"),
+				data: Some(PipeData::TransactionActionResult {
+					action_idx,
+					result_type,
+				}),
+			})
+			.await?;
 
 		return Ok(());
 	}

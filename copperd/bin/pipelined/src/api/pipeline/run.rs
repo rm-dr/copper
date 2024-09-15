@@ -8,10 +8,11 @@ use copper_pipelined::{
 	data::{BytesSource, PipeData},
 	CopperContext,
 };
-use copper_storaged::AttrData;
+use copper_storaged::{AttrData, Transaction};
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
+use tokio::sync::Mutex;
 use utoipa::ToSchema;
 
 use crate::{pipeline::json::PipelineJson, RouterState};
@@ -19,7 +20,7 @@ use crate::{pipeline::json::PipelineJson, RouterState};
 #[derive(Deserialize, ToSchema, Debug)]
 pub(super) struct AddJobRequest {
 	/// The pipeline
-	pub pipeline: PipelineJson<PipeData>,
+	pub pipeline: PipelineJson,
 
 	/// A unique id for this job
 	pub job_id: SmartString<LazyCompact>,
@@ -75,6 +76,7 @@ pub(super) async fn run_pipeline(
 		objectstore_client: state.objectstore_client.clone(),
 		storaged_client: state.storaged_client.clone(),
 		job_id: payload.job_id.clone(),
+		transaction: Mutex::new(Transaction::new()),
 	};
 
 	runner.add_job(context, payload.pipeline, &payload.job_id, input);

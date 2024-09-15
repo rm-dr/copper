@@ -2,14 +2,14 @@ use crate::flac::proc::pictures::FlacPictureReader;
 use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
-	data::{BytesSource, BytesStreamPacket, PipeData},
+	data::{BytesSource, PipeData},
 	helpers::OpenBytesSourceReader,
 	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc};
-use tracing::warn;
+use tracing::{debug, trace, warn};
 
 pub struct ExtractCovers {}
 
@@ -21,7 +21,7 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 		&self,
 		ctx: &CopperContext,
 		this_node: ThisNodeInfo,
-		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
+		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 		output: mpsc::Sender<NodeOutput<PipeData>>,
 	) -> Result<(), RunNodeError<PipeData>> {
@@ -51,7 +51,8 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 			}
 
 			Some(PipeData::Blob { source, .. }) => match source {
-				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Array(receiver),
+				BytesSource::Array { data, .. } => OpenBytesSourceReader::Array(data),
+				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Stream(receiver),
 
 				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
 					ctx.objectstore_client
@@ -70,11 +71,36 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 
 		let mut reader = FlacPictureReader::new();
 
+		debug!(
+			message = "Setup done, extracting covers",
+			node_id = ?this_node.id
+		);
+
 		//
 		// Setup is done, extract covers
 		//
 		match data {
-			OpenBytesSourceReader::Array(mut receiver) => {
+			OpenBytesSourceReader::Array(data) => {
+				trace!(
+					message = "Reading data from array",
+					node_id = ?this_node.id
+				);
+
+				reader
+					.push_data(&data)
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+
+				reader
+					.finish()
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+			}
+
+			OpenBytesSourceReader::Stream(mut receiver) => {
+				trace!(
+					message = "Reading data from stream",
+					node_id = ?this_node.id
+				);
+
 				loop {
 					let rec = receiver.recv().await;
 					match rec {
@@ -109,6 +135,11 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 			}
 
 			OpenBytesSourceReader::S3(mut r) => {
+				trace!(
+					message = "Reading data from S3",
+					node_id = ?this_node.id
+				);
+
 				let mut read_buf = vec![0u8; ctx.blob_fragment_size];
 
 				loop {
@@ -116,6 +147,12 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 						.read(&mut read_buf)
 						.await
 						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+
+					trace!(
+						message = "Got bytes from S3",
+						n_bytes = l,
+						node_id = ?this_node.id
+					);
 
 					if l == 0 {
 						assert!(r.is_done());
@@ -126,6 +163,11 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 							.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 					}
 				}
+
+				trace!(
+					message = "Reader ran out of data, finishing",
+					node_id = ?this_node.id
+				);
 
 				assert!(r.is_done());
 				reader
@@ -138,28 +180,30 @@ impl Node<PipeData, CopperContext> for ExtractCovers {
 		// Send the first cover we find
 		//
 		if let Some(picture) = reader.pop_picture() {
-			// Pictures are loaded into memory anyway, so we don't need to stream them.
-			let (tx, rx) = broadcast::channel(1);
-			tx.send(BytesStreamPacket {
-				data: Arc::new(picture.img_data),
-				is_last: true,
-			})
-			.map_err(|_| RunNodeError::StreamSendError)?;
+			debug!(
+				message = "Found a cover, sending",
+				node_id = ?this_node.id,
+				picture = ?picture
+			);
 
 			output
 				.send(NodeOutput {
 					node: this_node,
 					port: PortName::new("cover_data"),
 					data: Some(PipeData::Blob {
-						source: BytesSource::Stream {
+						source: BytesSource::Array {
 							mime: picture.mime.clone(),
-							sender: tx.clone(),
-							receiver: rx,
+							data: Arc::new(picture.img_data),
 						},
 					}),
 				})
 				.await?;
 		} else {
+			debug!(
+				message = "Did not find a cover, sending None",
+				node_id = ?this_node.id
+			);
+
 			output
 				.send(NodeOutput {
 					node: this_node,

@@ -25,7 +25,7 @@ impl Node<PipeData, CopperContext> for StripTags {
 		&self,
 		ctx: &CopperContext,
 		this_node: ThisNodeInfo,
-		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
+		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 		output: mpsc::Sender<NodeOutput<PipeData>>,
 	) -> Result<(), RunNodeError<PipeData>> {
@@ -55,7 +55,8 @@ impl Node<PipeData, CopperContext> for StripTags {
 			}
 
 			Some(PipeData::Blob { source, .. }) => match source {
-				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Array(receiver),
+				BytesSource::Array { data, .. } => OpenBytesSourceReader::Array(data),
+				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Stream(receiver),
 				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
 					ctx.objectstore_client
 						.create_reader(&key)
@@ -99,9 +100,37 @@ impl Node<PipeData, CopperContext> for StripTags {
 		let mut strip = FlacMetaStrip::new();
 
 		match data {
-			OpenBytesSourceReader::Array(mut receiver) => {
+			OpenBytesSourceReader::Array(data) => {
 				trace!(
 					message = "Reading data from array",
+					node_id = ?this_node.id
+				);
+
+				strip
+					.push_data(&data)
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+
+				strip
+					.finish()
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+
+				let mut out_bytes = Vec::new();
+				while strip.has_data() {
+					strip
+						.read_data(&mut out_bytes)
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+				}
+
+				tx.send(BytesStreamPacket {
+					data: Arc::new(out_bytes),
+					is_last: true,
+				})
+				.map_err(|_| RunNodeError::StreamSendError)?;
+			}
+
+			OpenBytesSourceReader::Stream(mut receiver) => {
+				trace!(
+					message = "Reading data from stream",
 					node_id = ?this_node.id
 				);
 

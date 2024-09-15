@@ -86,7 +86,7 @@ impl Node<PipeData, CopperContext> for Hash {
 		&self,
 		ctx: &CopperContext,
 		this_node: ThisNodeInfo,
-		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue<PipeData>>,
+		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 		output: mpsc::Sender<NodeOutput<PipeData>>,
 	) -> Result<(), RunNodeError<PipeData>> {
@@ -138,7 +138,8 @@ impl Node<PipeData, CopperContext> for Hash {
 			}
 
 			Some(PipeData::Blob { source, .. }) => match source {
-				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Array(receiver),
+				BytesSource::Array { data, .. } => OpenBytesSourceReader::Array(data),
+				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Stream(receiver),
 				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
 					ctx.objectstore_client
 						.create_reader(&key)
@@ -167,9 +168,27 @@ impl Node<PipeData, CopperContext> for Hash {
 		let mut hasher = HashComputer::new(hash_type);
 
 		match data {
-			OpenBytesSourceReader::Array(mut receiver) => {
+			OpenBytesSourceReader::Array(data) => {
 				trace!(
 					message = "Hashing from array",
+					node_id = ?this_node.id,
+				);
+
+				// Take and return ownership of `hasher`
+				hasher = tokio::task::spawn_blocking(move || {
+					let res = hasher.update(&mut Cursor::new(&*data));
+					if let Err(e) = res {
+						return Err(e);
+					} else {
+						return Ok(hasher);
+					}
+				})
+				.await??;
+			}
+
+			OpenBytesSourceReader::Stream(mut receiver) => {
+				trace!(
+					message = "Hashing from stream",
 					node_id = ?this_node.id,
 				);
 

@@ -1,12 +1,10 @@
-use copper_storaged::{AttrData, AttrDataStub, ClassId, ItemId};
+use copper_storaged::{AttrData, AttrDataStub};
 use copper_util::{HashType, MimeType};
-use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::broadcast;
-use utoipa::ToSchema;
 
-use crate::base::{PipelineData, PipelineDataStub};
+use crate::base::PipelineData;
 
 /// Immutable bits of data inside a pipeline.
 ///
@@ -24,8 +22,7 @@ use crate::base::{PipelineData, PipelineDataStub};
 ///
 /// Also, some types that exist here cannot exist inside a metastore (for example, `Path`, which
 /// represents a file path that is available when the pipeline is run. This path may vanish later.)
-#[derive(Deserialize, Debug, Clone, ToSchema)]
-#[serde(tag = "type")]
+#[derive(Debug, Clone)]
 pub enum PipeData {
 	/// A block of text
 	Text { value: SmartString<LazyCompact> },
@@ -40,24 +37,18 @@ pub enum PipeData {
 	Float { value: f64, is_non_negative: bool },
 
 	/// A checksum
-	#[serde(skip)]
 	Hash { hash_type: HashType, data: Vec<u8> },
 
 	/// Arbitrary binary data.
 	/// This will be stored in the metadata db.
-	#[serde(skip)]
 	Blob {
 		/// The data
 		source: BytesSource,
 	},
 
-	#[serde(skip)]
-	Reference {
-		/// The item's class
-		class: ClassId,
-
-		/// The item
-		item: ItemId,
+	TransactionActionResult {
+		action_idx: usize,
+		result_type: AttrDataStub,
 	},
 }
 
@@ -74,6 +65,10 @@ pub struct BytesStreamPacket {
 
 #[derive(Debug)]
 pub enum BytesSource {
+	Array {
+		mime: MimeType,
+		data: Arc<Vec<u8>>,
+	},
 	Stream {
 		/// This data's media type
 		mime: MimeType,
@@ -91,6 +86,10 @@ impl Clone for BytesSource {
 	fn clone(&self) -> Self {
 		match self {
 			Self::S3 { key } => Self::S3 { key: key.clone() },
+			Self::Array { mime, data } => Self::Array {
+				mime: mime.clone(),
+				data: data.clone(),
+			},
 			Self::Stream { sender, mime, .. } => {
 				return Self::Stream {
 					mime: mime.clone(),
@@ -102,52 +101,6 @@ impl Clone for BytesSource {
 	}
 }
 
-impl PipelineData for PipeData {
-	type DataStubType = PipeDataStub;
-
-	fn as_stub(&self) -> Self::DataStubType {
-		match self {
-			Self::Text { .. } => PipeDataStub::Plain {
-				data_type: AttrDataStub::Text,
-			},
-
-			Self::Integer {
-				is_non_negative, ..
-			} => PipeDataStub::Plain {
-				data_type: AttrDataStub::Integer {
-					is_non_negative: *is_non_negative,
-				},
-			},
-
-			Self::Boolean { .. } => PipeDataStub::Plain {
-				data_type: AttrDataStub::Boolean,
-			},
-
-			Self::Float {
-				is_non_negative, ..
-			} => PipeDataStub::Plain {
-				data_type: AttrDataStub::Float {
-					is_non_negative: *is_non_negative,
-				},
-			},
-
-			Self::Hash {
-				hash_type: format, ..
-			} => PipeDataStub::Plain {
-				data_type: AttrDataStub::Hash { hash_type: *format },
-			},
-
-			Self::Blob { .. } => PipeDataStub::Plain {
-				data_type: AttrDataStub::Blob,
-			},
-
-			Self::Reference { class, .. } => PipeDataStub::Plain {
-				data_type: AttrDataStub::Reference { class: *class },
-			},
-		}
-	}
-}
-
 impl TryFrom<AttrData> for PipeData {
 	type Error = ();
 
@@ -155,11 +108,11 @@ impl TryFrom<AttrData> for PipeData {
 		return Ok(match value {
 			AttrData::Blob { .. } => return Err(()),
 			AttrData::None { .. } => return Err(()),
+			AttrData::Reference { .. } => return Err(()),
 
 			AttrData::Text { value } => Self::Text { value },
 			AttrData::Boolean { value } => Self::Boolean { value },
 			AttrData::Hash { hash_type, data } => Self::Hash { hash_type, data },
-			AttrData::Reference { class, item } => Self::Reference { class, item },
 
 			AttrData::Float {
 				value,
@@ -186,10 +139,11 @@ impl TryInto<AttrData> for PipeData {
 	fn try_into(self) -> Result<AttrData, Self::Error> {
 		return Ok(match self {
 			Self::Blob { .. } => return Err(()),
+			Self::TransactionActionResult { .. } => return Err(()),
+
 			Self::Text { value } => AttrData::Text { value },
 			Self::Boolean { value } => AttrData::Boolean { value },
 			Self::Hash { hash_type, data } => AttrData::Hash { hash_type, data },
-			Self::Reference { class, item } => AttrData::Reference { class, item },
 
 			Self::Float {
 				value,
@@ -210,18 +164,4 @@ impl TryInto<AttrData> for PipeData {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, ToSchema)]
-#[serde(tag = "type")]
-pub enum PipeDataStub {
-	Plain { data_type: AttrDataStub },
-}
-
-impl PipelineDataStub for PipeDataStub {
-	fn is_subset_of(&self, superset: &Self) -> bool {
-		if self == superset {
-			return true;
-		}
-
-		return false;
-	}
-}
+impl PipelineData for PipeData {}

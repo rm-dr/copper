@@ -45,7 +45,7 @@ pub struct SqliteDatabaseClient {
 impl SqliteDatabaseClient {
 	/// Create a new [`LocalDataset`].
 	pub async fn open(db_addr: &str) -> Result<Self, SqliteDatabaseOpenError> {
-		info!(message = "Creating dataset", ds_type = "sqlite", ?db_addr);
+		info!(message = "Opening dataset", ds_type = "sqlite", ?db_addr);
 
 		// Apply migrations
 		let mut conn = SqliteConnection::connect(db_addr)
