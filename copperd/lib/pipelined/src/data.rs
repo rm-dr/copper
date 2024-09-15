@@ -65,6 +65,10 @@ pub struct BytesStreamPacket {
 
 #[derive(Debug)]
 pub enum BytesSource {
+	Array {
+		mime: MimeType,
+		data: Arc<Vec<u8>>,
+	},
 	Stream {
 		/// This data's media type
 		mime: MimeType,
@@ -82,6 +86,10 @@ impl Clone for BytesSource {
 	fn clone(&self) -> Self {
 		match self {
 			Self::S3 { key } => Self::S3 { key: key.clone() },
+			Self::Array { mime, data } => Self::Array {
+				mime: mime.clone(),
+				data: data.clone(),
+			},
 			Self::Stream { sender, mime, .. } => {
 				return Self::Stream {
 					mime: mime.clone(),

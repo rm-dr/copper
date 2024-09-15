@@ -94,6 +94,21 @@ impl Node<PipeData, CopperContext> for AddItem {
 					let mut part_counter = 1;
 
 					let upload = match source {
+						BytesSource::Array { mime, data } => {
+							let mut upload = ctx
+								.objectstore_client
+								.create_multipart_upload(&new_obj_key, mime)
+								.await
+								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+
+							upload
+								.upload_part(&data, 1)
+								.await
+								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+
+							upload
+						}
+
 						BytesSource::Stream {
 							mut receiver, mime, ..
 						} => {
