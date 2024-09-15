@@ -4,7 +4,7 @@ use copper_pipelined::{
 	data::{BytesSource, PipeData},
 	CopperContext,
 };
-use copper_storaged::{AttrData, AttributeInfo, ClassId, Transaction, TransactionAction};
+use copper_storaged::{AttrData, AttributeInfo, ClassId, ResultOrDirect, TransactionAction};
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
@@ -23,7 +23,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 		this_node: ThisNodeInfo,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
-		_output: mpsc::Sender<NodeOutput<PipeData>>,
+		output: mpsc::Sender<NodeOutput<PipeData>>,
 	) -> Result<(), RunNodeError<PipeData>> {
 		//
 		// Extract parameters
@@ -60,19 +60,19 @@ impl Node<PipeData, CopperContext> for AddItem {
 		// (extract inputs)
 		//
 		debug!(message = "Getting attributes");
-		let mut attributes: BTreeMap<PortName, (AttributeInfo, Option<AttrData>)> = ctx
-			.storaged_client
-			.get_class(class)
-			.await
-			.map_err(|e| RunNodeError::Other(Arc::new(e)))?
-			.ok_or(RunNodeError::BadParameterOther {
-				parameter: "class".into(),
-				message: "this class doesn't exist".into(),
-			})?
-			.attributes
-			.into_iter()
-			.map(|x| (PortName::new(x.name.as_str()), (x, None)))
-			.collect();
+		let mut attributes: BTreeMap<PortName, (AttributeInfo, Option<ResultOrDirect<AttrData>>)> =
+			ctx.storaged_client
+				.get_class(class)
+				.await
+				.map_err(|e| RunNodeError::Other(Arc::new(e)))?
+				.ok_or(RunNodeError::BadParameterOther {
+					parameter: "class".into(),
+					message: "this class doesn't exist".into(),
+				})?
+				.attributes
+				.into_iter()
+				.map(|x| (PortName::new(x.name.as_str()), (x, None)))
+				.collect();
 
 		// Fill attribute table
 		while let Some((port, data)) = input.pop_first() {
@@ -178,9 +178,29 @@ impl Node<PipeData, CopperContext> for AddItem {
 						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 					let attr = attributes.get_mut(&port).unwrap();
-					attr.1 = Some(AttrData::Blob {
-						object_key: new_obj_key,
-					})
+
+					attr.1 = Some(
+						AttrData::Blob {
+							object_key: new_obj_key,
+						}
+						.into(),
+					)
+				}
+
+				Some(PipeData::TransactionActionResult {
+					action_idx,
+					result_type,
+				}) => {
+					let attr = attributes.get_mut(&port).unwrap();
+
+					if result_type != attr.0.data_type {
+						return Err(RunNodeError::BadInputType { port });
+					}
+
+					attr.1 = Some(ResultOrDirect::Result {
+						action_idx,
+						expected_type: result_type,
+					});
 				}
 
 				Some(x) => {
@@ -190,11 +210,11 @@ impl Node<PipeData, CopperContext> for AddItem {
 						Err(_) => return Err(RunNodeError::BadInputType { port }),
 					};
 
-					if as_attr.to_stub() != attr.0.data_type {
+					if as_attr.as_stub() != attr.0.data_type {
 						return Err(RunNodeError::BadInputType { port });
 					}
 
-					attr.1 = Some(as_attr);
+					attr.1 = Some(as_attr.into());
 				}
 
 				None => {}
@@ -204,28 +224,44 @@ impl Node<PipeData, CopperContext> for AddItem {
 		//
 		// Set up and send transaction
 		//
-		let transaction = Transaction {
-			actions: vec![TransactionAction::AddItem {
-				to_class: class,
-				attributes: attributes
-					.into_iter()
-					.map(|(_, (k, d))| {
-						(
-							k.id,
-							d.unwrap_or(AttrData::None {
+
+		let action = TransactionAction::AddItem {
+			to_class: class,
+			attributes: attributes
+				.into_iter()
+				.map(|(_, (k, d))| {
+					(
+						k.id,
+						d.unwrap_or(
+							AttrData::None {
 								data_type: k.data_type,
-							}),
-						)
-					})
-					.collect(),
-			}],
+							}
+							.into(),
+						),
+					)
+				})
+				.collect(),
 		};
 
-		debug!(message = "Sending transaction", ?transaction);
-		ctx.storaged_client
-			.apply_transaction(transaction)
-			.await
-			.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+		let mut trans = ctx.transaction.lock().await;
+		let result_type = action.result_type().unwrap();
+		debug!(
+			message = "Registering action",
+			?action,
+			action_idx = trans.len()
+		);
+		let action_idx = trans.add_action(action);
+
+		output
+			.send(NodeOutput {
+				node: this_node,
+				port: PortName::new("new_item"),
+				data: Some(PipeData::TransactionActionResult {
+					action_idx,
+					result_type,
+				}),
+			})
+			.await?;
 
 		return Ok(());
 	}

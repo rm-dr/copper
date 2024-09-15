@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use copper_storaged::{
-	AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo,
-	Transaction, TransactionAction,
+	AttrData, AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo,
+	ResultOrDirect, Transaction, TransactionAction,
 };
 use copper_util::MimeType;
 use serde::{Deserialize, Serialize};
@@ -512,12 +512,45 @@ impl DatabaseClient for SqliteDatabaseClient {
 			.await
 			.map_err(|e| ApplyTransactionError::DbError(Box::new(e)))?;
 
-		for action in transaction.actions {
+		let mut transaction_results: Vec<Option<AttrData>> = Vec::new();
+
+		for action in transaction {
 			match action {
 				TransactionAction::AddItem {
 					to_class,
 					attributes,
-				} => helpers::add_item(&mut t, to_class, attributes).await?,
+				} => {
+					let resolved_attributes = attributes
+						.into_iter()
+						.map(|(k, v)| {
+							(
+								k,
+								match v {
+									ResultOrDirect::Direct { value } => value,
+									ResultOrDirect::Result {
+										action_idx,
+										expected_type,
+									} => match transaction_results.get(action_idx) {
+										None => panic!("TODO: ERROR HERE"),
+										Some(None) => panic!("TODO: ERROR HERE"),
+										Some(Some(x)) => {
+											if x.as_stub() != expected_type {
+												panic!("TODO: ERROR HERE")
+											}
+											x.clone()
+										}
+									},
+								},
+							)
+						})
+						.collect();
+
+					let res = helpers::add_item(&mut t, to_class, resolved_attributes).await?;
+					transaction_results.push(Some(AttrData::Reference {
+						class: to_class,
+						item: res,
+					}))
+				}
 			};
 		}
 

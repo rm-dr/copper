@@ -27,7 +27,7 @@ impl Display for RegisterNodeError {
 impl Error for RegisterNodeError {}
 
 /// A node type we've registered inside a [`NodeDispatcher`]
-struct RegisteredNode<DataType: PipelineData, ContextType: PipelineJobContext> {
+struct RegisteredNode<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	/// A method that constructs a new node of this type with the provided parameters.
 	node_init: NodeInitFnType<DataType, ContextType>,
 
@@ -36,13 +36,12 @@ struct RegisteredNode<DataType: PipelineData, ContextType: PipelineJobContext> {
 }
 
 /// A factory struct that constructs pipeline nodes
-pub struct NodeDispatcher<DataType: PipelineData, ContextType: PipelineJobContext> {
+pub struct NodeDispatcher<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	_pa: PhantomData<DataType>,
-
 	nodes: BTreeMap<SmartString<LazyCompact>, RegisteredNode<DataType, ContextType>>,
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext>
+impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	NodeDispatcher<DataType, ContextType>
 {
 	/// Create a new [`NodeDispatcher`]

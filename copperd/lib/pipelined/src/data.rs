@@ -1,4 +1,4 @@
-use copper_storaged::AttrData;
+use copper_storaged::{AttrData, AttrDataStub};
 use copper_util::{HashType, MimeType};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
@@ -44,6 +44,11 @@ pub enum PipeData {
 	Blob {
 		/// The data
 		source: BytesSource,
+	},
+
+	TransactionActionResult {
+		action_idx: usize,
+		result_type: AttrDataStub,
 	},
 }
 
@@ -126,6 +131,8 @@ impl TryInto<AttrData> for PipeData {
 	fn try_into(self) -> Result<AttrData, Self::Error> {
 		return Ok(match self {
 			Self::Blob { .. } => return Err(()),
+			Self::TransactionActionResult { .. } => return Err(()),
+
 			Self::Text { value } => AttrData::Text { value },
 			Self::Boolean { value } => AttrData::Boolean { value },
 			Self::Hash { hash_type, data } => AttrData::Hash { hash_type, data },

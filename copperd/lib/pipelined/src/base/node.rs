@@ -21,7 +21,9 @@ pub struct NodeOutput<DataType: PipelineData> {
 }
 
 #[async_trait]
-pub trait Node<DataType: PipelineData, ContextType: PipelineJobContext>: Sync + Send {
+pub trait Node<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>:
+	Sync + Send
+{
 	/// Run this node. TODO: document
 	async fn run(
 		&self,

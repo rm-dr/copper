@@ -1,4 +1,7 @@
+use async_trait::async_trait;
 use std::fmt::Debug;
+
+use super::RunNodeError;
 
 /// An immutable bit of data inside a pipeline.
 ///
@@ -13,8 +16,10 @@ where
 {
 }
 
-pub trait PipelineJobContext
+#[async_trait]
+pub trait PipelineJobContext<DataType: PipelineData>
 where
 	Self: Send + Sync + 'static,
 {
+	async fn on_complete(self) -> Result<(), RunNodeError<DataType>>;
 }
