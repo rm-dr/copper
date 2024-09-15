@@ -5,14 +5,14 @@ use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::{BytesSource, BytesStreamPacket, PipeData},
-	helpers::OpenBytesSourceReader,
+	helpers::BytesSourceReader,
 	CopperContext,
 };
 use copper_util::MimeType;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc};
-use tracing::{debug, trace, warn};
+use tracing::{debug, trace};
 
 /// Strip all metadata from an audio file
 pub struct StripTags {}
@@ -47,23 +47,19 @@ impl Node<PipeData, CopperContext> for StripTags {
 				port: PortName::new("data"),
 			});
 		}
-		let data = match data.unwrap() {
+		if let Some((port, _)) = input.pop_first() {
+			return Err(RunNodeError::UnrecognizedInput { port });
+		}
+
+		let mut reader = match data.unwrap() {
 			None => {
 				return Err(RunNodeError::RequiredInputNull {
 					port: PortName::new("data"),
 				})
 			}
 
-			Some(PipeData::Blob { source, .. }) => match source {
-				BytesSource::Array { data, .. } => OpenBytesSourceReader::Array(data),
-				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Stream(receiver),
-				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
-					ctx.objectstore_client
-						.create_reader(&key)
-						.await
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?,
-				),
-			},
+			Some(PipeData::Blob { source, .. }) => BytesSourceReader::open(ctx, source).await?,
+
 			_ => {
 				return Err(RunNodeError::BadInputType {
 					port: PortName::new("data"),
@@ -97,180 +93,59 @@ impl Node<PipeData, CopperContext> for StripTags {
 		//
 		// Strip tags
 		//
+		debug!(
+			message = "Stripping tags",
+			node_id = ?this_node.id
+		);
 		let mut strip = FlacMetaStrip::new();
+		let mut out_bytes = Vec::new();
 
-		match data {
-			OpenBytesSourceReader::Array(data) => {
-				trace!(
-					message = "Reading data from array",
-					node_id = ?this_node.id
-				);
+		while let Some(data) = reader.next_fragment(ctx.blob_fragment_size).await? {
+			strip
+				.push_data(&data)
+				.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
+			while strip.has_data() {
 				strip
-					.push_data(&data)
+					.read_data(&mut out_bytes)
 					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-
-				strip
-					.finish()
-					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-
-				let mut out_bytes = Vec::new();
-				while strip.has_data() {
-					strip
-						.read_data(&mut out_bytes)
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-				}
-
-				tx.send(BytesStreamPacket {
-					data: Arc::new(out_bytes),
-					is_last: true,
-				})
-				.map_err(|_| RunNodeError::StreamSendError)?;
 			}
 
-			OpenBytesSourceReader::Stream(mut receiver) => {
+			if out_bytes.len() >= ctx.blob_fragment_size {
+				let x = std::mem::take(&mut out_bytes);
 				trace!(
-					message = "Reading data from stream",
-					node_id = ?this_node.id
-				);
-
-				let mut out_bytes = Vec::new();
-				loop {
-					let rec = receiver.recv().await;
-					match rec {
-						Ok(d) => {
-							strip
-								.push_data(&d.data)
-								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-							if d.is_last {
-								break;
-							}
-						}
-
-						Err(broadcast::error::RecvError::Lagged(_)) => {
-							return Err(RunNodeError::StreamReceiverLagged)
-						}
-
-						Err(broadcast::error::RecvError::Closed) => {
-							warn!(
-								message = "Receiver was closed before receiving last packet",
-								node_id = ?this_node.id,
-								node_type = ?this_node.node_type
-							);
-							break;
-						}
-					}
-
-					while strip.has_data() {
-						strip
-							.read_data(&mut out_bytes)
-							.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-					}
-
-					if out_bytes.len() >= ctx.blob_fragment_size {
-						let x = std::mem::take(&mut out_bytes);
-						tx.send(BytesStreamPacket {
-							data: Arc::new(x),
-							is_last: false,
-						})
-						.map_err(|_| RunNodeError::StreamSendError)?;
-					}
-				}
-
-				strip
-					.finish()
-					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-
-				while strip.has_data() {
-					strip
-						.read_data(&mut out_bytes)
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-				}
-
-				tx.send(BytesStreamPacket {
-					data: Arc::new(out_bytes),
-					is_last: true,
-				})
-				.map_err(|_| RunNodeError::StreamSendError)?;
-			}
-
-			OpenBytesSourceReader::S3(mut r) => {
-				trace!(
-					message = "Reading data from S3",
-					node_id = ?this_node.id
-				);
-
-				let mut out_bytes = Vec::new();
-				let mut read_buf = vec![0u8; ctx.blob_fragment_size];
-
-				loop {
-					let l = r
-						.read(&mut read_buf)
-						.await
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-
-					trace!(
-						message = "Got bytes from S3",
-						n_bytes = l,
-						node_id = ?this_node.id
-					);
-
-					if l == 0 {
-						assert!(r.is_done());
-						break;
-					} else {
-						strip
-							.push_data(&read_buf[0..l])
-							.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-					}
-
-					if strip.has_data() {
-						strip
-							.read_data(&mut out_bytes)
-							.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-					}
-
-					if out_bytes.len() >= ctx.blob_fragment_size {
-						let x = std::mem::take(&mut out_bytes);
-						debug!(
-							message = "Sending bytes",
-							n_bytes = x.len(),
-							node_id = ?this_node.id
-						);
-						tx.send(BytesStreamPacket {
-							data: Arc::new(x),
-							is_last: false,
-						})
-						.map_err(|_| RunNodeError::StreamSendError)?;
-					}
-				}
-
-				trace!(
-					message = "Reader ran out of data, finishing",
-					node_id = ?this_node.id
-				);
-
-				strip
-					.finish()
-					.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-				while strip.has_data() {
-					strip
-						.read_data(&mut out_bytes)
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
-				}
-
-				debug!(
-					message = "Sending final bytes",
-					n_bytes = out_bytes.len(),
+					message = "Sending bytes",
+					n_bytes = x.len(),
 					node_id = ?this_node.id
 				);
 				tx.send(BytesStreamPacket {
-					data: Arc::new(out_bytes),
-					is_last: true,
+					data: Arc::new(x),
+					is_last: false,
 				})
 				.map_err(|_| RunNodeError::StreamSendError)?;
 			}
 		}
+
+		strip
+			.finish()
+			.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+
+		while strip.has_data() {
+			strip
+				.read_data(&mut out_bytes)
+				.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
+		}
+
+		trace!(
+			message = "Sending final bytes",
+			n_bytes = out_bytes.len(),
+			node_id = ?this_node.id
+		);
+		tx.send(BytesStreamPacket {
+			data: Arc::new(out_bytes),
+			is_last: true,
+		})
+		.map_err(|_| RunNodeError::StreamSendError)?;
 
 		return Ok(());
 	}
