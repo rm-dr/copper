@@ -183,11 +183,12 @@ impl Node<PipeData, CopperContext> for AddItem {
 					})
 				}
 
-				// try_into should not fail, we've handled all special
-				// cases above.
 				Some(x) => {
 					let attr = attributes.get_mut(&port).unwrap();
-					let as_attr: AttrData = x.try_into().unwrap();
+					let as_attr: AttrData = match x.try_into() {
+						Ok(x) => x,
+						Err(_) => return Err(RunNodeError::BadInputType { port }),
+					};
 
 					if as_attr.to_stub() != attr.0.data_type {
 						return Err(RunNodeError::BadInputType { port });
