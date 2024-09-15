@@ -519,7 +519,9 @@ mod tests {
 				&mut app,
 				class_covers_id,
 				"content_hash",
-				AttrDataStub::Blob,
+				AttrDataStub::Hash {
+					hash_type: HashType::SHA256,
+				},
 				AttributeOptions::default(),
 			)
 			.await;
@@ -529,9 +531,7 @@ mod tests {
 				&mut app,
 				class_covers_id,
 				"image",
-				AttrDataStub::Hash {
-					hash_type: HashType::SHA256,
-				},
+				AttrDataStub::Blob,
 				AttributeOptions::default(),
 			)
 			.await;
