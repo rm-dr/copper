@@ -1,4 +1,4 @@
-use copper_storaged::{AttrData, ClassId, ItemId};
+use copper_storaged::AttrData;
 use copper_util::{HashType, MimeType};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};
@@ -44,14 +44,6 @@ pub enum PipeData {
 	Blob {
 		/// The data
 		source: BytesSource,
-	},
-
-	Reference {
-		/// The item's class
-		class: ClassId,
-
-		/// The item
-		item: ItemId,
 	},
 }
 
@@ -103,11 +95,11 @@ impl TryFrom<AttrData> for PipeData {
 		return Ok(match value {
 			AttrData::Blob { .. } => return Err(()),
 			AttrData::None { .. } => return Err(()),
+			AttrData::Reference { .. } => return Err(()),
 
 			AttrData::Text { value } => Self::Text { value },
 			AttrData::Boolean { value } => Self::Boolean { value },
 			AttrData::Hash { hash_type, data } => Self::Hash { hash_type, data },
-			AttrData::Reference { class, item } => Self::Reference { class, item },
 
 			AttrData::Float {
 				value,
@@ -137,7 +129,6 @@ impl TryInto<AttrData> for PipeData {
 			Self::Text { value } => AttrData::Text { value },
 			Self::Boolean { value } => AttrData::Boolean { value },
 			Self::Hash { hash_type, data } => AttrData::Hash { hash_type, data },
-			Self::Reference { class, item } => AttrData::Reference { class, item },
 
 			Self::Float {
 				value,
