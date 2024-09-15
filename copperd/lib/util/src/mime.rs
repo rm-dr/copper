@@ -91,9 +91,9 @@ impl From<&str> for MimeType {
 	}
 }
 
-impl Into<String> for &MimeType {
-	fn into(self) -> String {
-		self.to_string()
+impl From<&MimeType> for String {
+	fn from(value: &MimeType) -> Self {
+		value.to_string()
 	}
 }
 
