@@ -96,6 +96,7 @@ impl Node<PipeData, CopperContext> for Hash {
 		let hash_type: HashType = if let Some(value) = params.remove("hash_type") {
 			match value {
 				NodeParameterValue::String(hash_type) => {
+					// TODO: this is a hack
 					serde_json::from_str(&format!("\"{hash_type}\"")).unwrap()
 				}
 				_ => {
@@ -224,7 +225,10 @@ impl Node<PipeData, CopperContext> for Hash {
 
 				let mut read_buf = vec![0u8; ctx.blob_fragment_size];
 				loop {
-					let l = r.read(&mut read_buf).await.unwrap();
+					let l = r
+						.read(&mut read_buf)
+						.await
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 					trace!(
 						message = "Read bytes",
 						n_bytes = l,

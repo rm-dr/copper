@@ -47,13 +47,13 @@ where
 {
 	/// Get a node by index
 	#[inline]
-	pub fn get_node(&self, node_idx: GraphNodeIdx) -> &NodeType {
+	pub fn get_node(&self, node_idx: GraphNodeIdx) -> Option<&NodeType> {
 		self.graph.get_node(node_idx)
 	}
 
 	/// Get a node by index
 	#[inline]
-	pub fn get_node_mut(&mut self, node_idx: GraphNodeIdx) -> &mut NodeType {
+	pub fn get_node_mut(&mut self, node_idx: GraphNodeIdx) -> Option<&mut NodeType> {
 		self.graph.get_node_mut(node_idx)
 	}
 
@@ -89,7 +89,10 @@ where
 
 	/// Get a node by index
 	#[inline]
-	pub fn get_edge(&self, edge_idx: GraphEdgeIdx) -> (GraphNodeIdx, GraphNodeIdx, &EdgeType) {
+	pub fn get_edge(
+		&self,
+		edge_idx: GraphEdgeIdx,
+	) -> Option<(GraphNodeIdx, GraphNodeIdx, &EdgeType)> {
 		self.graph.get_edge(edge_idx)
 	}
 
@@ -98,7 +101,7 @@ where
 	pub fn get_edge_mut(
 		&mut self,
 		edge_idx: GraphEdgeIdx,
-	) -> (GraphNodeIdx, GraphNodeIdx, &mut EdgeType) {
+	) -> Option<(GraphNodeIdx, GraphNodeIdx, &mut EdgeType)> {
 		self.graph.get_edge_mut(edge_idx)
 	}
 
@@ -139,12 +142,12 @@ where
 	}
 
 	/// Get all edges starting at the given node
-	pub fn edges_starting_at(&self, node: GraphNodeIdx) -> &[GraphEdgeIdx] {
-		self.edge_map_out.get(usize::from(node)).unwrap()
+	pub fn edges_starting_at(&self, node: GraphNodeIdx) -> Option<&[GraphEdgeIdx]> {
+		self.edge_map_out.get(usize::from(node)).map(|x| &x[..])
 	}
 
 	/// Get all edges ending at the given node
-	pub fn edges_ending_at(&self, node: GraphNodeIdx) -> &[GraphEdgeIdx] {
-		self.edge_map_in.get(usize::from(node)).unwrap()
+	pub fn edges_ending_at(&self, node: GraphNodeIdx) -> Option<&[GraphEdgeIdx]> {
+		self.edge_map_in.get(usize::from(node)).map(|x| &x[..])
 	}
 }

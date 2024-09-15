@@ -68,14 +68,14 @@ where
 
 	/// Get a node by index
 	#[inline]
-	pub fn get_node(&self, node_idx: GraphNodeIdx) -> &NodeType {
-		self.nodes.get(usize::from(node_idx)).unwrap()
+	pub fn get_node(&self, node_idx: GraphNodeIdx) -> Option<&NodeType> {
+		self.nodes.get(usize::from(node_idx))
 	}
 
 	/// Get a node by index
 	#[inline]
-	pub fn get_node_mut(&mut self, node_idx: GraphNodeIdx) -> &mut NodeType {
-		self.nodes.get_mut(usize::from(node_idx)).unwrap()
+	pub fn get_node_mut(&mut self, node_idx: GraphNodeIdx) -> Option<&mut NodeType> {
+		self.nodes.get_mut(usize::from(node_idx))
 	}
 
 	/// The number of nodes in this graph
@@ -127,11 +127,13 @@ where
 
 	/// Get an edge by index
 	#[inline]
-	pub fn get_edge(&self, edge_idx: GraphEdgeIdx) -> (GraphNodeIdx, GraphNodeIdx, &EdgeType) {
+	pub fn get_edge(
+		&self,
+		edge_idx: GraphEdgeIdx,
+	) -> Option<(GraphNodeIdx, GraphNodeIdx, &EdgeType)> {
 		self.edges
 			.get(usize::from(edge_idx))
 			.map(|(f, t, v)| (*f, *t, v))
-			.unwrap()
 	}
 
 	/// Get an edge by index
@@ -139,11 +141,10 @@ where
 	pub fn get_edge_mut(
 		&mut self,
 		edge_idx: GraphEdgeIdx,
-	) -> (GraphNodeIdx, GraphNodeIdx, &mut EdgeType) {
+	) -> Option<(GraphNodeIdx, GraphNodeIdx, &mut EdgeType)> {
 		self.edges
 			.get_mut(usize::from(edge_idx))
 			.map(|(f, t, v)| (*f, *t, v))
-			.unwrap()
 	}
 
 	/// The number of edges in this graph

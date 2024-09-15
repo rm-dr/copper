@@ -29,9 +29,9 @@ pub enum MimeType {
 }
 
 impl FromStr for MimeType {
-	// Must match `display` below, but may provide other alternatives.
-
 	type Err = std::convert::Infallible;
+
+	// Must match `display` below, but may provide other alternatives.
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		Ok(match s {
 			"application/octet-stream" => Self::Blob,
