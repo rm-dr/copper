@@ -86,9 +86,12 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 			Some(PipeData::Blob { source, .. }) => match source {
 				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Array(receiver),
 
-				BytesSource::S3 { key } => {
-					OpenBytesSourceReader::S3(ctx.objectstore_client.create_reader(&key).await)
-				}
+				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
+					ctx.objectstore_client
+						.create_reader(&key)
+						.await
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?,
+				),
 			},
 
 			_ => {
@@ -144,7 +147,10 @@ impl Node<PipeData, CopperContext> for ExtractTags {
 				let mut read_buf = vec![0u8; ctx.blob_fragment_size];
 
 				loop {
-					let l = r.read(&mut read_buf).await?;
+					let l = r
+						.read(&mut read_buf)
+						.await
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 					if l == 0 {
 						assert!(r.is_done());

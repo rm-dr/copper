@@ -1,14 +1,92 @@
 use std::{
+	error::Error,
+	fmt::Display,
 	io::{Seek, SeekFrom, Write},
 	sync::Arc,
 };
 
 use aws_sdk_s3::{
+	error::SdkError,
 	primitives::{ByteStream, SdkBody},
 	types::{CompletedMultipartUpload, CompletedPart},
 };
 use copper_util::MimeType;
 use smartstring::{LazyCompact, SmartString};
+
+//
+// MARK: Errors
+//
+
+#[derive(Debug)]
+pub enum S3ReaderError {
+	SdkError(Box<dyn std::error::Error + Send + Sync>),
+	ByteStreamError(aws_sdk_s3::primitives::ByteStreamError),
+}
+
+impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static + Send + Sync>
+	From<SdkError<E, R>> for S3ReaderError
+{
+	fn from(value: SdkError<E, R>) -> Self {
+		Self::SdkError(Box::new(value))
+	}
+}
+
+impl From<aws_sdk_s3::primitives::ByteStreamError> for S3ReaderError {
+	fn from(value: aws_sdk_s3::primitives::ByteStreamError) -> Self {
+		Self::ByteStreamError(value)
+	}
+}
+
+impl Display for S3ReaderError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::SdkError(_) => write!(f, "sdk error"),
+			Self::ByteStreamError(_) => write!(f, "byte stream error"),
+		}
+	}
+}
+
+impl Error for S3ReaderError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::SdkError(x) => Some(&**x),
+			Self::ByteStreamError(x) => Some(x),
+		}
+	}
+}
+
+#[derive(Debug)]
+pub enum S3MultupartUploadError {
+	SdkError(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static + Send + Sync>
+	From<SdkError<E, R>> for S3MultupartUploadError
+{
+	fn from(value: SdkError<E, R>) -> Self {
+		Self::SdkError(Box::new(value))
+	}
+}
+
+impl Display for S3MultupartUploadError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::SdkError(_) => write!(f, "sdk error"),
+		}
+	}
+}
+
+impl Error for S3MultupartUploadError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::SdkError(x) => Some(&**x),
+		}
+	}
+}
+
+//
+// MARK: Implementations
+//
 
 pub struct S3Client {
 	client: Arc<aws_sdk_s3::Client>,
@@ -26,31 +104,30 @@ impl S3Client {
 }
 
 impl<'a> S3Client {
-	pub async fn create_reader(&'a self, key: &str) -> S3Reader<'a> {
+	pub async fn create_reader(&'a self, key: &str) -> Result<S3Reader<'a>, S3ReaderError> {
 		let b = self
 			.client
 			.get_object()
 			.bucket(&self.bucket)
 			.key(key)
 			.send()
-			.await
-			.unwrap();
+			.await?;
 
-		return S3Reader {
+		return Ok(S3Reader {
 			client: self,
 
 			key: key.into(),
 			cursor: 0,
 			size: b.content_length.unwrap().try_into().unwrap(),
 			mime: b.content_type.map(MimeType::from).unwrap_or(MimeType::Blob),
-		};
+		});
 	}
 
 	pub async fn create_multipart_upload(
 		&'a self,
 		key: &str,
 		mime: MimeType,
-	) -> MultipartUpload<'a> {
+	) -> Result<MultipartUpload<'a>, S3MultupartUploadError> {
 		let multipart_upload_res = self
 			.client
 			.create_multipart_upload()
@@ -58,17 +135,16 @@ impl<'a> S3Client {
 			.key(key)
 			.content_type(&mime)
 			.send()
-			.await
-			.unwrap();
+			.await?;
 
 		let upload_id = multipart_upload_res.upload_id().unwrap();
 
-		return MultipartUpload {
+		return Ok(MultipartUpload {
 			client: self,
 			key: key.into(),
 			id: upload_id.into(),
 			completed_parts: Vec::new(),
-		};
+		});
 	}
 }
 
@@ -82,7 +158,7 @@ pub struct S3Reader<'a> {
 }
 
 impl S3Reader<'_> {
-	pub async fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
+	pub async fn read(&mut self, mut buf: &mut [u8]) -> Result<usize, S3ReaderError> {
 		let len_left = usize::try_from(self.size - self.cursor).unwrap();
 		if len_left == 0 || buf.is_empty() {
 			return Ok(0);
@@ -100,8 +176,7 @@ impl S3Reader<'_> {
 			.key(self.key.as_str())
 			.range(format!("bytes={start_byte}-{end_byte}"))
 			.send()
-			.await
-			.unwrap();
+			.await?;
 
 		// Looks like `bytes 31000000-31999999/33921176``
 		// println!("{:?}", b.content_range);
@@ -109,7 +184,9 @@ impl S3Reader<'_> {
 		let mut bytes = b.body.collect().await?.into_bytes();
 		bytes.truncate(len_to_read);
 		let l = bytes.len();
-		buf.write_all(&bytes)?;
+
+		// Memory to memory writes should not fail
+		buf.write_all(&bytes).unwrap();
 
 		self.cursor += u64::try_from(l).unwrap();
 		return Ok(len_to_read);
@@ -174,7 +251,11 @@ pub struct MultipartUpload<'a> {
 impl MultipartUpload<'_> {
 	/// Upload a part to a multipart upload.
 	/// `part_number` must be consecutive, and starts at 1.
-	pub async fn upload_part(&mut self, data: &[u8], part_number: i32) {
+	pub async fn upload_part(
+		&mut self,
+		data: &[u8],
+		part_number: i32,
+	) -> Result<(), S3MultupartUploadError> {
 		let stream = ByteStream::from(SdkBody::from(data));
 
 		// Chunk index needs to start at 0, but part numbers start at 1.
@@ -188,8 +269,7 @@ impl MultipartUpload<'_> {
 			.body(stream)
 			.part_number(part_number)
 			.send()
-			.await
-			.unwrap();
+			.await?;
 
 		self.completed_parts.push(
 			CompletedPart::builder()
@@ -197,9 +277,11 @@ impl MultipartUpload<'_> {
 				.part_number(part_number)
 				.build(),
 		);
+
+		return Ok(());
 	}
 
-	pub async fn finish(self) {
+	pub async fn finish(self) -> Result<(), S3MultupartUploadError> {
 		let completed_multipart_upload = CompletedMultipartUpload::builder()
 			.set_parts(Some(self.completed_parts))
 			.build();
@@ -212,7 +294,8 @@ impl MultipartUpload<'_> {
 			.upload_id(self.id.clone())
 			.multipart_upload(completed_multipart_upload)
 			.send()
-			.await
-			.unwrap();
+			.await?;
+
+		return Ok(());
 	}
 }

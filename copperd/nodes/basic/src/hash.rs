@@ -11,6 +11,7 @@ use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::BTreeMap,
 	io::{Cursor, Read},
+	sync::Arc,
 };
 use tokio::sync::{broadcast, mpsc};
 use tracing::{debug, trace, warn};
@@ -137,9 +138,12 @@ impl Node<PipeData, CopperContext> for Hash {
 
 			Some(PipeData::Blob { source, .. }) => match source {
 				BytesSource::Stream { receiver, .. } => OpenBytesSourceReader::Array(receiver),
-				BytesSource::S3 { key } => {
-					OpenBytesSourceReader::S3(ctx.objectstore_client.create_reader(&key).await)
-				}
+				BytesSource::S3 { key } => OpenBytesSourceReader::S3(
+					ctx.objectstore_client
+						.create_reader(&key)
+						.await
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?,
+				),
 			},
 
 			_ => {
