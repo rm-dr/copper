@@ -81,6 +81,7 @@ async fn main() {
 				config.pipelined_storaged_addr.clone(),
 				&config.pipelined_storaged_secret,
 			)
+			// TODO: handle error
 			.unwrap(),
 		),
 

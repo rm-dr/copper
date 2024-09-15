@@ -64,6 +64,7 @@ pub(super) async fn run_pipeline(
 				},
 			),
 
+			// This should never fail, we handle all special cases above
 			_ => input.insert(name, PipeData::try_from(value).unwrap()),
 		};
 	}

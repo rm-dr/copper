@@ -118,6 +118,7 @@ impl<'a> S3Client {
 
 			key: key.into(),
 			cursor: 0,
+			// TODO: when does this fail?
 			size: b.content_length.unwrap().try_into().unwrap(),
 			mime: b.content_type.map(MimeType::from).unwrap_or(MimeType::Blob),
 		});

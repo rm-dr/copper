@@ -355,7 +355,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 
 		// ...and "run" them.
 		for idx in input_nodes {
-			let node = finalized_graph.get_node(idx);
+			let node = finalized_graph.get_node(idx).unwrap();
 			let input_param =
 				node.node_params
 					.get("input_name")
@@ -372,14 +372,14 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 			};
 
 			if let Some(i_val) = input.get(&input_name) {
-				let edges = Vec::from(finalized_graph.edges_starting_at(idx));
+				let edges = Vec::from(finalized_graph.edges_starting_at(idx).unwrap());
 
 				for edge_idx in edges {
-					let (_, _, edge) = finalized_graph.get_edge_mut(edge_idx);
+					let (_, _, edge) = finalized_graph.get_edge_mut(edge_idx).unwrap();
 					edge.data = EdgeDataContainer::Some(Some(i_val.clone()))
 				}
 
-				finalized_graph.get_node_mut(idx).state = NodeState::Done;
+				finalized_graph.get_node_mut(idx).unwrap().state = NodeState::Done;
 			} else {
 				return Err(PipelineBuildError::MissingInput { input: input_name });
 			}
@@ -421,18 +421,29 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 				let node_idx = *node_idx;
 
 				// Never run nodes twice
-				if self.graph.get_node(node_idx).state.has_been_started() {
+				if self
+					.graph
+					.get_node(node_idx)
+					.unwrap()
+					.state
+					.has_been_started()
+				{
 					continue;
 				}
 
-				let can_be_run = self.graph.edges_ending_at(node_idx).iter().all(|edge_idx| {
-					let (_, _, edge) = self.graph.get_edge(*edge_idx);
-					match edge.data {
-						EdgeDataContainer::Unset => false,
-						EdgeDataContainer::Some(_) => true,
-						EdgeDataContainer::Consumed => unreachable!(),
-					}
-				});
+				let can_be_run =
+					self.graph
+						.edges_ending_at(node_idx)
+						.unwrap()
+						.iter()
+						.all(|edge_idx| {
+							let (_, _, edge) = self.graph.get_edge(*edge_idx).unwrap();
+							match edge.data {
+								EdgeDataContainer::Unset => false,
+								EdgeDataContainer::Some(_) => true,
+								EdgeDataContainer::Consumed => unreachable!(),
+							}
+						});
 
 				if !can_be_run {
 					continue;
@@ -440,18 +451,18 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 
 				// Take all inputs
 				let node_run_input: BTreeMap<PortName, Option<DataType>> = {
-					let input_edges = Vec::from(self.graph.edges_ending_at(node_idx));
+					let input_edges = Vec::from(self.graph.edges_ending_at(node_idx).unwrap());
 					input_edges
 						.into_iter()
 						.map(|edge_idx| {
-							let (_, _, edge) = self.graph.get_edge_mut(edge_idx);
+							let (_, _, edge) = self.graph.get_edge_mut(edge_idx).unwrap();
 							(edge.target_port.clone(), edge.data.take().unwrap())
 						})
 						.collect()
 				};
 
 				// Borrow again as mutable
-				let node = self.graph.get_node_mut(node_idx);
+				let node = self.graph.get_node_mut(node_idx).unwrap();
 				let ctx = context.clone();
 				let params = node.node_params.clone();
 				let node_id = node.id.clone();
@@ -535,7 +546,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 			if tasks.is_empty()
 				&& all_nodes
 					.iter()
-					.all(|x| self.graph.get_node(*x).state.is_done())
+					.all(|x| self.graph.get_node(*x).unwrap().state.is_done())
 			{
 				break;
 			}
@@ -585,7 +596,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext> PipelineJob<DataTy
 		res: Result<NodeResult<DataType>, JoinError>,
 	) -> Result<(), RunNodeError<DataType>> {
 		let res = res?;
-		let node = self.graph.get_node_mut(res.node_idx);
+		let node = self.graph.get_node_mut(res.node_idx).unwrap();
 
 		assert!(
 			node.state.is_running(),

@@ -118,9 +118,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext>
 				queued_job.inputs.clone(),
 				&queued_job.pipeline,
 			)
+			// TODO: handle error
 			.unwrap();
 
 			self.running_jobs.spawn(async {
+				// TODO: handle error
 				let x = job.run(queued_job.context.clone()).await;
 				(queued_job, x)
 			});
