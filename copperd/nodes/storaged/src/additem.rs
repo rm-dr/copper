@@ -95,14 +95,18 @@ impl Node<PipeData, CopperContext> for AddItem {
 							let mut upload = ctx
 								.objectstore_client
 								.create_multipart_upload(&new_obj_key, mime)
-								.await;
+								.await
+								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 							loop {
 								let rec = receiver.recv().await;
 
 								match rec {
 									Ok(d) => {
-										upload.upload_part(&d.data, part_counter).await;
+										upload
+											.upload_part(&d.data, part_counter)
+											.await
+											.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 										part_counter += 1;
 										if d.is_last {
 											break;
@@ -128,22 +132,33 @@ impl Node<PipeData, CopperContext> for AddItem {
 						}
 
 						BytesSource::S3 { key } => {
-							let mut reader = ctx.objectstore_client.create_reader(&key).await;
+							let mut reader = ctx
+								.objectstore_client
+								.create_reader(&key)
+								.await
+								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 							let mut upload = ctx
 								.objectstore_client
 								.create_multipart_upload(&new_obj_key, reader.mime().clone())
-								.await;
+								.await
+								.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 							let mut read_buf = vec![0u8; ctx.blob_fragment_size];
 
 							loop {
-								let l = reader.read(&mut read_buf).await.unwrap();
+								let l = reader
+									.read(&mut read_buf)
+									.await
+									.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 								if l != 0 {
 									break;
 								} else {
-									upload.upload_part(&read_buf, part_counter).await;
+									upload
+										.upload_part(&read_buf, part_counter)
+										.await
+										.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 									part_counter += 1;
 								}
 							}
@@ -152,7 +167,10 @@ impl Node<PipeData, CopperContext> for AddItem {
 						}
 					};
 
-					upload.finish().await;
+					upload
+						.finish()
+						.await
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
 					let attr = attributes.get_mut(&port).unwrap();
 					attr.1 = Some(AttrData::Blob {
