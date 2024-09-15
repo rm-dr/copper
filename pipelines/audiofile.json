@@ -8,7 +8,7 @@
 	},
 	"pipeline": {
 		"edges": {
-			"1": {
+			"in-strip": {
 				"source": {
 					"node": "input",
 					"port": "out"
@@ -18,133 +18,183 @@
 					"port": "data"
 				}
 			},
-			"2": {
+			"in-tags": {
 				"source": {
 					"node": "input",
 					"port": "out"
 				},
 				"target": {
-					"node": "extract",
+					"node": "tags",
 					"port": "data"
 				}
 			},
-			"4": {
+			"in-cover": {
+				"source": {
+					"node": "input",
+					"port": "out"
+				},
+				"target": {
+					"node": "cover",
+					"port": "data"
+				}
+			},
+			"strip-hash": {
+				"source": {
+					"node": "strip",
+					"port": "out"
+				},
+				"target": {
+					"node": "hash",
+					"port": "data"
+				}
+			},
+			"strip-add": {
+				"source": {
+					"node": "strip",
+					"port": "out"
+				},
+				"target": {
+					"node": "addaudio",
+					"port": "audio_data"
+				}
+			},
+			"hash-add": {
 				"source": {
 					"node": "hash",
 					"port": "hash"
 				},
 				"target": {
-					"node": "add",
+					"node": "addaudio",
 					"port": "audio_hash"
 				}
 			},
-			"5": {
+			"cover-coverhash": {
 				"source": {
-					"node": "strip",
-					"port": "out"
+					"node": "cover",
+					"port": "cover_data"
 				},
 				"target": {
-					"node": "hash",
+					"node": "coverhash",
 					"port": "data"
 				}
 			},
-			"6": {
+			"coverhash-add": {
 				"source": {
-					"node": "strip",
-					"port": "out"
+					"node": "coverhash",
+					"port": "hash"
 				},
 				"target": {
-					"node": "add",
-					"port": "audio_data"
+					"node": "addcover",
+					"port": "content_hash"
 				}
 			},
-			"7": {
+			"cover-add": {
 				"source": {
-					"node": "extract",
+					"node": "cover",
+					"port": "cover_data"
+				},
+				"target": {
+					"node": "addcover",
+					"port": "image"
+				}
+			},
+			"link-cover": {
+				"source": {
+					"node": "addcover",
+					"port": "new_item"
+				},
+				"target": {
+					"node": "addaudio",
+					"port": "cover_art"
+				}
+			},
+			"tag-title": {
+				"source": {
+					"node": "tags",
 					"port": "Title"
 				},
 				"target": {
-					"node": "add",
+					"node": "addaudio",
 					"port": "title"
 				}
 			},
-			"8": {
+			"tag-album": {
 				"source": {
-					"node": "extract",
+					"node": "tags",
 					"port": "Album"
 				},
 				"target": {
-					"node": "add",
+					"node": "addaudio",
 					"port": "album"
 				}
 			},
-			"9": {
+			"tag-artist": {
 				"source": {
-					"node": "extract",
+					"node": "tags",
 					"port": "Artist"
 				},
 				"target": {
-					"node": "add",
+					"node": "addaudio",
 					"port": "artist"
 				}
 			},
-			"10": {
+			"tag-albumartist": {
 				"source": {
-					"node": "extract",
+					"node": "tags",
 					"port": "AlbumArtist"
 				},
 				"target": {
-					"node": "add",
+					"node": "addaudio",
 					"port": "albumartist"
 				}
 			},
-			"11": {
+			"tag-tracknumber": {
 				"source": {
-					"node": "extract",
+					"node": "tags",
 					"port": "TrackNumber"
 				},
 				"target": {
-					"node": "add",
+					"node": "addaudio",
 					"port": "tracknumber"
 				}
 			},
-			"12": {
+			"tag-year": {
 				"source": {
-					"node": "extract",
+					"node": "tags",
 					"port": "Year"
 				},
 				"target": {
-					"node": "add",
+					"node": "addaudio",
 					"port": "year"
 				}
 			},
-			"13": {
+			"tag-genre": {
 				"source": {
-					"node": "extract",
+					"node": "tags",
 					"port": "Genre"
 				},
 				"target": {
-					"node": "add",
+					"node": "addaudio",
 					"port": "genre"
 				}
 			},
-			"14": {
+			"tag-isrc": {
 				"source": {
-					"node": "extract",
+					"node": "tags",
 					"port": "ISRC"
 				},
 				"target": {
-					"node": "add",
+					"node": "addaudio",
 					"port": "ISRC"
 				}
 			},
-			"15": {
+			"tag-lyrics": {
 				"source": {
-					"node": "extract",
+					"node": "tags",
 					"port": "Lyrics"
 				},
 				"target": {
-					"node": "add",
+					"node": "addaudio",
 					"port": "lyrics"
 				}
 			}
@@ -162,7 +212,10 @@
 			"strip": {
 				"node_type": "StripTags"
 			},
-			"extract": {
+			"cover": {
+				"node_type": "ExtractCovers"
+			},
+			"tags": {
 				"node_type": "ExtractTags",
 				"params": {
 					"tags": {
@@ -196,10 +249,25 @@
 					}
 				}
 			},
-			"add": {
+			"coverhash": {
+				"node_type": "Hash",
+				"params": {
+					"hash_type": {
+						"parameter_type": "String",
+						"value": "SHA256"
+					}
+				}
+			},
+			"addaudio": {
 				"node_type": "AddItem",
 				"params": {
 					"class": { "parameter_type": "Integer", "value": 2 }
+				}
+			},
+			"addcover": {
+				"node_type": "AddItem",
+				"params": {
+					"class": { "parameter_type": "Integer", "value": 1 }
 				}
 			}
 		}
