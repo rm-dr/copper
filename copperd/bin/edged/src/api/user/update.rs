@@ -38,7 +38,7 @@ pub(super) async fn update_user<Client: DatabaseClient>(
 	// OriginalUri(uri): OriginalUri,
 	jar: CookieJar,
 	State(state): State<RouterState<Client>>,
-	Path(user_id): Path<u32>,
+	Path(user_id): Path<i64>,
 	Json(payload): Json<UpdateUserRequest>,
 ) -> Response {
 	let mut user = match state.auth.auth_or_logout(&state, &jar).await {

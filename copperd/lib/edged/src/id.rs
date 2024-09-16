@@ -8,17 +8,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct UserId {
-	id: u32,
+	id: i64,
 }
 
-impl From<UserId> for u32 {
+impl From<UserId> for i64 {
 	fn from(value: UserId) -> Self {
 		value.id
 	}
 }
 
-impl From<u32> for UserId {
-	fn from(value: u32) -> Self {
+impl From<i64> for UserId {
+	fn from(value: i64) -> Self {
 		Self { id: value }
 	}
 }

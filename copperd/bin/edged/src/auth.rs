@@ -72,7 +72,7 @@ impl AuthToken {
 				.take(AUTH_TOKEN_LENGTH)
 				.map(char::from)
 				.collect();
-			let token = format!("copper_{}_{rand}", u32::from(user));
+			let token = format!("copper_{}_{rand}", i64::from(user));
 
 			// Make sure token isn't already used
 			for t in active_tokens.iter() {
