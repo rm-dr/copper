@@ -10,6 +10,18 @@ pub enum ApplyTransactionError {
 
 	/// We encountered an error while adding an item
 	AddItemError(AddItemError),
+
+	/// A transaction action referenced the result of another transaction,
+	/// but that other transaction doesn't exist or hasn't been computed yet.
+	ReferencedBadAction,
+
+	/// A transaction action referenced the result of another transaction,
+	/// but that other transaction produced a `None` result
+	ReferencedNoneResult,
+
+	/// A transaction action referenced the result of another transaction,
+	/// but that other transaction produced a result with an unexpected type.
+	ReferencedResultWithBadType,
 }
 
 impl Display for ApplyTransactionError {
@@ -17,6 +29,15 @@ impl Display for ApplyTransactionError {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
 			Self::AddItemError(_) => write!(f, "error while creating item"),
+			Self::ReferencedResultWithBadType => {
+				write!(f, "referenced result with unexpected type")
+			}
+			Self::ReferencedBadAction => {
+				write!(f, "referenced an action that doesn't exist")
+			}
+			Self::ReferencedNoneResult => {
+				write!(f, "referenced result with `None` return type")
+			}
 		}
 	}
 }
@@ -26,6 +47,7 @@ impl Error for ApplyTransactionError {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
 			Self::AddItemError(x) => Some(x),
+			_ => None,
 		}
 	}
 }
