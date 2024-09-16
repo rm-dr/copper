@@ -67,6 +67,7 @@ copper-util = { path = "lib/util" }
 copper-migrate = { path = "lib/migrate" }
 copper-storaged = { path = "lib/storaged" }
 copper-pipelined = { path = "lib/pipelined" }
+copper-edged = { path = "lib/edged" }
 
 # Node implementations
 pipelined-basic = { path = "nodes/basic" }
@@ -78,6 +79,7 @@ pipelined-audiofile = { path = "nodes/audiofile" }
 aws-sdk-s3 = "1.48.0"
 aws-config = "1.5.5"
 
+argon2 = "0.5.3"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 crossbeam = "0.8.4"
