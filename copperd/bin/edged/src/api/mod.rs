@@ -36,6 +36,7 @@ impl<Client: DatabaseClient> Clone for RouterState<Client> {
 	}
 }
 
+#[allow(non_camel_case_types)]
 #[derive(OpenApi)]
 #[openapi(
 	nest(

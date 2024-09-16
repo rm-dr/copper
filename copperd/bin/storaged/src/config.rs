@@ -21,7 +21,8 @@ pub struct StoragedConfig {
 	/// Should look like `127.0.0.1:3030`
 	pub storaged_server_addr: SmartString<LazyCompact>,
 
-	/// The address of the database this storage server uses
+	/// The address of the database this storage server uses.
+	/// Must be postgres.
 	pub storaged_db_addr: SmartString<LazyCompact>,
 
 	/// The secret used to authenticate callers.

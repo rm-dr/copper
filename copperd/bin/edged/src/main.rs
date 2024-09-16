@@ -3,7 +3,7 @@ use auth::AuthHelper;
 use axum::Router;
 use config::EdgedConfig;
 use copper_util::load_env;
-use database::sqlite::{SqliteDatabaseClient, SqliteDatabaseOpenError};
+use database::postgres::{PgDatabaseClient, PgDatabaseOpenError};
 use std::sync::Arc;
 use tracing::{debug, error, info};
 
@@ -14,13 +14,13 @@ mod database;
 
 async fn make_app(config: Arc<EdgedConfig>) -> Router {
 	// Connect to database
-	let db = match SqliteDatabaseClient::open(&config.edged_db_addr).await {
+	let db = match PgDatabaseClient::open(&config.edged_db_addr).await {
 		Ok(db) => db,
-		Err(SqliteDatabaseOpenError::Database(e)) => {
+		Err(PgDatabaseOpenError::Database(e)) => {
 			error!(message = "SQL error while opening database", err = ?e);
 			std::process::exit(1);
 		}
-		Err(SqliteDatabaseOpenError::Migrate(e)) => {
+		Err(PgDatabaseOpenError::Migrate(e)) => {
 			error!(message = "Migration error while opening database", err = ?e);
 			std::process::exit(1);
 		}

@@ -42,7 +42,7 @@ impl StoragedClient for ReqwestStoragedClient {
 			.client
 			.get(
 				self.storaged_url
-					.join(&format!("/class/{}", u32::from(class_id)))
+					.join(&format!("/class/{}", i64::from(class_id)))
 					.unwrap(),
 			)
 			.header(

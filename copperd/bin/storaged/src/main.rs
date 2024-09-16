@@ -2,7 +2,7 @@ use api::RouterState;
 use axum::Router;
 use config::StoragedConfig;
 use copper_util::load_env;
-use database::sqlite::{SqliteDatabaseClient, SqliteDatabaseOpenError};
+use database::postgres::{PgDatabaseClient, PgDatabaseOpenError};
 use std::sync::Arc;
 use tracing::{debug, error, info};
 
@@ -12,13 +12,13 @@ mod database;
 
 async fn make_app(config: Arc<StoragedConfig>) -> Router {
 	// Connect to database
-	let db = match SqliteDatabaseClient::open(&config.storaged_db_addr).await {
+	let db = match PgDatabaseClient::open(&config.storaged_db_addr).await {
 		Ok(db) => db,
-		Err(SqliteDatabaseOpenError::Database(e)) => {
+		Err(PgDatabaseOpenError::Database(e)) => {
 			error!(message = "SQL error while opening database", err = ?e);
 			std::process::exit(1);
 		}
-		Err(SqliteDatabaseOpenError::Migrate(e)) => {
+		Err(PgDatabaseOpenError::Migrate(e)) => {
 			error!(message = "Migration error while opening database", err = ?e);
 			std::process::exit(1);
 		}
@@ -76,8 +76,6 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-	use std::path::PathBuf;
-
 	use super::*;
 	use axum::{
 		body::Body,
@@ -135,7 +133,7 @@ mod tests {
 		app_request(
 			app,
 			Method::PATCH,
-			&format!("/dataset/{}", u32::from(dataset)),
+			&format!("/dataset/{}", i64::from(dataset)),
 			json!({
 				"new_name": new_name
 			}),
@@ -147,7 +145,7 @@ mod tests {
 		app_request(
 			app,
 			Method::POST,
-			&format!("/dataset/{}/class", u32::from(dataset)),
+			&format!("/dataset/{}/class", i64::from(dataset)),
 			json!({
 				"name": name
 			}),
@@ -158,7 +156,7 @@ mod tests {
 		app_request(
 			app,
 			Method::PATCH,
-			&format!("/class/{}", u32::from(class)),
+			&format!("/class/{}", i64::from(class)),
 			json!({
 				"new_name": new_name
 			}),
@@ -176,7 +174,7 @@ mod tests {
 		app_request(
 			app,
 			Method::POST,
-			&format!("/class/{}/attribute", u32::from(class)),
+			&format!("/class/{}/attribute", i64::from(class)),
 			json!({
 				"name": name,
 				"data_type": data_type,
@@ -194,7 +192,7 @@ mod tests {
 		app_request(
 			app,
 			Method::PATCH,
-			&format!("/attribute/{}", u32::from(attribute)),
+			&format!("/attribute/{}", i64::from(attribute)),
 			json!({
 				"new_name": new_name
 			}),
@@ -233,17 +231,7 @@ mod tests {
 	//
 
 	#[tokio::test]
-	async fn basic_crud_sqlite() {
-		// We need to use a file, since in-memory sqlite
-		// misbehaves with sqlx connection pools.
-		const SQLITE_DB_FILE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/test_db.sqlite");
-
-		// Delete test db if it exists
-		let file_path = PathBuf::from(SQLITE_DB_FILE);
-		if file_path.exists() {
-			std::fs::remove_file(file_path).unwrap();
-		}
-
+	async fn basic_crud() {
 		tracing_subscriber::fmt()
 			.without_time()
 			.with_ansi(true)
@@ -251,7 +239,7 @@ mod tests {
 
 		// Set up config & create app
 		let config = StoragedConfig {
-			storaged_db_addr: format!("sqlite://{SQLITE_DB_FILE}?mode=rwc").into(),
+			storaged_db_addr: format!("postgres://admin:admin@localhost/storaged").into(),
 			storaged_server_addr: "".into(),
 			storaged_request_body_limit: StoragedConfig::default_request_body_limit(),
 			storaged_secret: "i_m_secret".into(),

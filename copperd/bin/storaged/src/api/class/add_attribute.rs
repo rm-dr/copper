@@ -40,7 +40,7 @@ pub(super) async fn add_attribute<Client: DatabaseClient>(
 	headers: HeaderMap,
 	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
-	Path(class_id): Path<u32>,
+	Path(class_id): Path<i64>,
 	Json(payload): Json<NewAttributeRequest>,
 ) -> Response {
 	if !state.config.header_has_valid_auth(&uri, &headers) {

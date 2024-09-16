@@ -26,7 +26,7 @@ pub(super) async fn del_user<Client: DatabaseClient>(
 	// OriginalUri(uri): OriginalUri,
 	jar: CookieJar,
 	State(state): State<RouterState<Client>>,
-	Path(user_id): Path<u32>,
+	Path(user_id): Path<i64>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {
 		Err(x) => return x,

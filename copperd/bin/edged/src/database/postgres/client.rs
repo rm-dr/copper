@@ -4,7 +4,7 @@ use copper_util::{names::check_name, MimeType};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, Row};
 
-use super::SqliteDatabaseClient;
+use super::PgDatabaseClient;
 use crate::database::base::{
 	client::DatabaseClient,
 	errors::user::{
@@ -19,7 +19,7 @@ struct BlobJsonEncoded {
 }
 
 #[async_trait]
-impl DatabaseClient for SqliteDatabaseClient {
+impl DatabaseClient for PgDatabaseClient {
 	//
 	// MARK: Dataset
 	//
@@ -46,20 +46,25 @@ impl DatabaseClient for SqliteDatabaseClient {
 			.await
 			.map_err(|e| AddUserError::DbError(Box::new(e)))?;
 
-		let res =
-			sqlx::query("INSERT INTO user (user_email, user_name, user_pass) VALUES (?, ?, ?);")
-				.bind(email)
-				.bind(name)
-				.bind(serde_json::to_string(password).unwrap())
-				.execute(&mut *t)
-				.await;
+		let res = sqlx::query(
+			"
+			INSERT INTO users (user_email, user_name, user_pass)
+			VALUES ($1, $2, $3)
+			RETURNING id;
+			",
+		)
+		.bind(email)
+		.bind(name)
+		.bind(serde_json::to_string(password).unwrap())
+		.fetch_one(&mut *t)
+		.await;
 
 		t.commit()
 			.await
 			.map_err(|e| AddUserError::DbError(Box::new(e)))?;
 
 		let new_user: UserId = match res {
-			Ok(x) => u32::try_from(x.last_insert_rowid()).unwrap().into(),
+			Ok(row) => row.get::<i64, _>("id").into(),
 			Err(sqlx::Error::Database(e)) => {
 				if e.is_unique_violation() {
 					return Err(AddUserError::UniqueEmailViolation);
@@ -81,8 +86,8 @@ impl DatabaseClient for SqliteDatabaseClient {
 			.await
 			.map_err(|e| GetUserError::DbError(Box::new(e)))?;
 
-		let res = sqlx::query("SELECT * FROM user WHERE id=?;")
-			.bind(u32::from(user))
+		let res = sqlx::query("SELECT * FROM users WHERE id=$1;")
+			.bind(i64::from(user))
 			.fetch_one(&mut *conn)
 			.await;
 
@@ -90,7 +95,7 @@ impl DatabaseClient for SqliteDatabaseClient {
 			Err(sqlx::Error::RowNotFound) => Err(GetUserError::NotFound),
 			Err(e) => Err(GetUserError::DbError(Box::new(e))),
 			Ok(res) => Ok(UserInfo {
-				id: res.get::<u32, _>("id").into(),
+				id: res.get::<i64, _>("id").into(),
 				name: res.get::<String, _>("user_name").into(),
 				email: res.get::<String, _>("user_email").into(),
 				password: serde_json::from_str(res.get::<&str, _>("user_pass")).unwrap(),
@@ -105,7 +110,7 @@ impl DatabaseClient for SqliteDatabaseClient {
 			.await
 			.map_err(|e| GetUserByEmailError::DbError(Box::new(e)))?;
 
-		let res = sqlx::query("SELECT * FROM user WHERE user_email=?;")
+		let res = sqlx::query("SELECT * FROM users WHERE user_email=$1;")
 			.bind(email)
 			.fetch_one(&mut *conn)
 			.await;
@@ -114,7 +119,7 @@ impl DatabaseClient for SqliteDatabaseClient {
 			Err(sqlx::Error::RowNotFound) => Err(GetUserByEmailError::NotFound),
 			Err(e) => Err(GetUserByEmailError::DbError(Box::new(e))),
 			Ok(res) => Ok(UserInfo {
-				id: res.get::<u32, _>("id").into(),
+				id: res.get::<i64, _>("id").into(),
 				name: res.get::<String, _>("user_name").into(),
 				email: res.get::<String, _>("user_email").into(),
 				password: serde_json::from_str(res.get::<&str, _>("user_pass")).unwrap(),
@@ -138,13 +143,14 @@ impl DatabaseClient for SqliteDatabaseClient {
 			.await
 			.map_err(|e| UpdateUserError::DbError(Box::new(e)))?;
 
-		let res = sqlx::query("UPDATE user SET user_name=?, user_email=?, user_pass=? WHERE id=?;")
-			.bind(new_info.name.as_str())
-			.bind(new_info.email.as_str())
-			.bind(serde_json::to_string(&new_info.password).unwrap())
-			.bind(u32::from(new_info.id))
-			.execute(&mut *t)
-			.await;
+		let res =
+			sqlx::query("UPDATE users SET user_name=$1, user_email=$2, user_pass=$3 WHERE id=$4;")
+				.bind(new_info.name.as_str())
+				.bind(new_info.email.as_str())
+				.bind(serde_json::to_string(&new_info.password).unwrap())
+				.bind(i64::from(new_info.id))
+				.execute(&mut *t)
+				.await;
 
 		t.commit()
 			.await
@@ -177,8 +183,8 @@ impl DatabaseClient for SqliteDatabaseClient {
 
 		// TODO: we still need to delete this user's data,
 		// since it's stored in a different db.
-		sqlx::query("DELETE FROM user WHERE id=?;")
-			.bind(u32::from(user))
+		sqlx::query("DELETE FROM users WHERE id=$1;")
+			.bind(i64::from(user))
 			.execute(&mut *t)
 			.await
 			.map_err(|e| DeleteUserError::DbError(Box::new(e)))?;

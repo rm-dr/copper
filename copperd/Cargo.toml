@@ -118,7 +118,13 @@ tower = { version = "0.4", features = ["util"] }
 serde = { version = "1.0.201", features = ["serde_derive", "rc"] }
 serde_json = "1.0.68"
 serde_with = "3.8.1"
-sqlx = { version = "0.7", features = ["sqlite", "runtime-async-std"] }
+sqlx = { version = "0.7", features = [
+	"runtime-tokio",
+	"tls-rustls",
+	"time",
+	"json",
+	"postgres",
+] }
 utoipa = { version = "5.0.0-alpha.0", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "7.1.1-alpha.0", features = [
 	"axum",
