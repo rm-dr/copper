@@ -22,7 +22,7 @@ async fn main() {
 	let config = Arc::new(load_env::<PipelinedConfig>());
 
 	tracing_subscriber::fmt()
-		.with_env_filter(config.to_env_filter())
+		.with_env_filter(config.pipelined_loglevel.get_config())
 		.without_time()
 		.with_ansi(true)
 		.init();

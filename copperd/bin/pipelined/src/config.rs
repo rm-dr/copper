@@ -1,5 +1,5 @@
 use axum::http::HeaderMap;
-use copper_util::LogLevel;
+use copper_util::logging::LoggingPreset;
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use tracing::{debug, info};
@@ -17,6 +17,10 @@ pub const ASYNC_POLL_AWAIT_MS: u64 = 10;
 /// Envy is case-insensitive, and expects Rust fields to be snake_case.
 #[derive(Debug, Deserialize)]
 pub struct PipelinedConfig {
+	/// The logging level to run with
+	#[serde(default)]
+	pub pipelined_loglevel: LoggingPreset,
+
 	/// The maximum size, in bytes, of a binary fragment in the pipeline.
 	/// Smaller values slow down pipelines; larger values use more memory.
 	#[serde(default = "PipelinedConfig::default_frag_size")]
@@ -81,27 +85,6 @@ impl PipelinedConfig {
 
 	fn default_request_body_limit() -> usize {
 		2_000_000
-	}
-
-	/// Convert this logging config to a tracing env filter
-	pub fn to_env_filter(&self) -> String {
-		[
-			format!("tower_http={}", LogLevel::Warn),
-			format!("s3={}", LogLevel::Warn),
-			format!("aws_sdk_s3={}", LogLevel::Warn),
-			format!("aws_smithy_runtime={}", LogLevel::Warn),
-			format!("aws_smithy_runtime_api={}", LogLevel::Warn),
-			format!("aws_sigv4={}", LogLevel::Warn),
-			format!("hyper={}", LogLevel::Warn),
-			format!("pipelined::pipeline::job={}", LogLevel::Debug),
-			format!("pipelined={}", LogLevel::Trace),
-			// Node implementations
-			format!("pipelined_storaged={}", LogLevel::Warn),
-			format!("pipelined_basic={}", LogLevel::Warn),
-			format!("pipelined_audiofile={}", LogLevel::Warn),
-			LogLevel::Trace.to_string(),
-		]
-		.join(",")
 	}
 }
 
