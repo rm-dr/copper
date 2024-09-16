@@ -1,6 +1,7 @@
 use axum::{routing::get, Router};
 use utoipa::OpenApi;
 
+#[allow(clippy::module_inception)]
 mod status;
 use status::*;
 

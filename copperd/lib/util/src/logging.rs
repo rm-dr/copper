@@ -115,8 +115,8 @@ pub struct LoggingConfig {
 	storaged: LogLevel,
 }
 
-impl Into<EnvFilter> for LoggingConfig {
-	fn into(self) -> EnvFilter {
+impl From<LoggingConfig> for EnvFilter {
+	fn from(conf: LoggingConfig) -> Self {
 		EnvFilter::from_str(
 			&[
 				//
@@ -131,19 +131,19 @@ impl Into<EnvFilter> for LoggingConfig {
 				//
 				// Configurable sources
 				//
-				format!("tower_http={}", self.http),
-				format!("s3={}", self.s3),
+				format!("tower_http={}", conf.http),
+				format!("s3={}", conf.s3),
 				// // Storaged
-				format!("storaged={}", self.storaged),
+				format!("storaged={}", conf.storaged),
 				// // Pipelined
-				format!("pipelined::pipeline::runner={}", self.runner),
-				format!("pipelined::pipeline::job={}", self.job),
-				format!("pipelined={}", self.pipelined),
+				format!("pipelined::pipeline::runner={}", conf.runner),
+				format!("pipelined::pipeline::job={}", conf.job),
+				format!("pipelined={}", conf.pipelined),
 				// Node implementations
-				format!("pipelined_storaged={}", self.nodes),
-				format!("pipelined_basic={}", self.nodes),
-				format!("pipelined_audiofile={}", self.nodes),
-				self.other.to_string(),
+				format!("pipelined_storaged={}", conf.nodes),
+				format!("pipelined_basic={}", conf.nodes),
+				format!("pipelined_audiofile={}", conf.nodes),
+				conf.other.to_string(),
 			]
 			.join(","),
 		)
