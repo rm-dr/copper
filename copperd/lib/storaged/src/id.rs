@@ -8,17 +8,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct DatasetId {
-	id: u32,
+	id: i64,
 }
 
-impl From<DatasetId> for u32 {
+impl From<DatasetId> for i64 {
 	fn from(value: DatasetId) -> Self {
 		value.id
 	}
 }
 
-impl From<u32> for DatasetId {
-	fn from(value: u32) -> Self {
+impl From<i64> for DatasetId {
+	fn from(value: i64) -> Self {
 		Self { id: value }
 	}
 }
@@ -26,17 +26,17 @@ impl From<u32> for DatasetId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct ClassId {
-	id: u32,
+	id: i64,
 }
 
-impl From<ClassId> for u32 {
+impl From<ClassId> for i64 {
 	fn from(value: ClassId) -> Self {
 		value.id
 	}
 }
 
-impl From<u32> for ClassId {
-	fn from(value: u32) -> Self {
+impl From<i64> for ClassId {
+	fn from(value: i64) -> Self {
 		Self { id: value }
 	}
 }
@@ -44,17 +44,17 @@ impl From<u32> for ClassId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct AttributeId {
-	id: u32,
+	id: i64,
 }
 
-impl From<AttributeId> for u32 {
+impl From<AttributeId> for i64 {
 	fn from(value: AttributeId) -> Self {
 		value.id
 	}
 }
 
-impl From<u32> for AttributeId {
-	fn from(value: u32) -> Self {
+impl From<i64> for AttributeId {
+	fn from(value: i64) -> Self {
 		Self { id: value }
 	}
 }
@@ -62,17 +62,17 @@ impl From<u32> for AttributeId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct ItemId {
-	id: u32,
+	id: i64,
 }
 
-impl From<ItemId> for u32 {
+impl From<ItemId> for i64 {
 	fn from(value: ItemId) -> Self {
 		value.id
 	}
 }
 
-impl From<u32> for ItemId {
-	fn from(value: u32) -> Self {
+impl From<i64> for ItemId {
+	fn from(value: i64) -> Self {
 		Self { id: value }
 	}
 }

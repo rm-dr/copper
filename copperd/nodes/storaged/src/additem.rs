@@ -31,7 +31,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 		//
 		let class: ClassId = if let Some(value) = params.remove("class") {
 			match value {
-				NodeParameterValue::Integer(x) => match u32::try_from(x) {
+				NodeParameterValue::Integer(x) => match i64::try_from(x) {
 					Ok(x) => x.into(),
 					Err(_) => {
 						return Err(RunNodeError::BadParameterType {
@@ -60,6 +60,8 @@ impl Node<PipeData, CopperContext> for AddItem {
 		// Set up attribute table
 		// (extract inputs)
 		//
+
+		// TODO: map 404s to "no class" errors
 		debug!(message = "Getting attributes");
 		let mut attributes: BTreeMap<PortName, (AttributeInfo, Option<ResultOrDirect<AttrData>>)> =
 			ctx.storaged_client

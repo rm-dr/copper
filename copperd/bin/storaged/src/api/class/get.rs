@@ -29,7 +29,7 @@ pub(super) async fn get_class<Client: DatabaseClient>(
 	headers: HeaderMap,
 	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
-	Path(class_id): Path<u32>,
+	Path(class_id): Path<i64>,
 ) -> Response {
 	if !state.config.header_has_valid_auth(&uri, &headers) {
 		return StatusCode::UNAUTHORIZED.into_response();

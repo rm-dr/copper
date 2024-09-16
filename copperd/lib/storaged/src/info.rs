@@ -51,7 +51,7 @@ pub struct AttributeInfo {
 	/// The order of this attribute in its class.
 	/// These start at 0, and must be unique & consecutive
 	/// inside any class.
-	pub order: u32,
+	pub order: i32,
 
 	/// This attribute's name
 	#[schema(value_type = String)]

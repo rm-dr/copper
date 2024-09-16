@@ -36,7 +36,7 @@ pub(super) async fn rename_class<Client: DatabaseClient>(
 	headers: HeaderMap,
 	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
-	Path(class_id): Path<u32>,
+	Path(class_id): Path<i64>,
 	Json(payload): Json<RenameClassRequest>,
 ) -> Response {
 	if !state.config.header_has_valid_auth(&uri, &headers) {

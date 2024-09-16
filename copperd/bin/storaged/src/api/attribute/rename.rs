@@ -36,7 +36,7 @@ pub(super) async fn rename_attribute<Client: DatabaseClient>(
 	headers: HeaderMap,
 	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
-	Path(attribute_id): Path<u32>,
+	Path(attribute_id): Path<i64>,
 	Json(payload): Json<RenameAttributeRequest>,
 ) -> Response {
 	if !state.config.header_has_valid_auth(&uri, &headers) {

@@ -5,7 +5,7 @@ use sqlx::Row;
 use crate::database::base::errors::transaction::AddItemError;
 
 pub(super) async fn add_item(
-	t: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+	t: &mut sqlx::Transaction<'_, sqlx::Postgres>,
 	to_class: ClassId,
 	attributes: Vec<(AttributeId, AttrData)>,
 ) -> Result<ItemId, AddItemError> {
@@ -14,13 +14,13 @@ pub(super) async fn add_item(
 		return Err(AddItemError::RepeatedAttribute);
 	}
 
-	let res = sqlx::query("INSERT INTO item (class_id) VALUES (?);")
-		.bind(u32::from(to_class))
-		.execute(&mut **t)
+	let res = sqlx::query("INSERT INTO item (class_id) VALUES ($1) RETURNING id;")
+		.bind(i64::from(to_class))
+		.fetch_one(&mut **t)
 		.await;
 
 	let new_item: ItemId = match res {
-		Ok(x) => u32::try_from(x.last_insert_rowid()).unwrap().into(),
+		Ok(res) => res.get::<i64, _>("id").into(),
 		Err(sqlx::Error::Database(e)) => {
 			if e.is_foreign_key_violation() {
 				return Err(AddItemError::NoSuchClass);
@@ -35,9 +35,9 @@ pub(super) async fn add_item(
 	for (attr, value) in attributes {
 		// Make sure this attribute comes from this class
 		let data_type =
-			match sqlx::query("SELECT data_type FROM attribute WHERE id=? AND class_id=?;")
-				.bind(u32::from(attr))
-				.bind(u32::from(to_class))
+			match sqlx::query("SELECT data_type FROM attribute WHERE id=$1 AND class_id=$2;")
+				.bind(i64::from(attr))
+				.bind(i64::from(to_class))
 				.fetch_one(&mut **t)
 				.await
 			{
@@ -59,10 +59,10 @@ pub(super) async fn add_item(
 		// Create the attribute instance
 		let res = sqlx::query(
 			"INSERT INTO attribute_instance (item_id, attribute_id, attribute_value)
-			VALUES (?, ?, ?);",
+			VALUES ($1, $2, $3);",
 		)
-		.bind(u32::from(new_item))
-		.bind(u32::from(attr))
+		.bind(i64::from(new_item))
+		.bind(i64::from(attr))
 		.bind(serde_json::to_string(&value).unwrap())
 		.execute(&mut **t)
 		.await;

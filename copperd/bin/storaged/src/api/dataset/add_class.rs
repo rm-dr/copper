@@ -34,7 +34,7 @@ pub(super) async fn add_class<Client: DatabaseClient>(
 	headers: HeaderMap,
 	OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
-	Path(dataset_id): Path<u32>,
+	Path(dataset_id): Path<i64>,
 	Json(payload): Json<NewClassRequest>,
 ) -> Response {
 	if !state.config.header_has_valid_auth(&uri, &headers) {
