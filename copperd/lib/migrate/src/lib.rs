@@ -6,7 +6,7 @@ use std::{collections::BTreeMap, error::Error, fmt::Display};
 
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
-use sqlx::{Row, SqliteConnection};
+use sqlx::{PgConnection, Row};
 use time::OffsetDateTime;
 use tracing::{debug, info};
 
@@ -17,10 +17,10 @@ pub trait Migration {
 	fn name(&self) -> &str;
 
 	/// Apply this migration
-	async fn up(&self, conn: &mut SqliteConnection) -> Result<(), sqlx::Error>;
+	async fn up(&self, conn: &mut PgConnection) -> Result<(), sqlx::Error>;
 
 	/// Unto this migration
-	async fn down(&self, _conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+	async fn down(&self, _conn: &mut PgConnection) -> Result<(), sqlx::Error> {
 		// Unused right now
 		unimplemented!()
 	}
@@ -90,7 +90,7 @@ pub struct Migrator<'a> {
 	migrations: Vec<MigrationStatus<'a>>,
 
 	/// A connection to the database we're migrating
-	conn: &'a mut SqliteConnection,
+	conn: &'a mut PgConnection,
 
 	/// The location of the database we're migrating, used only for debug
 	name_of_db: String,
@@ -99,7 +99,7 @@ pub struct Migrator<'a> {
 impl<'a> Migrator<'a> {
 	/// Create a new migration with the given steps
 	pub async fn new(
-		conn: &'a mut SqliteConnection,
+		conn: &'a mut PgConnection,
 		name_of_db: &str,
 		migrations: &'a [&'a dyn Migration],
 	) -> Result<Self, MigrationError> {
@@ -119,7 +119,7 @@ impl<'a> Migrator<'a> {
 		let res = sqlx::query(
 			"
 			SELECT * FROM copper_migrations
-			WHERE var=\"migration\";
+			WHERE var='migration';
 			",
 		)
 		.fetch_all(&mut *conn)
@@ -193,7 +193,7 @@ impl<'a> Migrator<'a> {
 			mig.migration.up(self.conn).await?;
 			mig.applied = true;
 
-			sqlx::query("INSERT INTO copper_migrations (var, val) VALUES (?, ?);")
+			sqlx::query("INSERT INTO copper_migrations (var, val) VALUES ($1, $2);")
 				.bind("migration")
 				.bind(
 					serde_json::to_string(&MigrationRecord {
