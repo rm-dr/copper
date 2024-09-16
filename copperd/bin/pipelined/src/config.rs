@@ -37,6 +37,16 @@ pub struct PipelinedConfig {
 	#[serde(default = "PipelinedConfig::default_max_running_jobs")]
 	pub pipelined_max_running_jobs: usize,
 
+	/// The number of finished jobs to store in memory.
+	/// The oldest stored job is deleted when we hit this limit.
+	#[serde(default = "PipelinedConfig::default_job_log_size")]
+	pub pipelined_job_log_size: usize,
+
+	/// The maximum size of the job queue.
+	/// If the queue is full, no jobs can be added until slots are freed.
+	#[serde(default = "PipelinedConfig::default_job_queue_size")]
+	pub pipelined_job_queue_size: usize,
+
 	/// Maximum request body size, in bytes
 	/// If you're using a reverse proxy, make sure it
 	/// also accepts requests of this size!
@@ -85,6 +95,14 @@ impl PipelinedConfig {
 
 	fn default_request_body_limit() -> usize {
 		2_000_000
+	}
+
+	fn default_job_log_size() -> usize {
+		10_000
+	}
+
+	fn default_job_queue_size() -> usize {
+		1_000
 	}
 }
 
