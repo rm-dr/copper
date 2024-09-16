@@ -1,8 +1,7 @@
 //! Errors we can encounter when operating on attributes
 
+use copper_util::names::NameError;
 use std::{error::Error, fmt::Display};
-
-use crate::util::names::NameError;
 
 /// An error we can encounter when creating an attribute
 #[derive(Debug)]

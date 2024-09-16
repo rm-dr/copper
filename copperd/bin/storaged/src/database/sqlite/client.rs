@@ -3,24 +3,21 @@ use copper_storaged::{
 	AttrData, AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo,
 	ResultOrDirect, Transaction, TransactionAction,
 };
-use copper_util::MimeType;
+use copper_util::{names::check_name, MimeType};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, Row};
 
 use super::{helpers, SqliteDatabaseClient};
-use crate::{
-	database::base::{
-		client::{AttributeOptions, DatabaseClient},
-		errors::{
-			attribute::{
-				AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
-			},
-			class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
-			dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
-			transaction::ApplyTransactionError,
+use crate::database::base::{
+	client::{AttributeOptions, DatabaseClient},
+	errors::{
+		attribute::{
+			AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
 		},
+		class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
+		dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
+		transaction::ApplyTransactionError,
 	},
-	util::names::check_name,
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

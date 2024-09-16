@@ -9,7 +9,6 @@ use tracing::{debug, error, info};
 mod api;
 mod config;
 mod database;
-mod util;
 
 async fn make_app(config: Arc<StoragedConfig>) -> Router {
 	// Connect to database

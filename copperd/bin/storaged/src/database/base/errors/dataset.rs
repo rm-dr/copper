@@ -1,8 +1,7 @@
 //! Errors we can encounter when operating on datasets
 
+use copper_util::names::NameError;
 use std::{error::Error, fmt::Display};
-
-use crate::util::names::NameError;
 
 /// An error we can encounter when creating a dataset
 #[derive(Debug)]
