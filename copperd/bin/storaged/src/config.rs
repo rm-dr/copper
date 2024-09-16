@@ -1,4 +1,4 @@
-use copper_util::LogLevel;
+use copper_util::logging::LoggingPreset;
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use tracing::{debug, info};
@@ -7,6 +7,10 @@ use tracing::{debug, info};
 /// Envy is case-insensitive, and expects Rust fields to be snake_case.
 #[derive(Debug, Deserialize)]
 pub struct StoragedConfig {
+	/// The logging level to run with
+	#[serde(default)]
+	pub storaged_loglevel: LoggingPreset,
+
 	/// Maximum request body size, in bytes
 	/// If you're using a reverse proxy, make sure it
 	/// also accepts requests of this size!
@@ -30,17 +34,6 @@ pub struct StoragedConfig {
 impl StoragedConfig {
 	pub fn default_request_body_limit() -> usize {
 		2_000_000
-	}
-
-	/// Convert this logging config to a tracing env filter
-	pub fn to_env_filter(&self) -> String {
-		[
-			format!("sqlx={}", LogLevel::Warn),
-			format!("tower_http={}", LogLevel::Warn),
-			format!("storaged={}", LogLevel::Info),
-			LogLevel::Warn.to_string(),
-		]
-		.join(",")
 	}
 }
 

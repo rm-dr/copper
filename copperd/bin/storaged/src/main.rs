@@ -37,7 +37,7 @@ async fn main() {
 	let config = Arc::new(load_env::<StoragedConfig>());
 
 	tracing_subscriber::fmt()
-		.with_env_filter(config.to_env_filter())
+		.with_env_filter(config.storaged_loglevel.get_config())
 		.without_time()
 		.with_ansi(true)
 		.init();
@@ -256,6 +256,7 @@ mod tests {
 			storaged_server_addr: "".into(),
 			storaged_request_body_limit: StoragedConfig::default_request_body_limit(),
 			storaged_secret: "i_m_secret".into(),
+			storaged_loglevel: Default::default(),
 		};
 		let mut app = make_app(Arc::new(config)).await;
 

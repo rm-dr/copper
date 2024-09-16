@@ -20,6 +20,7 @@ workspace = true
 dotenvy = { workspace = true }
 envy = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 serde = { workspace = true }
 serde_with = { workspace = true }
 petgraph = { workspace = true }
