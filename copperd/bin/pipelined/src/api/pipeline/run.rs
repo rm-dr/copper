@@ -15,7 +15,10 @@ use std::collections::BTreeMap;
 use tokio::sync::Mutex;
 use utoipa::ToSchema;
 
-use crate::{pipeline::json::PipelineJson, RouterState};
+use crate::{
+	pipeline::{json::PipelineJson, runner::AddJobError},
+	RouterState,
+};
 
 #[derive(Deserialize, ToSchema, Debug)]
 pub(super) struct AddJobRequest {
@@ -35,9 +38,10 @@ pub(super) struct AddJobRequest {
 	path = "/run",
 	responses(
 		(status = 200, description = "Job queued successfully"),
-		(status = 404, description = "Invalid dataset or pipeline", body = String),
+		(status = 401, description = "Unauthorized"),
+		(status = 409, description = "Job id already exists"),
+		(status = 429, description = "Job queue is full"),
 		(status = 500, description = "Internal server error", body = String),
-		(status = 401, description = "Unauthorized")
 	),
 	security(
 		("bearer" = []),
@@ -79,7 +83,9 @@ pub(super) async fn run_pipeline(
 		transaction: Mutex::new(Transaction::new()),
 	};
 
-	runner.add_job(context, payload.pipeline, &payload.job_id, input);
-
-	return StatusCode::OK.into_response();
+	return match runner.add_job(context, payload.pipeline, &payload.job_id, input) {
+		Ok(()) => StatusCode::OK.into_response(),
+		Err(AddJobError::AlreadyExists) => StatusCode::CONFLICT.into_response(),
+		Err(AddJobError::QueueFull) => StatusCode::TOO_MANY_REQUESTS.into_response(),
+	};
 }
