@@ -520,30 +520,33 @@ impl DatabaseClient for SqliteDatabaseClient {
 					to_class,
 					attributes,
 				} => {
-					let resolved_attributes = attributes
-						.into_iter()
-						.map(|(k, v)| {
-							(
-								k,
-								match v {
-									ResultOrDirect::Direct { value } => value,
-									ResultOrDirect::Result {
-										action_idx,
-										expected_type,
-									} => match transaction_results.get(action_idx) {
-										None => panic!("TODO: ERROR HERE"),
-										Some(None) => panic!("TODO: ERROR HERE"),
-										Some(Some(x)) => {
-											if x.as_stub() != expected_type {
-												panic!("TODO: ERROR HERE")
-											}
-											x.clone()
-										}
-									},
-								},
-							)
-						})
-						.collect();
+					let mut resolved_attributes = Vec::new();
+
+					// Resolve references to previous actions' results
+					for (k, v) in attributes {
+						let value = match v {
+							ResultOrDirect::Direct { value } => value,
+							ResultOrDirect::Result {
+								action_idx,
+								expected_type,
+							} => match transaction_results.get(action_idx) {
+								None => return Err(ApplyTransactionError::ReferencedBadAction),
+								Some(None) => {
+									return Err(ApplyTransactionError::ReferencedNoneResult)
+								}
+								Some(Some(x)) => {
+									if x.as_stub() != expected_type {
+										return Err(
+											ApplyTransactionError::ReferencedResultWithBadType,
+										);
+									}
+									x.clone()
+								}
+							},
+						};
+
+						resolved_attributes.push((k, value));
+					}
 
 					let res = helpers::add_item(&mut t, to_class, resolved_attributes).await?;
 					transaction_results.push(Some(AttrData::Reference {
