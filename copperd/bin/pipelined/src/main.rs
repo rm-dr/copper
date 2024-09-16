@@ -52,6 +52,8 @@ async fn main() {
 	let mut runner: PipelineRunner<PipeData, CopperContext> =
 		PipelineRunner::new(PipelineRunnerOptions {
 			max_running_jobs: config.pipelined_max_running_jobs,
+			job_log_size: config.pipelined_job_log_size,
+			job_queue_size: config.pipelined_job_queue_size,
 		});
 
 	{
