@@ -41,7 +41,6 @@ pub(super) struct AddJobRequest {
 		(status = 401, description = "Unauthorized"),
 		(status = 409, description = "Job id already exists"),
 		(status = 429, description = "Job queue is full"),
-		(status = 500, description = "Internal server error", body = String),
 	),
 	security(
 		("bearer" = []),

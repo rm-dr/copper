@@ -4,8 +4,8 @@ use std::{
 	collections::{BTreeMap, VecDeque},
 	error::Error,
 	fmt::Display,
-	time::Instant,
 };
+use time::OffsetDateTime;
 use tokio::task::{JoinError, JoinSet};
 use tracing::{debug, info};
 
@@ -81,15 +81,15 @@ impl<ContextType> JobState<ContextType> {
 	}
 }
 
-struct JobEntry<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
-	id: SmartString<LazyCompact>,
-	state: JobState<ContextType>,
-	pipeline: PipelineJson,
-	inputs: BTreeMap<SmartString<LazyCompact>, DataType>,
+pub struct JobEntry<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
+	pub id: SmartString<LazyCompact>,
+	pub state: JobState<ContextType>,
+	pub pipeline: PipelineJson,
+	pub inputs: BTreeMap<SmartString<LazyCompact>, DataType>,
 
-	added_at: Instant,
-	started_at: Option<Instant>,
-	finished_at: Option<Instant>,
+	pub added_at: OffsetDateTime,
+	pub started_at: Option<OffsetDateTime>,
+	pub finished_at: Option<OffsetDateTime>,
 }
 
 //
@@ -158,7 +158,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				pipeline,
 				inputs,
 
-				added_at: Instant::now(),
+				added_at: OffsetDateTime::now_utc(),
 				started_at: None,
 				finished_at: None,
 			},
@@ -175,7 +175,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			let res = res?;
 
 			let job = self.jobs.get_mut(&res.0).unwrap();
-			job.finished_at = Some(Instant::now());
+			job.finished_at = Some(OffsetDateTime::now_utc());
 
 			// Make sure job log stays within size limit
 			while self.finished_jobs.len() >= self.config.job_log_size {
@@ -226,7 +226,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			let queued_job_id = self.queued_jobs.pop_front().unwrap();
 			let job = self.jobs.get_mut(&queued_job_id).unwrap();
 			let context = job.state.start().unwrap();
-			job.started_at = Some(Instant::now());
+			job.started_at = Some(OffsetDateTime::now_utc());
 
 			debug!(
 				message = "Starting job",
@@ -261,7 +261,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 						error = ?err
 					);
 
-					job.finished_at = Some(Instant::now());
+					job.finished_at = Some(OffsetDateTime::now_utc());
 					job.state = JobState::BuildError(err);
 
 					// Make sure job log stays within size limit
@@ -293,5 +293,9 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	/// Get this runner's running jobs
 	pub fn running_jobs(&self) -> &VecDeque<SmartString<LazyCompact>> {
 		&self.running_jobs
+	}
+
+	pub fn get_job(&self, job_id: &str) -> Option<&JobEntry<DataType, ContextType>> {
+		self.jobs.get(job_id)
 	}
 }

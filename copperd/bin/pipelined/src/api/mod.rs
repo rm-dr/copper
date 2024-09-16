@@ -13,6 +13,7 @@ use utoipa::{
 };
 use utoipa_swagger_ui::SwaggerUi;
 
+mod job;
 mod pipeline;
 mod status;
 
@@ -50,6 +51,7 @@ impl Modify for BearerSecurityAddon {
 	nest(
 		(path = "/pipeline", api = pipeline::PipelineApi),
 		(path = "/status", api = status::StatusApi),
+		(path = "/job", api = job::JobApi),
 	),
 	tags(
 		(name = "pipelined", description = "Copper pipeline runner")
@@ -74,6 +76,7 @@ pub(super) fn router(state: RouterState) -> Router {
 		//
 		.nest("/pipeline", pipeline::router())
 		.nest("/status", status::router())
+		.nest("/job", job::router())
 		//
 		.layer(TraceLayer::new_for_http())
 		.layer(DefaultBodyLimit::max(
