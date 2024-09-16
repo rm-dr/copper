@@ -410,6 +410,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 			self.graph.iter_nodes_idx().map(|(idx, _)| idx).collect();
 
 		let mut tasks = JoinSet::new();
+		// TODO: configure channel size
 		let (tx, mut rx) = mpsc::channel::<NodeOutput<DataType>>(30);
 
 		// The below loop hits no awaits until something interesting happens
