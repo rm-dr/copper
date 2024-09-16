@@ -22,8 +22,7 @@ pub(super) struct StatusResponse {
 	path = "",
 	responses(
 		(status = 200, description = "Pipelined status", body = StatusResponse),
-		(status = 500, description = "Internal server error", body = String),
-		(status = 401, description = "Unauthorized")
+		(status = 401, description = "Unauthorized"),
 	),
 	security(
 		("bearer" = []),
