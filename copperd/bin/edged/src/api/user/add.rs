@@ -41,7 +41,7 @@ pub(super) async fn add_user<Client: DatabaseClient>(
 	let password = UserPassword::new(&payload.password);
 	let res = state
 		.client
-		.add_user(&payload.name, &payload.email, &password)
+		.add_user(&payload.email, &payload.name, &password)
 		.await;
 
 	return match res {
