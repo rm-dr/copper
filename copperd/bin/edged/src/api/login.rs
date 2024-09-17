@@ -74,7 +74,11 @@ pub(super) async fn try_login<Client: DatabaseClient>(
 				request_payload = ?payload,
 				error = ?e
 			);
-			return (StatusCode::INTERNAL_SERVER_ERROR, "Could not auth user").into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Could not auth user"),
+			)
+				.into_response();
 		}
 	};
 }

@@ -3,6 +3,7 @@ use std::{error::Error, fmt::Display, marker::PhantomData};
 use axum::{
 	http::{header::SET_COOKIE, StatusCode},
 	response::{AppendHeaders, IntoResponse, Response},
+	Json,
 };
 use axum_extra::extract::{
 	cookie::{Cookie, Expiration, SameSite},
@@ -214,7 +215,7 @@ impl<Client: DatabaseClient> AuthHelper<Client> {
 				);
 				return Err((
 					StatusCode::INTERNAL_SERVER_ERROR,
-					"Could not check auth cookies",
+					Json("Could not check auth cookies"),
 				)
 					.into_response());
 			}
@@ -232,7 +233,7 @@ impl<Client: DatabaseClient> AuthHelper<Client> {
 		return Err((
 			StatusCode::UNAUTHORIZED,
 			AppendHeaders([(SET_COOKIE, cookie.to_string())]),
-			"Invalid auth cookie, logging out",
+			Json("Invalid auth cookie, logging out"),
 		)
 			.into_response());
 	}
