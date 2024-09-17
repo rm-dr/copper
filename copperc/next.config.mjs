@@ -1,5 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+	async redirects() {
+		return [
+			{
+				source: "/u",
+				destination: "/u/dashboard",
+				permanent: true,
+			},
+		];
+	},
+
+	// TODO: env var here
 	async rewrites() {
 		return [
 			{
