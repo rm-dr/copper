@@ -1,0 +1,13 @@
+# dev
+/node_modules
+.env
+/old
+
+# production
+/build
+/.next/
+/out/
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

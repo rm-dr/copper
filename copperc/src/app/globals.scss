@@ -1,0 +1,12 @@
+:root[data-mantine-color-scheme="dark"] {
+	--mantine-color-text: var(--mantine-color-white) !important;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	width: 100vw;
+	height: 100vh;
+	overflow: hidden;
+}
