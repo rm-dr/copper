@@ -27,13 +27,23 @@ impl Migration for MigrationStep {
 			.execute(&mut *t)
 			.await?;
 
+		sqlx::query("INSERT INTO meta (var, val) VALUES ($1, $2);")
+			.bind("copper_version")
+			.bind(env!("CARGO_PKG_VERSION"))
+			.execute(&mut *t)
+			.await?;
+
+		//
+		// MARK: users
+		//
+
 		sqlx::query(
 			"
 			CREATE TABLE users (
 				id BIGSERIAL PRIMARY KEY,
 				user_email TEXT NOT NULL UNIQUE,
 				user_name TEXT NOT NULL,
-				user_pass TEXT NOT NULL
+				user_pass JSON NOT NULL
 			);
 			",
 		)
@@ -44,9 +54,24 @@ impl Migration for MigrationStep {
 			.execute(&mut *t)
 			.await?;
 
-		sqlx::query("INSERT INTO meta (var, val) VALUES ($1, $2);")
-			.bind("copper_version")
-			.bind(env!("CARGO_PKG_VERSION"))
+		//
+		// MARK: pipeline
+		//
+
+		sqlx::query(
+			"
+			CREATE TABLE pipelines (
+				id BIGSERIAL PRIMARY KEY,
+				owned_by BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				name TEXT NOT NULL,
+				data JSON NOT NULL
+			);
+			",
+		)
+		.execute(&mut *t)
+		.await?;
+
+		sqlx::query("CREATE UNIQUE INDEX pipeline_user_name on pipelines(owned_by, name);")
 			.execute(&mut *t)
 			.await?;
 

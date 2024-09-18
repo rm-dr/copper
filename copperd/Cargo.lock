@@ -761,6 +761,7 @@ name = "copper-edged"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "copper-pipelined",
  "serde",
  "smartstring",
  "utoipa",
@@ -1062,6 +1063,7 @@ dependencies = [
  "copper-edged",
  "copper-migrate",
  "copper-storaged",
+ "copper-pipelined",
  "copper-util",
  "rand",
  "serde",

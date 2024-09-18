@@ -17,6 +17,7 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
+copper-pipelined = { workspace = true }
 
 smartstring = { workspace = true }
 serde = { workspace = true }

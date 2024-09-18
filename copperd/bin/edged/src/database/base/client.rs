@@ -1,10 +1,12 @@
 //! The database client api
 
 use async_trait::async_trait;
-use copper_edged::{UserId, UserInfo, UserPassword};
+use copper_edged::{PipelineId, PipelineInfo, UserId, UserInfo, UserPassword};
+use copper_pipelined::json::PipelineJson;
 
-use super::errors::user::{
-	AddUserError, DeleteUserError, GetUserByEmailError, GetUserError, UpdateUserError,
+use super::errors::{
+	pipeline::{AddPipelineError, DeletePipelineError, GetPipelineError, UpdatePipelineError},
+	user::{AddUserError, DeleteUserError, GetUserError, UpdateUserError},
 };
 
 /// A generic database client
@@ -17,7 +19,7 @@ where
 	// MARK: Users
 	//
 
-	/// Create a new dataset
+	/// Create a new user
 	async fn add_user(
 		&self,
 		email: &str,
@@ -26,14 +28,45 @@ where
 	) -> Result<UserId, AddUserError>;
 
 	/// Get a user by id
-	async fn get_user(&self, user: UserId) -> Result<UserInfo, GetUserError>;
+	async fn get_user(&self, user: UserId) -> Result<Option<UserInfo>, GetUserError>;
 
 	/// Get a user by email
-	async fn get_user_by_email(&self, email: &str) -> Result<UserInfo, GetUserByEmailError>;
+	async fn get_user_by_email(&self, email: &str) -> Result<Option<UserInfo>, GetUserError>;
 
 	/// Update a user
 	async fn update_user(&self, new_info: &UserInfo) -> Result<(), UpdateUserError>;
 
 	/// Delete a user
 	async fn del_user(&self, user: UserId) -> Result<(), DeleteUserError>;
+
+	//
+	// MARK: Pipelines
+	//
+
+	/// Create a new pipeline
+	async fn add_pipeline(
+		&self,
+		for_user: UserId,
+		name: &str,
+		pipeline: &PipelineJson,
+	) -> Result<PipelineId, AddPipelineError>;
+
+	/// Get a pipeline by id
+	async fn get_pipeline(
+		&self,
+		pipeline: PipelineId,
+	) -> Result<Option<PipelineInfo>, GetPipelineError>;
+
+	/// Get a pipeline by name
+	async fn get_pipeline_by_name(
+		&self,
+		user: UserId,
+		pipeline_name: &str,
+	) -> Result<Option<PipelineInfo>, GetPipelineError>;
+
+	/// Update a pipeline
+	async fn update_pipeline(&self, new_info: &PipelineInfo) -> Result<(), UpdatePipelineError>;
+
+	/// Delete a pipeline
+	async fn del_pipeline(&self, pipeline: PipelineId) -> Result<(), DeletePipelineError>;
 }

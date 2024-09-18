@@ -1,12 +1,12 @@
 use crate::base::{NodeId, NodeParameterValue, PortName};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, fmt::Debug};
 use utoipa::ToSchema;
 
 /// A pipeline specification, directly deserialized from JSON.
 /// This is the first step in our pipeline processing workflow.
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PipelineJson {
 	/// Nodes in this pipeline
@@ -18,7 +18,7 @@ pub struct PipelineJson {
 	pub edges: BTreeMap<SmartString<LazyCompact>, EdgeJson>,
 }
 
-#[derive(Debug, Deserialize, Clone, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NodeJson {
 	/// What kind of node is this?
@@ -31,14 +31,14 @@ pub struct NodeJson {
 	pub params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 }
 
-#[derive(Debug, Deserialize, Clone, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EdgeJson {
 	pub source: OutputPort,
 	pub target: InputPort,
 }
 
-#[derive(Debug, Clone, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct OutputPort {
 	/// The node that provides this output
@@ -50,7 +50,7 @@ pub struct OutputPort {
 	pub port: PortName,
 }
 
-#[derive(Debug, Clone, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InputPort {
 	/// The node that provides this input

@@ -3,31 +3,30 @@
 use copper_util::names::NameError;
 use std::{error::Error, fmt::Display};
 
-/// An error we can encounter when creating a user
+/// An error we can encounter when creating a pipeline
 #[derive(Debug)]
-pub enum AddUserError {
+pub enum AddPipelineError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
 
-	/// A user with this email already exists
-	UniqueEmailViolation,
+	/// This user already has a pipeline with this name
+	UniqueViolation,
 
-	/// We tried to create a user with an invalid name
+	/// We tried to create a pipeline with an invalid name
 	NameError(NameError),
-	// TODO: bademail & badpassword
 }
 
-impl Display for AddUserError {
+impl Display for AddPipelineError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
-			Self::UniqueEmailViolation => write!(f, "a user with this email already exists"),
-			Self::NameError(_) => write!(f, "invalid user name"),
+			Self::UniqueViolation => write!(f, "this user already has a pipeline with this name"),
+			Self::NameError(_) => write!(f, "invalid pipeline name"),
 		}
 	}
 }
 
-impl Error for AddUserError {
+impl Error for AddPipelineError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
@@ -37,14 +36,14 @@ impl Error for AddUserError {
 	}
 }
 
-/// An error we can encounter when getting a user
+/// An error we can encounter when getting a pipeline
 #[derive(Debug)]
-pub enum GetUserError {
+pub enum GetPipelineError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
 }
 
-impl Display for GetUserError {
+impl Display for GetPipelineError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
@@ -52,7 +51,7 @@ impl Display for GetUserError {
 	}
 }
 
-impl Error for GetUserError {
+impl Error for GetPipelineError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
@@ -62,28 +61,28 @@ impl Error for GetUserError {
 
 /// An error we can encounter when updating a user
 #[derive(Debug)]
-pub enum UpdateUserError {
+pub enum UpdatePipelineError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
 
-	/// A user with this email already exists
-	UniqueEmailViolation,
+	/// This user already has a pipeline with this name
+	UniqueViolation,
 
 	/// We tried to set an invalid name
 	NameError(NameError),
 }
 
-impl Display for UpdateUserError {
+impl Display for UpdatePipelineError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Self::UniqueEmailViolation => write!(f, "a user with this email already exists"),
+			Self::UniqueViolation => write!(f, "this user already has a pipeline with this name"),
 			Self::DbError(_) => write!(f, "database backend error"),
 			Self::NameError(_) => write!(f, "invalid user name"),
 		}
 	}
 }
 
-impl Error for UpdateUserError {
+impl Error for UpdatePipelineError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
@@ -95,12 +94,12 @@ impl Error for UpdateUserError {
 
 /// An error we can encounter when deleting a user
 #[derive(Debug)]
-pub enum DeleteUserError {
+pub enum DeletePipelineError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
 }
 
-impl Display for DeleteUserError {
+impl Display for DeletePipelineError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
@@ -108,7 +107,7 @@ impl Display for DeleteUserError {
 	}
 }
 
-impl Error for DeleteUserError {
+impl Error for DeletePipelineError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
