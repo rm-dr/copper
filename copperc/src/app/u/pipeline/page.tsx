@@ -1,94 +1,143 @@
 "use client";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useState } from "react";
 import {
 	addEdge,
+	applyEdgeChanges,
+	applyNodeChanges,
 	Background,
 	Controls,
-	Handle,
 	MiniMap,
-	Position,
+	Panel,
 	ReactFlow,
-	useEdgesState,
-	useNodesState,
+	ReactFlowInstance,
+	ReactFlowProvider,
+	type Node,
+	type Edge,
+	type OnConnect,
+	type OnNodesChange,
+	type OnEdgesChange,
+	BackgroundVariant,
+	ConnectionMode,
+	ConnectionLineType,
 } from "@xyflow/react";
 
 import style from "./pipeline.module.scss";
 import "@xyflow/react/dist/style.css";
 
-import "./text.module.scss";
+import { nodeTypes } from "./_nodes";
 
-const initialNodes = [
-	{ id: "1", position: { x: 0, y: 0 }, data: { label: "1" } },
-	{ id: "2", position: { x: 0, y: 100 }, data: { label: "2" } },
+const initialNodes: Node[] = [
 	{
 		id: "node-1",
-		type: "textUpdater",
+		type: "constant",
+		position: { x: 0, y: 0 },
+		data: { value: 123 },
+	},
+
+	{
+		id: "node-2",
+		type: "ifnone",
+		position: { x: 0, y: 0 },
+		data: { value: 123 },
+	},
+
+	{
+		id: "node-3",
+		type: "hash",
 		position: { x: 0, y: 0 },
 		data: { value: 123 },
 	},
 ];
-const initialEdges = [{ id: "e1-2", source: "1", target: "2" }];
+const initialEdges: Edge[] = [
+	{
+		type: "smoothstep",
+		id: "e1-2",
+		source: "node-2",
+		target: "node-3",
+	},
+];
 
-function TextUpdaterNode({ data }) {
-	const onChange = useCallback((evt) => {
-		console.log(evt.target.value);
-	}, []);
-
+export default function Page() {
 	return (
-		<>
-			<Handle type="target" position={Position.Left} />
-			<div>
-				<label htmlFor="text">Text:</label>
-				<input id="text" name="text" onChange={onChange} className="nodrag" />
-			</div>
-			<Handle type="source" position={Position.Right} id="a" />
-			<Handle
-				type="source"
-				position={Position.Right}
-				id="b"
-				style={{ right: 5 }}
-			/>
-		</>
+		<div className={style.react_flow_container}>
+			<ReactFlowProvider>
+				<Flow />
+			</ReactFlowProvider>
+		</div>
 	);
 }
 
-export default function Page() {
-	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+function Flow() {
+	const [nodes, setNodes] = useState<Node[]>(initialNodes);
+	const [edges, setEdges] = useState<Edge[]>(initialEdges);
+	// const { setViewport } = useReactFlow();
+	const [rfInstance, setRfInstance] = useState<null | ReactFlowInstance>(null);
 
-	const nodeTypes = useMemo(() => ({ textUpdater: TextUpdaterNode }), []);
-
-	const onConnect = useCallback(
-		(params) => setEdges((eds) => addEdge(params, eds)),
+	const onNodesChange: OnNodesChange = useCallback(
+		(changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
+		[setNodes],
+	);
+	const onEdgesChange: OnEdgesChange = useCallback(
+		(changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+		[setEdges],
+	);
+	const onConnect: OnConnect = useCallback(
+		(connection) => setEdges((eds) => addEdge(connection, eds)),
 		[setEdges],
 	);
 
-	return (
-		<div className={style.react_flow_container}>
-			<ReactFlow
-				colorMode="dark"
-				nodes={nodes}
-				edges={edges}
-				onNodesChange={onNodesChange}
-				onEdgesChange={onEdgesChange}
-				onConnect={onConnect}
-				nodeTypes={nodeTypes}
-			>
-				<Controls />
-				<Background variant={"dots"} gap={12} size={1} />
+	const onSave = useCallback(() => {
+		if (rfInstance) {
+			const flow = rfInstance.toObject();
+			console.log(JSON.stringify(flow));
+		}
+	}, [rfInstance]);
 
-				<MiniMap
-					nodeStrokeColor={(n) => {
-						if (n.type === "input") return "#0041d0";
-						if (n.type === "output") return "#ff0072";
-						if (n.type === "textUpdater") return "#ff0072";
-					}}
-					nodeColor={(n) => {
-						if (n.type === "textUpdater") return null;
-						return "#fff";
-					}}
-				/>
-			</ReactFlow>
-		</div>
+	const onRestore = useCallback(() => {
+		const restoreFlow = async () => {
+			/*
+			const flow = JSON.parse(localStorage.getItem(flowKey));
+
+			if (flow) {
+				const { x = 0, y = 0, zoom = 1 } = flow.viewport;
+				setNodes(flow.nodes || []);
+				setEdges(flow.edges || []);
+				setViewport({ x, y, zoom });
+			}
+			*/
+		};
+
+		restoreFlow();
+	}, []);
+
+	return (
+		<ReactFlow
+			className={style.react_flow}
+			nodes={nodes}
+			edges={edges}
+			onNodesChange={onNodesChange}
+			onEdgesChange={onEdgesChange}
+			onInit={setRfInstance}
+			onConnect={onConnect}
+			nodeTypes={nodeTypes}
+			defaultEdgeOptions={{ type: "smoothstep" }}
+			connectionMode={ConnectionMode.Strict}
+			connectionLineType={ConnectionLineType.SmoothStep}
+		>
+			<Controls />
+			<Background
+				variant={BackgroundVariant.Dots}
+				gap={12}
+				size={1}
+				color="var(--mantine-color-dark-3)"
+			/>
+
+			<Panel position="top-right">
+				<button onClick={onSave}>save</button>
+				<button onClick={onRestore}>restore</button>
+			</Panel>
+
+			<MiniMap />
+		</ReactFlow>
 	);
 }

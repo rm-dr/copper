@@ -1,0 +1,48 @@
+.node_body {
+	display: flex;
+	flex-direction: column;
+	gap: 0rem;
+	align-items: left;
+	justify-content: center;
+
+	border-radius: 5px;
+	overflow: hidden;
+
+	background: var(--mantine-color-dark-8);
+
+	min-width: 15rem;
+}
+
+.node_label {
+	width: 100%;
+	padding: 0.5rem;
+	background: var(--mantine-primary-color-5);
+	font-weight: 1000;
+	font-size: 1rem;
+}
+
+.node_content {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	align-items: left;
+	justify-content: center;
+
+	padding: 0.5rem;
+
+	min-height: 3rem;
+
+	flex-grow: 1;
+	border-radius: 0px 0px 5px 5px;
+	border-width: 0 0.2rem 0.2rem 0.2rem;
+	border-style: solid;
+	border-color: var(--mantine-color-dark-6);
+}
+
+.node_handle {
+	width: 0.75rem;
+	height: 0.75rem;
+
+	background-color: var(--mantine-color-active-5);
+	border: none;
+}
