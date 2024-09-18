@@ -1,8 +1,9 @@
 //! The database client api
 
 use async_trait::async_trait;
-use copper_edged::{PipelineId, PipelineInfo, UserId, UserInfo, UserPassword};
+use copper_edged::{PipelineId, PipelineInfo, UserInfo, UserPassword};
 use copper_pipelined::json::PipelineJson;
+use copper_storaged::UserId;
 
 use super::errors::{
 	pipeline::{AddPipelineError, DeletePipelineError, GetPipelineError, UpdatePipelineError},
@@ -55,13 +56,6 @@ where
 	async fn get_pipeline(
 		&self,
 		pipeline: PipelineId,
-	) -> Result<Option<PipelineInfo>, GetPipelineError>;
-
-	/// Get a pipeline by name
-	async fn get_pipeline_by_name(
-		&self,
-		user: UserId,
-		pipeline_name: &str,
 	) -> Result<Option<PipelineInfo>, GetPipelineError>;
 
 	/// Update a pipeline

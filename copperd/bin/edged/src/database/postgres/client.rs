@@ -1,6 +1,7 @@
 use async_trait::async_trait;
-use copper_edged::{PipelineId, PipelineInfo, UserId, UserInfo, UserPassword};
+use copper_edged::{PipelineId, PipelineInfo, UserInfo, UserPassword};
 use copper_pipelined::json::PipelineJson;
+use copper_storaged::UserId;
 use copper_util::{names::check_name, MimeType};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, Row};
@@ -261,6 +262,8 @@ impl DatabaseClient for PgDatabaseClient {
 		&self,
 		pipeline: PipelineId,
 	) -> Result<Option<PipelineInfo>, GetPipelineError> {
+		// TODO: handle deserialize failure
+
 		let mut conn = self
 			.pool
 			.acquire()
@@ -269,35 +272,6 @@ impl DatabaseClient for PgDatabaseClient {
 
 		let res = sqlx::query("SELECT * FROM pipelines WHERE id=$1;")
 			.bind(i64::from(pipeline))
-			.fetch_one(&mut *conn)
-			.await;
-
-		return match res {
-			Err(sqlx::Error::RowNotFound) => Ok(None),
-			Err(e) => Err(GetPipelineError::DbError(Box::new(e))),
-			Ok(res) => Ok(Some(PipelineInfo {
-				id: res.get::<i64, _>("id").into(),
-				owned_by: res.get::<i64, _>("owned_by").into(),
-				name: res.get::<String, _>("name").into(),
-				data: serde_json::from_str(res.get::<&str, _>("data")).unwrap(),
-			})),
-		};
-	}
-
-	async fn get_pipeline_by_name(
-		&self,
-		user: UserId,
-		pipeline_name: &str,
-	) -> Result<Option<PipelineInfo>, GetPipelineError> {
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| GetPipelineError::DbError(Box::new(e)))?;
-
-		let res = sqlx::query("SELECT * FROM pipelines WHERE owned_by=$1 AND name=$2;")
-			.bind(i64::from(user))
-			.bind(pipeline_name)
 			.fetch_one(&mut *conn)
 			.await;
 

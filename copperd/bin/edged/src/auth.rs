@@ -9,7 +9,8 @@ use axum_extra::extract::{
 	cookie::{Cookie, Expiration, SameSite},
 	CookieJar,
 };
-use copper_edged::{UserId, UserInfo};
+use copper_edged::UserInfo;
+use copper_storaged::UserId;
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use time::{Duration, OffsetDateTime};

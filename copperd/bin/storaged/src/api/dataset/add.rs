@@ -5,7 +5,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
-use copper_edged::UserId;
+use copper_storaged::UserId;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::ToSchema;

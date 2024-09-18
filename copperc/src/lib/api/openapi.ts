@@ -4,1153 +4,1440 @@
  */
 
 export interface paths {
-	"/attribute/{attribute_id}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/** Get attribute info */
-		get: operations["get_attribute"];
-		put?: never;
-		post?: never;
-		/** Delete a attribute */
-		delete: operations["del_attribute"];
-		options?: never;
-		head?: never;
-		/** Rename a attribute */
-		patch: operations["rename_attribute"];
-		trace?: never;
-	};
-	"/class/{class_id}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/** Get class info */
-		get: operations["get_class"];
-		put?: never;
-		post?: never;
-		/** Delete a class */
-		delete: operations["del_class"];
-		options?: never;
-		head?: never;
-		/** Rename a class */
-		patch: operations["rename_class"];
-		trace?: never;
-	};
-	"/class/{class_id}/attribute": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/** Create a new attribute */
-		post: operations["add_attribute"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/dataset": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/** Create a new dataset */
-		post: operations["add_dataset"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/dataset/list": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/** Get dataset info */
-		get: operations["list_datasets"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/dataset/{dataset_id}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/** Get dataset info */
-		get: operations["get_dataset"];
-		put?: never;
-		post?: never;
-		/** Delete a dataset */
-		delete: operations["del_dataset"];
-		options?: never;
-		head?: never;
-		/** Rename a dataset */
-		patch: operations["rename_dataset"];
-		trace?: never;
-	};
-	"/dataset/{dataset_id}/class": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/** Create a new class */
-		post: operations["add_class"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/login": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/** Try to log in */
-		post: operations["try_login"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/logout": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/** Terminate this session */
-		post: operations["logout"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/user": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/** Create a new User */
-		post: operations["add_user"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/user/me": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/** Get logged in user info */
-		get: operations["get_me"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/user/{user_id}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		post?: never;
-		/** Delete a User */
-		delete: operations["del_user"];
-		options?: never;
-		head?: never;
-		/** Update a user */
-		patch: operations["update_user"];
-		trace?: never;
-	};
+    "/attribute/{attribute_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get attribute info */
+        get: operations["get_attribute"];
+        put?: never;
+        post?: never;
+        /** Delete a attribute */
+        delete: operations["del_attribute"];
+        options?: never;
+        head?: never;
+        /** Rename a attribute */
+        patch: operations["rename_attribute"];
+        trace?: never;
+    };
+    "/class/{class_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get class info */
+        get: operations["get_class"];
+        put?: never;
+        post?: never;
+        /** Delete a class */
+        delete: operations["del_class"];
+        options?: never;
+        head?: never;
+        /** Rename a class */
+        patch: operations["rename_class"];
+        trace?: never;
+    };
+    "/class/{class_id}/attribute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a new attribute */
+        post: operations["add_attribute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dataset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a new dataset */
+        post: operations["add_dataset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dataset/list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get dataset info */
+        get: operations["list_datasets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dataset/{dataset_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get dataset info */
+        get: operations["get_dataset"];
+        put?: never;
+        post?: never;
+        /** Delete a dataset */
+        delete: operations["del_dataset"];
+        options?: never;
+        head?: never;
+        /** Rename a dataset */
+        patch: operations["rename_dataset"];
+        trace?: never;
+    };
+    "/dataset/{dataset_id}/class": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a new class */
+        post: operations["add_class"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Try to log in */
+        post: operations["try_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Terminate this session */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pipeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a new Pipeline */
+        post: operations["add_pipeline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pipeline/{pipeline_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get pipeline by id */
+        get: operations["get_pipeline"];
+        put?: never;
+        post?: never;
+        /** Delete a pipeline */
+        delete: operations["del_pipeline"];
+        options?: never;
+        head?: never;
+        /** Update a pipeline */
+        patch: operations["update_pipeline"];
+        trace?: never;
+    };
+    "/user": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a new User */
+        post: operations["add_user"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/user/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get logged in user info */
+        get: operations["get_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/user/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a User */
+        delete: operations["del_user"];
+        options?: never;
+        head?: never;
+        /** Update a user */
+        patch: operations["update_user"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-	schemas: {
-		/** @description The type of data stored in an attribute.
-		 *     Each of these corresponds to a variant of [`AttrData`] */
-		AttrDataStub:
-			| {
-					/** @enum {string} */
-					type: "Text";
-			  }
-			| {
-					/** @enum {string} */
-					type: "Blob";
-			  }
-			| {
-					/** @description If true, this integer must be non-negative */
-					is_non_negative: boolean;
-					/** @enum {string} */
-					type: "Integer";
-			  }
-			| {
-					/** @description If true, this float must be non-negative */
-					is_non_negative: boolean;
-					/** @enum {string} */
-					type: "Float";
-			  }
-			| {
-					/** @enum {string} */
-					type: "Boolean";
-			  }
-			| {
-					hash_type: components["schemas"]["HashType"];
-					/** @enum {string} */
-					type: "Hash";
-			  }
-			| {
-					/**
-					 * Format: int32
-					 * @description The class we reference
-					 */
-					class: number;
-					/** @enum {string} */
-					type: "Reference";
-			  };
-		/** @description Attribute information */
-		AttributeInfo: {
-			/**
-			 * Format: int32
-			 * @description The class this attribute belongs to
-			 */
-			class: number;
-			data_type: components["schemas"]["AttrDataStub"];
-			/**
-			 * Format: int32
-			 * @description The id of this attribute
-			 */
-			id: number;
-			/** @description If true, this attribute must contain a value */
-			is_not_null: boolean;
-			/** @description If true, each item in this attribute's class must
-			 *     have a unique value in this attribute */
-			is_unique: boolean;
-			/** @description This attribute's name */
-			name: string;
-			/**
-			 * Format: int32
-			 * @description The order of this attribute in its class.
-			 *     These start at 0, and must be unique & consecutive
-			 *     inside any class.
-			 */
-			order: number;
-		};
-		/** @description Options we can set when creating an attribute */
-		AttributeOptions: {
-			/** @description If true, this attribute must have a value */
-			is_not_null: boolean;
-			/** @description If true, this attribute must be unique within its column */
-			unique: boolean;
-		};
-		/** @description Class information */
-		ClassInfo: {
-			attributes: components["schemas"]["AttributeInfo"][];
-			/**
-			 * Format: int32
-			 * @description The dataset this class is in
-			 */
-			dataset: number;
-			/**
-			 * Format: int32
-			 * @description The id of the class
-			 */
-			id: number;
-			/** @description This class' name */
-			name: string;
-		};
-		/** @description Dataset information */
-		DatasetInfo: {
-			/** @description This dataset's classes */
-			classes: components["schemas"]["ClassInfo"][];
-			/**
-			 * Format: int32
-			 * @description The id of this dataset
-			 */
-			id: number;
-			/** @description This dataset's name */
-			name: string;
-			/**
-			 * Format: int32
-			 * @description The id of the user that owns this dataset
-			 */
-			owner: number;
-		};
-		/**
-		 * @description The types of hashes we support
-		 * @enum {string}
-		 */
-		HashType: "MD5" | "SHA256" | "SHA512";
-		LoginRequest: {
-			email: string;
-			password: string;
-		};
-		NewAttributeRequest: {
-			data_type: components["schemas"]["AttrDataStub"];
-			name: string;
-			options: components["schemas"]["AttributeOptions"];
-		};
-		NewClassRequest: {
-			name: string;
-		};
-		NewDatasetRequest: {
-			name: string;
-		};
-		NewUserRequest: {
-			email: string;
-			name: string;
-			password: string;
-		};
-		RenameAttributeRequest: {
-			new_name: string;
-		};
-		RenameClassRequest: {
-			new_name: string;
-		};
-		RenameDatasetRequest: {
-			new_name: string;
-		};
-		UpdateUserRequest: {
-			new_email?: string | null;
-			new_name?: string | null;
-			new_password?: string | null;
-		};
-		/** @description User Information */
-		UserInfo: {
-			/** @description This user's email */
-			email: string;
-			/**
-			 * Format: int32
-			 * @description The id of this dataset
-			 */
-			id: number;
-			/** @description This user's name */
-			name: string;
-		};
-	};
-	responses: never;
-	parameters: never;
-	requestBodies: never;
-	headers: never;
-	pathItems: never;
+    schemas: {
+        /** @description The type of data stored in an attribute.
+         *     Each of these corresponds to a variant of [`AttrData`] */
+        AttrDataStub: {
+            /** @enum {string} */
+            type: "Text";
+        } | {
+            /** @enum {string} */
+            type: "Blob";
+        } | {
+            /** @description If true, this integer must be non-negative */
+            is_non_negative: boolean;
+            /** @enum {string} */
+            type: "Integer";
+        } | {
+            /** @description If true, this float must be non-negative */
+            is_non_negative: boolean;
+            /** @enum {string} */
+            type: "Float";
+        } | {
+            /** @enum {string} */
+            type: "Boolean";
+        } | {
+            hash_type: components["schemas"]["HashType"];
+            /** @enum {string} */
+            type: "Hash";
+        } | {
+            /**
+             * Format: int64
+             * @description The class we reference
+             */
+            class: number;
+            /** @enum {string} */
+            type: "Reference";
+        };
+        /** @description Attribute information */
+        AttributeInfo: {
+            /**
+             * Format: int64
+             * @description The class this attribute belongs to
+             */
+            class: number;
+            data_type: components["schemas"]["AttrDataStub"];
+            /**
+             * Format: int64
+             * @description The id of this attribute
+             */
+            id: number;
+            /** @description If true, this attribute must contain a value */
+            is_not_null: boolean;
+            /** @description If true, each item in this attribute's class must
+             *     have a unique value in this attribute */
+            is_unique: boolean;
+            /** @description This attribute's name */
+            name: string;
+            /**
+             * Format: int64
+             * @description The order of this attribute in its class.
+             *     These start at 0, and must be unique & consecutive
+             *     inside any class.
+             */
+            order: number;
+        };
+        /** @description Options we can set when creating an attribute */
+        AttributeOptions: {
+            /** @description If true, this attribute must have a value */
+            is_not_null: boolean;
+            /** @description If true, this attribute must be unique within its column */
+            unique: boolean;
+        };
+        /** @description Class information */
+        ClassInfo: {
+            attributes: components["schemas"]["AttributeInfo"][];
+            /**
+             * Format: int64
+             * @description The dataset this class is in
+             */
+            dataset: number;
+            /**
+             * Format: int64
+             * @description The id of the class
+             */
+            id: number;
+            /** @description This class' name */
+            name: string;
+        };
+        /** @description Dataset information */
+        DatasetInfo: {
+            /** @description This dataset's classes */
+            classes: components["schemas"]["ClassInfo"][];
+            /**
+             * Format: int64
+             * @description The id of this dataset
+             */
+            id: number;
+            /** @description This dataset's name */
+            name: string;
+            /**
+             * Format: int64
+             * @description The id of the user that owns this dataset
+             */
+            owner: number;
+        };
+        EdgeJson: {
+            source: components["schemas"]["OutputPort"];
+            target: components["schemas"]["InputPort"];
+        };
+        /**
+         * @description The types of hashes we support
+         * @enum {string}
+         */
+        HashType: "MD5" | "SHA256" | "SHA512";
+        InputPort: {
+            /** @description The node that provides this input */
+            node: string;
+            /** @description The port's name */
+            port: string;
+        };
+        LoginRequest: {
+            email: string;
+            password: string;
+        };
+        NewAttributeRequest: {
+            data_type: components["schemas"]["AttrDataStub"];
+            name: string;
+            options: components["schemas"]["AttributeOptions"];
+        };
+        NewClassRequest: {
+            name: string;
+        };
+        NewDatasetRequest: {
+            name: string;
+        };
+        NewPipelineRequest: {
+            name: string;
+            pipeline: components["schemas"]["PipelineJson"];
+        };
+        NewUserRequest: {
+            email: string;
+            name: string;
+            password: string;
+        };
+        NodeJson: {
+            /** @description What kind of node is this? */
+            node_type: string;
+            params?: {
+                [key: string]: components["schemas"]["NodeParameterValue"];
+            };
+        };
+        /** @description The types of node parameters we accept */
+        NodeParameterValue: {
+            /** @enum {string} */
+            parameter_type: "Boolean";
+            /** @description A yes or a no */
+            value: boolean;
+        } | {
+            /** @enum {string} */
+            parameter_type: "Integer";
+            /**
+             * Format: int64
+             * @description An integer
+             */
+            value: number;
+        } | {
+            /** @enum {string} */
+            parameter_type: "String";
+            /** @description A plain string. This is used to carry the value of both
+             *     `String` and `Enum` types. If an `Enum` parameter receives
+             *     a string it doesn't recognize, an error should be thrown. */
+            value: string;
+        } | {
+            /** @enum {string} */
+            parameter_type: "List";
+            /** @description A list of parameters */
+            value: components["schemas"]["NodeParameterValue"][];
+        } | {
+            /** @enum {string} */
+            parameter_type: "Map";
+            /** @description A map from `String` to parameter */
+            value: {
+                [key: string]: components["schemas"]["NodeParameterValue"];
+            };
+        };
+        OutputPort: {
+            /** @description The node that provides this output */
+            node: string;
+            /** @description The output's name */
+            port: string;
+        };
+        /** @description Pipeline Information */
+        PipelineInfo: {
+            data: components["schemas"]["PipelineJson"];
+            /**
+             * Format: int64
+             * @description The id of this user
+             */
+            id: number;
+            /** @description This user's name */
+            name: string;
+            /**
+             * Format: int64
+             * @description The user that owns this pipeline
+             */
+            owned_by: number;
+        };
+        /** @description A pipeline specification, directly deserialized from JSON.
+         *     This is the first step in our pipeline processing workflow. */
+        PipelineJson: {
+            /** @description Edges in this pipeline */
+            edges: {
+                [key: string]: components["schemas"]["EdgeJson"];
+            };
+            /** @description Nodes in this pipeline */
+            nodes: {
+                [key: string]: components["schemas"]["NodeJson"];
+            };
+        };
+        RenameAttributeRequest: {
+            new_name: string;
+        };
+        RenameClassRequest: {
+            new_name: string;
+        };
+        RenameDatasetRequest: {
+            new_name: string;
+        };
+        UpdatePipelineRequest: {
+            new_data?: components["schemas"]["PipelineJson"] | null;
+            new_name?: string | null;
+        };
+        UpdateUserRequest: {
+            new_email?: string | null;
+            new_name?: string | null;
+            new_password?: string | null;
+        };
+        /** @description User Information */
+        UserInfo: {
+            /** @description This user's email */
+            email: string;
+            /**
+             * Format: int32
+             * @description The id of this user
+             */
+            id: number;
+            /** @description This user's name */
+            name: string;
+        };
+    };
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-	get_attribute: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Attribute id */
-				attribute_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Attribute info */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["AttributeInfo"];
-				};
-			};
-			/** @description Attribute not found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	del_attribute: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Attribute id */
-				attribute_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Attribute deleted successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	rename_attribute: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Attribute id */
-				attribute_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["RenameAttributeRequest"];
-			};
-		};
-		responses: {
-			/** @description Attribute renamed successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Invalid request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": string;
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	get_class: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Class id */
-				class_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Class info */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ClassInfo"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Class not found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	del_class: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description class id */
-				class_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Class deleted successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	rename_class: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Class id */
-				class_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["RenameClassRequest"];
-			};
-		};
-		responses: {
-			/** @description Class renamed successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Invalid request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": string;
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	add_attribute: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Class id */
-				class_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["NewAttributeRequest"];
-			};
-		};
-		responses: {
-			/** @description Attribute created successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": number;
-				};
-			};
-			/** @description Bad request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": string;
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Dataset does not exist */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	add_dataset: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["NewDatasetRequest"];
-			};
-		};
-		responses: {
-			/** @description Dataset created successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": number;
-				};
-			};
-			/** @description Bad request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": string;
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	list_datasets: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description This user's datasets */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["DatasetInfo"][];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	get_dataset: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Dataset id */
-				dataset_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Dataset info */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["DatasetInfo"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Dataset not found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	del_dataset: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Dataset id */
-				dataset_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Dataset deleted successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	rename_dataset: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Dataset id */
-				dataset_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["RenameDatasetRequest"];
-			};
-		};
-		responses: {
-			/** @description Dataset renamed successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Invalid request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": string;
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	add_class: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Dataset id */
-				dataset_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["NewClassRequest"];
-			};
-		};
-		responses: {
-			/** @description Class created successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": number;
-				};
-			};
-			/** @description Bad request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": string;
-				};
-			};
-			/** @description Dataset does not exist */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	try_login: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["LoginRequest"];
-			};
-		};
-		responses: {
-			/** @description Successfully logged in */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": string;
-				};
-			};
-			/** @description Could not log in */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": string;
-				};
-			};
-		};
-	};
-	logout: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Successfully terminated session */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": string;
-				};
-			};
-			/** @description Could not log out */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": string;
-				};
-			};
-		};
-	};
-	add_user: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["NewUserRequest"];
-			};
-		};
-		responses: {
-			/** @description User created successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Bad request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": string;
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	get_me: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Logged in user info */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["UserInfo"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	del_user: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description User id */
-				user_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description User deleted successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	update_user: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description User id */
-				user_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["UpdateUserRequest"];
-			};
-		};
-		responses: {
-			/** @description User updated successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Invalid request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": string;
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
+    get_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Attribute id */
+                attribute_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attribute info */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttributeInfo"];
+                };
+            };
+            /** @description Attribute not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    del_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Attribute id */
+                attribute_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attribute deleted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    rename_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Attribute id */
+                attribute_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameAttributeRequest"];
+            };
+        };
+        responses: {
+            /** @description Attribute renamed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_class: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Class id */
+                class_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Class info */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassInfo"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Class not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    del_class: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description class id */
+                class_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Class deleted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    rename_class: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Class id */
+                class_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameClassRequest"];
+            };
+        };
+        responses: {
+            /** @description Class renamed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    add_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Class id */
+                class_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewAttributeRequest"];
+            };
+        };
+        responses: {
+            /** @description Attribute created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": number;
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dataset does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    add_dataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewDatasetRequest"];
+            };
+        };
+        responses: {
+            /** @description Dataset created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": number;
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_datasets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description This user's datasets */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetInfo"][];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_dataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Dataset id */
+                dataset_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dataset info */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetInfo"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dataset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    del_dataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Dataset id */
+                dataset_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dataset deleted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    rename_dataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Dataset id */
+                dataset_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameDatasetRequest"];
+            };
+        };
+        responses: {
+            /** @description Dataset renamed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    add_class: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Dataset id */
+                dataset_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewClassRequest"];
+            };
+        };
+        responses: {
+            /** @description Class created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": number;
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    try_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successfully logged in */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Could not log in */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successfully terminated session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Could not log out */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    add_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewPipelineRequest"];
+            };
+        };
+        responses: {
+            /** @description Pipeline created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pipeline id */
+                pipeline_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pipeline found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineInfo"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    del_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pipeline id */
+                pipeline_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pipeline deleted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pipeline id */
+                pipeline_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePipelineRequest"];
+            };
+        };
+        responses: {
+            /** @description Pipeline updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    add_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewUserRequest"];
+            };
+        };
+        responses: {
+            /** @description User created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Logged in user info */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserInfo"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    del_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User id */
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User deleted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User id */
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description User updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
 }

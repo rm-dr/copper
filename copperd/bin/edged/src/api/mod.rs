@@ -14,12 +14,14 @@ use crate::database::base::client::DatabaseClient;
 
 use crate::config::EdgedConfig;
 
+mod pipeline;
+mod user;
+
 mod attribute;
 mod class;
 mod dataset;
 mod login;
 mod logout;
-mod user;
 
 use login::*;
 use logout::*;
@@ -52,6 +54,7 @@ impl<Client: DatabaseClient> Clone for RouterState<Client> {
 		(path = "/dataset", api = dataset::DatasetApi),
 		(path = "/class", api = class::ClassApi),
 		(path = "/attribute", api = attribute::AttributeApi),
+		(path = "/pipeline", api = pipeline::PipelineApi),
 	),
 	tags(
 		(name = "Copper", description = "Copper edge daemon")
@@ -69,6 +72,7 @@ pub(super) fn router<Client: DatabaseClient + 'static>(state: RouterState<Client
 		.nest("/dataset", dataset::router())
 		.nest("/class", class::router())
 		.nest("/attribute", attribute::router())
+		.nest("/pipeline", pipeline::router())
 		//
 		.route("/login", post(try_login))
 		.route("/logout", post(logout))

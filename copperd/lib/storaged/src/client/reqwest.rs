@@ -1,12 +1,11 @@
 use async_trait::async_trait;
-use copper_edged::UserId;
 use reqwest::{header, Client, IntoUrl, StatusCode, Url};
 use serde_json::json;
 
 use super::{StoragedClient, StoragedRequestError};
 use crate::{
 	AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo, DatasetId,
-	DatasetInfo, Transaction,
+	DatasetInfo, Transaction, UserId,
 };
 
 pub struct ReqwestStoragedClient {

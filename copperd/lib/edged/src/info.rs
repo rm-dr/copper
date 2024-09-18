@@ -5,11 +5,12 @@ use argon2::{
 	Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
 };
 use copper_pipelined::json::PipelineJson;
+use copper_storaged::UserId;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use utoipa::ToSchema;
 
-use crate::{PipelineId, UserId};
+use crate::PipelineId;
 
 /// A user's hashed password.
 /// This serialized for storage in the db.
