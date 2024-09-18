@@ -9,6 +9,8 @@ impl Migration for MigrationStep {
 		"m_0_init"
 	}
 
+	// TODO: JSON data & auto-deserialize
+
 	async fn up(&self, conn: &mut sqlx::PgConnection) -> Result<(), sqlx::Error> {
 		let mut t = conn.begin().await?;
 
@@ -43,7 +45,7 @@ impl Migration for MigrationStep {
 				id BIGSERIAL PRIMARY KEY,
 				user_email TEXT NOT NULL UNIQUE,
 				user_name TEXT NOT NULL,
-				user_pass JSON NOT NULL
+				user_pass TEXT NOT NULL
 			);
 			",
 		)
@@ -64,7 +66,7 @@ impl Migration for MigrationStep {
 				id BIGSERIAL PRIMARY KEY,
 				owned_by BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 				name TEXT NOT NULL,
-				data JSON NOT NULL
+				data TEXT NOT NULL
 			);
 			",
 		)

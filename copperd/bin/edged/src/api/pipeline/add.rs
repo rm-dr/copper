@@ -19,7 +19,7 @@ pub(super) struct NewPipelineRequest {
 	pipeline: PipelineJson,
 }
 
-/// Create a new Pipeline
+/// Create a new pipeline
 #[utoipa::path(
 	post,
 	path = "",
