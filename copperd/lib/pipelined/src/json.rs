@@ -1,4 +1,4 @@
-use copper_pipelined::base::{NodeId, NodeParameterValue, PortName};
+use crate::base::{NodeId, NodeParameterValue, PortName};
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, fmt::Debug};
@@ -11,16 +11,16 @@ use utoipa::ToSchema;
 pub struct PipelineJson {
 	/// Nodes in this pipeline
 	#[schema(value_type = BTreeMap<String, NodeJson>)]
-	pub(crate) nodes: BTreeMap<NodeId, NodeJson>,
+	pub nodes: BTreeMap<NodeId, NodeJson>,
 
 	/// Edges in this pipeline
 	#[schema(value_type = BTreeMap<String, EdgeJson>)]
-	pub(crate) edges: BTreeMap<SmartString<LazyCompact>, EdgeJson>,
+	pub edges: BTreeMap<SmartString<LazyCompact>, EdgeJson>,
 }
 
 #[derive(Debug, Deserialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct NodeJson {
+pub struct NodeJson {
 	/// What kind of node is this?
 	#[schema(value_type = String)]
 	pub node_type: SmartString<LazyCompact>,
@@ -33,14 +33,14 @@ pub(crate) struct NodeJson {
 
 #[derive(Debug, Deserialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct EdgeJson {
+pub struct EdgeJson {
 	pub source: OutputPort,
 	pub target: InputPort,
 }
 
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct OutputPort {
+pub struct OutputPort {
 	/// The node that provides this output
 	#[schema(value_type = String)]
 	pub node: NodeId,
