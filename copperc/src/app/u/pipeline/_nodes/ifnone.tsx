@@ -1,8 +1,10 @@
-import { EmptyMarker } from ".";
+import { BaseNode } from "./base";
 import style from "./nodes.module.scss";
-import { Handle, Position } from "@xyflow/react";
+import { Handle, Node, NodeProps, Position } from "@xyflow/react";
 
-export function IfNoneNode({}) {
+type IfNoneNodeType = Node<Record<string, never>, "ifnone">;
+
+export function IfNoneNode({ id }: NodeProps<IfNoneNodeType>) {
 	return (
 		<>
 			<Handle
@@ -20,14 +22,7 @@ export function IfNoneNode({}) {
 				id="ifnone"
 			/>
 
-			<div className={style.node_body}>
-				<div className={style.node_label}>
-					<label>IfNone</label>
-				</div>
-				<div className={style.node_content}>
-					<EmptyMarker />
-				</div>
-			</div>
+			<BaseNode id={id} title={"IfNone"} />
 
 			<Handle
 				className={style.node_handle}

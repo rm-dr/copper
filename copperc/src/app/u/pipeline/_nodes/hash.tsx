@@ -1,11 +1,14 @@
 import style from "./nodes.module.scss";
 import { Select } from "@mantine/core";
-import { Handle, Position } from "@xyflow/react";
+import { Handle, Node, NodeProps, Position } from "@xyflow/react";
 import { useState } from "react";
+import { BaseNode } from "./base";
 
-export function HashNode({}) {
-	const HashTypes = ["SHA256", "SHA512", "MD5"] as const;
+const HashTypes = ["SHA256", "SHA512", "MD5"] as const;
 
+type HashNodeType = Node<Record<string, never>, "hash">;
+
+export function HashNode({ id }: NodeProps<HashNodeType>) {
 	const [hashType, setHashType] =
 		useState<(typeof HashTypes)[number]>("SHA256");
 
@@ -18,24 +21,19 @@ export function HashNode({}) {
 				id="data"
 			/>
 
-			<div className={style.node_body}>
-				<div className={style.node_label}>
-					<label>Checksum</label>
-				</div>
-				<div className={style.node_content}>
-					<Select
-						label="Hash type"
-						data={HashTypes}
-						onChange={(value) => {
-							// eslint-disable-next-line
-							if (value !== null && HashTypes.includes(value as any)) {
-								setHashType(value as (typeof HashTypes)[number]);
-							}
-						}}
-						value={hashType}
-					/>
-				</div>
-			</div>
+			<BaseNode id={id} title={"Checksum"}>
+				<Select
+					label="Hash type"
+					data={HashTypes}
+					onChange={(value) => {
+						// eslint-disable-next-line
+						if (value !== null && HashTypes.includes(value as any)) {
+							setHashType(value as (typeof HashTypes)[number]);
+						}
+					}}
+					value={hashType}
+				/>
+			</BaseNode>
 
 			<Handle
 				className={style.node_handle}

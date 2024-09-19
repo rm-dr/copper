@@ -7,18 +7,3 @@ export const nodeTypes = {
 	ifnone: IfNoneNode,
 	hash: HashNode,
 } as const;
-
-export function EmptyMarker() {
-	return (
-		<div
-			style={{
-				width: "100%",
-				textAlign: "center",
-				fontWeight: 800,
-				color: "var(--mantine-color-dimmed)",
-			}}
-		>
-			This node has no options.
-		</div>
-	);
-}

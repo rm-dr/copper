@@ -13,12 +13,38 @@
 	min-width: 15rem;
 }
 
-.node_label {
-	width: 100%;
+.node_top {
+	display: flex;
+	flex-direction: row;
+	gap: 0rem;
+	justify-content: center;
+
 	padding: 0.5rem;
+	width: 100%;
 	background: var(--mantine-primary-color-5);
-	font-weight: 1000;
-	font-size: 1rem;
+
+	.node_top_label {
+		display: flex;
+		flex-direction: column;
+		gap: 0rem;
+		align-items: left;
+		justify-content: center;
+
+		font-weight: 1000;
+		font-size: 1rem;
+		flex-grow: 1;
+	}
+
+	.node_top_delete {
+		display: flex;
+		flex-direction: column;
+		gap: 0rem;
+		align-items: left;
+		justify-content: center;
+
+		width: 2rem;
+		height: 100%;
+	}
 }
 
 .node_content {

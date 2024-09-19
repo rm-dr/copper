@@ -1,9 +1,12 @@
 import style from "./nodes.module.scss";
 import { NumberInput, Select, TextInput } from "@mantine/core";
-import { Handle, Position } from "@xyflow/react";
+import { Handle, Node, NodeProps, Position } from "@xyflow/react";
 import { useState } from "react";
+import { BaseNode } from "./base";
 
-export function ConstantNode({}) {
+type ConstantNodeType = Node<Record<string, never>, "constant">;
+
+export function ConstantNode({ id }: NodeProps<ConstantNodeType>) {
 	const types = ["Text", "Integer", "Float"] as const;
 	type ValueType =
 		| {
@@ -78,34 +81,29 @@ export function ConstantNode({}) {
 
 	return (
 		<>
-			<div className={style.node_body}>
-				<div className={style.node_label}>
-					<label>Constant</label>
-				</div>
-				<div className={style.node_content}>
-					<Select
-						label="Data type"
-						placeholder="Pick value"
-						data={types}
-						onChange={(value) => {
-							if (value === "Text") {
-								setValue({
-									type: "Text",
-									value: "",
-								});
-							} else if (value === "Integer") {
-								setValue({
-									type: "Integer",
-									value: 0,
-								});
-							}
-						}}
-						value={value.type}
-					/>
+			<BaseNode id={id} title={"Constant"}>
+				<Select
+					label="Data type"
+					placeholder="Pick value"
+					data={types}
+					onChange={(value) => {
+						if (value === "Text") {
+							setValue({
+								type: "Text",
+								value: "",
+							});
+						} else if (value === "Integer") {
+							setValue({
+								type: "Integer",
+								value: 0,
+							});
+						}
+					}}
+					value={value.type}
+				/>
 
-					{input}
-				</div>
-			</div>
+				{input}
+			</BaseNode>
 
 			<Handle
 				className={style.node_handle}
