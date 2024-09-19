@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
 	addEdge,
 	applyEdgeChanges,
@@ -16,9 +16,11 @@ import {
 	type OnConnect,
 	type OnNodesChange,
 	type OnEdgesChange,
+	type OnReconnect,
 	BackgroundVariant,
 	ConnectionMode,
 	ConnectionLineType,
+	reconnectEdge,
 } from "@xyflow/react";
 
 import style from "./pipeline.module.scss";
@@ -72,6 +74,25 @@ function Flow() {
 	const [edges, setEdges] = useState<Edge[]>(initialEdges);
 	// const { setViewport } = useReactFlow();
 	const [rfInstance, setRfInstance] = useState<null | ReactFlowInstance>(null);
+	const edgeReconnectSuccessful = useRef(true);
+
+	const onReconnectStart = useCallback(() => {
+		edgeReconnectSuccessful.current = false;
+	}, []);
+
+	const onReconnect: OnReconnect = useCallback((oldEdge, newConnection) => {
+		edgeReconnectSuccessful.current = true;
+		setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
+	}, []);
+
+	// eslint-disable-next-line
+	const onReconnectEnd = useCallback((_: unknown, edge: any) => {
+		if (!edgeReconnectSuccessful.current) {
+			setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+		}
+
+		edgeReconnectSuccessful.current = true;
+	}, []);
 
 	const onNodesChange: OnNodesChange = useCallback(
 		(changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -123,6 +144,10 @@ function Flow() {
 			defaultEdgeOptions={{ type: "smoothstep" }}
 			connectionMode={ConnectionMode.Strict}
 			connectionLineType={ConnectionLineType.SmoothStep}
+			snapToGrid
+			onReconnect={onReconnect}
+			onReconnectStart={onReconnectStart}
+			onReconnectEnd={onReconnectEnd}
 		>
 			<Controls />
 			<Background
