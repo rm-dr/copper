@@ -1,178 +1,213 @@
 "use client";
-import React, { useCallback, useRef, useState } from "react";
-import {
-	addEdge,
-	applyEdgeChanges,
-	applyNodeChanges,
-	Background,
-	Controls,
-	MiniMap,
-	Panel,
-	ReactFlow,
-	ReactFlowInstance,
-	ReactFlowProvider,
-	type Node,
-	type Edge,
-	type OnConnect,
-	type OnNodesChange,
-	type OnEdgesChange,
-	type OnReconnect,
-	BackgroundVariant,
-	ConnectionMode,
-	ConnectionLineType,
-	reconnectEdge,
-} from "@xyflow/react";
+import React, { Dispatch, SetStateAction, useCallback } from "react";
+import { Node, ReactFlowProvider } from "@xyflow/react";
 
 import style from "./pipeline.module.scss";
 import "@xyflow/react/dist/style.css";
 
-import { nodeTypes } from "./_nodes";
+import { useFlow } from "./flow";
+import { ActionIcon, Button, Select } from "@mantine/core";
+import { components } from "@/lib/api/openapi";
+import { InfoIcon } from "lucide-react";
 
-const initialNodes: Node[] = [
-	{
-		id: "node-1",
-		type: "constant",
-		position: { x: 0, y: 0 },
-		data: { color: "var(--mantine-primary-color-5)" },
-	},
 
-	{
-		id: "node-2",
-		type: "ifnone",
-		position: { x: 0, y: 0 },
-		data: { value: 123 },
-	},
+function AddNodeButton(params: {
+	text: string;
+	node_type: string;
 
-	{
-		id: "node-3",
-		type: "hash",
-		position: { x: 0, y: 0 },
-		data: { value: 123 },
-	},
-];
-const initialEdges: Edge[] = [
-	{
-		type: "default",
-		id: "e1-2",
-		source: "node-2",
-		target: "node-3",
-	},
-];
-
-export default function Page() {
+	setNodes: Dispatch<SetStateAction<Node[]>>;
+	onInfo: () => void;
+}) {
 	return (
-		<div className={style.react_flow_container}>
-			<ReactFlowProvider>
-				<Flow />
-			</ReactFlowProvider>
+		<div className={style.add_node_button}>
+			<ActionIcon
+				variant="transparent"
+				aria-label="Settings"
+				onClick={params.onInfo}
+			>
+				<InfoIcon size={"1rem"} />
+			</ActionIcon>
+			<Button
+				fullWidth
+				variant="light"
+				size="xs"
+				onClick={() => {
+					const id = getId();
+
+					const newNode: Node = {
+						id,
+						type: params.node_type,
+						position: { x: 0, y: 0 },
+						data: {},
+						origin: [0.5, 0.0],
+					};
+
+					params.setNodes((nodes) => nodes.concat(newNode));
+				}}
+			>
+				{params.text}
+			</Button>
 		</div>
 	);
 }
 
-function Flow() {
-	const [nodes, setNodes] = useState<Node[]>(initialNodes);
-	const [edges, setEdges] = useState<Edge[]>(initialEdges);
-	// const { setViewport } = useReactFlow();
-	const [rfInstance, setRfInstance] = useState<null | ReactFlowInstance>(null);
-	const edgeReconnectSuccessful = useRef(true);
+let id = 1;
+const getId = () => `node-${id++}`;
 
-	const onReconnectStart = useCallback(() => {
-		edgeReconnectSuccessful.current = false;
-	}, []);
+function Main() {
+	const { flow, getFlow, setNodes } = useFlow();
 
-	const onReconnect: OnReconnect = useCallback((oldEdge, newConnection) => {
-		edgeReconnectSuccessful.current = true;
-		setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
-	}, []);
+	const savePipeline = useCallback(() => {
+		// eslint-disable-next-line
+		let raw: any = getFlow();
+		console.log(raw);
 
-	// eslint-disable-next-line
-	const onReconnectEnd = useCallback((_: unknown, edge: any) => {
-		if (!edgeReconnectSuccessful.current) {
-			setEdges((eds) => eds.filter((e) => e.id !== edge.id));
-		}
+		const nodes: components["schemas"]["PipelineJson"]["nodes"] = {};
+		// eslint-disable-next-line
+		raw.nodes.forEach((node: any) => {
+			nodes[node.id] = {
+				node_type: node.type,
+			};
+		});
 
-		edgeReconnectSuccessful.current = true;
-	}, []);
+		const edges: components["schemas"]["PipelineJson"]["edges"] = {};
+		// eslint-disable-next-line
+		raw.edges.forEach((edge: any) => {
+			const source: components["schemas"]["InputPort"] = {
+				node: edge.source,
+				port: "",
+			};
 
-	const onNodesChange: OnNodesChange = useCallback(
-		(changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
-		[setNodes],
-	);
-	const onEdgesChange: OnEdgesChange = useCallback(
-		(changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-		[setEdges],
-	);
-	const onConnect: OnConnect = useCallback(
-		(connection) => setEdges((eds) => addEdge(connection, eds)),
-		[setEdges],
-	);
+			const target: components["schemas"]["OutputPort"] = {
+				node: edge.target,
+				port: "",
+			};
 
-	const onSave = useCallback(() => {
-		if (rfInstance) {
-			const flow = rfInstance.toObject();
-			console.log(JSON.stringify(flow));
-		}
-	}, [rfInstance]);
+			edge[edge.id] = {
+				source,
+				target,
+			};
+		});
 
-	const onRestore = useCallback(() => {
-		const restoreFlow = async () => {
-			/*
-			const flow = JSON.parse(localStorage.getItem(flowKey));
-
-			if (flow) {
-				const { x = 0, y = 0, zoom = 1 } = flow.viewport;
-				setNodes(flow.nodes || []);
-				setEdges(flow.edges || []);
-				setViewport({ x, y, zoom });
-			}
-			*/
+		const pipe: components["schemas"]["PipelineJson"] = {
+			nodes,
+			edges,
 		};
 
-		restoreFlow();
-	}, []);
+		console.log(pipe);
+	}, [getFlow]);
 
 	return (
-		<ReactFlow
-			className={style.react_flow}
-			nodes={nodes}
-			edges={edges}
-			onNodesChange={onNodesChange}
-			onEdgesChange={onEdgesChange}
-			onInit={setRfInstance}
-			onConnect={onConnect}
-			nodeTypes={nodeTypes}
-			defaultEdgeOptions={{ type: "default" }}
-			connectionMode={ConnectionMode.Strict}
-			connectionLineType={ConnectionLineType.Bezier}
-			snapToGrid
-			onReconnect={onReconnect}
-			onReconnectStart={onReconnectStart}
-			onReconnectEnd={onReconnectEnd}
-			colorMode="dark"
-		>
-			<Controls className={style.controls} />
+		<div className={style.pipeline_container}>
+			<div className={style.tools_container}>
+				<div className={style.tools_section}>
+					<div className={style.tools_section_title}>Select pipeline</div>
 
-			<Background
-				variant={BackgroundVariant.Dots}
-				gap={12}
-				size={1}
-				color="var(--mantine-color-dark-3)"
-			/>
+					<Select data={["a"]} onChange={() => {}} />
 
-			<Panel position="top-right">
-				<button onClick={onSave}>save</button>
-				<button onClick={onRestore}>restore</button>
-			</Panel>
+					<Button.Group style={{ width: "100%" }}>
+						<Button fullWidth variant="subtle" size="xs">
+							Reload
+						</Button>
 
-			<MiniMap
-				nodeColor={(node) => {
-					if ("color" in node.data && typeof node.data.color === "string") {
-						return node.data.color;
-					} else {
-						return "var(--mantine-color-dark-2)";
-					}
-				}}
-			/>
-		</ReactFlow>
+						<Button fullWidth variant="subtle" size="xs">
+							Rename
+						</Button>
+					</Button.Group>
+
+					{false ? (
+						<Button
+							fullWidth
+							variant="subtle"
+							size="xs"
+							color="red"
+							onClick={savePipeline}
+						>
+							Save (!)
+						</Button>
+					) : (
+						<Button fullWidth variant="subtle" size="xs" onClick={savePipeline}>
+							Save
+						</Button>
+					)}
+				</div>
+
+				<div className={style.tools_section}>
+					<div className={style.tools_section_title}>Add nodes</div>
+
+					<div className={style.node_group}>
+						<div className={style.node_group_title}>Base</div>
+						<AddNodeButton
+							text="Input"
+							node_type="input"
+							setNodes={setNodes}
+							onInfo={() => {}}
+						/>
+
+						<AddNodeButton
+							text="Constant"
+							node_type="hash"
+							setNodes={setNodes}
+							onInfo={() => {}}
+						/>
+
+						<AddNodeButton
+							text="IfNone"
+							node_type="ifnone"
+							setNodes={setNodes}
+							onInfo={() => {}}
+						/>
+
+						<AddNodeButton
+							text="Checksum"
+							node_type="checksum"
+							setNodes={setNodes}
+							onInfo={() => {}}
+						/>
+					</div>
+
+					<div className={style.node_group}>
+						<div className={style.node_group_title}>Storage</div>
+						<AddNodeButton
+							text="Add item"
+							node_type="additem"
+							setNodes={setNodes}
+							onInfo={() => {}}
+						/>
+					</div>
+
+					<div className={style.node_group}>
+						<div className={style.node_group_title}>Audio</div>
+						<AddNodeButton
+							text="Strip tags"
+							node_type="striptags"
+							setNodes={setNodes}
+							onInfo={() => {}}
+						/>
+						<AddNodeButton
+							text="Extract tags"
+							node_type="extracttags"
+							setNodes={setNodes}
+							onInfo={() => {}}
+						/>
+						<AddNodeButton
+							text="Extract covers"
+							node_type="extractcovers"
+							setNodes={setNodes}
+							onInfo={() => {}}
+						/>
+					</div>
+				</div>
+			</div>
+			<div className={style.react_flow_container}>{flow}</div>
+		</div>
+	);
+}
+
+export default function Page() {
+	return (
+		<ReactFlowProvider>
+			<Main />
+		</ReactFlowProvider>
 	);
 }
