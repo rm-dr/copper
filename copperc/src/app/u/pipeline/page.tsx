@@ -33,7 +33,7 @@ const initialNodes: Node[] = [
 		id: "node-1",
 		type: "constant",
 		position: { x: 0, y: 0 },
-		data: { value: 123 },
+		data: { color: "var(--mantine-primary-color-5)" },
 	},
 
 	{
@@ -52,7 +52,7 @@ const initialNodes: Node[] = [
 ];
 const initialEdges: Edge[] = [
 	{
-		type: "smoothstep",
+		type: "default",
 		id: "e1-2",
 		source: "node-2",
 		target: "node-3",
@@ -141,15 +141,17 @@ function Flow() {
 			onInit={setRfInstance}
 			onConnect={onConnect}
 			nodeTypes={nodeTypes}
-			defaultEdgeOptions={{ type: "smoothstep" }}
+			defaultEdgeOptions={{ type: "default" }}
 			connectionMode={ConnectionMode.Strict}
-			connectionLineType={ConnectionLineType.SmoothStep}
+			connectionLineType={ConnectionLineType.Bezier}
 			snapToGrid
 			onReconnect={onReconnect}
 			onReconnectStart={onReconnectStart}
 			onReconnectEnd={onReconnectEnd}
+			colorMode="dark"
 		>
-			<Controls />
+			<Controls className={style.controls} />
+
 			<Background
 				variant={BackgroundVariant.Dots}
 				gap={12}
@@ -162,7 +164,15 @@ function Flow() {
 				<button onClick={onRestore}>restore</button>
 			</Panel>
 
-			<MiniMap />
+			<MiniMap
+				nodeColor={(node) => {
+					if ("color" in node.data && typeof node.data.color === "string") {
+						return node.data.color;
+					} else {
+						return "var(--mantine-color-dark-2)";
+					}
+				}}
+			/>
 		</ReactFlow>
 	);
 }

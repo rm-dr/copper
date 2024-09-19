@@ -4,7 +4,12 @@ import { Handle, Node, NodeProps, Position } from "@xyflow/react";
 import { useState } from "react";
 import { BaseNode } from "./base";
 
-type ConstantNodeType = Node<Record<string, never>, "constant">;
+type ConstantNodeType = Node<
+	{
+		color: "var(--mantine-primary-color-5)";
+	},
+	"constant"
+>;
 
 export function ConstantNode({ id }: NodeProps<ConstantNodeType>) {
 	const types = ["Text", "Integer", "Float"] as const;

@@ -13,4 +13,27 @@
 	--xy-attribution-background-color-default: var(
 		--mantine-color-dark-8
 	) !important;
+
+	--xy-controls-button-background-color-default: var(
+		--mantine-color-dark-8
+	) !important;
+
+	--xy-controls-button-background-color-hover-default: color-mix(
+		in srgb,
+		var(--mantine-primary-color-9),
+		var(--mantine-color-dark-9) 30%
+	) !important;
+
+	--xy-controls-button-color-default: var(--mantine-color-white) !important;
+	--xy-controls-button-color-hover-default: var(
+		--mantine-color-white
+	) !important;
+
+	--xy-controls-button-border-color-default: var(
+		--mantine-color-dark-3
+	) !important;
+
+	--xy-minimap-background-color-default: var(
+		--mantine-color-dark-8
+	) !important;
 }
