@@ -3,6 +3,7 @@ import React, { Dispatch, SetStateAction, useCallback } from "react";
 import { Node, ReactFlowProvider } from "@xyflow/react";
 
 import style from "./pipeline.module.scss";
+import nodestyle from "./_nodes/nodes.module.scss";
 import "@xyflow/react/dist/style.css";
 
 import { useFlow } from "./flow";
@@ -40,6 +41,7 @@ function AddNodeButton(params: {
 						position: { x: 0, y: 0 },
 						data: {},
 						origin: [0.5, 0.0],
+						dragHandle: `.${nodestyle.node_top_label}`,
 					};
 
 					params.setNodes((nodes) => nodes.concat(newNode));
@@ -139,14 +141,14 @@ function Main() {
 						<div className={style.node_group_title}>Base</div>
 						<AddNodeButton
 							text="Input"
-							node_type="input"
+							node_type="pipelineinput"
 							setNodes={setNodes}
 							onInfo={() => {}}
 						/>
 
 						<AddNodeButton
 							text="Constant"
-							node_type="hash"
+							node_type="constant"
 							setNodes={setNodes}
 							onInfo={() => {}}
 						/>
@@ -160,7 +162,7 @@ function Main() {
 
 						<AddNodeButton
 							text="Checksum"
-							node_type="checksum"
+							node_type="hash"
 							setNodes={setNodes}
 							onInfo={() => {}}
 						/>

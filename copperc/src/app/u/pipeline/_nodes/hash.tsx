@@ -1,6 +1,5 @@
-import style from "./nodes.module.scss";
 import { Select } from "@mantine/core";
-import { Handle, Node, NodeProps, Position } from "@xyflow/react";
+import { Node, NodeProps } from "@xyflow/react";
 import { useState } from "react";
 import { BaseNode } from "./base";
 
@@ -14,14 +13,12 @@ export function HashNode({ id }: NodeProps<HashNodeType>) {
 
 	return (
 		<>
-			<Handle
-				className={style.node_handle}
-				type="target"
-				position={Position.Left}
-				id="data"
-			/>
-
-			<BaseNode id={id} title={"Checksum"}>
+			<BaseNode
+				id={id}
+				title={"Checksum"}
+				inputs={[{ id: "data", type: "Binary", tooltip: "Input data" }]}
+				outputs={[{ id: "hash", type: "Hash", tooltip: "Checksum" }]}
+			>
 				<Select
 					label="Hash type"
 					data={HashTypes}
@@ -34,13 +31,6 @@ export function HashNode({ id }: NodeProps<HashNodeType>) {
 					value={hashType}
 				/>
 			</BaseNode>
-
-			<Handle
-				className={style.node_handle}
-				type="source"
-				position={Position.Right}
-				id="hash"
-			/>
 		</>
 	);
 }

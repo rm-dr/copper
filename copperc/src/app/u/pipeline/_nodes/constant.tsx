@@ -1,6 +1,5 @@
-import style from "./nodes.module.scss";
 import { NumberInput, Select, TextInput } from "@mantine/core";
-import { Handle, Node, NodeProps, Position } from "@xyflow/react";
+import { Node, NodeProps } from "@xyflow/react";
 import { useState } from "react";
 import { BaseNode } from "./base";
 
@@ -86,7 +85,11 @@ export function ConstantNode({ id }: NodeProps<ConstantNodeType>) {
 
 	return (
 		<>
-			<BaseNode id={id} title={"Constant"}>
+			<BaseNode
+				id={id}
+				title={"Constant"}
+				outputs={[{ id: "out", tooltip: "Output value", type: value.type }]}
+			>
 				<Select
 					label="Data type"
 					placeholder="Pick value"
@@ -109,13 +112,6 @@ export function ConstantNode({ id }: NodeProps<ConstantNodeType>) {
 
 				{input}
 			</BaseNode>
-
-			<Handle
-				className={style.node_handle}
-				type="source"
-				position={Position.Right}
-				id="out"
-			/>
 		</>
 	);
 }

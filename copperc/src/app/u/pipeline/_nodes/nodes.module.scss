@@ -1,4 +1,6 @@
 .node_body {
+	cursor: default;
+
 	display: flex;
 	flex-direction: column;
 	gap: 0rem;
@@ -6,7 +8,6 @@
 	justify-content: center;
 
 	border-radius: 5px;
-	overflow: hidden;
 
 	background: var(--mantine-color-dark-8);
 
@@ -23,7 +24,11 @@
 	width: 100%;
 	background: var(--mantine-primary-color-5);
 
+	border-radius: 5px 5px 0px 0px;
+
 	.node_top_label {
+		cursor: grab;
+
 		display: flex;
 		flex-direction: column;
 		gap: 0rem;
@@ -47,27 +52,119 @@
 	}
 }
 
-.node_content {
+.node_body_inner {
 	display: flex;
-	flex-direction: column;
-	gap: 0.5rem;
-	align-items: left;
-	justify-content: center;
+	flex-direction: row;
+	gap: 0;
 
-	padding: 0.5rem;
-
-	min-height: 3rem;
-
-	flex-grow: 1;
 	border-radius: 0px 0px 5px 5px;
 	border-width: 0 0.2rem 0.2rem 0.2rem;
 	border-style: solid;
 	border-color: var(--mantine-color-dark-6);
+
+	.node_content {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		align-items: left;
+		justify-content: center;
+
+		padding: 0.5rem;
+		min-height: 3rem;
+		flex-grow: 1;
+	}
+
+	.node_port_container {
+		cursor: default;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		align-items: left;
+		justify-content: left;
+
+		padding: 0.5rem;
+		border-style: dashed;
+		border-color: var(--mantine-color-dark-6);
+
+		&.input {
+			border-width: 0rem 0.2rem 0rem 0rem;
+			padding-left: 0;
+		}
+
+		&.output {
+			border-width: 0 0rem 0rem 0.2rem;
+			padding-right: 0;
+		}
+	}
+
+	.node_port {
+		cursor: default;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: left;
+
+		position: relative;
+		width: 3rem;
+		height: 2rem;
+		padding-left: 0.25rem;
+		padding-right: 0.25rem;
+
+		background: var(--mantine-color-dark-6);
+
+		&.input {
+			justify-content: right;
+			padding-left: 1rem;
+			border-radius: 0px 5px 5px 0px;
+		}
+
+		&.output {
+			justify-content: left;
+			padding-right: 1rem;
+			border-radius: 5px 0px 0px 5px;
+		}
+
+		&:hover .port_tooltip {
+			opacity: 1;
+		}
+
+		.port_tooltip {
+			display: flex;
+			flex-direction: row;
+			align-items: center;
+			justify-content: center;
+			padding: 0.2rem;
+
+			z-index: 100;
+			pointer-events: none;
+			position: absolute;
+
+			opacity: 0;
+			transition: 200ms;
+
+			height: 2rem;
+			width: max-content;
+
+			border-radius: 5px;
+			border-width: 0.1rem;
+			border-style: solid;
+			border-color: var(--mantine-color-dark-7);
+			background: var(--mantine-color-dark-6);
+
+			&.input {
+				right: calc(100% + 1rem);
+			}
+
+			&.output {
+				left: calc(100% + 1rem);
+			}
+		}
+	}
 }
 
 .node_handle {
-	width: 0.75rem;
-	height: 0.75rem;
+	width: 1.75rem;
+	height: 1.75rem;
 
 	background-color: var(--mantine-color-active-5);
 	border: none;
