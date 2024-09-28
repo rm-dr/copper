@@ -19,8 +19,8 @@ use rename::*;
 #[derive(OpenApi)]
 #[openapi(
 	tags(),
-	paths(rename_class, del_class, get_class),
-	components(schemas(RenameClassRequest))
+	paths(rename_class, del_class, get_class, add_attribute),
+	components(schemas(RenameClassRequest, NewAttributeRequest))
 )]
 pub(super) struct ClassApi;
 

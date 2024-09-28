@@ -21,6 +21,9 @@ pub struct DatasetInfo {
 	/// This dataset's name
 	#[schema(value_type = String)]
 	pub name: SmartString<LazyCompact>,
+
+	/// This dataset's classes
+	pub classes: Vec<ClassInfo>,
 }
 
 /// Class information

@@ -21,8 +21,8 @@ use rename::*;
 #[derive(OpenApi)]
 #[openapi(
 	tags(),
-	paths(add_dataset, rename_dataset, del_dataset, get_dataset),
-	components(schemas(RenameDatasetRequest, NewDatasetRequest))
+	paths(add_dataset, rename_dataset, del_dataset, get_dataset, add_class),
+	components(schemas(RenameDatasetRequest, NewDatasetRequest, NewClassRequest))
 )]
 pub(super) struct DatasetApi;
 

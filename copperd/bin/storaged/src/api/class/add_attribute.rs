@@ -26,6 +26,9 @@ pub(super) struct NewAttributeRequest {
 #[utoipa::path(
 	post,
 	path = "/{class_id}/attribute",
+	params(
+		("class_id", description = "Class id"),
+	),
 	responses(
 		(status = 200, description = "Attribute created successfully", body = u32),
 		(status = 400, description = "Bad request", body = String),
