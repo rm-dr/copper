@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use copper_edged::UserId;
 use copper_storaged::{
 	AttrData, AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo,
 	ResultOrDirect, Transaction, TransactionAction,
@@ -32,7 +33,7 @@ impl DatabaseClient for PgDatabaseClient {
 	// MARK: Dataset
 	//
 
-	async fn add_dataset(&self, name: &str) -> Result<DatasetId, AddDatasetError> {
+	async fn add_dataset(&self, name: &str, user: UserId) -> Result<DatasetId, AddDatasetError> {
 		match check_name(name) {
 			Ok(()) => {}
 			Err(e) => return Err(AddDatasetError::NameError(e)),
@@ -49,10 +50,12 @@ impl DatabaseClient for PgDatabaseClient {
 			.await
 			.map_err(|e| AddDatasetError::DbError(Box::new(e)))?;
 
-		let res = sqlx::query("INSERT INTO dataset (pretty_name) VALUES ($1) RETURNING id;")
-			.bind(name)
-			.fetch_one(&mut *t)
-			.await;
+		let res =
+			sqlx::query("INSERT INTO dataset (pretty_name, owner) VALUES ($1, $2) RETURNING id;")
+				.bind(name)
+				.bind(i64::from(user))
+				.fetch_one(&mut *t)
+				.await;
 
 		t.commit()
 			.await
@@ -141,6 +144,7 @@ impl DatabaseClient for PgDatabaseClient {
 			Err(e) => Err(GetDatasetError::DbError(Box::new(e))),
 			Ok(res) => Ok(DatasetInfo {
 				id: res.get::<i64, _>("id").into(),
+				owner: res.get::<i64, _>("owner").into(),
 				name: res.get::<String, _>("pretty_name").into(),
 				classes,
 			}),

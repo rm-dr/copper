@@ -1,6 +1,7 @@
 //! The database client api
 
 use async_trait::async_trait;
+use copper_edged::UserId;
 use copper_storaged::{
 	AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo,
 	Transaction,
@@ -36,7 +37,7 @@ where
 	//
 
 	/// Create a new dataset
-	async fn add_dataset(&self, name: &str) -> Result<DatasetId, AddDatasetError>;
+	async fn add_dataset(&self, name: &str, owner: UserId) -> Result<DatasetId, AddDatasetError>;
 
 	/// Get dataset details
 	async fn get_dataset(&self, dataset: DatasetId) -> Result<DatasetInfo, GetDatasetError>;

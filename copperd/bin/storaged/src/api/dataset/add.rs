@@ -5,6 +5,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
+use copper_edged::UserId;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::ToSchema;
@@ -13,6 +14,9 @@ use crate::api::RouterState;
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 pub(super) struct NewDatasetRequest {
+	#[schema(value_type = u32)]
+	owner: UserId,
+
 	name: String,
 }
 
@@ -39,7 +43,7 @@ pub(super) async fn add_dataset<Client: DatabaseClient>(
 		return StatusCode::UNAUTHORIZED.into_response();
 	};
 
-	let res = state.client.add_dataset(&payload.name).await;
+	let res = state.client.add_dataset(&payload.name, payload.owner).await;
 
 	return match res {
 		Ok(x) => (StatusCode::OK, Json(x)).into_response(),

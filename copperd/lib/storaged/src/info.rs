@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 
+use copper_edged::UserId;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use utoipa::ToSchema;
@@ -17,6 +18,10 @@ pub struct DatasetInfo {
 	/// The id of this dataset
 	#[schema(value_type = u32)]
 	pub id: DatasetId,
+
+	/// The id of the user that owns this dataset
+	#[schema(value_type = u32)]
+	pub owner: UserId,
 
 	/// This dataset's name
 	#[schema(value_type = String)]

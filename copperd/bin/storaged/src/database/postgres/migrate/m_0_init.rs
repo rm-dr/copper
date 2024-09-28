@@ -43,7 +43,10 @@ impl Migration for MigrationStep {
 				id BIGSERIAL PRIMARY KEY,
 
 				-- This dataset's display name
-				pretty_name TEXT NOT NULL UNIQUE
+				pretty_name TEXT NOT NULL UNIQUE,
+
+				-- The id of the user that owns this dataset
+				owner BIGINT NOT NULL
 			);",
 		)
 		.execute(&mut *t)

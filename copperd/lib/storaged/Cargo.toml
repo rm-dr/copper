@@ -18,6 +18,7 @@ workspace = true
 
 [dependencies]
 copper-util = { workspace = true }
+copper-edged = { workspace = true }
 
 reqwest = { workspace = true }
 smartstring = { workspace = true }
