@@ -1,0 +1,98 @@
+.tree_entry.selected {
+	.tree_entry_left {
+		.tree_entry_left_icon {
+			background-color: var(--mantine-primary-color-8) !important;
+		}
+	}
+}
+
+.tree_entry.expanded {
+	.tree_entry_arrow {
+		transform: rotate(0deg);
+	}
+}
+
+.tree_entry:hover {
+	.tree_entry_left {
+		.tree_entry_left_icon {
+			background-color: var(--mantine-color-gray-6);
+		}
+	}
+
+	.tree_entry_content {
+		background-color: var(--mantine-color-dark-6);
+	}
+}
+
+.tree_entry {
+	display: flex;
+
+	height: 2rem;
+	margin: 0;
+	margin-top: 0.5rem;
+	margin-bottom: 0.5rem;
+	padding: 0;
+
+	transition: 200ms;
+
+	.tree_entry_arrow {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+
+		width: 2rem;
+		transition: inherit;
+		transform: rotate(-90deg);
+	}
+
+	.tree_entry_content {
+		width: 100%;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: left;
+		overflow: hidden;
+
+		background-color: var(--mantine-color-dark-8);
+		border-radius: 0.5rem;
+	}
+
+	.tree_entry_left {
+		display: flex;
+		align-items: center;
+		justify-content: left;
+		overflow: hidden;
+
+		background-color: var(--mantine-color-dark-6);
+		transition: inherit;
+
+		.tree_entry_left_icon {
+			display: flex;
+			align-items: center;
+			justify-content: left;
+			overflow: hidden;
+
+			width: 2rem;
+			padding: 0.25rem;
+			transition: inherit;
+		}
+	}
+
+	.tree_entry_text {
+		padding: 0.25rem;
+		padding-left: 0.5rem;
+		flex-grow: 1;
+		user-select: none;
+		transition: inherit;
+	}
+
+	.tree_entry_right {
+		display: flex;
+		align-items: center;
+		justify-content: right;
+		overflow: hidden;
+		column-gap: 0.5rem;
+		transition: inherit;
+	}
+}
