@@ -12,6 +12,16 @@ use super::{
 	id::{AttributeId, ClassId, DatasetId, ItemId},
 };
 
+#[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
+/// Options we can set when creating an attribute
+pub struct AttributeOptions {
+	/// If true, this attribute must have a value
+	pub is_not_null: bool,
+
+	/// If true, this attribute must be unique within its column
+	pub unique: bool,
+}
+
 /// Dataset information
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct DatasetInfo {
@@ -34,6 +44,10 @@ pub struct DatasetInfo {
 /// Class information
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ClassInfo {
+	/// The dataset this class is in
+	#[schema(value_type = u32)]
+	pub dataset: DatasetId,
+
 	/// The id of the class
 	#[schema(value_type = u32)]
 	pub id: ClassId,

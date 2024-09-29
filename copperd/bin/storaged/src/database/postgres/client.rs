@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use copper_edged::UserId;
 use copper_storaged::{
-	AttrData, AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo,
-	ResultOrDirect, Transaction, TransactionAction,
+	AttrData, AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo,
+	DatasetId, DatasetInfo, ResultOrDirect, Transaction, TransactionAction,
 };
 use copper_util::{names::check_name, MimeType};
 use serde::{Deserialize, Serialize};
@@ -10,7 +10,7 @@ use sqlx::{Connection, Row};
 
 use super::{helpers, PgDatabaseClient};
 use crate::database::base::{
-	client::{AttributeOptions, DatabaseClient},
+	client::DatabaseClient,
 	errors::{
 		attribute::{
 			AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
@@ -123,6 +123,7 @@ impl DatabaseClient for PgDatabaseClient {
 						};
 
 						classes.push(ClassInfo {
+							dataset,
 							id: class_id,
 							name: r.get::<String, _>("pretty_name").into(),
 							attributes,
@@ -308,6 +309,7 @@ impl DatabaseClient for PgDatabaseClient {
 			Err(sqlx::Error::RowNotFound) => Err(GetClassError::NotFound),
 			Err(e) => Err(GetClassError::DbError(Box::new(e))),
 			Ok(res) => Ok(ClassInfo {
+				dataset: res.get::<i64, _>("dataset_id").into(),
 				id: res.get::<i64, _>("id").into(),
 				name: res.get::<String, _>("pretty_name").into(),
 				attributes,

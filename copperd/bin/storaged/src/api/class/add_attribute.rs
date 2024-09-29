@@ -1,14 +1,11 @@
-use crate::database::base::{
-	client::{AttributeOptions, DatabaseClient},
-	errors::attribute::AddAttributeError,
-};
+use crate::database::base::{client::DatabaseClient, errors::attribute::AddAttributeError};
 use axum::{
 	extract::{OriginalUri, Path, State},
 	http::{HeaderMap, StatusCode},
 	response::{IntoResponse, Response},
 	Json,
 };
-use copper_storaged::AttrDataStub;
+use copper_storaged::{AttrDataStub, AttributeOptions};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::ToSchema;

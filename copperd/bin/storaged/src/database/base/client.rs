@@ -3,11 +3,9 @@
 use async_trait::async_trait;
 use copper_edged::UserId;
 use copper_storaged::{
-	AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo,
-	Transaction,
+	AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo, DatasetId,
+	DatasetInfo, Transaction,
 };
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 use super::errors::{
 	attribute::{AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError},
@@ -15,16 +13,6 @@ use super::errors::{
 	dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
 	transaction::ApplyTransactionError,
 };
-
-#[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
-/// Options we can set when creating an attribute
-pub struct AttributeOptions {
-	/// If true, this attribute must have a value
-	pub is_not_null: bool,
-
-	/// If true, this attribute must be unique within its column
-	pub unique: bool,
-}
 
 /// A generic database client
 #[async_trait]
