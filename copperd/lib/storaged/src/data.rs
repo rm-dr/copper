@@ -62,11 +62,11 @@ pub enum AttrData {
 	/// A reference to an item in another class
 	Reference {
 		/// The item class this reference points to
-		#[schema(value_type = u32)]
+		#[schema(value_type = i64)]
 		class: ClassId,
 
 		/// The item
-		#[schema(value_type = u32)]
+		#[schema(value_type = i64)]
 		item: ItemId,
 	},
 }
@@ -151,7 +151,7 @@ pub enum AttrDataStub {
 	/// A reference to an item
 	Reference {
 		/// The class we reference
-		#[schema(value_type = u32)]
+		#[schema(value_type = i64)]
 		class: ClassId,
 	},
 }

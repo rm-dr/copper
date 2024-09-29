@@ -62,7 +62,7 @@ impl UserPassword {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct UserInfo {
 	/// The id of this dataset
-	#[schema(value_type = u32)]
+	#[schema(value_type = i64)]
 	pub id: UserId,
 
 	/// This user's name

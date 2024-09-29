@@ -14,7 +14,7 @@ use crate::api::RouterState;
 
 #[derive(Deserialize, Serialize, ToSchema, Debug)]
 pub(super) struct NewDatasetRequest {
-	#[schema(value_type = u32)]
+	#[schema(value_type = i64)]
 	owner: UserId,
 
 	name: String,
@@ -25,7 +25,7 @@ pub(super) struct NewDatasetRequest {
 	post,
 	path = "",
 	responses(
-		(status = 200, description = "Dataset created successfully", body = u32),
+		(status = 200, description = "Dataset created successfully", body = i64),
 		(status = 400, description = "Bad request", body = String),
 		(status = 500, description = "Internal server error"),
 	),

@@ -113,7 +113,7 @@ impl DatabaseClient for PgDatabaseClient {
 								.map(|row| AttributeInfo {
 									id: row.get::<i64, _>("id").into(),
 									class: row.get::<i64, _>("id").into(),
-									order: row.get::<i32, _>("attr_order"),
+									order: row.get::<i64, _>("attr_order"),
 									name: row.get::<String, _>("pretty_name").into(),
 									data_type: serde_json::from_str(
 										row.get::<&str, _>("data_type"),
@@ -203,7 +203,7 @@ impl DatabaseClient for PgDatabaseClient {
 											.map(|row| AttributeInfo {
 												id: row.get::<i64, _>("id").into(),
 												class: row.get::<i64, _>("id").into(),
-												order: row.get::<i32, _>("attr_order"),
+												order: row.get::<i64, _>("attr_order"),
 												name: row.get::<String, _>("pretty_name").into(),
 												data_type: serde_json::from_str(
 													row.get::<&str, _>("data_type"),
@@ -380,7 +380,7 @@ impl DatabaseClient for PgDatabaseClient {
 				.map(|row| AttributeInfo {
 					id: row.get::<i64, _>("id").into(),
 					class: row.get::<i64, _>("id").into(),
-					order: row.get::<i32, _>("attr_order"),
+					order: row.get::<i64, _>("attr_order"),
 					name: row.get::<String, _>("pretty_name").into(),
 					data_type: serde_json::from_str(row.get::<&str, _>("data_type")).unwrap(),
 					is_unique: row.get("is_unique"),
@@ -547,7 +547,7 @@ impl DatabaseClient for PgDatabaseClient {
 			.await
 			.map_err(|e| GetAttributeError::DbError(Box::new(e)))?;
 
-		let res = sqlx::query("SELECT * FROM class WHERE id=$1;")
+		let res = sqlx::query("SELECT * FROM attribute WHERE id=$1;")
 			.bind(i64::from(attribute))
 			.fetch_one(&mut *conn)
 			.await;
@@ -557,8 +557,8 @@ impl DatabaseClient for PgDatabaseClient {
 			Err(e) => Err(GetAttributeError::DbError(Box::new(e))),
 			Ok(res) => Ok(AttributeInfo {
 				id: res.get::<i64, _>("id").into(),
-				class: res.get::<i64, _>("id").into(),
-				order: res.get::<i32, _>("attr_order"),
+				class: res.get::<i64, _>("class_id").into(),
+				order: res.get::<i64, _>("attr_order"),
 				name: res.get::<String, _>("pretty_name").into(),
 				data_type: serde_json::from_str(res.get::<&str, _>("data_type")).unwrap(),
 				is_unique: res.get("is_unique"),

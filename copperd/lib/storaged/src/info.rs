@@ -26,11 +26,11 @@ pub struct AttributeOptions {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct DatasetInfo {
 	/// The id of this dataset
-	#[schema(value_type = u32)]
+	#[schema(value_type = i64)]
 	pub id: DatasetId,
 
 	/// The id of the user that owns this dataset
-	#[schema(value_type = u32)]
+	#[schema(value_type = i64)]
 	pub owner: UserId,
 
 	/// This dataset's name
@@ -45,11 +45,11 @@ pub struct DatasetInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ClassInfo {
 	/// The dataset this class is in
-	#[schema(value_type = u32)]
+	#[schema(value_type = i64)]
 	pub dataset: DatasetId,
 
 	/// The id of the class
-	#[schema(value_type = u32)]
+	#[schema(value_type = i64)]
 	pub id: ClassId,
 
 	/// This class' name
@@ -63,17 +63,17 @@ pub struct ClassInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AttributeInfo {
 	/// The id of this attribute
-	#[schema(value_type = u32)]
+	#[schema(value_type = i64)]
 	pub id: AttributeId,
 
 	/// The class this attribute belongs to
-	#[schema(value_type = u32)]
+	#[schema(value_type = i64)]
 	pub class: ClassId,
 
 	/// The order of this attribute in its class.
 	/// These start at 0, and must be unique & consecutive
 	/// inside any class.
-	pub order: i32,
+	pub order: i64,
 
 	/// This attribute's name
 	#[schema(value_type = String)]
@@ -94,11 +94,11 @@ pub struct AttributeInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ItemInfo {
 	/// The id of this item
-	#[schema(value_type = u32)]
+	#[schema(value_type = i64)]
 	pub id: ItemId,
 
 	/// The class this item belongs to
-	#[schema(value_type = u32)]
+	#[schema(value_type = i64)]
 	pub class: ClassId,
 
 	/// All attributes this item has

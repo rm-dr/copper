@@ -43,7 +43,7 @@ impl Migration for MigrationStep {
 				id BIGSERIAL PRIMARY KEY,
 
 				-- This dataset's display name
-				pretty_name TEXT NOT NULL UNIQUE,
+				pretty_name TEXT NOT NULL,
 
 				-- The id of the user that owns this dataset
 				owner BIGINT NOT NULL
@@ -51,6 +51,10 @@ impl Migration for MigrationStep {
 		)
 		.execute(&mut *t)
 		.await?;
+
+		sqlx::query("CREATE UNIQUE INDEX idx_dataset_name_owner on dataset(pretty_name, owner);")
+			.execute(&mut *t)
+			.await?;
 
 		//
 		// MARK: Classes
@@ -61,16 +65,16 @@ impl Migration for MigrationStep {
 				id BIGSERIAL PRIMARY KEY,
 
 				-- The dataset this class belongs to
-				dataset_id INTEGER NOT NULL REFERENCES dataset(id) ON DELETE CASCADE,
+				dataset_id BIGINT NOT NULL REFERENCES dataset(id) ON DELETE CASCADE,
 
 				-- This class' display name
-				pretty_name TEXT NOT NULL UNIQUE
+				pretty_name TEXT NOT NULL
 			);",
 		)
 		.execute(&mut *t)
 		.await?;
 
-		sqlx::query("CREATE INDEX idx_class_name on class(dataset_id, pretty_name);")
+		sqlx::query("CREATE UNIQUE INDEX idx_class_name on class(dataset_id, pretty_name);")
 			.execute(&mut *t)
 			.await?;
 
@@ -83,11 +87,11 @@ impl Migration for MigrationStep {
 				id BIGSERIAL PRIMARY KEY,
 
 				-- The class this attribute belongs to
-				class_id INTEGER NOT NULL REFERENCES class(id) ON DELETE CASCADE,
+				class_id BIGINT NOT NULL REFERENCES class(id) ON DELETE CASCADE,
 
 				-- The order of this attribute in its class.
 				-- Starts at 0, must be consecutive within each class.
-				attr_order INTEGER NOT NULL,
+				attr_order BIGINT NOT NULL,
 
 				-- This attr's display name
 				pretty_name TEXT NOT NULL,
@@ -95,11 +99,11 @@ impl Migration for MigrationStep {
 				-- The type of data this attr holds
 				data_type TEXT NOT NULL,
 
-				--- Boolean (0 or 1). Does this attribute have a \"unique\" constraint?
-				is_unique INTEGER NOT NULL,
+				--- Does this attribute have a \"unique\" constraint?
+				is_unique BOOLEAN NOT NULL,
 
-				--- Boolean (0 or 1). Does this attribute have a \"not_null\" constraint?
-				is_not_null INTEGER NOT NULL
+				--- Does this attribute have a \"not_null\" constraint?
+				is_not_null BOOLEAN NOT NULL
 			);",
 		)
 		.execute(&mut *t)
@@ -126,7 +130,7 @@ impl Migration for MigrationStep {
 				id BIGSERIAL PRIMARY KEY,
 
 				-- The class this item belongs to
-				class_id INTEGER NOT NULL REFERENCES class(id) ON DELETE CASCADE
+				class_id BIGINT NOT NULL REFERENCES class(id) ON DELETE CASCADE
 			);",
 		)
 		.execute(&mut *t)
@@ -143,10 +147,10 @@ impl Migration for MigrationStep {
 		sqlx::query(
 			"CREATE TABLE attribute_instance (
 				-- The item to which this attribute is connected
-				item_id INTEGER NOT NULL REFERENCES item(id) ON DELETE CASCADE,
+				item_id BIGINT NOT NULL REFERENCES item(id) ON DELETE CASCADE,
 
 				-- The attribute this is an instance of
-				attribute_id INTEGER NOT NULL REFERENCES attribute(id) ON DELETE CASCADE,
+				attribute_id BIGINT NOT NULL REFERENCES attribute(id) ON DELETE CASCADE,
 
 				-- The value of this instance
 				attribute_value TEXT NOT NULL,

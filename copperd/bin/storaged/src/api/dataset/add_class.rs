@@ -24,7 +24,7 @@ pub(super) struct NewClassRequest {
 		("dataset_id", description = "Dataset id"),
 	),
 	responses(
-		(status = 200, description = "Class created successfully", body = u32),
+		(status = 200, description = "Class created successfully", body = i64),
 		(status = 400, description = "Bad request", body = String),
 		(status = 404, description = "Dataset does not exist"),
 		(status = 500, description = "Internal server error"),

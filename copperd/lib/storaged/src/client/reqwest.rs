@@ -373,7 +373,7 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			// TODO: expose structs
 			.json(&json!({
-				"type": with_type,
+				"data_type": with_type,
 				"name": name.to_string(),
 				"options": options
 			}))

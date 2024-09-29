@@ -27,7 +27,7 @@ pub(super) struct NewAttributeRequest {
 		("class_id", description = "Class id"),
 	),
 	responses(
-		(status = 200, description = "Attribute created successfully", body = u32),
+		(status = 200, description = "Attribute created successfully", body = i64),
 		(status = 400, description = "Bad request", body = String),
 		(status = 404, description = "Dataset does not exist"),
 		(status = 500, description = "Internal server error"),
