@@ -28,13 +28,9 @@ pub(super) struct NewUserRequest {
 		(status = 400, description = "Bad request", body = String),
 		(status = 401, description = "Unauthorized"),
 		(status = 500, description = "Internal server error"),
-	),
-	security(
-		("bearer" = []),
 	)
 )]
 pub(super) async fn add_user<Client: DatabaseClient>(
-	// OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
 	Json(payload): Json<NewUserRequest>,
 ) -> Response {
