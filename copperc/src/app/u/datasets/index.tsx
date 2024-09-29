@@ -22,6 +22,7 @@ import { useDeleteClassModal } from "./_modals/deleteclass";
 import { useRenameClassModal } from "./_modals/renameclass";
 import { useDeleteAttributeModal } from "./_modals/deleteattribute";
 import { useRenameAttributeModal } from "./_modals/renameattribute";
+import { useAddAttributeModal } from "./_modals/addattribute";
 
 const Wrapper = (params: { children: ReactNode }) => {
 	return (
@@ -94,6 +95,7 @@ export function TreePanel() {
 						icon: <Table />,
 						right: (
 							<ClassMenu
+								dataset_id={dataset.id}
 								class_id={itemclass.id}
 								class_name={itemclass.name}
 								onSuccess={() => {
@@ -256,6 +258,7 @@ function DatasetMenu(params: {
 }
 
 function ClassMenu(params: {
+	dataset_id: number;
 	class_id: number;
 	class_name: string;
 	onSuccess: () => void;
@@ -266,7 +269,8 @@ function ClassMenu(params: {
 		onSuccess: params.onSuccess,
 	});
 
-	const { open: openAddAttr, modal: modalAddAttr } = useDeleteClassModal({
+	const { open: openAddAttr, modal: modalAddAttr } = useAddAttributeModal({
+		dataset_id: params.dataset_id,
 		class_id: params.class_id,
 		class_name: params.class_name,
 		onSuccess: params.onSuccess,
