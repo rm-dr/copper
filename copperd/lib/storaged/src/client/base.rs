@@ -61,6 +61,8 @@ pub trait StoragedClient: Send + Sync {
 		dataset: DatasetId,
 	) -> Result<Option<DatasetInfo>, StoragedRequestError>;
 
+	async fn list_datasets(&self, owner: UserId) -> Result<Vec<DatasetInfo>, StoragedRequestError>;
+
 	async fn rename_dataset(
 		&self,
 		dataset: DatasetId,

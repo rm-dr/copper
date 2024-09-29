@@ -1061,6 +1061,7 @@ dependencies = [
  "axum-extra",
  "copper-edged",
  "copper-migrate",
+ "copper-storaged",
  "copper-util",
  "rand",
  "serde",

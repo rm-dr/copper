@@ -64,6 +64,29 @@ impl Error for GetDatasetError {
 	}
 }
 
+/// An error we can encounter when listing a user's datasets
+#[derive(Debug)]
+pub enum ListDatasetsError {
+	/// Database error
+	DbError(Box<dyn Error + Send + Sync>),
+}
+
+impl Display for ListDatasetsError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::DbError(_) => write!(f, "database backend error"),
+		}
+	}
+}
+
+impl Error for ListDatasetsError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::DbError(x) => Some(x.as_ref()),
+		}
+	}
+}
+
 /// An error we can encounter when renaming a dataset
 #[derive(Debug)]
 pub enum RenameDatasetError {

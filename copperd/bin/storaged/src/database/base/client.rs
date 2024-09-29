@@ -10,7 +10,9 @@ use copper_storaged::{
 use super::errors::{
 	attribute::{AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError},
 	class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
-	dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
+	dataset::{
+		AddDatasetError, DeleteDatasetError, GetDatasetError, ListDatasetsError, RenameDatasetError,
+	},
 	transaction::ApplyTransactionError,
 };
 
@@ -29,6 +31,9 @@ where
 
 	/// Get dataset details
 	async fn get_dataset(&self, dataset: DatasetId) -> Result<DatasetInfo, GetDatasetError>;
+
+	/// Get all a user's datasets
+	async fn list_datasets(&self, owner: UserId) -> Result<Vec<DatasetInfo>, ListDatasetsError>;
 
 	/// Rename a dataset
 	async fn rename_dataset(

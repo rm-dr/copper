@@ -16,7 +16,10 @@ use crate::database::base::{
 			AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
 		},
 		class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
-		dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
+		dataset::{
+			AddDatasetError, DeleteDatasetError, GetDatasetError, ListDatasetsError,
+			RenameDatasetError,
+		},
 		transaction::ApplyTransactionError,
 	},
 };
@@ -149,6 +152,92 @@ impl DatabaseClient for PgDatabaseClient {
 				name: res.get::<String, _>("pretty_name").into(),
 				classes,
 			}),
+		};
+	}
+
+	async fn list_datasets(&self, owner: UserId) -> Result<Vec<DatasetInfo>, ListDatasetsError> {
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| ListDatasetsError::DbError(Box::new(e)))?;
+
+		let res = sqlx::query("SELECT * FROM dataset WHERE owner=$1;")
+			.bind(i64::from(owner))
+			.fetch_all(&mut *conn)
+			.await;
+
+		return match res {
+			Err(e) => Err(ListDatasetsError::DbError(Box::new(e))),
+			Ok(rows) => {
+				let mut out = Vec::new();
+				for row in rows {
+					let dataset_id = row.get::<i64, _>("id").into();
+
+					let classes: Vec<ClassInfo> = {
+						let res = sqlx::query("SELECT * FROM class WHERE dataset_id=$1;")
+							.bind(i64::from(dataset_id))
+							.fetch_all(&mut *conn)
+							.await;
+
+						match res {
+							Err(e) => return Err(ListDatasetsError::DbError(Box::new(e))),
+							Ok(rows) => {
+								let mut classes = Vec::new();
+
+								for r in rows {
+									let class_id: ClassId = r.get::<i64, _>("id").into();
+
+									let res =
+										sqlx::query("SELECT * FROM attribute WHERE class_id=$1;")
+											.bind(i64::from(class_id))
+											.fetch_all(&mut *conn)
+											.await;
+
+									let attributes: Vec<AttributeInfo> = match res {
+										Err(e) => {
+											return Err(ListDatasetsError::DbError(Box::new(e)))
+										}
+										Ok(rows) => rows
+											.into_iter()
+											.map(|row| AttributeInfo {
+												id: row.get::<i64, _>("id").into(),
+												class: row.get::<i64, _>("id").into(),
+												order: row.get::<i32, _>("attr_order"),
+												name: row.get::<String, _>("pretty_name").into(),
+												data_type: serde_json::from_str(
+													row.get::<&str, _>("data_type"),
+												)
+												.unwrap(),
+												is_unique: row.get("is_unique"),
+												is_not_null: row.get("is_not_null"),
+											})
+											.collect(),
+									};
+
+									classes.push(ClassInfo {
+										dataset: dataset_id,
+										id: class_id,
+										name: r.get::<String, _>("pretty_name").into(),
+										attributes,
+									});
+								}
+
+								classes
+							}
+						}
+					};
+
+					out.push(DatasetInfo {
+						id: dataset_id,
+						owner: row.get::<i64, _>("owner").into(),
+						name: row.get::<String, _>("pretty_name").into(),
+						classes,
+					});
+				}
+
+				return Ok(out);
+			}
 		};
 	}
 

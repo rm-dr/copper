@@ -112,6 +112,37 @@ impl StoragedClient for ReqwestStoragedClient {
 		}
 	}
 
+	async fn list_datasets(&self, owner: UserId) -> Result<Vec<DatasetInfo>, StoragedRequestError> {
+		let res = self
+			.client
+			.get(
+				self.storaged_url
+					.join(&format!("/dataset/owned_by/{}", i64::from(owner)))
+					.unwrap(),
+			)
+			.header(
+				header::AUTHORIZATION,
+				format!("Bearer {}", self.storaged_secret),
+			)
+			.send()
+			.await
+			.map_err(convert_error)?;
+
+		match res.status() {
+			StatusCode::OK => {
+				let ds: Vec<DatasetInfo> = res.json().await.map_err(convert_error)?;
+				return Ok(ds);
+			}
+
+			x => {
+				return Err(StoragedRequestError::GenericHttp {
+					code: x,
+					message: res.text().await.ok(),
+				})
+			}
+		}
+	}
+
 	async fn rename_dataset(
 		&self,
 		dataset: DatasetId,

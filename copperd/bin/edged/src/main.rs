@@ -2,6 +2,7 @@ use api::RouterState;
 use auth::AuthHelper;
 use axum::Router;
 use config::EdgedConfig;
+use copper_storaged::client::ReqwestStoragedClient;
 use copper_util::load_env;
 use database::postgres::{PgDatabaseClient, PgDatabaseOpenError};
 use std::sync::Arc;
@@ -29,8 +30,16 @@ async fn make_app(config: Arc<EdgedConfig>) -> Router {
 	// Create app
 	return api::router(RouterState {
 		config: config.clone(),
-		client: Arc::new(db),
+		db_client: Arc::new(db),
 		auth: Arc::new(AuthHelper::new()),
+		storaged_client: Arc::new(
+			ReqwestStoragedClient::new(
+				config.edged_storaged_addr.clone(),
+				&config.edged_storaged_secret,
+			)
+			// TODO: handle error
+			.unwrap(),
+		),
 	});
 }
 

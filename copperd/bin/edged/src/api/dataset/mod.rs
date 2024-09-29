@@ -42,6 +42,6 @@ pub(super) fn router<Client: DatabaseClient + 'static>() -> Router<RouterState<C
 		.route("/:dataset_id", delete(del_dataset))
 		.route("/:dataset_id", patch(rename_dataset))
 		//
-		.route("/owned_by/:user_id", get(list_datasets))
+		.route("/list", get(list_datasets))
 		.route("/:dataset_id/class", post(add_class))
 }
