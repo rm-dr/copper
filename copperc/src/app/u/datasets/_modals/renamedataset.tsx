@@ -1,7 +1,7 @@
 import { Button, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useForm } from "@mantine/form";
-import { ModalBaseSmall } from "@/components/modalbase";
+import { ModalBaseSmall, modalStyle } from "@/components/modalbase";
 import { useMutation } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
 import { components } from "@/lib/api/openapi";
@@ -37,24 +37,22 @@ export function useRenameDatasetModal(params: {
 			});
 		},
 
-		onSuccess: async ({ response }) => {
-			if (response === null) {
-				return;
-			}
-
-			if (response.status !== 200) {
-				throw new Error(await response.json());
-			} else {
+		onSuccess: async (res) => {
+			if (res.response.status === 200) {
 				reset();
 				params.onSuccess();
 			}
+
+			throw new Error(res.error);
 		},
+
 		onError: (err) => {
 			throw err;
 		},
 	});
 
 	const reset = () => {
+		doRename.reset();
 		form.reset();
 		close();
 	};
@@ -68,54 +66,58 @@ export function useRenameDatasetModal(params: {
 				title="Delete dataset"
 				keepOpen={doRename.isPending}
 			>
-				<div
-					style={{
-						marginBottom: "1rem",
-					}}
-				>
-					<Text c="dimmed" size="sm">
-						You are renaming the dataset
-						<Text
-							c="var(--mantine-primary-color-4)"
-							span
-						>{` ${params.dataset_name}`}</Text>
-						.
-					</Text>
-				</div>
-
 				<form
 					onSubmit={form.onSubmit((values) => {
 						doRename.mutate({ new_name: values.new_name });
 					})}
 				>
-					<TextInput
-						data-autofocus
-						placeholder="Enter dataset name"
-						disabled={doRename.isPending}
-						key={form.key("new_name")}
-						{...form.getInputProps("new_name")}
-					/>
+					<div className={modalStyle.modal_outer_container}>
+						<div className={modalStyle.modal_input_container}>
+							<Text c="dimmed" size="sm">
+								You are renaming the dataset
+								<Text
+									c="var(--mantine-primary-color-4)"
+									span
+								>{` ${params.dataset_name}`}</Text>
+								.
+							</Text>
 
-					<Button.Group style={{ marginTop: "1rem" }}>
-						<Button
-							variant="light"
-							fullWidth
-							c="primary"
-							onClick={reset}
-							disabled={doRename.isPending}
-						>
-							Cancel
-						</Button>
-						<Button
-							variant="filled"
-							fullWidth
-							c="primary"
-							loading={doRename.isPending}
-							type="submit"
-						>
-							Confirm
-						</Button>
-					</Button.Group>
+							<TextInput
+								data-autofocus
+								placeholder="Enter dataset name"
+								disabled={doRename.isPending}
+								key={form.key("new_name")}
+								{...form.getInputProps("new_name")}
+							/>
+						</div>
+
+						<Button.Group style={{ width: "100%" }}>
+							<Button
+								variant="light"
+								fullWidth
+								c="primary"
+								onClick={reset}
+								disabled={doRename.isPending}
+							>
+								Cancel
+							</Button>
+							<Button
+								variant="filled"
+								fullWidth
+								c="primary"
+								loading={doRename.isPending}
+								type="submit"
+							>
+								Confirm
+							</Button>
+						</Button.Group>
+
+						{doRename.error ? (
+							<Text c="red" ta="center">
+								{doRename.error.message}
+							</Text>
+						) : null}
+					</div>
 				</form>
 			</ModalBaseSmall>
 		),

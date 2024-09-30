@@ -130,7 +130,7 @@ function useUpdateModal(params: { onSuccess: () => void }) {
 	const doUpdate = useMutation({
 		mutationFn: async (body: components["schemas"]["UpdateUserRequest"]) => {
 			if (userInfo === null) {
-				return { response: null };
+				return null;
 			}
 
 			return await edgeclient.PATCH("/user/{user_id}", {
@@ -139,18 +139,19 @@ function useUpdateModal(params: { onSuccess: () => void }) {
 			});
 		},
 
-		onSuccess: async ({ response }) => {
-			if (response === null) {
+		onSuccess: async (res) => {
+			if (res === null) {
 				return;
 			}
 
-			if (response.status !== 200) {
-				throw new Error(await response.json());
-			} else {
+			if (res.response.status === 200) {
 				reset();
 				params.onSuccess();
 			}
+
+			throw new Error(res.error);
 		},
+
 		onError: (err) => {
 			throw err;
 		},
@@ -263,6 +264,12 @@ function useUpdateModal(params: { onSuccess: () => void }) {
 								Update profile
 							</Button>
 						</Button.Group>
+
+						{doUpdate.error ? (
+							<Text c="red" ta="center">
+								{doUpdate.error.message}
+							</Text>
+						) : null}
 					</div>
 				</form>
 			</ModalBaseSmall>

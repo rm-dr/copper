@@ -24,12 +24,12 @@ export default function Page() {
 			});
 		},
 
-		onSuccess: ({ response }) => {
-			if (response.status !== 200) {
-				throw new Error("could not log in");
-			} else {
+		onSuccess: async (res) => {
+			if (res.response.status === 200) {
 				location.replace("/u");
 			}
+
+			throw new Error("could not log in");
 		},
 
 		onError: (err) => {

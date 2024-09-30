@@ -1,7 +1,7 @@
 import { Button, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useForm } from "@mantine/form";
-import { ModalBaseSmall } from "@/components/modalbase";
+import { ModalBaseSmall, modalStyle } from "@/components/modalbase";
 import { useMutation } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
 
@@ -39,24 +39,22 @@ export function useDeleteAttributeModal(params: {
 			});
 		},
 
-		onSuccess: async ({ response }) => {
-			if (response === null) {
-				return;
-			}
-
-			if (response.status !== 200) {
-				throw new Error(await response.json());
-			} else {
+		onSuccess: async (res) => {
+			if (res.response.status === 200) {
 				reset();
 				params.onSuccess();
 			}
+
+			throw new Error(res.error);
 		},
+
 		onError: (err) => {
 			throw err;
 		},
 	});
 
 	const reset = () => {
+		doDelete.reset();
 		form.reset();
 		close();
 	};
@@ -90,34 +88,42 @@ export function useDeleteAttributeModal(params: {
 						doDelete.mutate();
 					})}
 				>
-					<TextInput
-						data-autofocus
-						placeholder="Enter attribute name"
-						disabled={doDelete.isPending}
-						key={form.key("attribute_name")}
-						{...form.getInputProps("attribute_name")}
-					/>
-
-					<Button.Group style={{ marginTop: "1rem" }}>
-						<Button
-							variant="light"
-							fullWidth
-							color="red"
-							onClick={reset}
+					<div className={modalStyle.modal_input_container}>
+						<TextInput
+							data-autofocus
+							placeholder="Enter attribute name"
 							disabled={doDelete.isPending}
-						>
-							Cancel
-						</Button>
-						<Button
-							variant="filled"
-							fullWidth
-							color="red"
-							loading={doDelete.isPending}
-							type="submit"
-						>
-							Confirm
-						</Button>
-					</Button.Group>
+							key={form.key("attribute_name")}
+							{...form.getInputProps("attribute_name")}
+						/>
+
+						<Button.Group>
+							<Button
+								variant="light"
+								fullWidth
+								color="red"
+								onClick={reset}
+								disabled={doDelete.isPending}
+							>
+								Cancel
+							</Button>
+							<Button
+								variant="filled"
+								fullWidth
+								color="red"
+								loading={doDelete.isPending}
+								type="submit"
+							>
+								Confirm
+							</Button>
+						</Button.Group>
+
+						{doDelete.error ? (
+							<Text c="red" ta="center">
+								{doDelete.error.message}
+							</Text>
+						) : null}
+					</div>
 				</form>
 			</ModalBaseSmall>
 		),

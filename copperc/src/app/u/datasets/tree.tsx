@@ -52,7 +52,11 @@ const Wrapper = (params: { children: ReactNode }) => {
 };
 
 export function useTreePanel() {
-	const { node: DatasetTree, data: treeData, setTreeData } = useTree<null>({});
+	const {
+		node: DatasetTree,
+		data: treeData,
+		setTreeData,
+	} = useTree<null>({ defaultOpen: true });
 
 	const qc = useQueryClient();
 
@@ -86,7 +90,7 @@ export function useTreePanel() {
 					),
 					text: dataset.name,
 					selectable: false,
-					uid: `dataset-${dataset.id}`,
+					uid: `dataset-${dataset.id}-${dataset.name}`,
 					parent: null,
 					can_have_children: true,
 					data: null,
@@ -109,7 +113,7 @@ export function useTreePanel() {
 						),
 						text: itemclass.name,
 						selectable: false,
-						uid: `itemclass-${itemclass.id}`,
+						uid: `itemclass-${itemclass.id}-${itemclass.name}`,
 						parent: dataset_idx,
 						can_have_children: true,
 						data: null,
@@ -132,7 +136,7 @@ export function useTreePanel() {
 							),
 							text: attr.name,
 							selectable: false,
-							uid: `att-${attr.id}`,
+							uid: `att-${attr.id}-${attr.name}`,
 							parent: itemclass_idx,
 							can_have_children: false,
 							data: null,

@@ -53,24 +53,22 @@ export function useAddAttributeModal(params: {
 			});
 		},
 
-		onSuccess: async ({ response }) => {
-			if (response === null) {
-				return;
-			}
-
-			if (response.status !== 200) {
-				throw new Error(await response.json());
-			} else {
+		onSuccess: async (res) => {
+			if (res.response.status === 200) {
 				reset();
 				params.onSuccess();
 			}
+
+			throw new Error(res.error);
 		},
+
 		onError: (err) => {
 			throw err;
 		},
 	});
 
 	const reset = () => {
+		doCreate.reset();
 		setNewAttrType(null);
 		setErrorMessage({
 			type: null,
@@ -148,6 +146,12 @@ export function useAddAttributeModal(params: {
 						/>
 					</div>
 				)}
+
+				{doCreate.error ? (
+					<Text c="red" ta="center">
+						{doCreate.error.message}
+					</Text>
+				) : null}
 			</ModalBaseSmall>
 		),
 	};
