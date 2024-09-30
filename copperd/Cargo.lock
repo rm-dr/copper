@@ -799,6 +799,7 @@ name = "copper-storaged"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "copper-edged",
  "copper-util",
  "itertools",
  "reqwest",
@@ -1060,6 +1061,7 @@ dependencies = [
  "axum-extra",
  "copper-edged",
  "copper-migrate",
+ "copper-storaged",
  "copper-util",
  "rand",
  "serde",
@@ -3307,6 +3309,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum",
+ "copper-edged",
  "copper-migrate",
  "copper-storaged",
  "copper-util",

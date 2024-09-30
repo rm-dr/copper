@@ -65,7 +65,7 @@ pub(super) async fn update_user<Client: DatabaseClient>(
 	}
 
 	// Save user info
-	let res = state.client.update_user(&user).await;
+	let res = state.db_client.update_user(&user).await;
 
 	return match res {
 		Ok(_) => StatusCode::OK.into_response(),

@@ -117,7 +117,7 @@ impl<Client: DatabaseClient> AuthHelper<Client> {
 		email: &str,
 		password: &str,
 	) -> Result<Option<AuthToken>, LoginError> {
-		let user = match state.client.get_user_by_email(email).await {
+		let user = match state.db_client.get_user_by_email(email).await {
 			Ok(user) => user,
 			Err(GetUserByEmailError::NotFound) => return Ok(None),
 			Err(GetUserByEmailError::DbError(e)) => return Err(LoginError::DbError(e)),
@@ -157,7 +157,7 @@ impl<Client: DatabaseClient> AuthHelper<Client> {
 					return Ok(None);
 				}
 
-				return match state.client.get_user(t.user).await {
+				return match state.db_client.get_user(t.user).await {
 					Ok(user) => Ok(Some(user)),
 					Err(GetUserError::NotFound) => {
 						// Tried to authenticate with a user that doesn't exist.

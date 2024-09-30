@@ -4,6 +4,131 @@
  */
 
 export interface paths {
+	"/attribute/{attribute_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get attribute info */
+		get: operations["get_attribute"];
+		put?: never;
+		post?: never;
+		/** Delete a attribute */
+		delete: operations["del_attribute"];
+		options?: never;
+		head?: never;
+		/** Rename a attribute */
+		patch: operations["rename_attribute"];
+		trace?: never;
+	};
+	"/class/{class_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get class info */
+		get: operations["get_class"];
+		put?: never;
+		post?: never;
+		/** Delete a class */
+		delete: operations["del_class"];
+		options?: never;
+		head?: never;
+		/** Rename a class */
+		patch: operations["rename_class"];
+		trace?: never;
+	};
+	"/class/{class_id}/attribute": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Create a new attribute */
+		post: operations["add_attribute"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/dataset": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Create a new dataset */
+		post: operations["add_dataset"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/dataset/list": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get dataset info */
+		get: operations["list_datasets"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/dataset/{dataset_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get dataset info */
+		get: operations["get_dataset"];
+		put?: never;
+		post?: never;
+		/** Delete a dataset */
+		delete: operations["del_dataset"];
+		options?: never;
+		head?: never;
+		/** Rename a dataset */
+		patch: operations["rename_dataset"];
+		trace?: never;
+	};
+	"/dataset/{dataset_id}/class": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Create a new class */
+		post: operations["add_class"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/login": {
 		parameters: {
 			query?: never;
@@ -94,14 +219,148 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
 	schemas: {
+		/** @description The type of data stored in an attribute.
+		 *     Each of these corresponds to a variant of [`AttrData`] */
+		AttrDataStub:
+			| {
+					/** @enum {string} */
+					type: "Text";
+			  }
+			| {
+					/** @enum {string} */
+					type: "Blob";
+			  }
+			| {
+					/** @description If true, this integer must be non-negative */
+					is_non_negative: boolean;
+					/** @enum {string} */
+					type: "Integer";
+			  }
+			| {
+					/** @description If true, this float must be non-negative */
+					is_non_negative: boolean;
+					/** @enum {string} */
+					type: "Float";
+			  }
+			| {
+					/** @enum {string} */
+					type: "Boolean";
+			  }
+			| {
+					hash_type: components["schemas"]["HashType"];
+					/** @enum {string} */
+					type: "Hash";
+			  }
+			| {
+					/**
+					 * Format: int32
+					 * @description The class we reference
+					 */
+					class: number;
+					/** @enum {string} */
+					type: "Reference";
+			  };
+		/** @description Attribute information */
+		AttributeInfo: {
+			/**
+			 * Format: int32
+			 * @description The class this attribute belongs to
+			 */
+			class: number;
+			data_type: components["schemas"]["AttrDataStub"];
+			/**
+			 * Format: int32
+			 * @description The id of this attribute
+			 */
+			id: number;
+			/** @description If true, this attribute must contain a value */
+			is_not_null: boolean;
+			/** @description If true, each item in this attribute's class must
+			 *     have a unique value in this attribute */
+			is_unique: boolean;
+			/** @description This attribute's name */
+			name: string;
+			/**
+			 * Format: int32
+			 * @description The order of this attribute in its class.
+			 *     These start at 0, and must be unique & consecutive
+			 *     inside any class.
+			 */
+			order: number;
+		};
+		/** @description Options we can set when creating an attribute */
+		AttributeOptions: {
+			/** @description If true, this attribute must have a value */
+			is_not_null: boolean;
+			/** @description If true, this attribute must be unique within its column */
+			unique: boolean;
+		};
+		/** @description Class information */
+		ClassInfo: {
+			attributes: components["schemas"]["AttributeInfo"][];
+			/**
+			 * Format: int32
+			 * @description The dataset this class is in
+			 */
+			dataset: number;
+			/**
+			 * Format: int32
+			 * @description The id of the class
+			 */
+			id: number;
+			/** @description This class' name */
+			name: string;
+		};
+		/** @description Dataset information */
+		DatasetInfo: {
+			/** @description This dataset's classes */
+			classes: components["schemas"]["ClassInfo"][];
+			/**
+			 * Format: int32
+			 * @description The id of this dataset
+			 */
+			id: number;
+			/** @description This dataset's name */
+			name: string;
+			/**
+			 * Format: int32
+			 * @description The id of the user that owns this dataset
+			 */
+			owner: number;
+		};
+		/**
+		 * @description The types of hashes we support
+		 * @enum {string}
+		 */
+		HashType: "MD5" | "SHA256" | "SHA512";
 		LoginRequest: {
 			email: string;
 			password: string;
+		};
+		NewAttributeRequest: {
+			data_type: components["schemas"]["AttrDataStub"];
+			name: string;
+			options: components["schemas"]["AttributeOptions"];
+		};
+		NewClassRequest: {
+			name: string;
+		};
+		NewDatasetRequest: {
+			name: string;
 		};
 		NewUserRequest: {
 			email: string;
 			name: string;
 			password: string;
+		};
+		RenameAttributeRequest: {
+			new_name: string;
+		};
+		RenameClassRequest: {
+			new_name: string;
+		};
+		RenameDatasetRequest: {
+			new_name: string;
 		};
 		UpdateUserRequest: {
 			new_email?: string | null;
@@ -129,6 +388,533 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+	get_attribute: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Attribute id */
+				attribute_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Attribute info */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["AttributeInfo"];
+				};
+			};
+			/** @description Attribute not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	del_attribute: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Attribute id */
+				attribute_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Attribute deleted successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	rename_attribute: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Attribute id */
+				attribute_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["RenameAttributeRequest"];
+			};
+		};
+		responses: {
+			/** @description Attribute renamed successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	get_class: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Class id */
+				class_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Class info */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ClassInfo"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Class not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	del_class: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description class id */
+				class_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Class deleted successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	rename_class: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Class id */
+				class_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["RenameClassRequest"];
+			};
+		};
+		responses: {
+			/** @description Class renamed successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	add_attribute: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Class id */
+				class_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["NewAttributeRequest"];
+			};
+		};
+		responses: {
+			/** @description Attribute created successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": number;
+				};
+			};
+			/** @description Bad request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Dataset does not exist */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	add_dataset: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["NewDatasetRequest"];
+			};
+		};
+		responses: {
+			/** @description Dataset created successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": number;
+				};
+			};
+			/** @description Bad request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	list_datasets: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description This user's datasets */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DatasetInfo"][];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	get_dataset: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Dataset id */
+				dataset_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Dataset info */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DatasetInfo"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Dataset not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	del_dataset: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Dataset id */
+				dataset_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Dataset deleted successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	rename_dataset: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Dataset id */
+				dataset_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["RenameDatasetRequest"];
+			};
+		};
+		responses: {
+			/** @description Dataset renamed successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	add_class: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Dataset id */
+				dataset_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["NewClassRequest"];
+			};
+		};
+		responses: {
+			/** @description Class created successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": number;
+				};
+			};
+			/** @description Bad request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Dataset does not exist */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
 	try_login: {
 		parameters: {
 			query?: never;
@@ -183,7 +969,9 @@ export interface operations {
 				headers: {
 					[name: string]: unknown;
 				};
-				content?: never;
+				content: {
+					"text/plain": string;
+				};
 			};
 			/** @description Could not log out */
 			400: {

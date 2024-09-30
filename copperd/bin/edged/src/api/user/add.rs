@@ -28,19 +28,15 @@ pub(super) struct NewUserRequest {
 		(status = 400, description = "Bad request", body = String),
 		(status = 401, description = "Unauthorized"),
 		(status = 500, description = "Internal server error"),
-	),
-	security(
-		("bearer" = []),
 	)
 )]
 pub(super) async fn add_user<Client: DatabaseClient>(
-	// OriginalUri(uri): OriginalUri,
 	State(state): State<RouterState<Client>>,
 	Json(payload): Json<NewUserRequest>,
 ) -> Response {
 	let password = UserPassword::new(&payload.password);
 	let res = state
-		.client
+		.db_client
 		.add_user(&payload.email, &payload.name, &password)
 		.await;
 
