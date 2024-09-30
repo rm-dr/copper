@@ -1,6 +1,7 @@
 import { FloatingPosition } from "@mantine/core";
 import { Fragment, ReactNode, useCallback, useState } from "react";
 import { TreeEntry } from "./entry";
+import styles from "./entry/tree_entry.module.scss";
 
 export type TreeNode<D> = {
 	// How to draw this node
@@ -107,12 +108,7 @@ function BuildTree<D>(params: {
 			let children = null;
 			if (is_open && has_children) {
 				children = (
-					<div
-						style={{
-							paddingLeft: "2rem",
-							transition: "200ms",
-						}}
-					>
+					<div className={styles.tree_indent}>
 						<BuildTree
 							parent={idx}
 							data={params.data}

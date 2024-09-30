@@ -24,14 +24,23 @@
 	}
 }
 
+.tree_indent {
+	padding-left: 2rem;
+	transition: 200ms;
+	width: 100%;
+
+	margin-bottom: 0.5rem;
+}
+
 .tree_entry {
 	display: flex;
 
-	height: 2rem;
 	margin: 0;
-	margin-top: 0.5rem;
-	margin-bottom: 0.5rem;
 	padding: 0;
+	padding-top: 0.1rem;
+	padding-bottom: 0.1rem;
+
+	width: 100%;
 
 	transition: 200ms;
 

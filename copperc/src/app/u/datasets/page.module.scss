@@ -1,7 +1,7 @@
 .main {
 	display: grid;
 
-	grid-template-columns: minmax(auto, 30rem) minmax(auto, 30rem);
+	grid-template-columns: minmax(auto, 40rem) minmax(auto, 30rem);
 	grid-template-rows: auto;
 
 	column-gap: 0.75rem;
@@ -11,4 +11,70 @@
 	padding: 2rem;
 	overflow-y: scroll;
 	overflow-x: scroll;
+}
+
+.tree_panel {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+
+	border-radius: 1rem;
+
+	.tree_panel_top {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+
+		margin-bottom: 1rem;
+
+		background-color: var(--mantine-color-dark-6);
+		box-shadow: 5px 5px 0px 0px var(--mantine-primary-color-8);
+
+		.tree_panel_title {
+			flex-grow: 1;
+			padding: 0.5rem;
+
+			font-weight: 800;
+			font-size: 1rem;
+			border-radius: 0.2rem;
+		}
+
+		.tree_panel_button {
+			display: flex;
+			flex-direction: row;
+			align-items: center;
+			justify-content: center;
+			padding: 0.5rem;
+		}
+	}
+
+	.tree_panel_content {
+		border-style: none;
+		border-color: var(--mantine-color-dark-7);
+		border-width: 0rem 0.2rem 0.2rem 0.2rem;
+		border-radius: 0rem 0rem 1rem 1rem;
+		width: 100%;
+		padding: 1rem;
+
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+}
+
+@keyframes rotating {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.rotating {
+	animation: rotating 3s linear infinite;
 }

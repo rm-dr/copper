@@ -5,15 +5,15 @@ import {
 	Database,
 	Ellipsis,
 	FolderPlus,
-	Loader,
 	PenBox,
 	Plus,
+	RefreshCw,
 	Table,
 	Trash2,
+	TriangleAlert,
 	X,
 } from "lucide-react";
 import { ReactNode } from "react";
-import styles from "./page.module.scss";
 import { ActionIcon, Menu, Text } from "@mantine/core";
 import { useDeleteDatasetModal } from "./_modals/deletedataset";
 import { useRenameDatasetModal } from "./_modals/renamedataset";
@@ -23,6 +23,8 @@ import { useRenameClassModal } from "./_modals/renameclass";
 import { useDeleteAttributeModal } from "./_modals/deleteattribute";
 import { useRenameAttributeModal } from "./_modals/renameattribute";
 import { useAddAttributeModal } from "./_modals/addattribute";
+import styles from "./page.module.scss";
+import { attrTypes } from "@/lib/attributes";
 
 const Wrapper = (params: { children: ReactNode }) => {
 	return (
@@ -34,6 +36,7 @@ const Wrapper = (params: { children: ReactNode }) => {
 				width: "100%",
 				marginTop: "2rem",
 				marginBottom: "2rem",
+				userSelect: "none",
 			}}
 		>
 			<div
@@ -48,7 +51,7 @@ const Wrapper = (params: { children: ReactNode }) => {
 	);
 };
 
-export function TreePanel() {
+export function useTreePanel() {
 	const { node: DatasetTree, data: treeData, setTreeData } = useTree<null>({});
 
 	const qc = useQueryClient();
@@ -114,7 +117,9 @@ export function TreePanel() {
 
 					for (const attr of itemclass.attributes) {
 						nodes.push({
-							icon: <X />,
+							icon: attrTypes.find(
+								(x) => x.serialize_as === attr.data_type.type,
+							)?.icon || <X />,
 							right: (
 								<AttrMenu
 									attribute_id={attr.id}
@@ -146,17 +151,13 @@ export function TreePanel() {
 	if (list.isPending) {
 		tree = (
 			<Wrapper>
-				<div
-					style={{
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
-						height: "5rem",
-					}}
-				>
-					<Loader color="dimmed" size="4rem" />
-				</div>
-				<Text size="lg" c="dimmed">
+				<RefreshCw
+					size="3rem"
+					color="var(--mantine-color-dimmed)"
+					className={styles.rotating}
+				/>
+
+				<Text size="1.3rem" c="dimmed">
 					Loading...
 				</Text>
 			</Wrapper>
@@ -164,8 +165,8 @@ export function TreePanel() {
 	} else if (list.isError) {
 		tree = (
 			<Wrapper>
-				<X />
-				<Text size="lg" c="red">
+				<TriangleAlert size="3rem" color="var(--mantine-color-red-5)" />
+				<Text size="1.3rem" c="red">
 					Could not fetch datasets
 				</Text>
 			</Wrapper>
@@ -173,8 +174,8 @@ export function TreePanel() {
 	} else if (treeData.length === 0) {
 		tree = (
 			<Wrapper>
-				<X />
-				<Text size="lg" c="dimmed">
+				<X size="3rem" color="var(--mantine-color-dimmed)" />
+				<Text size="1.3rem" c="dimmed">
 					No datasets
 				</Text>
 			</Wrapper>
@@ -183,7 +184,13 @@ export function TreePanel() {
 		tree = DatasetTree;
 	}
 
-	return <div className={styles.dataset_list}>{tree}</div>;
+	return {
+		reload: () => {
+			qc.invalidateQueries({ queryKey: ["dataset/list"] });
+			list.refetch();
+		},
+		tree,
+	};
 }
 
 function DatasetMenu(params: {
