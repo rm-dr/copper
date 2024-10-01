@@ -1,7 +1,8 @@
 import { Select } from "@mantine/core";
 import { Node, NodeProps } from "@xyflow/react";
 import { useState } from "react";
-import { BaseNode, DATA_TYPES } from "./base";
+import { BaseNode } from "./base";
+import { dataTypes } from "@/lib/attributes";
 
 // The "input" node class is already taken
 
@@ -22,13 +23,13 @@ export function InputNode({ id }: NodeProps<InputNodetype>) {
 				<Select
 					label="Data type"
 					placeholder="Pick value"
-					data={DATA_TYPES}
+					data={dataTypes}
 					onChange={(value) => {
 						if (value === null) {
 							return;
 						}
 
-						if ((DATA_TYPES as unknown as string[]).includes(value)) {
+						if (dataTypes.includes(value)) {
 							setValueType(value as (typeof types)[number]);
 						}
 					}}

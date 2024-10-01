@@ -9,11 +9,11 @@ export function StripTagsNode({ id }: NodeProps<StripTagsNodeType>) {
 			<BaseNode
 				id={id}
 				title={"Strip tags"}
-				inputs={[{ id: "data", type: "Binary", tooltip: "Audio data" }]}
+				inputs={[{ id: "data", type: "Blob", tooltip: "Audio data" }]}
 				outputs={[
 					{
 						id: "out",
-						type: "Binary",
+						type: "Blob",
 						tooltip: "Audio data with tags stripped",
 					},
 				]}

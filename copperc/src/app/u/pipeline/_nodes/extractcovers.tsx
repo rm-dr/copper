@@ -9,8 +9,8 @@ export function ExtractCoversNode({ id }: NodeProps<ExtractCoversNodeType>) {
 			<BaseNode
 				id={id}
 				title={"Extract covers"}
-				inputs={[{ id: "data", type: "Binary", tooltip: "Audio data" }]}
-				outputs={[{ id: "out", type: "Binary", tooltip: "Cover" }]}
+				inputs={[{ id: "data", type: "Blob", tooltip: "Audio data" }]}
+				outputs={[{ id: "out", type: "Blob", tooltip: "Cover" }]}
 			/>
 		</>
 	);

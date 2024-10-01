@@ -42,4 +42,6 @@ export const attrTypes: attrTypeInfo[] = [
 	_integerAttrType,
 	_hashAttrType,
 	_referenceAttrType,
-];
+] as const;
+
+export const dataTypes = attrTypes.map((x) => x.serialize_as);

@@ -9,7 +9,7 @@ export function ExtractTagsNode({ id }: NodeProps<ExtractTagsNodeType>) {
 			<BaseNode
 				id={id}
 				title={"Extract tags"}
-				inputs={[{ id: "data", type: "Binary", tooltip: "Audio data" }]}
+				inputs={[{ id: "data", type: "Blob", tooltip: "Audio data" }]}
 				outputs={[
 					{ id: "Album", type: "Text", tooltip: "Album" },
 					{ id: "AlbumArtist", type: "Text", tooltip: "Album artist" },

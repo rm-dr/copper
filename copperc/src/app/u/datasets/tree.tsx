@@ -62,17 +62,18 @@ export function useTreePanel() {
 
 	const list = useQuery({
 		queryKey: ["dataset/list"],
+
 		queryFn: async () => {
 			const res = await edgeclient.GET("/dataset/list");
 			if (res.response.status !== 200) {
 				location.replace("/");
 			}
 
-			if (res.data === undefined) {
-				return false;
-			}
-
 			const nodes: TreeNode<null>[] = [];
+
+			if (res.data === undefined) {
+				return undefined;
+			}
 
 			for (const dataset of res.data) {
 				const dataset_idx = nodes.length;
@@ -155,7 +156,7 @@ export function useTreePanel() {
 
 			setTreeData(nodes);
 
-			return true;
+			return res.data;
 		},
 	});
 

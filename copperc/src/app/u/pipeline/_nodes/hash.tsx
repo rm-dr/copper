@@ -16,7 +16,7 @@ export function HashNode({ id }: NodeProps<HashNodeType>) {
 			<BaseNode
 				id={id}
 				title={"Checksum"}
-				inputs={[{ id: "data", type: "Binary", tooltip: "Input data" }]}
+				inputs={[{ id: "data", type: "Blob", tooltip: "Input data" }]}
 				outputs={[{ id: "hash", type: "Hash", tooltip: "Checksum" }]}
 			>
 				<Select

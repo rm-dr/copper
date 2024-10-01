@@ -2,40 +2,8 @@ import { ReactNode } from "react";
 import { Handle, Node, Position, useReactFlow } from "@xyflow/react";
 import style from "./nodes.module.scss";
 import { ActionIcon } from "@mantine/core";
-import {
-	Binary,
-	Box,
-	CircleHelp,
-	Hash,
-	LetterText,
-	Trash2,
-} from "lucide-react";
-
-export const DATA_TYPES = [
-	"Text",
-	"Integer",
-	"Float",
-	"Binary",
-	"Hash",
-	"Unknown",
-] as const;
-export type DataType = (typeof DATA_TYPES)[number];
-
-function type_to_icon(type: DataType) {
-	if (type === "Text") {
-		return <LetterText />;
-	} else if (type === "Float") {
-		return <Hash />;
-	} else if (type === "Integer") {
-		return <Hash />;
-	} else if (type === "Binary") {
-		return <Binary />;
-	} else if (type === "Hash") {
-		return <Box />;
-	}
-
-	return <CircleHelp />;
-}
+import { Trash2, X } from "lucide-react";
+import { attrTypes } from "@/lib/attributes";
 
 function EmptyMarker() {
 	return (
@@ -58,13 +26,13 @@ export function BaseNode(params: {
 	children?: ReactNode;
 
 	outputs?: {
-		type: DataType;
+		type: (typeof attrTypes)[number]["serialize_as"];
 		id: string;
 		tooltip: string;
 	}[];
 
 	inputs?: {
-		type: DataType;
+		type: (typeof attrTypes)[number]["serialize_as"];
 		id: string;
 		tooltip: string;
 	}[];
@@ -101,7 +69,9 @@ export function BaseNode(params: {
 										key={`handle-${x}`}
 										className={`${style.node_port} ${style.input}`}
 									>
-										{type_to_icon(x.type)}
+										{attrTypes.find((a) => a.serialize_as === x.type)?.icon || (
+											<X />
+										)}
 										<Handle
 											style={{
 												width: "1rem",
@@ -135,7 +105,9 @@ export function BaseNode(params: {
 										key={`handle-${x}`}
 										className={`${style.node_port} ${style.output}`}
 									>
-										{type_to_icon(x.type)}
+										{attrTypes.find((a) => a.serialize_as === x.type)?.icon || (
+											<X />
+										)}
 										<Handle
 											style={{
 												width: "1rem",
