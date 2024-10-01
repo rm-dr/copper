@@ -7,7 +7,6 @@ import {
 	Background,
 	Controls,
 	MiniMap,
-	Panel,
 	ReactFlow,
 	ReactFlowInstance,
 	type Node,
@@ -64,9 +63,9 @@ export function useFlow() {
 		[setEdges],
 	);
 
+	/*
 	const onRestore = useCallback(() => {
 		const restoreFlow = async () => {
-			/*
 			const flow = JSON.parse(localStorage.getItem(flowKey));
 
 			if (flow) {
@@ -75,11 +74,11 @@ export function useFlow() {
 				setEdges(flow.edges || []);
 				setViewport({ x, y, zoom });
 			}
-			*/
 		};
 
 		restoreFlow();
 	}, []);
+			*/
 
 	return {
 		setNodes,
@@ -118,10 +117,6 @@ export function useFlow() {
 					size={1}
 					color="var(--mantine-color-dark-3)"
 				/>
-
-				<Panel position="top-right">
-					<button onClick={onRestore}>restore</button>
-				</Panel>
 
 				<MiniMap
 					nodeColor={(node) => {

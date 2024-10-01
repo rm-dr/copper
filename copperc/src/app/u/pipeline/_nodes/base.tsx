@@ -66,7 +66,7 @@ export function BaseNode(params: {
 							{params.inputs.map((x) => {
 								return (
 									<div
-										key={`handle-${x}`}
+										key={`handle-${x.id}`}
 										className={`${style.node_port} ${style.input}`}
 									>
 										{attrTypes.find((a) => a.serialize_as === x.type)?.icon || (
@@ -102,7 +102,7 @@ export function BaseNode(params: {
 							{params.outputs.map((x) => {
 								return (
 									<div
-										key={`handle-${x}`}
+										key={`handle-${x.id}`}
 										className={`${style.node_port} ${style.output}`}
 									>
 										{attrTypes.find((a) => a.serialize_as === x.type)?.icon || (
