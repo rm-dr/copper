@@ -65,7 +65,7 @@ export function useTreePanel() {
 
 		queryFn: async () => {
 			const res = await edgeclient.GET("/dataset/list");
-			if (res.response.status !== 200) {
+			if (res.response.status === 401) {
 				location.replace("/");
 			}
 

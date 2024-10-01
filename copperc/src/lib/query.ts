@@ -10,7 +10,7 @@ export function useUserInfoQuery() {
 		queryKey: ["user/me"],
 		queryFn: async () => {
 			const res = await edgeclient.GET("/user/me");
-			if (res.response.status !== 200) {
+			if (res.response.status === 401) {
 				location.replace("/");
 			}
 			return res;
