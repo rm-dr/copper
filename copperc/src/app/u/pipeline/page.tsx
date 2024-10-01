@@ -10,7 +10,7 @@ import { useFlow } from "./flow";
 import { ActionIcon, Button, Select } from "@mantine/core";
 import { components } from "@/lib/api/openapi";
 import { InfoIcon } from "lucide-react";
-
+import { nodeDefinitions } from "./_nodes";
 
 function AddNodeButton(params: {
 	text: string;
@@ -19,6 +19,12 @@ function AddNodeButton(params: {
 	setNodes: Dispatch<SetStateAction<Node[]>>;
 	onInfo: () => void;
 }) {
+	const node = nodeDefinitions[params.node_type];
+	if (node === undefined) {
+		console.error(`Unknown node type ${params.node_type}`);
+		return;
+	}
+
 	return (
 		<div className={style.add_node_button}>
 			<ActionIcon
@@ -39,7 +45,7 @@ function AddNodeButton(params: {
 						id,
 						type: params.node_type,
 						position: { x: 0, y: 0 },
-						data: {},
+						data: node.initialData,
 						origin: [0.5, 0.0],
 						dragHandle: `.${nodestyle.node_top_label}`,
 					};
@@ -60,16 +66,30 @@ function Main() {
 	const { flow, getFlow, setNodes } = useFlow();
 
 	const savePipeline = useCallback(() => {
-		// eslint-disable-next-line
-		let raw: any = getFlow();
+		const raw = getFlow();
 		console.log(raw);
 
+		if (raw === null) {
+			return;
+		}
+
 		const nodes: components["schemas"]["PipelineJson"]["nodes"] = {};
-		// eslint-disable-next-line
-		raw.nodes.forEach((node: any) => {
-			nodes[node.id] = {
-				node_type: node.type,
-			};
+		raw.nodes.forEach((node) => {
+			if (node.type === undefined) {
+				return;
+			}
+
+			const nodedef = nodeDefinitions[node.type];
+			if (nodedef === undefined) {
+				return;
+			}
+
+			const ex = nodedef.export(node);
+			if (ex === null) {
+				return;
+			}
+
+			nodes[node.id] = ex;
 		});
 
 		const edges: components["schemas"]["PipelineJson"]["edges"] = {};

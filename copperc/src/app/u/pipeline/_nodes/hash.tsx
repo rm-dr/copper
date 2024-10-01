@@ -1,16 +1,19 @@
 import { Select } from "@mantine/core";
-import { Node, NodeProps } from "@xyflow/react";
-import { useState } from "react";
+import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { BaseNode } from "./base";
 import { NodeDef } from ".";
 
 const HashTypes = ["SHA256", "SHA512", "MD5"] as const;
 
-type HashNodeType = Node<Record<string, never>, "hash">;
+type HashNodeType = Node<
+	{
+		hash_type: (typeof HashTypes)[number];
+	},
+	"hash"
+>;
 
-function HashNodeElement({ id }: NodeProps<HashNodeType>) {
-	const [hashType, setHashType] =
-		useState<(typeof HashTypes)[number]>("SHA256");
+function HashNodeElement({ data, id }: NodeProps<HashNodeType>) {
+	const { updateNodeData } = useReactFlow();
 
 	return (
 		<>
@@ -26,10 +29,12 @@ function HashNodeElement({ id }: NodeProps<HashNodeType>) {
 					onChange={(value) => {
 						// eslint-disable-next-line
 						if (value !== null && HashTypes.includes(value as any)) {
-							setHashType(value as (typeof HashTypes)[number]);
+							updateNodeData(id, {
+								hashType: value as (typeof HashTypes)[number],
+							});
 						}
 					}}
-					value={hashType}
+					value={data.hash_type}
 				/>
 			</BaseNode>
 		</>
@@ -39,4 +44,15 @@ function HashNodeElement({ id }: NodeProps<HashNodeType>) {
 export const HashNode: NodeDef<HashNodeType> = {
 	key: "hash",
 	node: HashNodeElement,
+
+	initialData: {
+		hash_type: "SHA256",
+	},
+
+	export: (node) => ({
+		node_type: "Hash",
+		params: {
+			hash_type: { parameter_type: "String", value: node.data.hash_type },
+		},
+	}),
 };

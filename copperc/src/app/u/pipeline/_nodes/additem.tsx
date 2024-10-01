@@ -5,7 +5,6 @@ import {
 	useReactFlow,
 	useUpdateNodeInternals,
 } from "@xyflow/react";
-import { useState } from "react";
 import { BaseNode } from "./base";
 import { useQuery } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
@@ -13,16 +12,15 @@ import { NodeDef } from ".";
 
 type AddItemNodeType = Node<
 	{
-		color: "var(--mantine-primary-color-5)";
+		dataset: null | number;
+		class: null | number;
 	},
 	"additem"
 >;
 
-function AddItemNodeElement({ id }: NodeProps<AddItemNodeType>) {
-	const [dataset, setDataset] = useState<null | number>(null);
-	const [cls, setCls] = useState<null | number>(null);
+function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 	const updateNodeInternals = useUpdateNodeInternals();
-	const { deleteElements, getEdges } = useReactFlow();
+	const { deleteElements, getEdges, updateNodeData } = useReactFlow();
 
 	const list = useQuery({
 		queryKey: ["dataset/list"],
@@ -43,11 +41,13 @@ function AddItemNodeElement({ id }: NodeProps<AddItemNodeType>) {
 				id={id}
 				title={"Add Item"}
 				inputs={
-					list.data === undefined || dataset === null || cls === null
+					list.data === undefined ||
+					data.dataset === null ||
+					data.class === null
 						? undefined
 						: list.data
-								.find((x) => x.id === dataset)
-								?.classes.find((x) => x.id === cls)
+								.find((x) => x.id === data.dataset)
+								?.classes.find((x) => x.id === data.class)
 								?.attributes.map((x) => ({
 									id: x.name,
 									type: x.data_type.type,
@@ -58,7 +58,7 @@ function AddItemNodeElement({ id }: NodeProps<AddItemNodeType>) {
 				<Select
 					label="Select dataset"
 					disabled={list.data === undefined}
-					error={dataset !== null ? undefined : "No dataset selected"}
+					error={data.dataset !== null ? undefined : "No dataset selected"}
 					data={
 						list.data === undefined
 							? []
@@ -69,10 +69,10 @@ function AddItemNodeElement({ id }: NodeProps<AddItemNodeType>) {
 					}
 					onChange={(value) => {
 						if (value === null) {
-							setDataset(null);
+							updateNodeData(id, { ...data, dataset: null });
 						} else {
 							try {
-								setDataset(parseInt(value));
+								updateNodeData(id, { ...data, dataset: parseInt(value) });
 							} catch {}
 						}
 
@@ -83,22 +83,22 @@ function AddItemNodeElement({ id }: NodeProps<AddItemNodeType>) {
 								.map((x) => ({ id: x.id })),
 						});
 					}}
-					value={dataset?.toString() || null}
+					value={data.dataset?.toString() || null}
 				/>
 
 				<Select
 					key={
 						/* Make sure we get the right class list for the selected dataset */
-						`class-${dataset}`
+						`class-${data.dataset}`
 					}
 					label="Select class"
-					disabled={list.data === undefined || dataset === null}
-					error={cls !== null ? undefined : "No class selected"}
+					disabled={list.data === undefined || data.dataset === null}
+					error={data.class !== null ? undefined : "No class selected"}
 					data={
-						list.data === undefined || dataset === null
+						list.data === undefined || data.dataset === null
 							? []
 							: list.data
-									.find((x) => x.id === dataset)
+									.find((x) => x.id === data.dataset)
 									?.classes.map((x) => ({
 										label: x.name,
 										value: x.id.toString(),
@@ -106,10 +106,10 @@ function AddItemNodeElement({ id }: NodeProps<AddItemNodeType>) {
 					}
 					onChange={(value) => {
 						if (value === null) {
-							setCls(null);
+							updateNodeData(id, { ...data, class: null });
 						} else {
 							try {
-								setCls(parseInt(value));
+								updateNodeData(id, { ...data, class: parseInt(value) });
 							} catch {}
 						}
 
@@ -120,7 +120,7 @@ function AddItemNodeElement({ id }: NodeProps<AddItemNodeType>) {
 								.map((x) => ({ id: x.id })),
 						});
 					}}
-					value={cls?.toString()}
+					value={data.class?.toString()}
 				/>
 			</BaseNode>
 		</>
@@ -130,4 +130,25 @@ function AddItemNodeElement({ id }: NodeProps<AddItemNodeType>) {
 export const AddItemNode: NodeDef<AddItemNodeType> = {
 	key: "additem",
 	node: AddItemNodeElement,
+
+	initialData: {
+		dataset: null,
+		class: null,
+	},
+
+	export: (node) => {
+		if (node.data.class === null) {
+			return null;
+		}
+
+		return {
+			node_type: "AddItem",
+			params: {
+				class: {
+					parameter_type: "Integer",
+					value: node.data.class,
+				},
+			},
+		};
+	},
 };

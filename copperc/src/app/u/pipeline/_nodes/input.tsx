@@ -43,4 +43,16 @@ export const InputNode: NodeDef<InputNodeType> = {
 	// The "input" node class is already taken
 	key: "pipelineinput",
 	node: InputNodeElement,
+
+	initialData: {},
+
+	export: (node) => ({
+		node_type: "Input",
+		params: {
+			input_name: {
+				parameter_type: "String",
+				value: node.id,
+			},
+		},
+	}),
 };

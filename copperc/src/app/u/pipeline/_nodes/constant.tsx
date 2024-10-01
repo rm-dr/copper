@@ -1,50 +1,47 @@
 import { NumberInput, Select, TextInput } from "@mantine/core";
-import { Node, NodeProps } from "@xyflow/react";
-import { useState } from "react";
+import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { BaseNode } from "./base";
 import { NodeDef } from ".";
 
+const types = ["Text", "Integer", "Float"] as const;
+type ValueType =
+	| {
+			type: "Text";
+			value: string;
+	  }
+	| {
+			type: "Integer";
+			value: number;
+	  };
+
 type ConstantNodeType = Node<
 	{
-		color: "var(--mantine-primary-color-5)";
+		value: ValueType;
 	},
 	"constant"
 >;
 
-function ConstantNodeElement({ id }: NodeProps<ConstantNodeType>) {
-	const types = ["Text", "Integer", "Float"] as const;
-	type ValueType =
-		| {
-				type: "Text";
-				value: string;
-		  }
-		| {
-				type: "Integer";
-				value: number;
-		  }
-		| {
-				type: "Float";
-				value: number;
-		  };
-
-	const [value, setValue] = useState<ValueType>({ type: "Text", value: "" });
+function ConstantNodeElement({ data, id }: NodeProps<ConstantNodeType>) {
+	const { updateNodeData } = useReactFlow();
 
 	let input = null;
-	if (value.type === "Text") {
+	if (data.value.type === "Text") {
 		input = (
 			<TextInput
 				label="Value"
 				placeholder="enter constant text"
 				onChange={(event) =>
-					setValue({
-						type: "Text",
-						value: event.currentTarget.value,
+					updateNodeData(id, {
+						value: {
+							type: "Text",
+							value: event.currentTarget.value,
+						},
 					})
 				}
-				value={value.value}
+				value={data.value.value}
 			/>
 		);
-	} else if (value.type === "Integer") {
+	} else if (data.value.type === "Integer") {
 		input = (
 			<NumberInput
 				label="Value"
@@ -54,32 +51,15 @@ function ConstantNodeElement({ id }: NodeProps<ConstantNodeType>) {
 						return;
 					}
 
-					setValue({
-						type: "Integer",
-						value,
+					updateNodeData(id, {
+						value: {
+							type: "Integer",
+							value,
+						},
 					});
 				}}
-				value={value.value}
+				value={data.value.value}
 				allowDecimal={false}
-			/>
-		);
-	} else if (value.type === "Float") {
-		input = (
-			<NumberInput
-				label="Value"
-				placeholder="enter constant number"
-				onChange={(value) => {
-					if (typeof value === "string") {
-						return;
-					}
-
-					setValue({
-						type: "Integer",
-						value,
-					});
-				}}
-				value={value.value}
-				allowDecimal={true}
 			/>
 		);
 	}
@@ -89,7 +69,9 @@ function ConstantNodeElement({ id }: NodeProps<ConstantNodeType>) {
 			<BaseNode
 				id={id}
 				title={"Constant"}
-				outputs={[{ id: "out", tooltip: "Output value", type: value.type }]}
+				outputs={[
+					{ id: "out", tooltip: "Output value", type: data.value.type },
+				]}
 			>
 				<Select
 					label="Data type"
@@ -97,18 +79,22 @@ function ConstantNodeElement({ id }: NodeProps<ConstantNodeType>) {
 					data={types}
 					onChange={(value) => {
 						if (value === "Text") {
-							setValue({
-								type: "Text",
-								value: "",
+							updateNodeData(id, {
+								value: {
+									type: "Text",
+									value: "",
+								},
 							});
 						} else if (value === "Integer") {
-							setValue({
-								type: "Integer",
-								value: 0,
+							updateNodeData(id, {
+								value: {
+									type: "Integer",
+									value: 0,
+								},
 							});
 						}
 					}}
-					value={value.type}
+					value={data.value.type}
 				/>
 
 				{input}
@@ -120,4 +106,33 @@ function ConstantNodeElement({ id }: NodeProps<ConstantNodeType>) {
 export const ConstantNode: NodeDef<ConstantNodeType> = {
 	key: "constant",
 	node: ConstantNodeElement,
+
+	initialData: {
+		value: {
+			type: "Text",
+			value: "",
+		},
+	},
+
+	export: (node) => {
+		if (node.data.value.type === "Text") {
+			return {
+				node_type: "Constant",
+				params: {
+					value: { parameter_type: "String", value: node.data.value.value },
+				},
+			};
+		} else if (node.data.value.type === "Integer") {
+			return {
+				node_type: "Constant",
+				params: {
+					value: { parameter_type: "Integer", value: node.data.value.value },
+				},
+			};
+		}
+
+		throw new Error(
+			`Entered unreachable code: unhandled type ${node.data.value} in constant node`,
+		);
+	},
 };

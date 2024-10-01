@@ -23,4 +23,9 @@ function IfNoneNodeElement({ id }: NodeProps<IfNoneNodeType>) {
 export const IfNoneNode: NodeDef<IfNoneNodeType> = {
 	key: "ifnone",
 	node: IfNoneNodeElement,
+
+	initialData: {},
+	export: () => ({
+		node_type: "IfNone",
+	}),
 };

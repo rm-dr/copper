@@ -26,4 +26,8 @@ function StripTagsNodeElement({ id }: NodeProps<StripTagsNodeType>) {
 export const StripTagsNode: NodeDef<StripTagsNodeType> = {
 	key: "striptags",
 	node: StripTagsNodeElement,
+	initialData: {},
+	export: () => ({
+		node_type: "StripTags",
+	}),
 };

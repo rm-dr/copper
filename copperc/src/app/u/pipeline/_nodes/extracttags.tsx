@@ -35,4 +35,30 @@ function ExtractTagsNodeElement({ id }: NodeProps<ExtractTagsNodeType>) {
 export const ExtractTagsNode: NodeDef<ExtractTagsNodeType> = {
 	key: "extracttags",
 	node: ExtractTagsNodeElement,
+
+	initialData: {},
+
+	export: () => ({
+		node_type: "ExtractTags",
+		params: {
+			tags: {
+				parameter_type: "List",
+				value: [
+					{ parameter_type: "String", value: "AlbumArtist" },
+					{ parameter_type: "String", value: "Comment" },
+					{ parameter_type: "String", value: "ReleaseDate" },
+					{ parameter_type: "String", value: "DiskNumber" },
+					{ parameter_type: "String", value: "DiskTotal" },
+					{ parameter_type: "String", value: "Genre" },
+					{ parameter_type: "String", value: "ISRC" },
+					{ parameter_type: "String", value: "Lyrics" },
+					{ parameter_type: "String", value: "TrackNumber" },
+					{ parameter_type: "String", value: "TrackTotal" },
+					{ parameter_type: "String", value: "Title" },
+					{ parameter_type: "String", value: "Artist" },
+					{ parameter_type: "String", value: "Year" },
+				],
+			},
+		},
+	}),
 };

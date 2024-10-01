@@ -20,4 +20,10 @@ function ExtractCoversNodeElement({ id }: NodeProps<ExtractCoversNodeType>) {
 export const ExtractCoversNode: NodeDef<ExtractCoversNodeType> = {
 	key: "extractcovers",
 	node: ExtractCoversNodeElement,
+
+	initialData: {},
+
+	export: () => ({
+		node_type: "ExtractCovers",
+	}),
 };
