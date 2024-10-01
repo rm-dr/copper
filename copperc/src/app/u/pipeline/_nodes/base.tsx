@@ -59,7 +59,7 @@ export function BaseNode(params: {
 					</div>
 				</div>
 				<div className={style.node_body_inner}>
-					{params.inputs === undefined ? null : (
+					{params.inputs === undefined || params.inputs.length === 0 ? null : (
 						<div
 							className={`${style.node_inputs} ${style.node_port_container} ${style.input}`}
 						>
@@ -95,7 +95,8 @@ export function BaseNode(params: {
 						{params.children === undefined ? <EmptyMarker /> : params.children}
 					</div>
 
-					{params.outputs === undefined ? null : (
+					{params.outputs === undefined ||
+					params.outputs.length === 0 ? null : (
 						<div
 							className={`${style.node_outputs} ${style.node_port_container} ${style.output}`}
 						>
