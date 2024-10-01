@@ -59,7 +59,7 @@ where
 		for_user: UserId,
 		name: &str,
 		pipeline: &PipelineJson,
-	) -> Result<PipelineId, AddPipelineError>;
+	) -> Result<PipelineInfo, AddPipelineError>;
 
 	/// Get a pipeline by id
 	async fn get_pipeline(
@@ -68,7 +68,10 @@ where
 	) -> Result<Option<PipelineInfo>, GetPipelineError>;
 
 	/// Update a pipeline
-	async fn update_pipeline(&self, new_info: &PipelineInfo) -> Result<(), UpdatePipelineError>;
+	async fn update_pipeline(
+		&self,
+		new_info: &PipelineInfo,
+	) -> Result<PipelineInfo, UpdatePipelineError>;
 
 	/// Delete a pipeline
 	async fn del_pipeline(&self, pipeline: PipelineId) -> Result<(), DeletePipelineError>;

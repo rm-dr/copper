@@ -211,7 +211,7 @@ impl DatabaseClient for PgDatabaseClient {
 		for_user: UserId,
 		name: &str,
 		pipeline: &PipelineJson,
-	) -> Result<PipelineId, AddPipelineError> {
+	) -> Result<PipelineInfo, AddPipelineError> {
 		match check_name(name) {
 			Ok(()) => {}
 			Err(e) => return Err(AddPipelineError::NameError(e)),
@@ -245,7 +245,7 @@ impl DatabaseClient for PgDatabaseClient {
 			.await
 			.map_err(|e| AddPipelineError::DbError(Box::new(e)))?;
 
-		let new_pipeline: PipelineId = match res {
+		let new_pipeline_id: PipelineId = match res {
 			Ok(row) => row.get::<i64, _>("id").into(),
 			Err(sqlx::Error::Database(e)) => {
 				if e.is_unique_violation() {
@@ -258,7 +258,12 @@ impl DatabaseClient for PgDatabaseClient {
 			Err(e) => return Err(AddPipelineError::DbError(Box::new(e))),
 		};
 
-		return Ok(new_pipeline);
+		return Ok(PipelineInfo {
+			id: new_pipeline_id,
+			owned_by: for_user,
+			name: name.into(),
+			data: pipeline.clone(),
+		});
 	}
 
 	async fn list_pipelines(
@@ -320,7 +325,10 @@ impl DatabaseClient for PgDatabaseClient {
 		};
 	}
 
-	async fn update_pipeline(&self, new_info: &PipelineInfo) -> Result<(), UpdatePipelineError> {
+	async fn update_pipeline(
+		&self,
+		new_info: &PipelineInfo,
+	) -> Result<PipelineInfo, UpdatePipelineError> {
 		match check_name(&new_info.name) {
 			Ok(()) => {}
 			Err(e) => return Err(UpdatePipelineError::NameError(e)),
@@ -349,7 +357,7 @@ impl DatabaseClient for PgDatabaseClient {
 			.map_err(|e| UpdatePipelineError::DbError(Box::new(e)))?;
 
 		return match res {
-			Ok(_) => Ok(()),
+			Ok(_) => Ok(new_info.clone()),
 			Err(sqlx::Error::Database(e)) => {
 				if e.is_unique_violation() {
 					Err(UpdatePipelineError::UniqueViolation)

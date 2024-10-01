@@ -24,7 +24,7 @@ pub(super) struct NewPipelineRequest {
 	post,
 	path = "",
 	responses(
-		(status = 200, description = "Pipeline created successfully"),
+		(status = 200, description = "Pipeline created successfully", body = PipelineInfo),
 		(status = 400, description = "Bad request", body = String),
 		(status = 401, description = "Unauthorized"),
 		(status = 500, description = "Internal server error"),
@@ -50,7 +50,7 @@ pub(super) async fn add_pipeline<Client: DatabaseClient>(
 		.await;
 
 	return match res {
-		Ok(_) => StatusCode::OK.into_response(),
+		Ok(x) => (StatusCode::OK, Json(x)).into_response(),
 
 		Err(AddPipelineError::NameError(e)) => {
 			(StatusCode::BAD_REQUEST, Json(format!("{}", e))).into_response()

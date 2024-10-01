@@ -30,7 +30,7 @@ pub(super) struct UpdatePipelineRequest {
 		("pipeline_id", description = "Pipeline id"),
 	),
 	responses(
-		(status = 200, description = "Pipeline updated successfully"),
+		(status = 200, description = "Pipeline updated successfully", body = PipelineInfo),
 		(status = 400, description = "Invalid request", body = String),
 		(status = 401, description = "Unauthorized"),
 		(status = 500, description = "Internal server error"),
@@ -79,7 +79,7 @@ pub(super) async fn update_pipeline<Client: DatabaseClient>(
 	let res = state.db_client.update_pipeline(&pipe).await;
 
 	return match res {
-		Ok(_) => StatusCode::OK.into_response(),
+		Ok(x) => (StatusCode::OK, Json(x)).into_response(),
 
 		Err(UpdatePipelineError::UniqueViolation) => (
 			StatusCode::BAD_REQUEST,
