@@ -11,13 +11,25 @@ import { Node, NodeProps, NodeTypes } from "@xyflow/react";
 
 export type NodeDef<NodeType extends Node> = {
 	key: string;
+	node_type: string;
+
 	node: (props: NodeProps<NodeType>) => JSX.Element;
 	initialData: NodeType["data"];
 
-	// Returns null if error. TODO: provide a message
-	export: (
+	/**
+	 * Transform this `ReactFlow` node into the parameters of a `PipelineJson` node.
+	 */
+	serialize: (
 		node: NodeType,
-	) => components["schemas"]["PipelineJson"]["nodes"][string] | null;
+	) => components["schemas"]["PipelineJson"]["nodes"][string]["params"] | null;
+
+	/**
+	 * Transform a `PipelineJson` node into a `ReactFlow` node's data object.
+	 * This _only_ produces the data object. All other fields are filled automatically.
+	 */
+	deserialize: (
+		serialized: components["schemas"]["PipelineJson"]["nodes"][string],
+	) => NodeType["data"] | null;
 };
 
 // eslint-disable-next-line

@@ -22,10 +22,10 @@ function IfNoneNodeElement({ id }: NodeProps<IfNoneNodeType>) {
 
 export const IfNoneNode: NodeDef<IfNoneNodeType> = {
 	key: "ifnone",
+	node_type: "IfNone",
 	node: IfNoneNodeElement,
 
 	initialData: {},
-	export: () => ({
-		node_type: "IfNone",
-	}),
+	serialize: () => ({}),
+	deserialize: () => ({}),
 };

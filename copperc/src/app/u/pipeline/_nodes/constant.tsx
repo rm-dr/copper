@@ -105,6 +105,7 @@ function ConstantNodeElement({ data, id }: NodeProps<ConstantNodeType>) {
 
 export const ConstantNode: NodeDef<ConstantNodeType> = {
 	key: "constant",
+	node_type: "Constant",
 	node: ConstantNodeElement,
 
 	initialData: {
@@ -114,25 +115,44 @@ export const ConstantNode: NodeDef<ConstantNodeType> = {
 		},
 	},
 
-	export: (node) => {
+	serialize: (node) => {
 		if (node.data.value.type === "Text") {
 			return {
-				node_type: "Constant",
-				params: {
-					value: { parameter_type: "String", value: node.data.value.value },
-				},
+				value: { parameter_type: "String", value: node.data.value.value },
 			};
 		} else if (node.data.value.type === "Integer") {
 			return {
-				node_type: "Constant",
-				params: {
-					value: { parameter_type: "Integer", value: node.data.value.value },
-				},
+				value: { parameter_type: "Integer", value: node.data.value.value },
 			};
 		}
 
 		throw new Error(
 			`Entered unreachable code: unhandled type ${node.data.value} in constant node`,
 		);
+	},
+
+	deserialize: (serialized) => {
+		if (serialized.params === undefined) {
+			return null;
+		}
+
+		const v = serialized.params.value;
+		if (v?.parameter_type === "String") {
+			return {
+				value: {
+					type: "Text",
+					value: v.value,
+				},
+			};
+		} else if (v?.parameter_type === "Integer") {
+			return {
+				value: {
+					type: "Integer",
+					value: v.value,
+				},
+			};
+		}
+
+		return null;
 	},
 };

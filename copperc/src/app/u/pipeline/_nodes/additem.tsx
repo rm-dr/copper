@@ -129,6 +129,7 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 
 export const AddItemNode: NodeDef<AddItemNodeType> = {
 	key: "additem",
+	node_type: "AddItem",
 	node: AddItemNodeElement,
 
 	initialData: {
@@ -136,19 +137,36 @@ export const AddItemNode: NodeDef<AddItemNodeType> = {
 		class: null,
 	},
 
-	export: (node) => {
-		if (node.data.class === null) {
+	serialize: (node) => {
+		if (node.data.class === null || node.data.dataset === null) {
 			return null;
 		}
 
 		return {
-			node_type: "AddItem",
-			params: {
-				class: {
-					parameter_type: "Integer",
-					value: node.data.class,
-				},
+			dataset: {
+				parameter_type: "Integer",
+				value: node.data.dataset,
 			},
+			class: {
+				parameter_type: "Integer",
+				value: node.data.class,
+			},
+		};
+	},
+
+	deserialize: (serialized) => {
+		if (serialized.params === undefined) {
+			return null;
+		}
+
+		const cls = serialized.params.class;
+		if (cls?.parameter_type !== "Integer") {
+			return null;
+		}
+
+		return {
+			dataset: null,
+			class: cls.value,
 		};
 	},
 };

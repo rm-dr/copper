@@ -19,11 +19,10 @@ function ExtractCoversNodeElement({ id }: NodeProps<ExtractCoversNodeType>) {
 
 export const ExtractCoversNode: NodeDef<ExtractCoversNodeType> = {
 	key: "extractcovers",
+	node_type: "ExtractCovers",
 	node: ExtractCoversNodeElement,
 
 	initialData: {},
-
-	export: () => ({
-		node_type: "ExtractCovers",
-	}),
+	serialize: () => ({}),
+	deserialize: () => ({}),
 };

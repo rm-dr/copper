@@ -25,9 +25,10 @@ function StripTagsNodeElement({ id }: NodeProps<StripTagsNodeType>) {
 
 export const StripTagsNode: NodeDef<StripTagsNodeType> = {
 	key: "striptags",
+	node_type: "StripTags",
 	node: StripTagsNodeElement,
+
 	initialData: {},
-	export: () => ({
-		node_type: "StripTags",
-	}),
+	serialize: () => ({}),
+	deserialize: () => ({}),
 };

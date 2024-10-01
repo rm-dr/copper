@@ -43,16 +43,33 @@ function HashNodeElement({ data, id }: NodeProps<HashNodeType>) {
 
 export const HashNode: NodeDef<HashNodeType> = {
 	key: "hash",
+	node_type: "Hash",
 	node: HashNodeElement,
 
 	initialData: {
 		hash_type: "SHA256",
 	},
 
-	export: (node) => ({
-		node_type: "Hash",
-		params: {
-			hash_type: { parameter_type: "String", value: node.data.hash_type },
-		},
+	serialize: (node) => ({
+		hash_type: { parameter_type: "String", value: node.data.hash_type },
 	}),
+
+	deserialize: (serialized) => {
+		if (serialized.params === undefined) {
+			return null;
+		}
+
+		const hash_type = serialized.params.hash_type;
+		if (hash_type?.parameter_type !== "String") {
+			return null;
+		}
+
+		if (!HashTypes.includes(hash_type.value as (typeof HashTypes)[number])) {
+			return null;
+		}
+
+		return {
+			hash_type: hash_type.value as (typeof HashTypes)[number],
+		};
+	},
 };

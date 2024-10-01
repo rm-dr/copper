@@ -42,17 +42,17 @@ function InputNodeElement({ id }: NodeProps<InputNodeType>) {
 export const InputNode: NodeDef<InputNodeType> = {
 	// The "input" node class is already taken
 	key: "pipelineinput",
+	node_type: "Input",
 	node: InputNodeElement,
 
 	initialData: {},
 
-	export: (node) => ({
-		node_type: "Input",
-		params: {
-			input_name: {
-				parameter_type: "String",
-				value: node.id,
-			},
+	serialize: (node) => ({
+		input_name: {
+			parameter_type: "String",
+			value: node.id,
 		},
 	}),
+
+	deserialize: () => ({}),
 };
