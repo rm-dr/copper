@@ -14,7 +14,7 @@ import {
 	X,
 } from "lucide-react";
 import { ReactNode } from "react";
-import { ActionIcon, Menu, Text } from "@mantine/core";
+import { ActionIcon, Menu, Text, Tooltip } from "@mantine/core";
 import { useDeleteDatasetModal } from "./_modals/deletedataset";
 import { useRenameDatasetModal } from "./_modals/renamedataset";
 import { useAddClassModal } from "./_modals/addclass";
@@ -121,9 +121,17 @@ export function useTreePanel() {
 
 					for (const attr of itemclass.attributes) {
 						nodes.push({
-							icon: attrTypes.find(
-								(x) => x.serialize_as === attr.data_type.type,
-							)?.icon || <X />,
+							icon: (
+								<Tooltip
+									label={attr.data_type.type}
+									position="left"
+									offset={10}
+									color="gray"
+								>
+									{attrTypes.find((x) => x.serialize_as === attr.data_type.type)
+										?.icon || <X />}
+								</Tooltip>
+							),
 							right: (
 								<AttrMenu
 									attribute_id={attr.id}
