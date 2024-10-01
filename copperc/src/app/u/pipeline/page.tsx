@@ -59,8 +59,21 @@ function AddNodeButton(params: {
 	);
 }
 
-let id = 1;
-const getId = () => `node-${id++}`;
+/**
+ * Generate a unique node id
+ */
+function getId(): string {
+	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+	const length = 10;
+
+	let rand = "";
+	const charactersLength = characters.length;
+	for (let i = 0; i < length; i++) {
+		rand += characters.charAt(Math.floor(Math.random() * charactersLength));
+	}
+
+	return `node-${rand}-${new Date().valueOf()}`;
+}
 
 function Main() {
 	const { flow, getFlow, setNodes } = useFlow();
