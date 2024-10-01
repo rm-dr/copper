@@ -3,7 +3,7 @@ use copper_pipelined::{
 	base::NodeParameterValue,
 	data::PipeData,
 	helpers::S3Client,
-	json::{EdgeJson, InputPort, NodeJson, OutputPort, PipelineJson},
+	json::{EdgeJson, InputPort, NodeJson, NodeJsonPosition, OutputPort, PipelineJson},
 	CopperContext,
 };
 use copper_storaged::{client::StoragedClient, AttrData, AttrDataStub};
@@ -57,6 +57,7 @@ impl Modify for BearerSecurityAddon {
 	components(schemas(
 		PipelineJson,
 		NodeJson,
+		NodeJsonPosition,
 		EdgeJson,
 		OutputPort,
 		InputPort,

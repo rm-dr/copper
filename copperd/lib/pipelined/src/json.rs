@@ -25,10 +25,19 @@ pub struct NodeJson {
 	#[schema(value_type = String)]
 	pub node_type: SmartString<LazyCompact>,
 
+	pub position: NodeJsonPosition,
+
 	// Parameters for this node
 	#[serde(default)]
 	#[schema(value_type = BTreeMap<String, NodeParameterValue>)]
 	pub params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct NodeJsonPosition {
+	x: f64,
+	y: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

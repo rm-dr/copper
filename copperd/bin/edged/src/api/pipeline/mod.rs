@@ -7,7 +7,7 @@ use axum::{
 use copper_edged::PipelineInfo;
 use copper_pipelined::{
 	base::NodeParameterValue,
-	json::{EdgeJson, InputPort, NodeJson, OutputPort, PipelineJson},
+	json::{EdgeJson, InputPort, NodeJson, NodeJsonPosition, OutputPort, PipelineJson},
 };
 use utoipa::OpenApi;
 
@@ -37,6 +37,7 @@ use update::*;
 	components(schemas(
 		PipelineJson,
 		NodeJson,
+		NodeJsonPosition,
 		EdgeJson,
 		OutputPort,
 		InputPort,
