@@ -6,7 +6,10 @@ use copper_pipelined::json::PipelineJson;
 use copper_storaged::UserId;
 
 use super::errors::{
-	pipeline::{AddPipelineError, DeletePipelineError, GetPipelineError, UpdatePipelineError},
+	pipeline::{
+		AddPipelineError, DeletePipelineError, GetPipelineError, ListPipelineError,
+		UpdatePipelineError,
+	},
 	user::{AddUserError, DeleteUserError, GetUserError, UpdateUserError},
 };
 
@@ -43,6 +46,12 @@ where
 	//
 	// MARK: Pipelines
 	//
+
+	/// Get all a user's pipelines
+	async fn list_pipelines(
+		&self,
+		for_user: UserId,
+	) -> Result<Vec<PipelineInfo>, ListPipelineError>;
 
 	/// Create a new pipeline
 	async fn add_pipeline(

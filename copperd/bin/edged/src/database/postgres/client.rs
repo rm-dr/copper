@@ -10,7 +10,10 @@ use super::PgDatabaseClient;
 use crate::database::base::{
 	client::DatabaseClient,
 	errors::{
-		pipeline::{AddPipelineError, DeletePipelineError, GetPipelineError, UpdatePipelineError},
+		pipeline::{
+			AddPipelineError, DeletePipelineError, GetPipelineError, ListPipelineError,
+			UpdatePipelineError,
+		},
 		user::{AddUserError, DeleteUserError, GetUserError, UpdateUserError},
 	},
 };
@@ -256,6 +259,36 @@ impl DatabaseClient for PgDatabaseClient {
 		};
 
 		return Ok(new_pipeline);
+	}
+
+	async fn list_pipelines(
+		&self,
+		for_user: UserId,
+	) -> Result<Vec<PipelineInfo>, ListPipelineError> {
+		let mut conn = self
+			.pool
+			.acquire()
+			.await
+			.map_err(|e| ListPipelineError::DbError(Box::new(e)))?;
+
+		let res = sqlx::query("SELECT * FROM pipelines WHERE owned_by=$1;")
+			.bind(i64::from(for_user))
+			.fetch_all(&mut *conn)
+			.await;
+
+		return match res {
+			Err(sqlx::Error::RowNotFound) => Ok(Vec::new()),
+			Err(e) => Err(ListPipelineError::DbError(Box::new(e))),
+			Ok(res) => Ok(res
+				.into_iter()
+				.map(|row| PipelineInfo {
+					id: row.get::<i64, _>("id").into(),
+					owned_by: row.get::<i64, _>("owned_by").into(),
+					name: row.get::<String, _>("name").into(),
+					data: serde_json::from_str(row.get::<&str, _>("data")).unwrap(),
+				})
+				.collect()),
+		};
 	}
 
 	async fn get_pipeline(

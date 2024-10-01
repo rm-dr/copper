@@ -59,6 +59,29 @@ impl Error for GetPipelineError {
 	}
 }
 
+/// An error we can encounter when listing a user's pipelines
+#[derive(Debug)]
+pub enum ListPipelineError {
+	/// Database error
+	DbError(Box<dyn Error + Send + Sync>),
+}
+
+impl Display for ListPipelineError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::DbError(_) => write!(f, "database backend error"),
+		}
+	}
+}
+
+impl Error for ListPipelineError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::DbError(x) => Some(x.as_ref()),
+		}
+	}
+}
+
 /// An error we can encounter when updating a user
 #[derive(Debug)]
 pub enum UpdatePipelineError {
