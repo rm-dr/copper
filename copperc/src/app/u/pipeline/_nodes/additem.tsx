@@ -9,6 +9,7 @@ import { useState } from "react";
 import { BaseNode } from "./base";
 import { useQuery } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
+import { NodeDef } from ".";
 
 type AddItemNodeType = Node<
 	{
@@ -17,7 +18,7 @@ type AddItemNodeType = Node<
 	"additem"
 >;
 
-export function AddItemNode({ id }: NodeProps<AddItemNodeType>) {
+function AddItemNodeElement({ id }: NodeProps<AddItemNodeType>) {
 	const [dataset, setDataset] = useState<null | number>(null);
 	const [cls, setCls] = useState<null | number>(null);
 	const updateNodeInternals = useUpdateNodeInternals();
@@ -125,3 +126,8 @@ export function AddItemNode({ id }: NodeProps<AddItemNodeType>) {
 		</>
 	);
 }
+
+export const AddItemNode: NodeDef<AddItemNodeType> = {
+	key: "additem",
+	node: AddItemNodeElement,
+};

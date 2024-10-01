@@ -3,12 +3,11 @@ import { Node, NodeProps } from "@xyflow/react";
 import { useState } from "react";
 import { BaseNode } from "./base";
 import { dataTypes } from "@/lib/attributes";
+import { NodeDef } from ".";
 
-// The "input" node class is already taken
+type InputNodeType = Node<Record<string, never>, "pipelineinput">;
 
-type InputNodetype = Node<Record<string, never>, "pipelineinput">;
-
-export function InputNode({ id }: NodeProps<InputNodetype>) {
+function InputNodeElement({ id }: NodeProps<InputNodeType>) {
 	const types = ["Text", "Integer", "Float"] as const;
 
 	const [valuetype, setValueType] = useState<(typeof types)[number]>("Text");
@@ -39,3 +38,9 @@ export function InputNode({ id }: NodeProps<InputNodetype>) {
 		</>
 	);
 }
+
+export const InputNode: NodeDef<InputNodeType> = {
+	// The "input" node class is already taken
+	key: "pipelineinput",
+	node: InputNodeElement,
+};

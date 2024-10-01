@@ -1,9 +1,10 @@
 import { Node, NodeProps } from "@xyflow/react";
 import { BaseNode } from "./base";
+import { NodeDef } from ".";
 
 type ExtractCoversNodeType = Node<Record<string, never>, "extractcovers">;
 
-export function ExtractCoversNode({ id }: NodeProps<ExtractCoversNodeType>) {
+function ExtractCoversNodeElement({ id }: NodeProps<ExtractCoversNodeType>) {
 	return (
 		<>
 			<BaseNode
@@ -15,3 +16,8 @@ export function ExtractCoversNode({ id }: NodeProps<ExtractCoversNodeType>) {
 		</>
 	);
 }
+
+export const ExtractCoversNode: NodeDef<ExtractCoversNodeType> = {
+	key: "extractcovers",
+	node: ExtractCoversNodeElement,
+};

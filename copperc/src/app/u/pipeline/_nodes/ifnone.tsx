@@ -1,9 +1,10 @@
+import { NodeDef } from ".";
 import { BaseNode } from "./base";
 import { Node, NodeProps } from "@xyflow/react";
 
 type IfNoneNodeType = Node<Record<string, never>, "ifnone">;
 
-export function IfNoneNode({ id }: NodeProps<IfNoneNodeType>) {
+function IfNoneNodeElement({ id }: NodeProps<IfNoneNodeType>) {
 	return (
 		<>
 			<BaseNode
@@ -18,3 +19,8 @@ export function IfNoneNode({ id }: NodeProps<IfNoneNodeType>) {
 		</>
 	);
 }
+
+export const IfNoneNode: NodeDef<IfNoneNodeType> = {
+	key: "ifnone",
+	node: IfNoneNodeElement,
+};

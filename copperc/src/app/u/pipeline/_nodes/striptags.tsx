@@ -1,9 +1,10 @@
 import { Node, NodeProps } from "@xyflow/react";
 import { BaseNode } from "./base";
+import { NodeDef } from ".";
 
 type StripTagsNodeType = Node<Record<string, never>, "striptags">;
 
-export function StripTagsNode({ id }: NodeProps<StripTagsNodeType>) {
+function StripTagsNodeElement({ id }: NodeProps<StripTagsNodeType>) {
 	return (
 		<>
 			<BaseNode
@@ -21,3 +22,8 @@ export function StripTagsNode({ id }: NodeProps<StripTagsNodeType>) {
 		</>
 	);
 }
+
+export const StripTagsNode: NodeDef<StripTagsNodeType> = {
+	key: "striptags",
+	node: StripTagsNodeElement,
+};

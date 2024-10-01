@@ -1,9 +1,10 @@
 import { Node, NodeProps } from "@xyflow/react";
 import { BaseNode } from "./base";
+import { NodeDef } from ".";
 
 type ExtractTagsNodeType = Node<Record<string, never>, "extracttags">;
 
-export function ExtractTagsNode({ id }: NodeProps<ExtractTagsNodeType>) {
+function ExtractTagsNodeElement({ id }: NodeProps<ExtractTagsNodeType>) {
 	return (
 		<>
 			<BaseNode
@@ -30,3 +31,8 @@ export function ExtractTagsNode({ id }: NodeProps<ExtractTagsNodeType>) {
 		</>
 	);
 }
+
+export const ExtractTagsNode: NodeDef<ExtractTagsNodeType> = {
+	key: "extracttags",
+	node: ExtractTagsNodeElement,
+};

@@ -2,6 +2,7 @@ import { NumberInput, Select, TextInput } from "@mantine/core";
 import { Node, NodeProps } from "@xyflow/react";
 import { useState } from "react";
 import { BaseNode } from "./base";
+import { NodeDef } from ".";
 
 type ConstantNodeType = Node<
 	{
@@ -10,7 +11,7 @@ type ConstantNodeType = Node<
 	"constant"
 >;
 
-export function ConstantNode({ id }: NodeProps<ConstantNodeType>) {
+function ConstantNodeElement({ id }: NodeProps<ConstantNodeType>) {
 	const types = ["Text", "Integer", "Float"] as const;
 	type ValueType =
 		| {
@@ -115,3 +116,8 @@ export function ConstantNode({ id }: NodeProps<ConstantNodeType>) {
 		</>
 	);
 }
+
+export const ConstantNode: NodeDef<ConstantNodeType> = {
+	key: "constant",
+	node: ConstantNodeElement,
+};

@@ -2,12 +2,13 @@ import { Select } from "@mantine/core";
 import { Node, NodeProps } from "@xyflow/react";
 import { useState } from "react";
 import { BaseNode } from "./base";
+import { NodeDef } from ".";
 
 const HashTypes = ["SHA256", "SHA512", "MD5"] as const;
 
 type HashNodeType = Node<Record<string, never>, "hash">;
 
-export function HashNode({ id }: NodeProps<HashNodeType>) {
+function HashNodeElement({ id }: NodeProps<HashNodeType>) {
 	const [hashType, setHashType] =
 		useState<(typeof HashTypes)[number]>("SHA256");
 
@@ -34,3 +35,8 @@ export function HashNode({ id }: NodeProps<HashNodeType>) {
 		</>
 	);
 }
+
+export const HashNode: NodeDef<HashNodeType> = {
+	key: "hash",
+	node: HashNodeElement,
+};
