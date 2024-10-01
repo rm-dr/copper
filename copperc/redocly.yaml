@@ -1,0 +1,7 @@
+# Run `npx openapi-typescript` from inside this dir (`./copperc`)
+apis:
+    core:
+        # Address of local edged server
+        root: http://localhost:2000/docs/openapi.json
+        x-openapi-ts:
+            output: ./src/lib/api/openapi.ts

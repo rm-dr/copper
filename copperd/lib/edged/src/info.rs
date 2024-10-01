@@ -4,11 +4,13 @@ use argon2::{
 	password_hash::{rand_core::OsRng, SaltString},
 	Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
 };
+use copper_pipelined::json::PipelineJson;
+use copper_storaged::UserId;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use utoipa::ToSchema;
 
-use crate::UserId;
+use crate::PipelineId;
 
 /// A user's hashed password.
 /// This serialized for storage in the db.
@@ -61,8 +63,8 @@ impl UserPassword {
 /// User Information
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct UserInfo {
-	/// The id of this dataset
-	#[schema(value_type = u32)]
+	/// The id of this user
+	#[schema(value_type = i64)]
 	pub id: UserId,
 
 	/// This user's name
@@ -79,4 +81,23 @@ pub struct UserInfo {
 	/// This field should always be tagged with `#[serde(skip)]`
 	#[serde(skip)]
 	pub password: UserPassword,
+}
+
+/// Pipeline Information
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct PipelineInfo {
+	/// The id of this user
+	#[schema(value_type = i64)]
+	pub id: PipelineId,
+
+	/// The user that owns this pipeline
+	#[schema(value_type = i64)]
+	pub owned_by: UserId,
+
+	/// This user's name
+	#[schema(value_type = String)]
+	pub name: SmartString<LazyCompact>,
+
+	/// The pipeline
+	pub data: PipelineJson,
 }

@@ -82,10 +82,10 @@ mod tests {
 		http::{Method, Request, Response},
 	};
 	use copper_storaged::{
-		AttrData, AttrDataStub, AttributeId, ClassId, DatasetId, Transaction, TransactionAction,
+		AttrData, AttrDataStub, AttributeId, AttributeOptions, ClassId, DatasetId, Transaction,
+		TransactionAction,
 	};
 	use copper_util::HashType;
-	use database::base::client::AttributeOptions;
 	use serde::de::DeserializeOwned;
 	use serde_json::json;
 	use tower::Service;

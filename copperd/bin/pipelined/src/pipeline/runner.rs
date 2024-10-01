@@ -1,4 +1,7 @@
-use copper_pipelined::base::{NodeDispatcher, PipelineData, PipelineJobContext, RunNodeError};
+use copper_pipelined::{
+	base::{NodeDispatcher, PipelineData, PipelineJobContext, RunNodeError},
+	json::PipelineJson,
+};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::{BTreeMap, VecDeque},
@@ -9,7 +12,7 @@ use time::OffsetDateTime;
 use tokio::task::{JoinError, JoinSet};
 use tracing::{debug, info};
 
-use super::{job::PipelineBuildError, json::PipelineJson};
+use super::job::PipelineBuildError;
 use crate::pipeline::job::PipelineJob;
 
 //

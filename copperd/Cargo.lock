@@ -761,6 +761,8 @@ name = "copper-edged"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "copper-pipelined",
+ "copper-storaged",
  "serde",
  "smartstring",
  "utoipa",
@@ -1060,6 +1062,8 @@ dependencies = [
  "axum-extra",
  "copper-edged",
  "copper-migrate",
+ "copper-pipelined",
+ "copper-storaged",
  "copper-util",
  "rand",
  "serde",

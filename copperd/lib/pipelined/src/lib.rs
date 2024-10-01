@@ -1,6 +1,7 @@
 pub mod base;
 pub mod data;
 pub mod helpers;
+pub mod json;
 
 use async_trait::async_trait;
 use base::{PipelineJobContext, RunNodeError};

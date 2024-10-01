@@ -2,28 +2,18 @@
 
 use async_trait::async_trait;
 use copper_storaged::{
-	AttrDataStub, AttributeId, AttributeInfo, ClassId, ClassInfo, DatasetId, DatasetInfo,
-	Transaction,
+	AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo, DatasetId,
+	DatasetInfo, Transaction, UserId,
 };
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 use super::errors::{
 	attribute::{AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError},
 	class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
-	dataset::{AddDatasetError, DeleteDatasetError, GetDatasetError, RenameDatasetError},
+	dataset::{
+		AddDatasetError, DeleteDatasetError, GetDatasetError, ListDatasetsError, RenameDatasetError,
+	},
 	transaction::ApplyTransactionError,
 };
-
-#[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
-/// Options we can set when creating an attribute
-pub struct AttributeOptions {
-	/// If true, this attribute must have a value
-	pub is_not_null: bool,
-
-	/// If true, this attribute must be unique within its column
-	pub unique: bool,
-}
 
 /// A generic database client
 #[async_trait]
@@ -36,10 +26,13 @@ where
 	//
 
 	/// Create a new dataset
-	async fn add_dataset(&self, name: &str) -> Result<DatasetId, AddDatasetError>;
+	async fn add_dataset(&self, name: &str, owner: UserId) -> Result<DatasetId, AddDatasetError>;
 
 	/// Get dataset details
 	async fn get_dataset(&self, dataset: DatasetId) -> Result<DatasetInfo, GetDatasetError>;
+
+	/// Get all a user's datasets
+	async fn list_datasets(&self, owner: UserId) -> Result<Vec<DatasetInfo>, ListDatasetsError>;
 
 	/// Rename a dataset
 	async fn rename_dataset(

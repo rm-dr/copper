@@ -1,0 +1,43 @@
+{
+	"name": "copperc",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "next dev",
+		"build": "next build",
+		"start": "next start",
+		"lint": "next lint",
+		"openapi": "openapi-typescript",
+		"depcheck": "npm-check --no-emoji"
+	},
+	"dependencies": {
+		"@mantine/core": "^7.12.2",
+		"@mantine/dropzone": "^7.12.2",
+		"@mantine/form": "^7.12.2",
+		"@mantine/hooks": "^7.12.2",
+		"@tanstack/react-query": "^5.56.2",
+		"@xyflow/react": "^12.3.0",
+		"clsx": "^2.1.1",
+		"geist": "^1.3.1",
+		"lucide-react": "^0.441.0",
+		"next": "14.2.11",
+		"openapi-fetch": "^0.12.0",
+		"react": "^18",
+		"react-dom": "^18",
+		"sass": "^1.78.0"
+	},
+	"devDependencies": {
+		"@svgr/webpack": "^8.1.0",
+		"@types/node": "^20",
+		"@types/react": "^18",
+		"@types/react-dom": "^18",
+		"eslint": "^8",
+		"eslint-config-next": "14.2.11",
+		"npm-check": "6.0.1",
+		"openapi-typescript": "7.3.0",
+		"postcss": "^8.4.47",
+		"postcss-preset-mantine": "^1.17.0",
+		"postcss-simple-vars": "^7.0.1",
+		"typescript": "^5"
+	}
+}

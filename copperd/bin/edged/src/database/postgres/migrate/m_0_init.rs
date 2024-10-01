@@ -9,6 +9,8 @@ impl Migration for MigrationStep {
 		"m_0_init"
 	}
 
+	// TODO: JSON data & auto-deserialize
+
 	async fn up(&self, conn: &mut sqlx::PgConnection) -> Result<(), sqlx::Error> {
 		let mut t = conn.begin().await?;
 
@@ -27,6 +29,16 @@ impl Migration for MigrationStep {
 			.execute(&mut *t)
 			.await?;
 
+		sqlx::query("INSERT INTO meta (var, val) VALUES ($1, $2);")
+			.bind("copper_version")
+			.bind(env!("CARGO_PKG_VERSION"))
+			.execute(&mut *t)
+			.await?;
+
+		//
+		// MARK: users
+		//
+
 		sqlx::query(
 			"
 			CREATE TABLE users (
@@ -44,9 +56,24 @@ impl Migration for MigrationStep {
 			.execute(&mut *t)
 			.await?;
 
-		sqlx::query("INSERT INTO meta (var, val) VALUES ($1, $2);")
-			.bind("copper_version")
-			.bind(env!("CARGO_PKG_VERSION"))
+		//
+		// MARK: pipeline
+		//
+
+		sqlx::query(
+			"
+			CREATE TABLE pipelines (
+				id BIGSERIAL PRIMARY KEY,
+				owned_by BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				name TEXT NOT NULL,
+				data TEXT NOT NULL
+			);
+			",
+		)
+		.execute(&mut *t)
+		.await?;
+
+		sqlx::query("CREATE UNIQUE INDEX pipeline_user_name on pipelines(owned_by, name);")
 			.execute(&mut *t)
 			.await?;
 

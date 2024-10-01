@@ -24,6 +24,8 @@ workspace = true
 copper-util = { workspace = true }
 copper-migrate = { workspace = true }
 copper-edged = { workspace = true }
+copper-storaged = { workspace = true }
+copper-pipelined = { workspace = true }
 
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true }

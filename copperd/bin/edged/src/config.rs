@@ -23,6 +23,13 @@ pub struct EdgedConfig {
 	/// The address of the database this storage server uses.
 	/// Must be postgres.
 	pub edged_db_addr: SmartString<LazyCompact>,
+
+	/// IP and port of the `storaged` daemon we'll use
+	/// Should look like `http://127.0.0.1:3030`
+	pub edged_storaged_addr: String,
+
+	/// The secret used to authenticate calls to storaged.
+	pub edged_storaged_secret: String,
 }
 
 impl EdgedConfig {

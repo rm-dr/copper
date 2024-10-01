@@ -1,13 +1,17 @@
 use std::{error::Error, fmt::Display};
 
 use async_trait::async_trait;
+use reqwest::StatusCode;
 
-use crate::{ClassId, ClassInfo, Transaction};
+use crate::{
+	AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo, DatasetId,
+	DatasetInfo, Transaction, UserId,
+};
 
 #[derive(Debug)]
 pub enum StoragedRequestError {
 	GenericHttp {
-		code: u16,
+		code: StatusCode,
 		message: Option<String>,
 	},
 	Other {
@@ -41,8 +45,80 @@ impl Error for StoragedRequestError {
 
 #[async_trait]
 pub trait StoragedClient: Send + Sync {
+	//
+	// MARK: dataset
+	//
+
+	async fn add_dataset(
+		&self,
+		name: &str,
+		owner: UserId,
+	) -> Result<DatasetId, StoragedRequestError>;
+
+	async fn get_dataset(
+		&self,
+		dataset: DatasetId,
+	) -> Result<Option<DatasetInfo>, StoragedRequestError>;
+
+	async fn list_datasets(&self, owner: UserId) -> Result<Vec<DatasetInfo>, StoragedRequestError>;
+
+	async fn rename_dataset(
+		&self,
+		dataset: DatasetId,
+		new_name: &str,
+	) -> Result<(), StoragedRequestError>;
+
+	async fn delete_dataset(&self, dataset: DatasetId) -> Result<(), StoragedRequestError>;
+
+	//
+	// MARK: class
+	//
+
+	async fn add_class(
+		&self,
+		in_dataset: DatasetId,
+		name: &str,
+	) -> Result<ClassId, StoragedRequestError>;
+
 	async fn get_class(&self, class_id: ClassId)
 		-> Result<Option<ClassInfo>, StoragedRequestError>;
+
+	async fn rename_class(
+		&self,
+		class: ClassId,
+		new_name: &str,
+	) -> Result<(), StoragedRequestError>;
+
+	async fn del_class(&self, class: ClassId) -> Result<(), StoragedRequestError>;
+
+	//
+	// MARK: attribute
+	//
+
+	async fn add_attribute(
+		&self,
+		in_class: ClassId,
+		name: &str,
+		with_type: AttrDataStub,
+		options: AttributeOptions,
+	) -> Result<AttributeId, StoragedRequestError>;
+
+	async fn get_attribute(
+		&self,
+		attribute: AttributeId,
+	) -> Result<Option<AttributeInfo>, StoragedRequestError>;
+
+	async fn rename_attribute(
+		&self,
+		attribute: AttributeId,
+		new_name: &str,
+	) -> Result<(), StoragedRequestError>;
+
+	async fn del_attribute(&self, attribute: AttributeId) -> Result<(), StoragedRequestError>;
+
+	//
+	// MARK: other
+	//
 
 	async fn apply_transaction(&self, transaction: Transaction)
 		-> Result<(), StoragedRequestError>;

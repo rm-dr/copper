@@ -2,6 +2,7 @@ use axum::{
 	extract::State,
 	http::{header::SET_COOKIE, StatusCode},
 	response::{AppendHeaders, IntoResponse, Response},
+	Json,
 };
 use axum_extra::extract::{
 	cookie::{Cookie, Expiration, SameSite},
@@ -18,9 +19,9 @@ use crate::{auth::AUTH_COOKIE_NAME, database::base::client::DatabaseClient};
 	post,
 	path = "/logout",
 	responses(
-		(status = 200, description = "Successfully terminated session"),
+		(status = 200, description = "Successfully terminated session", body = String),
 		(status = 400, description = "Could not log out"),
-		(status = 500, description = "Internal server error", body=String),
+		(status = 500, description = "Internal server error", body = String),
 	),
 )]
 pub(super) async fn logout<Client: DatabaseClient>(
@@ -45,13 +46,13 @@ pub(super) async fn logout<Client: DatabaseClient>(
 
 			return (
 				AppendHeaders([(SET_COOKIE, cookie.to_string())]),
-				"Logout successful",
+				Json("Logout successful"),
 			)
 				.into_response();
 		}
 
 		None => {
-			return (StatusCode::OK, "No session to log out of").into_response();
+			return (StatusCode::OK, Json("No session to log out of")).into_response();
 		}
 	};
 }

@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::collections::{BTreeMap, BTreeSet};
 use utoipa::ToSchema;
@@ -34,7 +34,7 @@ pub enum NodeParameterType {
 }
 
 /// The types of node parameters we accept
-#[derive(Debug, Clone, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "parameter_type", content = "value")]
 pub enum NodeParameterValue {
 	/// A yes or a no

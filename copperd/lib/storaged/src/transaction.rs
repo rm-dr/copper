@@ -33,7 +33,7 @@ pub enum TransactionAction {
 	AddItem {
 		/// The class to add the item to.
 		/// The transaction will fail if this is not a valid class id.
-		#[schema(value_type = u32)]
+		#[schema(value_type = i64)]
 		to_class: ClassId,
 
 		/// The attributes to create the item with.

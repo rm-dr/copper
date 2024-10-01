@@ -15,3 +15,12 @@ indent_size = 2
 [*.yml]
 indent_style = space
 indent_size = 2
+
+[package-lock.json]
+indent_size = 2
+
+[*.ts]
+indent_size = 2
+
+[*.tsx]
+indent_size = 2

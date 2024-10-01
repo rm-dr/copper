@@ -6,6 +6,7 @@ use axum::{
 };
 use copper_pipelined::{
 	data::{BytesSource, PipeData},
+	json::PipelineJson,
 	CopperContext,
 };
 use copper_storaged::{AttrData, Transaction};
@@ -15,10 +16,7 @@ use std::collections::BTreeMap;
 use tokio::sync::Mutex;
 use utoipa::ToSchema;
 
-use crate::{
-	pipeline::{json::PipelineJson, runner::AddJobError},
-	RouterState,
-};
+use crate::{pipeline::runner::AddJobError, RouterState};
 
 #[derive(Deserialize, ToSchema, Debug)]
 pub(super) struct AddJobRequest {

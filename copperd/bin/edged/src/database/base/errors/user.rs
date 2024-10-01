@@ -37,21 +37,17 @@ impl Error for AddUserError {
 	}
 }
 
-/// An error we can encounter when getting user info
+/// An error we can encounter when getting a user
 #[derive(Debug)]
 pub enum GetUserError {
 	/// Database error
 	DbError(Box<dyn Error + Send + Sync>),
-
-	/// We tried to get a user by id, but it doesn't exist
-	NotFound,
 }
 
 impl Display for GetUserError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::DbError(_) => write!(f, "database backend error"),
-			Self::NotFound => write!(f, "user not found"),
 		}
 	}
 }
@@ -60,36 +56,6 @@ impl Error for GetUserError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::DbError(x) => Some(x.as_ref()),
-			_ => None,
-		}
-	}
-}
-
-/// An error we can encounter when getting a user by email
-#[derive(Debug)]
-pub enum GetUserByEmailError {
-	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
-
-	/// We tried to get a user by email,
-	/// but no such user exists.
-	NotFound,
-}
-
-impl Display for GetUserByEmailError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::DbError(_) => write!(f, "database backend error"),
-			Self::NotFound => write!(f, "user not found"),
-		}
-	}
-}
-
-impl Error for GetUserByEmailError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::DbError(x) => Some(x.as_ref()),
-			_ => None,
 		}
 	}
 }

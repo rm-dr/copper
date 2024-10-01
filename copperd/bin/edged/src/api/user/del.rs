@@ -38,7 +38,7 @@ pub(super) async fn del_user<Client: DatabaseClient>(
 		return StatusCode::UNAUTHORIZED.into_response();
 	}
 
-	let res = state.client.del_user(user_id.into()).await;
+	let res = state.db_client.del_user(user_id.into()).await;
 
 	return match res {
 		Ok(_) => StatusCode::OK.into_response(),

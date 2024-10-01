@@ -3,22 +3,21 @@ use std::{error::Error, fmt::Display, marker::PhantomData};
 use axum::{
 	http::{header::SET_COOKIE, StatusCode},
 	response::{AppendHeaders, IntoResponse, Response},
+	Json,
 };
 use axum_extra::extract::{
 	cookie::{Cookie, Expiration, SameSite},
 	CookieJar,
 };
-use copper_edged::{UserId, UserInfo};
+use copper_edged::UserInfo;
+use copper_storaged::UserId;
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
 use tracing::error;
 
-use crate::database::base::{
-	client::DatabaseClient,
-	errors::user::{GetUserByEmailError, GetUserError},
-};
+use crate::database::base::{client::DatabaseClient, errors::user::GetUserError};
 
 use super::RouterState;
 
@@ -116,10 +115,10 @@ impl<Client: DatabaseClient> AuthHelper<Client> {
 		email: &str,
 		password: &str,
 	) -> Result<Option<AuthToken>, LoginError> {
-		let user = match state.client.get_user_by_email(email).await {
-			Ok(user) => user,
-			Err(GetUserByEmailError::NotFound) => return Ok(None),
-			Err(GetUserByEmailError::DbError(e)) => return Err(LoginError::DbError(e)),
+		let user = match state.db_client.get_user_by_email(email).await {
+			Ok(Some(user)) => user,
+			Ok(None) => return Ok(None),
+			Err(GetUserError::DbError(e)) => return Err(LoginError::DbError(e)),
 		};
 
 		if user.password.check_password(password) {
@@ -156,9 +155,9 @@ impl<Client: DatabaseClient> AuthHelper<Client> {
 					return Ok(None);
 				}
 
-				return match state.client.get_user(t.user).await {
-					Ok(user) => Ok(Some(user)),
-					Err(GetUserError::NotFound) => {
+				return match state.db_client.get_user(t.user).await {
+					Ok(Some(user)) => Ok(Some(user)),
+					Ok(None) => {
 						// Tried to authenticate with a user that doesn't exist.
 						// This probably happened because our user was deleted.
 						// Invalidate this session and return None.
@@ -214,7 +213,7 @@ impl<Client: DatabaseClient> AuthHelper<Client> {
 				);
 				return Err((
 					StatusCode::INTERNAL_SERVER_ERROR,
-					"Could not check auth cookies",
+					Json("Could not check auth cookies"),
 				)
 					.into_response());
 			}
@@ -232,7 +231,7 @@ impl<Client: DatabaseClient> AuthHelper<Client> {
 		return Err((
 			StatusCode::UNAUTHORIZED,
 			AppendHeaders([(SET_COOKIE, cookie.to_string())]),
-			"Invalid auth cookie, logging out",
+			Json("Invalid auth cookie, logging out"),
 		)
 			.into_response());
 	}
