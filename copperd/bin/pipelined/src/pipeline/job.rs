@@ -1,6 +1,9 @@
-use copper_pipelined::base::{
-	Node, NodeDispatcher, NodeId, NodeOutput, NodeParameterValue, PipelineData, PipelineJobContext,
-	PortName, RunNodeError, ThisNodeInfo, INPUT_NODE_TYPE,
+use copper_pipelined::{
+	base::{
+		Node, NodeDispatcher, NodeId, NodeOutput, NodeParameterValue, PipelineData,
+		PipelineJobContext, PortName, RunNodeError, ThisNodeInfo, INPUT_NODE_TYPE,
+	},
+	json::PipelineJson,
 };
 use copper_util::graph::{finalized::FinalizedGraph, graph::Graph, util::GraphNodeIdx};
 use smartstring::{LazyCompact, SmartString};
@@ -17,7 +20,6 @@ use tokio::{
 };
 use tracing::{debug, trace};
 
-use super::json::PipelineJson;
 use crate::config::ASYNC_POLL_AWAIT_MS;
 
 //

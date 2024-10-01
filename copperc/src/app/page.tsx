@@ -27,9 +27,9 @@ export default function Page() {
 		onSuccess: async (res) => {
 			if (res.response.status === 200) {
 				location.replace("/u");
+			} else {
+				throw new Error("could not log in");
 			}
-
-			throw new Error("could not log in");
 		},
 
 		onError: (err) => {

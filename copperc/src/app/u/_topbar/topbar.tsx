@@ -147,9 +147,9 @@ function useUpdateModal(params: { onSuccess: () => void }) {
 			if (res.response.status === 200) {
 				reset();
 				params.onSuccess();
+			} else {
+				throw new Error(res.error);
 			}
-
-			throw new Error(res.error);
 		},
 
 		onError: (err) => {

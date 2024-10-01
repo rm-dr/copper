@@ -1,8 +1,7 @@
 use async_trait::async_trait;
-use copper_edged::UserId;
 use copper_storaged::{
 	AttrData, AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo,
-	DatasetId, DatasetInfo, ResultOrDirect, Transaction, TransactionAction,
+	DatasetId, DatasetInfo, ResultOrDirect, Transaction, TransactionAction, UserId,
 };
 use copper_util::{names::check_name, MimeType};
 use serde::{Deserialize, Serialize};

@@ -163,6 +163,59 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/pipeline": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Create a new pipeline */
+		post: operations["add_pipeline"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/pipeline/list": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** List the logged in user's pipelines */
+		get: operations["list_pipelines"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/pipeline/{pipeline_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get pipeline by id */
+		get: operations["get_pipeline"];
+		put?: never;
+		post?: never;
+		/** Delete a pipeline */
+		delete: operations["del_pipeline"];
+		options?: never;
+		head?: never;
+		/** Update a pipeline */
+		patch: operations["update_pipeline"];
+		trace?: never;
+	};
 	"/user": {
 		parameters: {
 			query?: never;
@@ -253,7 +306,7 @@ export interface components {
 			  }
 			| {
 					/**
-					 * Format: int32
+					 * Format: int64
 					 * @description The class we reference
 					 */
 					class: number;
@@ -263,13 +316,13 @@ export interface components {
 		/** @description Attribute information */
 		AttributeInfo: {
 			/**
-			 * Format: int32
+			 * Format: int64
 			 * @description The class this attribute belongs to
 			 */
 			class: number;
 			data_type: components["schemas"]["AttrDataStub"];
 			/**
-			 * Format: int32
+			 * Format: int64
 			 * @description The id of this attribute
 			 */
 			id: number;
@@ -281,7 +334,7 @@ export interface components {
 			/** @description This attribute's name */
 			name: string;
 			/**
-			 * Format: int32
+			 * Format: int64
 			 * @description The order of this attribute in its class.
 			 *     These start at 0, and must be unique & consecutive
 			 *     inside any class.
@@ -299,12 +352,12 @@ export interface components {
 		ClassInfo: {
 			attributes: components["schemas"]["AttributeInfo"][];
 			/**
-			 * Format: int32
+			 * Format: int64
 			 * @description The dataset this class is in
 			 */
 			dataset: number;
 			/**
-			 * Format: int32
+			 * Format: int64
 			 * @description The id of the class
 			 */
 			id: number;
@@ -316,23 +369,33 @@ export interface components {
 			/** @description This dataset's classes */
 			classes: components["schemas"]["ClassInfo"][];
 			/**
-			 * Format: int32
+			 * Format: int64
 			 * @description The id of this dataset
 			 */
 			id: number;
 			/** @description This dataset's name */
 			name: string;
 			/**
-			 * Format: int32
+			 * Format: int64
 			 * @description The id of the user that owns this dataset
 			 */
 			owner: number;
+		};
+		EdgeJson: {
+			source: components["schemas"]["OutputPort"];
+			target: components["schemas"]["InputPort"];
 		};
 		/**
 		 * @description The types of hashes we support
 		 * @enum {string}
 		 */
 		HashType: "MD5" | "SHA256" | "SHA512";
+		InputPort: {
+			/** @description The node that provides this input */
+			node: string;
+			/** @description The port's name */
+			port: string;
+		};
 		LoginRequest: {
 			email: string;
 			password: string;
@@ -348,10 +411,101 @@ export interface components {
 		NewDatasetRequest: {
 			name: string;
 		};
+		NewPipelineRequest: {
+			name: string;
+			pipeline: components["schemas"]["PipelineJson"];
+		};
 		NewUserRequest: {
 			email: string;
 			name: string;
 			password: string;
+		};
+		NodeJson: {
+			/** @description What kind of node is this? */
+			node_type: string;
+			params?: {
+				[key: string]: components["schemas"]["NodeParameterValue"];
+			};
+			position: components["schemas"]["NodeJsonPosition"];
+		};
+		NodeJsonPosition: {
+			/** Format: double */
+			x: number;
+			/** Format: double */
+			y: number;
+		};
+		/** @description The types of node parameters we accept */
+		NodeParameterValue:
+			| {
+					/** @enum {string} */
+					parameter_type: "Boolean";
+					/** @description A yes or a no */
+					value: boolean;
+			  }
+			| {
+					/** @enum {string} */
+					parameter_type: "Integer";
+					/**
+					 * Format: int64
+					 * @description An integer
+					 */
+					value: number;
+			  }
+			| {
+					/** @enum {string} */
+					parameter_type: "String";
+					/** @description A plain string. This is used to carry the value of both
+					 *     `String` and `Enum` types. If an `Enum` parameter receives
+					 *     a string it doesn't recognize, an error should be thrown. */
+					value: string;
+			  }
+			| {
+					/** @enum {string} */
+					parameter_type: "List";
+					/** @description A list of parameters */
+					value: components["schemas"]["NodeParameterValue"][];
+			  }
+			| {
+					/** @enum {string} */
+					parameter_type: "Map";
+					/** @description A map from `String` to parameter */
+					value: {
+						[key: string]: components["schemas"]["NodeParameterValue"];
+					};
+			  };
+		OutputPort: {
+			/** @description The node that provides this output */
+			node: string;
+			/** @description The output's name */
+			port: string;
+		};
+		/** @description Pipeline Information */
+		PipelineInfo: {
+			data: components["schemas"]["PipelineJson"];
+			/**
+			 * Format: int64
+			 * @description The id of this user
+			 */
+			id: number;
+			/** @description This user's name */
+			name: string;
+			/**
+			 * Format: int64
+			 * @description The user that owns this pipeline
+			 */
+			owned_by: number;
+		};
+		/** @description A pipeline specification, directly deserialized from JSON.
+		 *     This is the first step in our pipeline processing workflow. */
+		PipelineJson: {
+			/** @description Edges in this pipeline */
+			edges: {
+				[key: string]: components["schemas"]["EdgeJson"];
+			};
+			/** @description Nodes in this pipeline */
+			nodes: {
+				[key: string]: components["schemas"]["NodeJson"];
+			};
 		};
 		RenameAttributeRequest: {
 			new_name: string;
@@ -361,6 +515,10 @@ export interface components {
 		};
 		RenameDatasetRequest: {
 			new_name: string;
+		};
+		UpdatePipelineRequest: {
+			new_data?: components["schemas"]["PipelineJson"] | null;
+			new_name?: string | null;
 		};
 		UpdateUserRequest: {
 			new_email?: string | null;
@@ -372,8 +530,8 @@ export interface components {
 			/** @description This user's email */
 			email: string;
 			/**
-			 * Format: int32
-			 * @description The id of this dataset
+			 * Format: int64
+			 * @description The id of this user
 			 */
 			id: number;
 			/** @description This user's name */
@@ -988,6 +1146,209 @@ export interface operations {
 				content: {
 					"text/plain": string;
 				};
+			};
+		};
+	};
+	add_pipeline: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["NewPipelineRequest"];
+			};
+		};
+		responses: {
+			/** @description Pipeline created successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["PipelineInfo"];
+				};
+			};
+			/** @description Bad request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	list_pipelines: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of pipeline ids */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["PipelineInfo"][];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	get_pipeline: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Pipeline id */
+				pipeline_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Pipeline found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["PipelineInfo"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	del_pipeline: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Pipeline id */
+				pipeline_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Pipeline deleted successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	update_pipeline: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Pipeline id */
+				pipeline_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdatePipelineRequest"];
+			};
+		};
+		responses: {
+			/** @description Pipeline updated successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["PipelineInfo"];
+				};
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
 			};
 		};
 	};

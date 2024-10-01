@@ -1,10 +1,9 @@
 //! The database client api
 
 use async_trait::async_trait;
-use copper_edged::UserId;
 use copper_storaged::{
 	AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo, DatasetId,
-	DatasetInfo, Transaction,
+	DatasetInfo, Transaction, UserId,
 };
 
 use super::errors::{

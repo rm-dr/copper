@@ -1,12 +1,11 @@
 use std::{error::Error, fmt::Display};
 
 use async_trait::async_trait;
-use copper_edged::UserId;
 use reqwest::StatusCode;
 
 use crate::{
 	AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo, DatasetId,
-	DatasetInfo, Transaction,
+	DatasetInfo, Transaction, UserId,
 };
 
 #[derive(Debug)]

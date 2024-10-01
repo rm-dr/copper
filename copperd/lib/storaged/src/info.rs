@@ -2,10 +2,11 @@
 
 use std::collections::BTreeMap;
 
-use copper_edged::UserId;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use utoipa::ToSchema;
+
+use crate::UserId;
 
 use super::{
 	data::{AttrData, AttrDataStub},
