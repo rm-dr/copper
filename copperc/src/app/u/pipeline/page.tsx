@@ -179,7 +179,6 @@ function PipelineButtons(params: {
 					disabled={doSave.isPending}
 					onClick={() => {
 						const de = deserializePipeline(params.pipeline.data);
-
 						setNodes(de.nodes);
 						setEdges(de.edges);
 						fitView();
@@ -216,11 +215,29 @@ function PipelineButtons(params: {
 }
 
 function Main() {
-	const { flow, getFlow, setNodes } = useFlow();
+	const { setNodes, setEdges, fitView } = useReactFlow();
+	const { flow, getFlow } = useFlow();
 	const qc = useQueryClient();
-	const [pipeline, setPipeline] = useState<
+	const [pipeline, _setPipeline] = useState<
 		components["schemas"]["PipelineInfo"] | null
 	>(null);
+
+	const setPipeline = (
+		pipeline: components["schemas"]["PipelineInfo"] | null,
+	) => {
+		if (pipeline === null) {
+			setNodes([]);
+			setEdges([]);
+			fitView();
+		} else {
+			const de = deserializePipeline(pipeline.data);
+			setNodes(de.nodes);
+			setEdges(de.edges);
+			fitView();
+		}
+
+		_setPipeline(pipeline);
+	};
 
 	const pipelines = useQuery({
 		queryKey: ["pipeline/list"],
@@ -282,7 +299,10 @@ function Main() {
 								if (int === null || pipelines.data === undefined) {
 									setPipeline(null);
 								}
-								setPipeline(pipelines.data?.find((x) => x.id === int) || null);
+								const pipeline =
+									pipelines.data?.find((x) => x.id === int) || null;
+
+								setPipeline(pipeline);
 							}}
 						/>
 
