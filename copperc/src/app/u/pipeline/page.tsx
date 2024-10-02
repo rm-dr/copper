@@ -1,243 +1,40 @@
 "use client";
-import React, { Dispatch, SetStateAction, useCallback, useState } from "react";
-import {
-	Edge,
-	Node,
-	ReactFlowJsonObject,
-	ReactFlowProvider,
-	useReactFlow,
-} from "@xyflow/react";
 
 import style from "./pipeline.module.scss";
-import nodestyle from "./_nodes/nodes.module.scss";
 import "@xyflow/react/dist/style.css";
 
-import { useFlow } from "./flow";
-import { ActionIcon, Button, Select, Text } from "@mantine/core";
+import React, { useCallback, useState } from "react";
+import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { components } from "@/lib/api/openapi";
-import { InfoIcon } from "lucide-react";
-import { nodeDefinitions } from "./_nodes";
-import { useAddPipelineModal } from "./_modals/addpipeline";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
-import { useDeletePipelineModal } from "./_modals/deletepipeline";
-import { useRenamePipelineModal } from "./_modals/renamepipeline";
-import { deserializePipeline, serializePipeline } from "./serde";
+import { Button, Select, Text } from "@mantine/core";
 
-function AddNodeButton(params: {
-	text: string;
-	node_type: string;
-	disabled: boolean;
+import { useAddPipelineModal } from "./_modals/addpipeline";
+import { useFlow } from "./flow";
+import { deserializePipeline } from "./serde";
+import {
+	AddNodeButton,
+	PipelineDeleteButton,
+	PipelineReloadButton,
+	PipelineRenameButton,
+	PipelineSaveButton,
+} from "./buttons";
 
-	setNodes: Dispatch<SetStateAction<Node[]>>;
-	onInfo: () => void;
-}) {
-	const node = nodeDefinitions[params.node_type];
-	if (node === undefined) {
-		console.error(`Unknown node type ${params.node_type}`);
-		return;
-	}
-
-	return (
-		<div className={style.add_node_button}>
-			<ActionIcon
-				disabled={params.disabled}
-				variant="transparent"
-				aria-label="Settings"
-				onClick={params.onInfo}
-			>
-				<InfoIcon size={"1rem"} />
-			</ActionIcon>
-			<Button
-				fullWidth
-				variant="light"
-				size="xs"
-				disabled={params.disabled}
-				onClick={() => {
-					const id = getId();
-
-					const newNode: Node = {
-						id,
-						type: params.node_type,
-						position: { x: 0, y: 0 },
-						data: node.initialData,
-						origin: [0.5, 0.0],
-						dragHandle: `.${nodestyle.node_top_label}`,
-					};
-
-					params.setNodes((nodes) => nodes.concat(newNode));
-				}}
-			>
-				{params.text}
-			</Button>
-		</div>
-	);
-}
-
-/**
- * Generate a unique node id
- */
-function getId(): string {
-	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-	const length = 10;
-
-	let rand = "";
-	const charactersLength = characters.length;
-	for (let i = 0; i < length; i++) {
-		rand += characters.charAt(Math.floor(Math.random() * charactersLength));
-	}
-
-	return `node-${rand}-${new Date().valueOf()}`;
-}
-
-function PipelineButtons(params: {
-	pipeline: components["schemas"]["PipelineInfo"];
-	getFlow: () => ReactFlowJsonObject<Node, Edge>;
-	onChange: (select: components["schemas"]["PipelineInfo"] | null) => void;
-}) {
+function Main() {
+	const [isModified, setModified] = useState<boolean>(false);
 	const { setNodes, setEdges, fitView } = useReactFlow();
-
-	const { open: openDeletePipeline, modal: modalDeletePipeline } =
-		useDeletePipelineModal({
-			pipeline_id: params.pipeline.id,
-			pipeline_name: params.pipeline.name,
-			onSuccess: () => params.onChange(null),
-		});
-
-	const { open: openRenamePipeline, modal: modalRenamePipeline } =
-		useRenamePipelineModal({
-			pipeline_id: params.pipeline.id,
-			pipeline_name: params.pipeline.name,
-			onSuccess: params.onChange,
-		});
-
-	const doSave = useMutation({
-		mutationFn: async (new_data: components["schemas"]["PipelineJson"]) => {
-			return await edgeclient.PATCH("/pipeline/{pipeline_id}", {
-				params: { path: { pipeline_id: params.pipeline.id } },
-				body: { new_data },
-			});
-		},
-
-		onSuccess: async (res) => {
-			if (res.response.status === 200) {
-				params.onChange(res.data!);
-			} else {
-				throw new Error(res.error);
-			}
-		},
-
-		onError: (err) => {
-			throw err;
+	const { flow, getFlow } = useFlow({
+		onModify: () => {
+			setModified(true);
 		},
 	});
 
-	const savePipeline = useCallback(() => {
-		const raw = params.getFlow();
-		const res = serializePipeline(raw);
-
-		if (res.result === "error") {
-			console.error(`Could not serialize pipeline.`);
-			console.error(res.message);
-			return;
-		}
-
-		doSave.mutate(res.value);
-	}, [doSave, params]);
-
-	return (
-		<>
-			{modalDeletePipeline}
-			{modalRenamePipeline}
-			<Button.Group style={{ width: "100%" }}>
-				<Button
-					fullWidth
-					variant="subtle"
-					size="xs"
-					onClick={openDeletePipeline}
-					disabled={doSave.isPending}
-				>
-					Delete
-				</Button>
-
-				<Button
-					fullWidth
-					variant="subtle"
-					size="xs"
-					onClick={openRenamePipeline}
-					disabled={doSave.isPending}
-				>
-					Rename
-				</Button>
-			</Button.Group>
-
-			<Button.Group style={{ width: "100%" }}>
-				<Button
-					fullWidth
-					variant="subtle"
-					size="xs"
-					disabled={doSave.isPending}
-					onClick={() => {
-						const de = deserializePipeline(params.pipeline.data);
-						setNodes(de.nodes);
-						setEdges(de.edges);
-						fitView();
-					}}
-				>
-					Reload
-				</Button>
-
-				{false ? (
-					<Button
-						fullWidth
-						variant="subtle"
-						size="xs"
-						color="red"
-						onClick={savePipeline}
-						loading={doSave.isPending}
-					>
-						Save (!)
-					</Button>
-				) : (
-					<Button
-						fullWidth
-						variant="subtle"
-						size="xs"
-						onClick={savePipeline}
-						loading={doSave.isPending}
-					>
-						Save
-					</Button>
-				)}
-			</Button.Group>
-		</>
-	);
-}
-
-function Main() {
-	const { setNodes, setEdges, fitView } = useReactFlow();
-	const { flow, getFlow } = useFlow();
 	const qc = useQueryClient();
+
 	const [pipeline, _setPipeline] = useState<
 		components["schemas"]["PipelineInfo"] | null
 	>(null);
-
-	const setPipeline = (
-		pipeline: components["schemas"]["PipelineInfo"] | null,
-	) => {
-		if (pipeline === null) {
-			setNodes([]);
-			setEdges([]);
-			fitView();
-		} else {
-			const de = deserializePipeline(pipeline.data);
-			setNodes(de.nodes);
-			setEdges(de.edges);
-			fitView();
-		}
-
-		_setPipeline(pipeline);
-	};
 
 	const pipelines = useQuery({
 		queryKey: ["pipeline/list"],
@@ -255,6 +52,31 @@ function Main() {
 			return res.data!;
 		},
 	});
+
+	const setPipeline = useCallback(
+		(pipeline: components["schemas"]["PipelineInfo"] | null, fit?: boolean) => {
+			if (pipeline === null) {
+				setNodes([]);
+				setEdges([]);
+			} else {
+				const de = deserializePipeline(pipeline.data);
+				setNodes(de.nodes);
+				setEdges(de.edges);
+			}
+
+			_setPipeline(pipeline);
+
+			// Hack that makes sure `fitView` is called _after_ nodes are updated
+			setTimeout(() => {
+				if (fit) {
+					fitView();
+				}
+
+				setModified(false);
+			}, 100);
+		},
+		[fitView, setEdges, setNodes],
+	);
 
 	const { open: openAddPipeline, modal: modalAddPipeline } =
 		useAddPipelineModal({
@@ -279,12 +101,13 @@ function Main() {
 							variant="subtle"
 							size="xs"
 							onClick={openAddPipeline}
+							disabled={isModified}
 						>
 							New pipeline
 						</Button>
 
 						<Select
-							disabled={pipelines.data === undefined}
+							disabled={pipelines.data === undefined || isModified}
 							data={
 								pipelines.data === undefined || pipeline?.data === null
 									? []
@@ -307,15 +130,70 @@ function Main() {
 						/>
 
 						{pipeline === null ? null : (
-							<PipelineButtons
-								pipeline={pipeline}
-								getFlow={getFlow}
-								onChange={(select) => {
-									qc.invalidateQueries({ queryKey: ["dataset/list"] });
-									pipelines.refetch();
-									setPipeline(select);
-								}}
-							/>
+							<>
+								<Button.Group style={{ width: "100%" }}>
+									<PipelineDeleteButton
+										pipeline={pipeline}
+										getFlow={getFlow}
+										disabled={isModified}
+										onSuccess={() => {
+											qc.invalidateQueries({ queryKey: ["dataset/list"] });
+											pipelines.refetch();
+											setPipeline(null);
+										}}
+									/>
+
+									<PipelineRenameButton
+										pipeline={pipeline}
+										getFlow={getFlow}
+										disabled={isModified}
+										onSuccess={(select) => {
+											qc.invalidateQueries({ queryKey: ["dataset/list"] });
+											pipelines.refetch();
+											setPipeline(select);
+										}}
+									/>
+								</Button.Group>
+
+								{!isModified ? null : (
+									<>
+										<Text ta="center" c="dimmed" size="xs">
+											Pipeline has been modified. Save or reload to rename,
+											delete, or select another pipeline.
+										</Text>
+									</>
+								)}
+
+								<Button.Group style={{ width: "100%" }}>
+									<PipelineReloadButton
+										pipeline={pipeline}
+										getFlow={getFlow}
+										disabled={!isModified}
+										onClick={() => {
+											qc.invalidateQueries({ queryKey: ["dataset/list"] });
+											pipelines.refetch();
+											setPipeline(pipeline);
+										}}
+									/>
+
+									<PipelineSaveButton
+										pipeline={pipeline}
+										getFlow={getFlow}
+										disabled={!isModified}
+										onSuccess={(new_pipeline) => {
+											qc.invalidateQueries({ queryKey: ["dataset/list"] });
+											pipelines.refetch();
+											setPipeline(new_pipeline, false);
+										}}
+									/>
+								</Button.Group>
+
+								{isModified ? null : (
+									<Text ta="center" c="dimmed" size="xs">
+										Pipeline has not been modified.
+									</Text>
+								)}
+							</>
 						)}
 					</div>
 
@@ -323,8 +201,8 @@ function Main() {
 						<div className={style.tools_section_title}>Add nodes</div>
 
 						{pipeline !== null ? null : (
-							<Text ta="center" c="red" size="sm">
-								Disabled. Select a pipeline before adding nodes
+							<Text ta="center" c="dimmed" size="sm">
+								No pipeline selected. Select a pipeline before adding nodes.
 							</Text>
 						)}
 
@@ -335,6 +213,9 @@ function Main() {
 								node_type="pipelineinput"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
 								disabled={pipeline === null}
 							/>
 
@@ -343,6 +224,9 @@ function Main() {
 								node_type="constant"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
 								disabled={pipeline === null}
 							/>
 
@@ -351,6 +235,9 @@ function Main() {
 								node_type="ifnone"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
 								disabled={pipeline === null}
 							/>
 
@@ -359,6 +246,9 @@ function Main() {
 								node_type="hash"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
 								disabled={pipeline === null}
 							/>
 						</div>
@@ -370,6 +260,9 @@ function Main() {
 								node_type="additem"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
 								disabled={pipeline === null}
 							/>
 						</div>
@@ -381,6 +274,9 @@ function Main() {
 								node_type="striptags"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
 								disabled={pipeline === null}
 							/>
 							<AddNodeButton
@@ -388,6 +284,9 @@ function Main() {
 								node_type="extracttags"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
 								disabled={pipeline === null}
 							/>
 							<AddNodeButton
@@ -395,6 +294,9 @@ function Main() {
 								node_type="extractcovers"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
 								disabled={pipeline === null}
 							/>
 						</div>
