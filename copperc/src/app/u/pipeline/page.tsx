@@ -13,7 +13,7 @@ import nodestyle from "./_nodes/nodes.module.scss";
 import "@xyflow/react/dist/style.css";
 
 import { useFlow } from "./flow";
-import { ActionIcon, Button, Select } from "@mantine/core";
+import { ActionIcon, Button, Select, Text } from "@mantine/core";
 import { components } from "@/lib/api/openapi";
 import { InfoIcon } from "lucide-react";
 import { nodeDefinitions } from "./_nodes";
@@ -26,6 +26,7 @@ import { useRenamePipelineModal } from "./_modals/renamepipeline";
 function AddNodeButton(params: {
 	text: string;
 	node_type: string;
+	disabled: boolean;
 
 	setNodes: Dispatch<SetStateAction<Node[]>>;
 	onInfo: () => void;
@@ -39,6 +40,7 @@ function AddNodeButton(params: {
 	return (
 		<div className={style.add_node_button}>
 			<ActionIcon
+				disabled={params.disabled}
 				variant="transparent"
 				aria-label="Settings"
 				onClick={params.onInfo}
@@ -49,6 +51,7 @@ function AddNodeButton(params: {
 				fullWidth
 				variant="light"
 				size="xs"
+				disabled={params.disabled}
 				onClick={() => {
 					const id = getId();
 
@@ -454,6 +457,12 @@ function Main() {
 					<div className={style.tools_section}>
 						<div className={style.tools_section_title}>Add nodes</div>
 
+						{pipeline !== null ? null : (
+							<Text ta="center" c="red" size="sm">
+								Disabled. Select a pipeline before adding nodes
+							</Text>
+						)}
+
 						<div className={style.node_group}>
 							<div className={style.node_group_title}>Base</div>
 							<AddNodeButton
@@ -461,6 +470,7 @@ function Main() {
 								node_type="pipelineinput"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								disabled={pipeline === null}
 							/>
 
 							<AddNodeButton
@@ -468,6 +478,7 @@ function Main() {
 								node_type="constant"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								disabled={pipeline === null}
 							/>
 
 							<AddNodeButton
@@ -475,6 +486,7 @@ function Main() {
 								node_type="ifnone"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								disabled={pipeline === null}
 							/>
 
 							<AddNodeButton
@@ -482,6 +494,7 @@ function Main() {
 								node_type="hash"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								disabled={pipeline === null}
 							/>
 						</div>
 
@@ -492,6 +505,7 @@ function Main() {
 								node_type="additem"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								disabled={pipeline === null}
 							/>
 						</div>
 
@@ -502,18 +516,21 @@ function Main() {
 								node_type="striptags"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								disabled={pipeline === null}
 							/>
 							<AddNodeButton
 								text="Extract tags"
 								node_type="extracttags"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								disabled={pipeline === null}
 							/>
 							<AddNodeButton
 								text="Extract covers"
 								node_type="extractcovers"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								disabled={pipeline === null}
 							/>
 						</div>
 					</div>
