@@ -22,6 +22,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
 import { useDeletePipelineModal } from "./_modals/deletepipeline";
 import { useRenamePipelineModal } from "./_modals/renamepipeline";
+import { deserializePipeline, serializePipeline } from "./serde";
 
 function AddNodeButton(params: {
 	text: string;
@@ -91,10 +92,10 @@ function getId(): string {
 
 function PipelineButtons(params: {
 	pipeline: components["schemas"]["PipelineInfo"];
-	getFlow: () => ReactFlowJsonObject<Node, Edge> | null;
+	getFlow: () => ReactFlowJsonObject<Node, Edge>;
 	onChange: (select: components["schemas"]["PipelineInfo"] | null) => void;
 }) {
-	const { setViewport, setNodes, setEdges } = useReactFlow();
+	const { setNodes, setEdges, fitView } = useReactFlow();
 
 	const { open: openDeletePipeline, modal: modalDeletePipeline } =
 		useDeletePipelineModal({
@@ -133,127 +134,15 @@ function PipelineButtons(params: {
 
 	const savePipeline = useCallback(() => {
 		const raw = params.getFlow();
-		console.log(raw);
+		const res = serializePipeline(raw);
 
-		if (raw === null) {
+		if (res.result === "error") {
+			console.error(`Could not serialize pipeline.`);
+			console.error(res.message);
 			return;
 		}
 
-		const nodes: components["schemas"]["PipelineJson"]["nodes"] = {};
-		raw.nodes.forEach((node) => {
-			if (node.type === undefined) {
-				return;
-			}
-
-			const nodedef = nodeDefinitions[node.type];
-			if (nodedef === undefined) {
-				return;
-			}
-
-			const ex = nodedef.serialize(node);
-			if (ex === null) {
-				return;
-			}
-
-			nodes[node.id] = {
-				node_type: nodedef.node_type,
-				position: node.position,
-				params: ex,
-			};
-		});
-
-		const edges: components["schemas"]["PipelineJson"]["edges"] = {};
-		raw.edges.forEach((edge) => {
-			let sourcePort = edge.sourceHandle;
-			if (sourcePort === null || sourcePort === undefined) {
-				const node = raw.nodes.find((x) => x.id === edge.source);
-				if (node === undefined) {
-					console.error(
-						`Could not find node ${edge.source} (referenced by edge ${edge.id})`,
-					);
-					return;
-				}
-
-				if (node.handles === undefined || node.handles.length === 0) {
-					console.error(
-						`Node ${edge.source} has no handles, but is connected to an edge ${edge.id}`,
-					);
-					return;
-				}
-
-				const firsthandle = node.handles[0];
-				if (firsthandle === undefined || node.handles.length !== 1) {
-					console.error(
-						`Edge ${edge.id} does not give an explicit handle for node ${edge.source}, but that node has multiple edges.`,
-					);
-					return;
-				}
-
-				sourcePort = firsthandle.id;
-
-				if (sourcePort === null || sourcePort === undefined) {
-					console.error(
-						`Handle of ${edge.id} on ${edge.source} doesn't have an id.`,
-					);
-					return;
-				}
-			}
-			const source: components["schemas"]["InputPort"] = {
-				node: edge.source,
-				port: sourcePort,
-			};
-
-			let targetPort = edge.targetHandle;
-			if (targetPort === null || targetPort === undefined) {
-				const node = raw.nodes.find((x) => x.id === edge.target);
-				if (node === undefined) {
-					console.error(
-						`Could not find node ${edge.target} (referenced by edge ${edge.id})`,
-					);
-					return;
-				}
-
-				if (node.handles === undefined || node.handles.length === 0) {
-					console.error(
-						`Node ${edge.target} has no handles, but is connected to an edge ${edge.id}`,
-					);
-					return;
-				}
-
-				const firsthandle = node.handles[0];
-				if (firsthandle === undefined || node.handles.length !== 1) {
-					console.error(
-						`Edge ${edge.id} does not give an explicit handle for node ${edge.target}, but that node has multiple edges.`,
-					);
-					return;
-				}
-
-				targetPort = firsthandle.id;
-
-				if (targetPort === null || targetPort === undefined) {
-					console.error(
-						`Handle of ${edge.id} on ${edge.target} doesn't have an id.`,
-					);
-					return;
-				}
-			}
-			const target: components["schemas"]["OutputPort"] = {
-				node: edge.target,
-				port: targetPort,
-			};
-
-			edges[edge.id] = {
-				source,
-				target,
-			};
-		});
-
-		console.log(edges);
-
-		doSave.mutate({
-			nodes,
-			edges,
-		});
+		doSave.mutate(res.value);
 	}, [doSave, params]);
 
 	return (
@@ -289,55 +178,11 @@ function PipelineButtons(params: {
 					size="xs"
 					disabled={doSave.isPending}
 					onClick={() => {
-						setNodes(
-							Object.entries(params.pipeline.data.nodes)
-								.map((x) => {
-									const v = x[1];
+						const de = deserializePipeline(params.pipeline.data);
 
-									const nodedef = Object.entries(nodeDefinitions).find(
-										(x) => x[1].node_type === v.node_type,
-									);
-									if (nodedef === undefined) {
-										console.error(`Unknown node type ${v.node_type}`);
-										return null;
-									}
-
-									const des = nodedef[1].deserialize(v);
-									if (des === null) {
-										return null;
-									}
-
-									const node: Node = {
-										id: x[0],
-										type: nodedef[1].key,
-										position: v.position,
-										data: des,
-										origin: [0.5, 0.0],
-										dragHandle: `.${nodestyle.node_top_label}`,
-									};
-
-									return node;
-								})
-								.filter((x) => x !== null),
-						);
-
-						setEdges(
-							Object.entries(params.pipeline.data.edges).map((x) => {
-								const v = x[1];
-								const edge: Edge = {
-									type: "default",
-									id: x[0],
-									source: v.source.node,
-									sourceHandle: v.source.port,
-									target: v.target.node,
-									targetHandle: v.target.port,
-								};
-
-								return edge;
-							}),
-						);
-
-						setViewport({ x: 0, y: 0, zoom: 1 });
+						setNodes(de.nodes);
+						setEdges(de.edges);
+						fitView();
 					}}
 				>
 					Reload
