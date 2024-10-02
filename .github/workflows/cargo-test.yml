@@ -4,11 +4,26 @@ name: Cargo test
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: storaged-test
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: admin
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      working-directory: ./copperd
-      run: cargo build
-    - name: Test
-      working-directory: ./copperd
-      run: cargo test --workspace
+      - uses: actions/checkout@v4
+      - name: Build
+        working-directory: ./copperd
+        run: cargo build
+      - name: Test
+        working-directory: ./copperd
+        run: cargo test --workspace
