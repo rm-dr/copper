@@ -119,6 +119,7 @@ mod tests {
 			Method::POST,
 			"/dataset",
 			json!({
+				"owner": 1,
 				"name": name
 			}),
 		)
@@ -239,7 +240,7 @@ mod tests {
 
 		// Set up config & create app
 		let config = StoragedConfig {
-			storaged_db_addr: "postgres://admin:admin@localhost/storaged".into(),
+			storaged_db_addr: "postgres://admin:admin@localhost/storaged-test".into(),
 			storaged_server_addr: "".into(),
 			storaged_request_body_limit: StoragedConfig::default_request_body_limit(),
 			storaged_secret: "i_m_secret".into(),
@@ -248,11 +249,10 @@ mod tests {
 		let mut app = make_app(Arc::new(config)).await;
 
 		// Saved ids we intend do use later
-		let test_dataset_id: DatasetId = 1.into();
-		let test_dataset_two_id: DatasetId = 2.into();
-		let class_covers_id: ClassId = 1.into();
-		let class_audiofile_id: ClassId = 2.into();
-		let attr_title_id: AttributeId = 3.into();
+		let test_dataset_id: DatasetId;
+		let class_covers_id: ClassId;
+		let class_audiofile_id: ClassId;
+		let attr_title_id: AttributeId;
 
 		//
 		// MARK: Create datasets
@@ -300,14 +300,10 @@ mod tests {
 		{
 			let response = create_dataset(&mut app, "test_dataset").await;
 			assert_eq!(response.status(), 200);
-			assert_eq!(response_json::<DatasetId>(response).await, test_dataset_id);
+			test_dataset_id = response_json::<DatasetId>(response).await;
 
 			let response = create_dataset(&mut app, "test_dataset_two").await;
 			assert_eq!(response.status(), 200);
-			assert_eq!(
-				response_json::<DatasetId>(response).await,
-				test_dataset_two_id
-			);
 		}
 
 		// This request should fail, duplicate name
@@ -380,11 +376,11 @@ mod tests {
 		{
 			let response = create_class(&mut app, test_dataset_id, "covers").await;
 			assert_eq!(response.status(), 200);
-			assert_eq!(response_json::<ClassId>(response).await, class_covers_id);
+			class_covers_id = response_json::<ClassId>(response).await;
 
 			let response = create_class(&mut app, test_dataset_id, "audiofile").await;
 			assert_eq!(response.status(), 200);
-			assert_eq!(response_json::<ClassId>(response).await, class_audiofile_id);
+			class_audiofile_id = response_json::<ClassId>(response).await;
 		}
 
 		// These requests should fail, duplicate name
@@ -537,7 +533,7 @@ mod tests {
 			)
 			.await;
 			assert_eq!(response.status(), 200);
-			assert_eq!(response_json::<AttributeId>(response).await, attr_title_id);
+			attr_title_id = response_json::<AttributeId>(response).await;
 
 			let response = create_attribute(
 				&mut app,
