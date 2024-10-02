@@ -703,7 +703,7 @@ mod tests {
 								{
 									assert_eq!(
 										*got_tag,
-										TagType::from_str(*exp_tag).unwrap(),
+										TagType::from_str(exp_tag).unwrap(),
 										"Tag key doesn't match"
 									);
 									assert_eq!(

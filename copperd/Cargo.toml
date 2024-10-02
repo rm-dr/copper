@@ -59,7 +59,7 @@ missing_docs = "allow"
 [workspace.lints.clippy]
 needless_return = "allow"
 new_without_default = "allow"
-
+tabs_in_doc_comments = "allow"
 
 [workspace.dependencies]
 # Shared libraries
