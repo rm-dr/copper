@@ -44,8 +44,8 @@ function IfNoneNodeElement({ data, id }: NodeProps<IfNoneNodeType>) {
 }
 
 export const IfNoneNode: NodeDef<IfNoneNodeType> = {
-	key: "ifnone",
-	node_type: "IfNone",
+	xyflow_node_type: "ifnone",
+	copper_node_type: "IfNone",
 	node: IfNoneNodeElement,
 
 	initialData: {

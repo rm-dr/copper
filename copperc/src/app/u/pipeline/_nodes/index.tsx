@@ -10,8 +10,10 @@ import { StripTagsNode } from "./striptags";
 import { Node, NodeProps, NodeTypes } from "@xyflow/react";
 
 export type NodeDef<NodeType extends Node> = {
-	key: string;
-	node_type: string;
+	xyflow_node_type: string;
+	copper_node_type: string;
+
+	minimap_color?: string;
 
 	node: (props: NodeProps<NodeType>) => JSX.Element;
 	initialData: NodeType["data"];
@@ -34,16 +36,16 @@ export type NodeDef<NodeType extends Node> = {
 
 // eslint-disable-next-line
 export const nodeDefinitions: Record<string, NodeDef<any>> = {
-	[InputNode.key]: InputNode,
-	[ConstantNode.key]: ConstantNode,
-	[IfNoneNode.key]: IfNoneNode,
-	[HashNode.key]: HashNode,
+	[InputNode.xyflow_node_type]: InputNode,
+	[ConstantNode.xyflow_node_type]: ConstantNode,
+	[IfNoneNode.xyflow_node_type]: IfNoneNode,
+	[HashNode.xyflow_node_type]: HashNode,
 
-	[StripTagsNode.key]: StripTagsNode,
-	[ExtractCoversNode.key]: ExtractCoversNode,
-	[ExtractTagsNode.key]: ExtractTagsNode,
+	[StripTagsNode.xyflow_node_type]: StripTagsNode,
+	[ExtractCoversNode.xyflow_node_type]: ExtractCoversNode,
+	[ExtractTagsNode.xyflow_node_type]: ExtractTagsNode,
 
-	[AddItemNode.key]: AddItemNode,
+	[AddItemNode.xyflow_node_type]: AddItemNode,
 } as const;
 
 export const nodeTypes = Object.keys(nodeDefinitions).reduce((res, key) => {

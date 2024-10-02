@@ -104,8 +104,8 @@ function ConstantNodeElement({ data, id }: NodeProps<ConstantNodeType>) {
 }
 
 export const ConstantNode: NodeDef<ConstantNodeType> = {
-	key: "constant",
-	node_type: "Constant",
+	xyflow_node_type: "constant",
+	copper_node_type: "Constant",
 	node: ConstantNodeElement,
 
 	initialData: {

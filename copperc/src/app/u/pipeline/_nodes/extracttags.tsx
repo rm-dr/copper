@@ -33,8 +33,8 @@ function ExtractTagsNodeElement({ id }: NodeProps<ExtractTagsNodeType>) {
 }
 
 export const ExtractTagsNode: NodeDef<ExtractTagsNodeType> = {
-	key: "extracttags",
-	node_type: "ExtractTags",
+	xyflow_node_type: "extracttags",
+	copper_node_type: "ExtractTags",
 	node: ExtractTagsNodeElement,
 
 	initialData: {},

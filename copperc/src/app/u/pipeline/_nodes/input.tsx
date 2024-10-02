@@ -41,9 +41,11 @@ function InputNodeElement({ id }: NodeProps<InputNodeType>) {
 
 export const InputNode: NodeDef<InputNodeType> = {
 	// The "input" node class is already taken
-	key: "pipelineinput",
-	node_type: "Input",
+	xyflow_node_type: "pipelineinput",
+	copper_node_type: "Input",
 	node: InputNodeElement,
+
+	minimap_color: "var(--mantine-primary-color-5)",
 
 	initialData: {},
 

@@ -18,8 +18,8 @@ function ExtractCoversNodeElement({ id }: NodeProps<ExtractCoversNodeType>) {
 }
 
 export const ExtractCoversNode: NodeDef<ExtractCoversNodeType> = {
-	key: "extractcovers",
-	node_type: "ExtractCovers",
+	xyflow_node_type: "extractcovers",
+	copper_node_type: "ExtractCovers",
 	node: ExtractCoversNodeElement,
 
 	initialData: {},
