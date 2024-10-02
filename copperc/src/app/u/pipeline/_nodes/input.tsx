@@ -18,6 +18,7 @@ function InputNodeElement({ id }: NodeProps<InputNodeType>) {
 				id={id}
 				title={"Input"}
 				outputs={[{ id: "out", tooltip: "Input value", type: valuetype }]}
+				top_color="var(--mantine-color-green-8)"
 			>
 				<Select
 					label="Data type"
@@ -45,7 +46,7 @@ export const InputNode: NodeDef<InputNodeType> = {
 	copper_node_type: "Input",
 	node: InputNodeElement,
 
-	minimap_color: "var(--mantine-primary-color-5)",
+	minimap_color: "var(--mantine-color-green-8)",
 
 	initialData: {},
 
