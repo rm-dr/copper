@@ -24,6 +24,7 @@ export function BaseNode(params: {
 	title: string;
 	id: Node["id"];
 	children?: ReactNode;
+	top_color?: string;
 
 	outputs?: {
 		type: (typeof attrTypes)[number]["serialize_as"];
@@ -42,7 +43,14 @@ export function BaseNode(params: {
 	return (
 		<>
 			<div className={style.node_body}>
-				<div className={style.node_top}>
+				<div
+					className={style.node_top}
+					style={
+						params.top_color === undefined
+							? { background: "var(--mantine-primary-color-5)" }
+							: { background: params.top_color }
+					}
+				>
 					<div className={style.node_top_label}>{params.title}</div>
 					<div className={style.node_top_delete}>
 						<ActionIcon

@@ -24,7 +24,7 @@ import {
 import style from "./flow.module.scss";
 import "@xyflow/react/dist/style.css";
 
-import { nodeTypes } from "./_nodes";
+import { nodeDefinitions, nodeTypes } from "./_nodes";
 
 export function useFlow(params: { onModify: () => void }) {
 	const [nodes, setNodes] = useState<Node[]>([]);
@@ -126,11 +126,18 @@ export function useFlow(params: { onModify: () => void }) {
 
 				<MiniMap
 					nodeColor={(node) => {
-						if ("color" in node.data && typeof node.data.color === "string") {
-							return node.data.color;
-						} else {
+						const nodedef = Object.entries(nodeDefinitions).find(
+							(x) => x[1].xyflow_node_type === node.type,
+						);
+
+						if (
+							nodedef === undefined ||
+							nodedef[1].minimap_color === undefined
+						) {
 							return "var(--mantine-color-dark-2)";
 						}
+
+						return nodedef[1].minimap_color!;
 					}}
 				/>
 			</ReactFlow>

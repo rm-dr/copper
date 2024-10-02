@@ -18,6 +18,7 @@ function InputNodeElement({ id }: NodeProps<InputNodeType>) {
 				id={id}
 				title={"Input"}
 				outputs={[{ id: "out", tooltip: "Input value", type: valuetype }]}
+				top_color="var(--mantine-color-green-8)"
 			>
 				<Select
 					label="Data type"
@@ -41,9 +42,11 @@ function InputNodeElement({ id }: NodeProps<InputNodeType>) {
 
 export const InputNode: NodeDef<InputNodeType> = {
 	// The "input" node class is already taken
-	key: "pipelineinput",
-	node_type: "Input",
+	xyflow_node_type: "pipelineinput",
+	copper_node_type: "Input",
 	node: InputNodeElement,
+
+	minimap_color: "var(--mantine-color-green-8)",
 
 	initialData: {},
 

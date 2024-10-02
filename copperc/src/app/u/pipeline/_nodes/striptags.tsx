@@ -24,8 +24,8 @@ function StripTagsNodeElement({ id }: NodeProps<StripTagsNodeType>) {
 }
 
 export const StripTagsNode: NodeDef<StripTagsNodeType> = {
-	key: "striptags",
-	node_type: "StripTags",
+	xyflow_node_type: "striptags",
+	copper_node_type: "StripTags",
 	node: StripTagsNodeElement,
 
 	initialData: {},

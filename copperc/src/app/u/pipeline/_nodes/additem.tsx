@@ -128,8 +128,8 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 }
 
 export const AddItemNode: NodeDef<AddItemNodeType> = {
-	key: "additem",
-	node_type: "AddItem",
+	xyflow_node_type: "additem",
+	copper_node_type: "AddItem",
 	node: AddItemNodeElement,
 
 	initialData: {

@@ -42,8 +42,8 @@ function HashNodeElement({ data, id }: NodeProps<HashNodeType>) {
 }
 
 export const HashNode: NodeDef<HashNodeType> = {
-	key: "hash",
-	node_type: "Hash",
+	xyflow_node_type: "hash",
+	copper_node_type: "Hash",
 	node: HashNodeElement,
 
 	initialData: {

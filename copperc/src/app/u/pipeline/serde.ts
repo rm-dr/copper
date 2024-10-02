@@ -33,7 +33,7 @@ export function serializePipeline(
 		}
 
 		nodes[node.id] = {
-			node_type: nodedef.node_type,
+			node_type: nodedef.copper_node_type,
 			position: node.position,
 			params: ex,
 		};
@@ -139,7 +139,7 @@ export function deserializePipeline(
 			const v = x[1];
 
 			const nodedef = Object.entries(nodeDefinitions).find(
-				(x) => x[1].node_type === v.node_type,
+				(x) => x[1].copper_node_type === v.node_type,
 			);
 			if (nodedef === undefined) {
 				console.error(`Unknown node type ${v.node_type}`);
@@ -153,7 +153,7 @@ export function deserializePipeline(
 
 			const node: Node = {
 				id: x[0],
-				type: nodedef[1].key,
+				type: nodedef[1].xyflow_node_type,
 				position: v.position,
 				data: des,
 				origin: [0.5, 0.0],
