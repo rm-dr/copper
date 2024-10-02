@@ -1,376 +1,38 @@
 "use client";
-import React, { Dispatch, SetStateAction, useCallback, useState } from "react";
-import {
-	Edge,
-	Node,
-	ReactFlowJsonObject,
-	ReactFlowProvider,
-	useReactFlow,
-} from "@xyflow/react";
 
 import style from "./pipeline.module.scss";
-import nodestyle from "./_nodes/nodes.module.scss";
 import "@xyflow/react/dist/style.css";
 
-import { useFlow } from "./flow";
-import { ActionIcon, Button, Select } from "@mantine/core";
+import React, { useCallback, useState } from "react";
+import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { components } from "@/lib/api/openapi";
-import { InfoIcon } from "lucide-react";
-import { nodeDefinitions } from "./_nodes";
-import { useAddPipelineModal } from "./_modals/addpipeline";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
-import { useDeletePipelineModal } from "./_modals/deletepipeline";
-import { useRenamePipelineModal } from "./_modals/renamepipeline";
+import { Button, Select, Text } from "@mantine/core";
 
-function AddNodeButton(params: {
-	text: string;
-	node_type: string;
+import { useAddPipelineModal } from "./_modals/addpipeline";
+import { useFlow } from "./flow";
+import { deserializePipeline } from "./serde";
+import {
+	AddNodeButton,
+	PipelineDeleteButton,
+	PipelineReloadButton,
+	PipelineRenameButton,
+	PipelineSaveButton,
+} from "./buttons";
 
-	setNodes: Dispatch<SetStateAction<Node[]>>;
-	onInfo: () => void;
-}) {
-	const node = nodeDefinitions[params.node_type];
-	if (node === undefined) {
-		console.error(`Unknown node type ${params.node_type}`);
-		return;
-	}
-
-	return (
-		<div className={style.add_node_button}>
-			<ActionIcon
-				variant="transparent"
-				aria-label="Settings"
-				onClick={params.onInfo}
-			>
-				<InfoIcon size={"1rem"} />
-			</ActionIcon>
-			<Button
-				fullWidth
-				variant="light"
-				size="xs"
-				onClick={() => {
-					const id = getId();
-
-					const newNode: Node = {
-						id,
-						type: params.node_type,
-						position: { x: 0, y: 0 },
-						data: node.initialData,
-						origin: [0.5, 0.0],
-						dragHandle: `.${nodestyle.node_top_label}`,
-					};
-
-					params.setNodes((nodes) => nodes.concat(newNode));
-				}}
-			>
-				{params.text}
-			</Button>
-		</div>
-	);
-}
-
-/**
- * Generate a unique node id
- */
-function getId(): string {
-	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-	const length = 10;
-
-	let rand = "";
-	const charactersLength = characters.length;
-	for (let i = 0; i < length; i++) {
-		rand += characters.charAt(Math.floor(Math.random() * charactersLength));
-	}
-
-	return `node-${rand}-${new Date().valueOf()}`;
-}
-
-function PipelineButtons(params: {
-	pipeline: components["schemas"]["PipelineInfo"];
-	getFlow: () => ReactFlowJsonObject<Node, Edge> | null;
-	onChange: (select: components["schemas"]["PipelineInfo"] | null) => void;
-}) {
-	const { setViewport, setNodes, setEdges } = useReactFlow();
-
-	const { open: openDeletePipeline, modal: modalDeletePipeline } =
-		useDeletePipelineModal({
-			pipeline_id: params.pipeline.id,
-			pipeline_name: params.pipeline.name,
-			onSuccess: () => params.onChange(null),
-		});
-
-	const { open: openRenamePipeline, modal: modalRenamePipeline } =
-		useRenamePipelineModal({
-			pipeline_id: params.pipeline.id,
-			pipeline_name: params.pipeline.name,
-			onSuccess: params.onChange,
-		});
-
-	const doSave = useMutation({
-		mutationFn: async (new_data: components["schemas"]["PipelineJson"]) => {
-			return await edgeclient.PATCH("/pipeline/{pipeline_id}", {
-				params: { path: { pipeline_id: params.pipeline.id } },
-				body: { new_data },
-			});
-		},
-
-		onSuccess: async (res) => {
-			if (res.response.status === 200) {
-				params.onChange(res.data!);
-			} else {
-				throw new Error(res.error);
-			}
-		},
-
-		onError: (err) => {
-			throw err;
+function Main() {
+	const [isModified, setModified] = useState<boolean>(false);
+	const { setNodes, setEdges, fitView } = useReactFlow();
+	const { flow, getFlow } = useFlow({
+		onModify: () => {
+			setModified(true);
 		},
 	});
 
-	const savePipeline = useCallback(() => {
-		const raw = params.getFlow();
-		console.log(raw);
-
-		if (raw === null) {
-			return;
-		}
-
-		const nodes: components["schemas"]["PipelineJson"]["nodes"] = {};
-		raw.nodes.forEach((node) => {
-			if (node.type === undefined) {
-				return;
-			}
-
-			const nodedef = nodeDefinitions[node.type];
-			if (nodedef === undefined) {
-				return;
-			}
-
-			const ex = nodedef.serialize(node);
-			if (ex === null) {
-				return;
-			}
-
-			nodes[node.id] = {
-				node_type: nodedef.node_type,
-				position: node.position,
-				params: ex,
-			};
-		});
-
-		const edges: components["schemas"]["PipelineJson"]["edges"] = {};
-		raw.edges.forEach((edge) => {
-			let sourcePort = edge.sourceHandle;
-			if (sourcePort === null || sourcePort === undefined) {
-				const node = raw.nodes.find((x) => x.id === edge.source);
-				if (node === undefined) {
-					console.error(
-						`Could not find node ${edge.source} (referenced by edge ${edge.id})`,
-					);
-					return;
-				}
-
-				if (node.handles === undefined || node.handles.length === 0) {
-					console.error(
-						`Node ${edge.source} has no handles, but is connected to an edge ${edge.id}`,
-					);
-					return;
-				}
-
-				const firsthandle = node.handles[0];
-				if (firsthandle === undefined || node.handles.length !== 1) {
-					console.error(
-						`Edge ${edge.id} does not give an explicit handle for node ${edge.source}, but that node has multiple edges.`,
-					);
-					return;
-				}
-
-				sourcePort = firsthandle.id;
-
-				if (sourcePort === null || sourcePort === undefined) {
-					console.error(
-						`Handle of ${edge.id} on ${edge.source} doesn't have an id.`,
-					);
-					return;
-				}
-			}
-			const source: components["schemas"]["InputPort"] = {
-				node: edge.source,
-				port: sourcePort,
-			};
-
-			let targetPort = edge.targetHandle;
-			if (targetPort === null || targetPort === undefined) {
-				const node = raw.nodes.find((x) => x.id === edge.target);
-				if (node === undefined) {
-					console.error(
-						`Could not find node ${edge.target} (referenced by edge ${edge.id})`,
-					);
-					return;
-				}
-
-				if (node.handles === undefined || node.handles.length === 0) {
-					console.error(
-						`Node ${edge.target} has no handles, but is connected to an edge ${edge.id}`,
-					);
-					return;
-				}
-
-				const firsthandle = node.handles[0];
-				if (firsthandle === undefined || node.handles.length !== 1) {
-					console.error(
-						`Edge ${edge.id} does not give an explicit handle for node ${edge.target}, but that node has multiple edges.`,
-					);
-					return;
-				}
-
-				targetPort = firsthandle.id;
-
-				if (targetPort === null || targetPort === undefined) {
-					console.error(
-						`Handle of ${edge.id} on ${edge.target} doesn't have an id.`,
-					);
-					return;
-				}
-			}
-			const target: components["schemas"]["OutputPort"] = {
-				node: edge.target,
-				port: targetPort,
-			};
-
-			edges[edge.id] = {
-				source,
-				target,
-			};
-		});
-
-		console.log(edges);
-
-		doSave.mutate({
-			nodes,
-			edges,
-		});
-	}, [doSave, params]);
-
-	return (
-		<>
-			{modalDeletePipeline}
-			{modalRenamePipeline}
-			<Button.Group style={{ width: "100%" }}>
-				<Button
-					fullWidth
-					variant="subtle"
-					size="xs"
-					onClick={openDeletePipeline}
-					disabled={doSave.isPending}
-				>
-					Delete
-				</Button>
-
-				<Button
-					fullWidth
-					variant="subtle"
-					size="xs"
-					onClick={openRenamePipeline}
-					disabled={doSave.isPending}
-				>
-					Rename
-				</Button>
-			</Button.Group>
-
-			<Button.Group style={{ width: "100%" }}>
-				<Button
-					fullWidth
-					variant="subtle"
-					size="xs"
-					disabled={doSave.isPending}
-					onClick={() => {
-						setNodes(
-							Object.entries(params.pipeline.data.nodes)
-								.map((x) => {
-									const v = x[1];
-
-									const nodedef = Object.entries(nodeDefinitions).find(
-										(x) => x[1].node_type === v.node_type,
-									);
-									if (nodedef === undefined) {
-										console.error(`Unknown node type ${v.node_type}`);
-										return null;
-									}
-
-									const des = nodedef[1].deserialize(v);
-									if (des === null) {
-										return null;
-									}
-
-									const node: Node = {
-										id: x[0],
-										type: nodedef[1].key,
-										position: v.position,
-										data: des,
-										origin: [0.5, 0.0],
-										dragHandle: `.${nodestyle.node_top_label}`,
-									};
-
-									return node;
-								})
-								.filter((x) => x !== null),
-						);
-
-						setEdges(
-							Object.entries(params.pipeline.data.edges).map((x) => {
-								const v = x[1];
-								const edge: Edge = {
-									type: "default",
-									id: x[0],
-									source: v.source.node,
-									sourceHandle: v.source.port,
-									target: v.target.node,
-									targetHandle: v.target.port,
-								};
-
-								return edge;
-							}),
-						);
-
-						setViewport({ x: 0, y: 0, zoom: 1 });
-					}}
-				>
-					Reload
-				</Button>
-
-				{false ? (
-					<Button
-						fullWidth
-						variant="subtle"
-						size="xs"
-						color="red"
-						onClick={savePipeline}
-						loading={doSave.isPending}
-					>
-						Save (!)
-					</Button>
-				) : (
-					<Button
-						fullWidth
-						variant="subtle"
-						size="xs"
-						onClick={savePipeline}
-						loading={doSave.isPending}
-					>
-						Save
-					</Button>
-				)}
-			</Button.Group>
-		</>
-	);
-}
-
-function Main() {
-	const { flow, getFlow, setNodes } = useFlow();
 	const qc = useQueryClient();
-	const [pipeline, setPipeline] = useState<
+
+	const [pipeline, _setPipeline] = useState<
 		components["schemas"]["PipelineInfo"] | null
 	>(null);
 
@@ -390,6 +52,31 @@ function Main() {
 			return res.data!;
 		},
 	});
+
+	const setPipeline = useCallback(
+		(pipeline: components["schemas"]["PipelineInfo"] | null, fit?: boolean) => {
+			if (pipeline === null) {
+				setNodes([]);
+				setEdges([]);
+			} else {
+				const de = deserializePipeline(pipeline.data);
+				setNodes(de.nodes);
+				setEdges(de.edges);
+			}
+
+			_setPipeline(pipeline);
+
+			// Hack that makes sure `fitView` is called _after_ nodes are updated
+			setTimeout(() => {
+				if (fit) {
+					fitView();
+				}
+
+				setModified(false);
+			}, 100);
+		},
+		[fitView, setEdges, setNodes],
+	);
 
 	const { open: openAddPipeline, modal: modalAddPipeline } =
 		useAddPipelineModal({
@@ -414,12 +101,13 @@ function Main() {
 							variant="subtle"
 							size="xs"
 							onClick={openAddPipeline}
+							disabled={isModified}
 						>
 							New pipeline
 						</Button>
 
 						<Select
-							disabled={pipelines.data === undefined}
+							disabled={pipelines.data === undefined || isModified}
 							data={
 								pipelines.data === undefined || pipeline?.data === null
 									? []
@@ -434,25 +122,89 @@ function Main() {
 								if (int === null || pipelines.data === undefined) {
 									setPipeline(null);
 								}
-								setPipeline(pipelines.data?.find((x) => x.id === int) || null);
+								const pipeline =
+									pipelines.data?.find((x) => x.id === int) || null;
+
+								setPipeline(pipeline);
 							}}
 						/>
 
 						{pipeline === null ? null : (
-							<PipelineButtons
-								pipeline={pipeline}
-								getFlow={getFlow}
-								onChange={(select) => {
-									qc.invalidateQueries({ queryKey: ["dataset/list"] });
-									pipelines.refetch();
-									setPipeline(select);
-								}}
-							/>
+							<>
+								<Button.Group style={{ width: "100%" }}>
+									<PipelineDeleteButton
+										pipeline={pipeline}
+										getFlow={getFlow}
+										disabled={isModified}
+										onSuccess={() => {
+											qc.invalidateQueries({ queryKey: ["dataset/list"] });
+											pipelines.refetch();
+											setPipeline(null);
+										}}
+									/>
+
+									<PipelineRenameButton
+										pipeline={pipeline}
+										getFlow={getFlow}
+										disabled={isModified}
+										onSuccess={(select) => {
+											qc.invalidateQueries({ queryKey: ["dataset/list"] });
+											pipelines.refetch();
+											setPipeline(select);
+										}}
+									/>
+								</Button.Group>
+
+								{!isModified ? null : (
+									<>
+										<Text ta="center" c="dimmed" size="xs">
+											Pipeline has been modified. Save or reload to rename,
+											delete, or select another pipeline.
+										</Text>
+									</>
+								)}
+
+								<Button.Group style={{ width: "100%" }}>
+									<PipelineReloadButton
+										pipeline={pipeline}
+										getFlow={getFlow}
+										disabled={!isModified}
+										onClick={() => {
+											qc.invalidateQueries({ queryKey: ["dataset/list"] });
+											pipelines.refetch();
+											setPipeline(pipeline);
+										}}
+									/>
+
+									<PipelineSaveButton
+										pipeline={pipeline}
+										getFlow={getFlow}
+										disabled={!isModified}
+										onSuccess={(new_pipeline) => {
+											qc.invalidateQueries({ queryKey: ["dataset/list"] });
+											pipelines.refetch();
+											setPipeline(new_pipeline, false);
+										}}
+									/>
+								</Button.Group>
+
+								{isModified ? null : (
+									<Text ta="center" c="dimmed" size="xs">
+										Pipeline has not been modified.
+									</Text>
+								)}
+							</>
 						)}
 					</div>
 
 					<div className={style.tools_section}>
 						<div className={style.tools_section_title}>Add nodes</div>
+
+						{pipeline !== null ? null : (
+							<Text ta="center" c="dimmed" size="sm">
+								No pipeline selected. Select a pipeline before adding nodes.
+							</Text>
+						)}
 
 						<div className={style.node_group}>
 							<div className={style.node_group_title}>Base</div>
@@ -461,6 +213,10 @@ function Main() {
 								node_type="pipelineinput"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
+								disabled={pipeline === null}
 							/>
 
 							<AddNodeButton
@@ -468,6 +224,10 @@ function Main() {
 								node_type="constant"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
+								disabled={pipeline === null}
 							/>
 
 							<AddNodeButton
@@ -475,6 +235,10 @@ function Main() {
 								node_type="ifnone"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
+								disabled={pipeline === null}
 							/>
 
 							<AddNodeButton
@@ -482,6 +246,10 @@ function Main() {
 								node_type="hash"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
+								disabled={pipeline === null}
 							/>
 						</div>
 
@@ -492,6 +260,10 @@ function Main() {
 								node_type="additem"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
+								disabled={pipeline === null}
 							/>
 						</div>
 
@@ -502,18 +274,30 @@ function Main() {
 								node_type="striptags"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
+								disabled={pipeline === null}
 							/>
 							<AddNodeButton
 								text="Extract tags"
 								node_type="extracttags"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
+								disabled={pipeline === null}
 							/>
 							<AddNodeButton
 								text="Extract covers"
 								node_type="extractcovers"
 								setNodes={setNodes}
 								onInfo={() => {}}
+								onModify={() => {
+									setModified(true);
+								}}
+								disabled={pipeline === null}
 							/>
 						</div>
 					</div>

@@ -26,66 +26,68 @@ import "@xyflow/react/dist/style.css";
 
 import { nodeTypes } from "./_nodes";
 
-export function useFlow() {
+export function useFlow(params: { onModify: () => void }) {
 	const [nodes, setNodes] = useState<Node[]>([]);
 	const [edges, setEdges] = useState<Edge[]>([]);
 	const [rfInstance, setRfInstance] = useState<null | ReactFlowInstance>(null);
 	const edgeReconnectSuccessful = useRef(true);
 
 	const onReconnectStart = useCallback(() => {
+		params.onModify();
 		edgeReconnectSuccessful.current = false;
-	}, []);
+	}, [params]);
 
-	const onReconnect: OnReconnect = useCallback((oldEdge, newConnection) => {
-		edgeReconnectSuccessful.current = true;
-		setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
-	}, []);
+	const onReconnect: OnReconnect = useCallback(
+		(oldEdge, newConnection) => {
+			params.onModify();
+			edgeReconnectSuccessful.current = true;
+			setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
+		},
+		[params],
+	);
 
-	// eslint-disable-next-line
-	const onReconnectEnd = useCallback((_: unknown, edge: any) => {
-		if (!edgeReconnectSuccessful.current) {
-			setEdges((eds) => eds.filter((e) => e.id !== edge.id));
-		}
+	const onReconnectEnd = useCallback(
+		(_: unknown, edge: Edge) => {
+			params.onModify();
+			if (!edgeReconnectSuccessful.current) {
+				setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+			}
 
-		edgeReconnectSuccessful.current = true;
-	}, []);
+			edgeReconnectSuccessful.current = true;
+		},
+		[params],
+	);
 
 	const onNodesChange: OnNodesChange = useCallback(
-		(changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
-		[setNodes],
+		(changes) => {
+			params.onModify();
+			setNodes((nds) => applyNodeChanges(changes, nds));
+		},
+		[setNodes, params],
 	);
 	const onEdgesChange: OnEdgesChange = useCallback(
-		(changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-		[setEdges],
+		(changes) => {
+			params.onModify();
+			setEdges((eds) => applyEdgeChanges(changes, eds));
+		},
+		[setEdges, params],
 	);
 	const onConnect: OnConnect = useCallback(
-		(connection) => setEdges((eds) => addEdge(connection, eds)),
-		[setEdges],
+		(connection) => {
+			params.onModify();
+			setEdges((eds) => addEdge(connection, eds));
+		},
+		[setEdges, params],
 	);
 
-	/*
-	const onRestore = useCallback(() => {
-		const restoreFlow = async () => {
-			const flow = JSON.parse(localStorage.getItem(flowKey));
-
-			if (flow) {
-				const { x = 0, y = 0, zoom = 1 } = flow.viewport;
-				setNodes(flow.nodes || []);
-				setEdges(flow.edges || []);
-				setViewport({ x, y, zoom });
-			}
-		};
-
-		restoreFlow();
-	}, []);
-			*/
-
 	return {
-		setNodes,
-
 		getFlow: () => {
 			if (rfInstance === null) {
-				return null;
+				return {
+					nodes: [],
+					edges: [],
+					viewport: { x: 0, y: 0, zoom: 1 },
+				};
 			}
 
 			return rfInstance.toObject();
@@ -96,6 +98,10 @@ export function useFlow() {
 				className={style.react_flow}
 				nodes={nodes}
 				edges={edges}
+				onNodeDragStart={params.onModify}
+				onNodeDrag={params.onModify}
+				onNodeDragStop={params.onModify}
+				onNodeClick={params.onModify}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
 				onInit={setRfInstance}
