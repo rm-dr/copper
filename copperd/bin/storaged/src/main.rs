@@ -239,7 +239,7 @@ mod tests {
 
 		// Set up config & create app
 		let config = StoragedConfig {
-			storaged_db_addr: format!("postgres://admin:admin@localhost/storaged").into(),
+			storaged_db_addr: "postgres://admin:admin@localhost/storaged".into(),
 			storaged_server_addr: "".into(),
 			storaged_request_body_limit: StoragedConfig::default_request_body_limit(),
 			storaged_secret: "i_m_secret".into(),

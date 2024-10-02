@@ -31,14 +31,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 		//
 		let class: ClassId = if let Some(value) = params.remove("class") {
 			match value {
-				NodeParameterValue::Integer(x) => match i64::try_from(x) {
-					Ok(x) => x.into(),
-					Err(_) => {
-						return Err(RunNodeError::BadParameterType {
-							parameter: "class".into(),
-						})
-					}
-				},
+				NodeParameterValue::Integer(x) => x.into(),
 				_ => {
 					return Err(RunNodeError::BadParameterType {
 						parameter: "class".into(),
