@@ -23,8 +23,11 @@ import {
 
 function Main() {
 	const [isModified, setModified] = useState<boolean>(false);
+	const [isReloading, setReloading] = useState<boolean>(false);
+	const [isSaving, setSaving] = useState<boolean>(false);
 	const { setNodes, setEdges, fitView } = useReactFlow();
 	const { flow, getFlow } = useFlow({
+		disabled: isSaving || isReloading,
 		onModify: () => {
 			setModified(true);
 		},
@@ -55,6 +58,7 @@ function Main() {
 
 	const setPipeline = useCallback(
 		(pipeline: components["schemas"]["PipelineInfo"] | null, fit?: boolean) => {
+			setReloading(true);
 			if (pipeline === null) {
 				setNodes([]);
 				setEdges([]);
@@ -66,14 +70,17 @@ function Main() {
 
 			_setPipeline(pipeline);
 
-			// Hack that makes sure `fitView` is called _after_ nodes are updated
+			// Hack that makes sure `fitView` is called _after_ nodes are updated.
+			// This also gives us a minimum of 500ms while reloading time
+			// so that the user sees a loader.
 			setTimeout(() => {
 				if (fit) {
 					fitView();
 				}
 
 				setModified(false);
-			}, 100);
+				setReloading(false);
+			}, 500);
 		},
 		[fitView, setEdges, setNodes],
 	);
@@ -101,13 +108,18 @@ function Main() {
 							variant="subtle"
 							size="xs"
 							onClick={openAddPipeline}
-							disabled={isModified}
+							disabled={isModified || isReloading || isSaving}
 						>
 							New pipeline
 						</Button>
 
 						<Select
-							disabled={pipelines.data === undefined || isModified}
+							disabled={
+								pipelines.data === undefined ||
+								isModified ||
+								isReloading ||
+								isSaving
+							}
 							data={
 								pipelines.data === undefined || pipeline?.data === null
 									? []
@@ -135,7 +147,7 @@ function Main() {
 									<PipelineDeleteButton
 										pipeline={pipeline}
 										getFlow={getFlow}
-										disabled={isModified}
+										disabled={isModified || isReloading || isSaving}
 										onSuccess={() => {
 											qc.invalidateQueries({ queryKey: ["dataset/list"] });
 											pipelines.refetch();
@@ -146,7 +158,7 @@ function Main() {
 									<PipelineRenameButton
 										pipeline={pipeline}
 										getFlow={getFlow}
-										disabled={isModified}
+										disabled={isModified || isReloading || isSaving}
 										onSuccess={(select) => {
 											qc.invalidateQueries({ queryKey: ["dataset/list"] });
 											pipelines.refetch();
@@ -168,22 +180,35 @@ function Main() {
 									<PipelineReloadButton
 										pipeline={pipeline}
 										getFlow={getFlow}
-										disabled={!isModified}
+										disabled={!isModified || isSaving}
+										reloading={isReloading}
 										onClick={() => {
-											qc.invalidateQueries({ queryKey: ["dataset/list"] });
-											pipelines.refetch();
-											setPipeline(pipeline);
+											setReloading(true);
+											qc.invalidateQueries({ queryKey: ["dataset/list"] }).then(
+												() => {
+													pipelines.refetch().then(() => {
+														setPipeline(pipeline, false);
+													});
+												},
+											);
 										}}
 									/>
 
 									<PipelineSaveButton
 										pipeline={pipeline}
 										getFlow={getFlow}
-										disabled={!isModified}
+										disabled={!isModified || isReloading}
+										onStart={() => setSaving(true)}
 										onSuccess={(new_pipeline) => {
-											qc.invalidateQueries({ queryKey: ["dataset/list"] });
-											pipelines.refetch();
-											setPipeline(new_pipeline, false);
+											setReloading(true);
+											qc.invalidateQueries({ queryKey: ["dataset/list"] }).then(
+												() => {
+													pipelines.refetch().then(() => {
+														setPipeline(new_pipeline, false);
+														setSaving(false);
+													});
+												},
+											);
 										}}
 									/>
 								</Button.Group>
@@ -216,7 +241,7 @@ function Main() {
 								onModify={() => {
 									setModified(true);
 								}}
-								disabled={pipeline === null}
+								disabled={pipeline === null || isReloading || isSaving}
 							/>
 
 							<AddNodeButton
@@ -227,7 +252,7 @@ function Main() {
 								onModify={() => {
 									setModified(true);
 								}}
-								disabled={pipeline === null}
+								disabled={pipeline === null || isReloading || isSaving}
 							/>
 
 							<AddNodeButton
@@ -238,7 +263,7 @@ function Main() {
 								onModify={() => {
 									setModified(true);
 								}}
-								disabled={pipeline === null}
+								disabled={pipeline === null || isReloading || isSaving}
 							/>
 
 							<AddNodeButton
@@ -249,7 +274,7 @@ function Main() {
 								onModify={() => {
 									setModified(true);
 								}}
-								disabled={pipeline === null}
+								disabled={pipeline === null || isReloading || isSaving}
 							/>
 						</div>
 
@@ -263,7 +288,7 @@ function Main() {
 								onModify={() => {
 									setModified(true);
 								}}
-								disabled={pipeline === null}
+								disabled={pipeline === null || isReloading || isSaving}
 							/>
 						</div>
 
@@ -277,7 +302,7 @@ function Main() {
 								onModify={() => {
 									setModified(true);
 								}}
-								disabled={pipeline === null}
+								disabled={pipeline === null || isReloading || isSaving}
 							/>
 							<AddNodeButton
 								text="Extract tags"
@@ -287,7 +312,7 @@ function Main() {
 								onModify={() => {
 									setModified(true);
 								}}
-								disabled={pipeline === null}
+								disabled={pipeline === null || isReloading || isSaving}
 							/>
 							<AddNodeButton
 								text="Extract covers"
@@ -297,7 +322,7 @@ function Main() {
 								onModify={() => {
 									setModified(true);
 								}}
-								disabled={pipeline === null}
+								disabled={pipeline === null || isReloading || isSaving}
 							/>
 						</div>
 					</div>

@@ -2,16 +2,17 @@ import style from "./pipeline.module.scss";
 import nodestyle from "./_nodes/nodes.module.scss";
 
 import { components } from "@/lib/api/openapi";
-import { ActionIcon, Button } from "@mantine/core";
+import { ActionIcon, Button, Popover, Text } from "@mantine/core";
 import { Edge, Node, ReactFlowJsonObject } from "@xyflow/react";
 import { useDeletePipelineModal } from "./_modals/deletepipeline";
 import { useRenamePipelineModal } from "./_modals/renamepipeline";
 import { useMutation } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
-import { Dispatch, SetStateAction, useCallback } from "react";
+import { Dispatch, SetStateAction, useCallback, useState } from "react";
 import { serializePipeline } from "./serde";
 import { nodeDefinitions } from "./_nodes";
 import { InfoIcon } from "lucide-react";
+import { useClickOutside } from "@mantine/hooks";
 
 export function PipelineDeleteButton(params: {
 	pipeline: components["schemas"]["PipelineInfo"];
@@ -74,20 +75,60 @@ export function PipelineRenameButton(params: {
 export function PipelineReloadButton(params: {
 	pipeline: components["schemas"]["PipelineInfo"];
 	disabled: boolean;
+	reloading: boolean;
 	getFlow: () => ReactFlowJsonObject<Node, Edge>;
 	onClick: () => void;
 }) {
+	const [opened, setOpened] = useState(false);
+	const ref = useClickOutside(() => setOpened(false));
+
 	return (
 		<>
-			<Button
-				fullWidth
-				variant="subtle"
-				size="xs"
-				disabled={params.disabled}
-				onClick={params.onClick}
+			<Popover
+				width="15rem"
+				position="bottom"
+				withArrow
+				shadow="md"
+				opened={opened}
+				onChange={setOpened}
 			>
-				Reload
-			</Button>
+				<Popover.Target>
+					<Button
+						fullWidth
+						variant="subtle"
+						size="xs"
+						disabled={params.disabled}
+						loading={params.reloading}
+						onClick={() => {
+							setOpened((o) => !o);
+						}}
+					>
+						Reload
+					</Button>
+				</Popover.Target>
+				<Popover.Dropdown ref={ref}>
+					<Text c="dimmed" size="sm">
+						Are you sure you want to reload {params.pipeline.name}?
+					</Text>
+					<Text c="red" size="sm">
+						Unsaved changes will be lost!
+					</Text>
+
+					<Button
+						style={{ marginTop: "1rem" }}
+						fullWidth
+						size="xs"
+						disabled={params.disabled}
+						loading={params.reloading}
+						onClick={() => {
+							setOpened(false);
+							params.onClick();
+						}}
+					>
+						Confirm reload
+					</Button>
+				</Popover.Dropdown>
+			</Popover>
 		</>
 	);
 }
@@ -96,14 +137,22 @@ export function PipelineSaveButton(params: {
 	pipeline: components["schemas"]["PipelineInfo"];
 	disabled: boolean;
 	getFlow: () => ReactFlowJsonObject<Node, Edge>;
+	onStart: () => void;
 	onSuccess: (select: components["schemas"]["PipelineInfo"] | null) => void;
 }) {
 	const doSave = useMutation({
 		mutationFn: async (new_data: components["schemas"]["PipelineJson"]) => {
-			return await edgeclient.PATCH("/pipeline/{pipeline_id}", {
-				params: { path: { pipeline_id: params.pipeline.id } },
-				body: { new_data },
-			});
+			return (
+				await Promise.all([
+					edgeclient.PATCH("/pipeline/{pipeline_id}", {
+						params: { path: { pipeline_id: params.pipeline.id } },
+						body: { new_data },
+					}),
+
+					// Minimum wait time, so we get a visible loader
+					new Promise((resolve) => setTimeout(resolve, 500)),
+				])
+			)[0];
 		},
 
 		onSuccess: async (res) => {
@@ -120,6 +169,8 @@ export function PipelineSaveButton(params: {
 	});
 
 	const savePipeline = useCallback(() => {
+		params.onStart();
+
 		const raw = params.getFlow();
 		const res = serializePipeline(raw);
 
@@ -132,18 +183,56 @@ export function PipelineSaveButton(params: {
 		doSave.mutate(res.value);
 	}, [doSave, params]);
 
+	const [opened, setOpened] = useState(false);
+	const ref = useClickOutside(() => setOpened(false));
+
 	return (
 		<>
-			<Button
-				fullWidth
-				variant="subtle"
-				size="xs"
-				disabled={params.disabled}
-				onClick={savePipeline}
-				loading={doSave.isPending}
+			<Popover
+				width="15rem"
+				position="bottom"
+				withArrow
+				shadow="md"
+				opened={opened}
+				onChange={setOpened}
 			>
-				Save
-			</Button>
+				<Popover.Target>
+					<Button
+						fullWidth
+						variant="subtle"
+						size="xs"
+						disabled={params.disabled}
+						loading={doSave.isPending}
+						onClick={() => {
+							setOpened((o) => !o);
+						}}
+					>
+						Save
+					</Button>
+				</Popover.Target>
+				<Popover.Dropdown ref={ref}>
+					<Text c="dimmed" size="sm">
+						Are you sure you want to save {params.pipeline.name}?
+					</Text>
+					<Text c="red" size="sm">
+						Previous state will be lost!
+					</Text>
+
+					<Button
+						style={{ marginTop: "1rem" }}
+						fullWidth
+						size="xs"
+						disabled={params.disabled}
+						onClick={() => {
+							setOpened(false);
+							savePipeline();
+						}}
+						loading={doSave.isPending}
+					>
+						Confirm save
+					</Button>
+				</Popover.Dropdown>
+			</Popover>
 		</>
 	);
 }
