@@ -1,6 +1,5 @@
 import { Select } from "@mantine/core";
-import { Node, NodeProps } from "@xyflow/react";
-import { useState } from "react";
+import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { BaseNode } from "./base";
 import { dataTypes } from "@/lib/attributes";
 import { NodeDef } from ".";
@@ -58,6 +57,9 @@ export const InputNode: NodeDef<InputNodeType> = {
 	xyflow_node_type: "pipelineinput",
 	copper_node_type: "Input",
 	node: InputNodeElement,
+
+	getInputs: () => [],
+	getOutputs: (data) => [{ id: "out", type: data.type }],
 
 	minimap_color: "var(--mantine-color-green-8)",
 

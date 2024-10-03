@@ -46,6 +46,9 @@ export const HashNode: NodeDef<HashNodeType> = {
 	copper_node_type: "Hash",
 	node: HashNodeElement,
 
+	getInputs: () => [{ id: "data", type: "Blob" }],
+	getOutputs: () => [{ id: "hash", type: "Hash" }],
+
 	initialData: {
 		hash_type: "SHA256",
 	},

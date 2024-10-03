@@ -125,6 +125,9 @@ export const ConstantNode: NodeDef<ConstantNodeType> = {
 		},
 	},
 
+	getInputs: () => [],
+	getOutputs: (data) => [{ id: "out", type: data.value.type }],
+
 	serialize: (node) => {
 		if (node.data.value.type === "Text") {
 			return {

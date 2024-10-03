@@ -28,6 +28,9 @@ export const StripTagsNode: NodeDef<StripTagsNodeType> = {
 	copper_node_type: "StripTags",
 	node: StripTagsNodeElement,
 
+	getInputs: () => [{ id: "data", type: "Blob" }],
+	getOutputs: () => [{ id: "out", type: "Blob" }],
+
 	initialData: {},
 	serialize: () => ({}),
 	deserialize: () => ({}),

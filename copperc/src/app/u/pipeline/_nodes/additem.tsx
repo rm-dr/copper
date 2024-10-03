@@ -9,11 +9,18 @@ import { BaseNode } from "./base";
 import { useQuery } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
 import { NodeDef } from ".";
+import { attrTypes } from "@/lib/attributes";
 
 type AddItemNodeType = Node<
 	{
 		dataset: null | number;
 		class: null | number;
+
+		inputs: {
+			type: (typeof attrTypes)[number]["serialize_as"];
+			id: string;
+			tooltip: string;
+		}[];
 	},
 	"additem"
 >;
@@ -31,30 +38,28 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 				location.replace("/");
 			}
 
-			return res.data;
-		},
-	});
-
-	return (
-		<>
-			<BaseNode
-				id={id}
-				title={"Add Item"}
-				inputs={
-					list.data === undefined ||
-					data.dataset === null ||
-					data.class === null
+			updateNodeData(id, {
+				...data,
+				inputs:
+					res.data === undefined || data.dataset === null || data.class === null
 						? undefined
-						: list.data
+						: res.data
 								.find((x) => x.id === data.dataset)
 								?.classes.find((x) => x.id === data.class)
 								?.attributes.map((x) => ({
 									id: x.name,
 									type: x.data_type.type,
 									tooltip: x.name,
-								})) || undefined
-				}
-			>
+								})) || undefined,
+			});
+
+			return res.data;
+		},
+	});
+
+	return (
+		<>
+			<BaseNode id={id} title={"Add Item"} inputs={data.inputs}>
 				<Select
 					label="Select dataset"
 					disabled={list.data === undefined}
@@ -135,7 +140,11 @@ export const AddItemNode: NodeDef<AddItemNodeType> = {
 	initialData: {
 		dataset: null,
 		class: null,
+		inputs: [],
 	},
+
+	getInputs: (data) => data.inputs,
+	getOutputs: () => [],
 
 	serialize: (node) => {
 		if (node.data.class === null || node.data.dataset === null) {
@@ -167,6 +176,7 @@ export const AddItemNode: NodeDef<AddItemNodeType> = {
 		return {
 			dataset: null,
 			class: cls.value,
+			inputs: [],
 		};
 	},
 };

@@ -55,6 +55,12 @@ export const IfNoneNode: NodeDef<IfNoneNodeType> = {
 	copper_node_type: "IfNone",
 	node: IfNoneNodeElement,
 
+	getInputs: (data) => [
+		{ id: "in", type: data.type },
+		{ id: "ifnone", type: data.type },
+	],
+	getOutputs: (data) => [{ id: "out", type: data.type }],
+
 	initialData: {
 		type: "Text",
 	},

@@ -8,6 +8,7 @@ import { IfNoneNode } from "./ifnone";
 import { InputNode } from "./input";
 import { StripTagsNode } from "./striptags";
 import { Node, NodeProps, NodeTypes } from "@xyflow/react";
+import { attrTypes } from "@/lib/attributes";
 
 export type NodeDef<NodeType extends Node> = {
 	xyflow_node_type: string;
@@ -17,6 +18,16 @@ export type NodeDef<NodeType extends Node> = {
 
 	node: (props: NodeProps<NodeType>) => JSX.Element;
 	initialData: NodeType["data"];
+
+	getInputs: (data: NodeType["data"]) => {
+		id: string;
+		type: (typeof attrTypes)[number]["serialize_as"];
+	}[];
+
+	getOutputs: (data: NodeType["data"]) => {
+		id: string;
+		type: (typeof attrTypes)[number]["serialize_as"];
+	}[];
 
 	/**
 	 * Transform this `ReactFlow` node into the parameters of a `PipelineJson` node.

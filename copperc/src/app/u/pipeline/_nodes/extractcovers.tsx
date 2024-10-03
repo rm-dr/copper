@@ -22,6 +22,9 @@ export const ExtractCoversNode: NodeDef<ExtractCoversNodeType> = {
 	copper_node_type: "ExtractCovers",
 	node: ExtractCoversNodeElement,
 
+	getInputs: () => [{ id: "data", type: "Blob" }],
+	getOutputs: () => [{ id: "out", type: "Blob" }],
+
 	initialData: {},
 	serialize: () => ({}),
 	deserialize: () => ({}),

@@ -37,6 +37,24 @@ export const ExtractTagsNode: NodeDef<ExtractTagsNodeType> = {
 	copper_node_type: "ExtractTags",
 	node: ExtractTagsNodeElement,
 
+	getInputs: () => [{ id: "data", type: "Blob" }],
+	getOutputs: () => [
+		{ id: "Album", type: "Text" },
+		{ id: "AlbumArtist", type: "Text" },
+		{ id: "Comment", type: "Text" },
+		{ id: "ReleaseDate", type: "Text" },
+		{ id: "DiskNumber", type: "Text" },
+		{ id: "DiskTotal", type: "Text" },
+		{ id: "Genre", type: "Text" },
+		{ id: "ISRC", type: "Text" },
+		{ id: "Lyrics", type: "Text" },
+		{ id: "TrackNumber", type: "Text" },
+		{ id: "TrackTotal", type: "Text" },
+		{ id: "Title", type: "Text" },
+		{ id: "Artist", type: "Text" },
+		{ id: "Year", type: "Text" },
+	],
+
 	initialData: {},
 
 	serialize: () => ({
