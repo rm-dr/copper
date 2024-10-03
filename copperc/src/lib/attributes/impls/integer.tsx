@@ -1,5 +1,5 @@
 import { attrTypeInfo } from "..";
-import { Hash } from "lucide-react";
+import { Sigma } from "lucide-react";
 import {
 	AttrCommonOptions,
 	AttrNameEntry,
@@ -15,7 +15,7 @@ import { ReactElement } from "react";
 export const _integerAttrType: attrTypeInfo = {
 	pretty_name: "Integer",
 	serialize_as: "Integer",
-	icon: <Hash />,
+	icon: <Sigma />,
 	create_params: {
 		form: (params) => Form(params),
 	},

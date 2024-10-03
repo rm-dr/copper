@@ -1,5 +1,5 @@
 import { attrTypeInfo } from "..";
-import { Hash } from "lucide-react";
+import { Omega } from "lucide-react";
 import {
 	AttrCommonOptions,
 	AttrNameEntry,
@@ -15,7 +15,7 @@ import { edgeclient } from "@/lib/api/client";
 export const _floatAttrType: attrTypeInfo = {
 	pretty_name: "Float",
 	serialize_as: "Float",
-	icon: <Hash />,
+	icon: <Omega />,
 	create_params: {
 		form: (params) => Form(params),
 	},
