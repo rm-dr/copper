@@ -22,7 +22,7 @@ type ConstantNodeType = Node<
 >;
 
 function ConstantNodeElement({ data, id }: NodeProps<ConstantNodeType>) {
-	const { updateNodeData } = useReactFlow();
+	const { deleteElements, getEdges, updateNodeData } = useReactFlow();
 
 	let input = null;
 	if (data.value.type === "Text") {
@@ -78,6 +78,16 @@ function ConstantNodeElement({ data, id }: NodeProps<ConstantNodeType>) {
 					placeholder="Pick value"
 					data={types}
 					onChange={(value) => {
+						if (value === null || value == data.value.type) {
+							return;
+						}
+
+						deleteElements({
+							edges: getEdges()
+								.filter((x) => x.source === id || x.target === id)
+								.map((x) => ({ id: x.id })),
+						});
+
 						if (value === "Text") {
 							updateNodeData(id, {
 								value: {
@@ -114,6 +124,9 @@ export const ConstantNode: NodeDef<ConstantNodeType> = {
 			value: "",
 		},
 	},
+
+	getInputs: () => [],
+	getOutputs: (data) => [{ id: "out", type: data.value.type }],
 
 	serialize: (node) => {
 		if (node.data.value.type === "Text") {

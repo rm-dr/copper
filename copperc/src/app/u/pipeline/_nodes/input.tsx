@@ -1,23 +1,27 @@
 import { Select } from "@mantine/core";
-import { Node, NodeProps } from "@xyflow/react";
-import { useState } from "react";
+import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { BaseNode } from "./base";
 import { dataTypes } from "@/lib/attributes";
 import { NodeDef } from ".";
 
-type InputNodeType = Node<Record<string, never>, "pipelineinput">;
+const types = ["Text", "Integer", "Float"] as const;
 
-function InputNodeElement({ id }: NodeProps<InputNodeType>) {
-	const types = ["Text", "Integer", "Float"] as const;
+type InputNodeType = Node<
+	{
+		type: (typeof types)[number];
+	},
+	"pipelineinput"
+>;
 
-	const [valuetype, setValueType] = useState<(typeof types)[number]>("Text");
+function InputNodeElement({ data, id }: NodeProps<InputNodeType>) {
+	const { deleteElements, getEdges, updateNodeData } = useReactFlow();
 
 	return (
 		<>
 			<BaseNode
 				id={id}
 				title={"Input"}
-				outputs={[{ id: "out", tooltip: "Input value", type: valuetype }]}
+				outputs={[{ id: "out", tooltip: "Input value", type: data.type }]}
 				top_color="var(--mantine-color-green-8)"
 			>
 				<Select
@@ -25,15 +29,23 @@ function InputNodeElement({ id }: NodeProps<InputNodeType>) {
 					placeholder="Pick value"
 					data={dataTypes}
 					onChange={(value) => {
-						if (value === null) {
+						if (value === null || value === data.type) {
 							return;
 						}
 
 						if (dataTypes.includes(value)) {
-							setValueType(value as (typeof types)[number]);
+							updateNodeData(id, {
+								type: value,
+							});
 						}
+
+						deleteElements({
+							edges: getEdges()
+								.filter((x) => x.source === id || x.target === id)
+								.map((x) => ({ id: x.id })),
+						});
 					}}
-					value={valuetype}
+					value={data.type}
 				/>
 			</BaseNode>
 		</>
@@ -46,16 +58,37 @@ export const InputNode: NodeDef<InputNodeType> = {
 	copper_node_type: "Input",
 	node: InputNodeElement,
 
+	getInputs: () => [],
+	getOutputs: (data) => [{ id: "out", type: data.type }],
+
 	minimap_color: "var(--mantine-color-green-8)",
 
-	initialData: {},
+	initialData: { type: "Text" },
 
 	serialize: (node) => ({
 		input_name: {
 			parameter_type: "String",
 			value: node.id,
 		},
+
+		input_type: {
+			parameter_type: "String",
+			value: node.data.type,
+		},
 	}),
 
-	deserialize: () => ({}),
+	deserialize: (serialized) => {
+		if (serialized.params === undefined) {
+			return null;
+		}
+
+		const data_type = serialized.params.input_type;
+		if (data_type?.parameter_type !== "String") {
+			return null;
+		}
+
+		return {
+			type: data_type.value as (typeof types)[number],
+		};
+	},
 };

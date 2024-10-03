@@ -12,7 +12,7 @@ type IfNoneNodeType = Node<
 >;
 
 function IfNoneNodeElement({ data, id }: NodeProps<IfNoneNodeType>) {
-	const { updateNodeData } = useReactFlow();
+	const { getEdges, deleteElements, updateNodeData } = useReactFlow();
 	const types = attrTypes.map((x) => x.serialize_as);
 
 	return (
@@ -24,7 +24,7 @@ function IfNoneNodeElement({ data, id }: NodeProps<IfNoneNodeType>) {
 					{ id: "in", type: data.type, tooltip: "Input data" },
 					{ id: "ifnone", type: data.type, tooltip: "Fallback if none" },
 				]}
-				outputs={[{ id: "out", type: data.type, tooltip: "Checksum" }]}
+				outputs={[{ id: "out", type: data.type, tooltip: "Data or fallback" }]}
 			>
 				<Select
 					clearable={false}
@@ -32,9 +32,16 @@ function IfNoneNodeElement({ data, id }: NodeProps<IfNoneNodeType>) {
 					placeholder="Pick value"
 					data={types}
 					onChange={(value) => {
-						if (value !== null) {
-							updateNodeData(id, { type: value });
+						if (value === null || value === data.type) {
+							return;
 						}
+
+						updateNodeData(id, { type: value });
+						deleteElements({
+							edges: getEdges()
+								.filter((x) => x.source === id || x.target === id)
+								.map((x) => ({ id: x.id })),
+						});
 					}}
 					value={data.type}
 				/>
@@ -47,6 +54,12 @@ export const IfNoneNode: NodeDef<IfNoneNodeType> = {
 	xyflow_node_type: "ifnone",
 	copper_node_type: "IfNone",
 	node: IfNoneNodeElement,
+
+	getInputs: (data) => [
+		{ id: "in", type: data.type },
+		{ id: "ifnone", type: data.type },
+	],
+	getOutputs: (data) => [{ id: "out", type: data.type }],
 
 	initialData: {
 		type: "Text",
