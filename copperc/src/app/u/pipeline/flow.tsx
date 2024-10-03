@@ -19,6 +19,9 @@ import {
 	ConnectionMode,
 	ConnectionLineType,
 	reconnectEdge,
+	IsValidConnection,
+	useReactFlow,
+	getOutgoers,
 } from "@xyflow/react";
 
 import style from "./flow.module.scss";
@@ -31,6 +34,7 @@ export function useFlow(params: { onModify: () => void }) {
 	const [edges, setEdges] = useState<Edge[]>([]);
 	const [rfInstance, setRfInstance] = useState<null | ReactFlowInstance>(null);
 	const edgeReconnectSuccessful = useRef(true);
+	const { getNodes, getEdges } = useReactFlow();
 
 	const onReconnectStart = useCallback(() => {
 		params.onModify();
@@ -65,6 +69,7 @@ export function useFlow(params: { onModify: () => void }) {
 		},
 		[setNodes, params],
 	);
+
 	const onEdgesChange: OnEdgesChange = useCallback(
 		(changes) => {
 			params.onModify();
@@ -72,12 +77,43 @@ export function useFlow(params: { onModify: () => void }) {
 		},
 		[setEdges, params],
 	);
+
 	const onConnect: OnConnect = useCallback(
 		(connection) => {
 			params.onModify();
 			setEdges((eds) => addEdge(connection, eds));
 		},
 		[setEdges, params],
+	);
+
+	const isValidConnection: IsValidConnection = useCallback(
+		(connection) => {
+			const nodes = getNodes();
+			const edges = getEdges();
+
+			const target = nodes.find((node) => node.id === connection.target);
+			if (target === undefined) return false;
+
+			const source = nodes.find((node) => node.id === connection.source);
+			if (source === undefined) return false;
+
+			// Do not allow cycles
+			const hasCycle = (node: Node, visited: Set<string>) => {
+				if (visited.has(node.id)) return true;
+				visited.add(node.id);
+
+				for (const out of getOutgoers(node, nodes, edges)) {
+					if (out.id === source.id) return true;
+					if (hasCycle(out, visited)) return true;
+				}
+			};
+			if (hasCycle(target, new Set([source.id]))) {
+				return false;
+			}
+
+			return true;
+		},
+		[getEdges, getNodes],
 	);
 
 	return {
@@ -113,6 +149,7 @@ export function useFlow(params: { onModify: () => void }) {
 				onReconnect={onReconnect}
 				onReconnectStart={onReconnectStart}
 				onReconnectEnd={onReconnectEnd}
+				isValidConnection={isValidConnection}
 				colorMode="dark"
 			>
 				<Controls className={style.controls} />
