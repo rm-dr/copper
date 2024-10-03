@@ -185,7 +185,6 @@ export function useFlow(params: { disabled: boolean; onModify: () => void }) {
 				nodesDraggable={!params.disabled}
 				nodesConnectable={!params.disabled}
 				nodesFocusable={!params.disabled}
-				draggable={!params.disabled}
 				panOnDrag={!params.disabled}
 				elementsSelectable={!params.disabled}
 				zoomOnDoubleClick={!params.disabled}
