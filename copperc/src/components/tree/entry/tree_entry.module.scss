@@ -1,6 +1,6 @@
 .tree_entry.selected {
 	.tree_entry_left {
-		.tree_entry_left_icon {
+		.tree_entry_left {
 			background-color: var(--mantine-primary-color-8) !important;
 		}
 	}
@@ -14,13 +14,18 @@
 
 .tree_entry:hover {
 	.tree_entry_left {
-		.tree_entry_left_icon {
+		.tree_entry_left {
 			background-color: var(--mantine-color-gray-6);
 		}
 	}
 
 	.tree_entry_content {
 		background-color: var(--mantine-color-dark-6);
+	}
+
+	.tree_entry_right {
+		opacity: 1;
+		pointer-events: all;
 	}
 }
 
@@ -65,13 +70,17 @@
 
 		background-color: var(--mantine-color-dark-8);
 		border-radius: 0.5rem;
+		transition: inherit;
 	}
 
 	.tree_entry_left {
 		display: flex;
+		flex-direction: row;
 		align-items: center;
-		justify-content: left;
+		justify-content: center;
 		overflow: hidden;
+		height: 100%;
+		width: 2rem;
 
 		background-color: var(--mantine-color-dark-6);
 		transition: inherit;
@@ -88,7 +97,13 @@
 		}
 	}
 
-	.tree_entry_text {
+	.tree_entry_body {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: left;
+		overflow: hidden;
+
 		padding: 0.25rem;
 		padding-left: 0.5rem;
 		flex-grow: 1;
@@ -102,6 +117,10 @@
 		justify-content: right;
 		overflow: hidden;
 		column-gap: 0.5rem;
+		transition: inherit;
+
+		opacity: 0.1;
+		pointer-events: none;
 		transition: inherit;
 	}
 }

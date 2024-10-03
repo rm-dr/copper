@@ -1,17 +1,12 @@
-import { FloatingPosition } from "@mantine/core";
 import { Fragment, ReactNode, useCallback, useState } from "react";
 import { TreeEntry } from "./entry";
 import styles from "./entry/tree_entry.module.scss";
 
 export type TreeNode<D> = {
 	// How to draw this node
-	icon: ReactNode;
-	text: string;
-	right: ReactNode;
-	icon_tooltip?: {
-		content: ReactNode;
-		position: FloatingPosition;
-	};
+	left: ReactNode;
+	body: ReactNode;
+	right?: ReactNode;
 
 	selectable: boolean;
 
@@ -125,8 +120,8 @@ function BuildTree<D>(params: {
 			return (
 				<Fragment key={node.uid}>
 					<TreeEntry
-						icon={node.icon}
-						text={node.text}
+						left={node.left}
+						body={node.body}
 						right={node.right}
 						is_selected={params.selected === node.uid}
 						is_expanded={is_open}
