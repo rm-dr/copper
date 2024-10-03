@@ -3,7 +3,6 @@ import { edgeclient } from "@/lib/api/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	Database,
-	Ellipsis,
 	FolderPlus,
 	PenBox,
 	Plus,
@@ -14,7 +13,7 @@ import {
 	X,
 } from "lucide-react";
 import { ReactNode } from "react";
-import { ActionIcon, Menu, Text, Tooltip } from "@mantine/core";
+import { ActionIcon, Text, Tooltip } from "@mantine/core";
 import { useDeleteDatasetModal } from "./_modals/deletedataset";
 import { useRenameDatasetModal } from "./_modals/renamedataset";
 import { useAddClassModal } from "./_modals/addclass";
@@ -78,7 +77,7 @@ export function useTreePanel() {
 			for (const dataset of res.data) {
 				const dataset_idx = nodes.length;
 				nodes.push({
-					icon: <Database />,
+					left: <Database />,
 					right: (
 						<DatasetMenu
 							dataset_id={dataset.id}
@@ -89,7 +88,7 @@ export function useTreePanel() {
 							}}
 						/>
 					),
-					text: dataset.name,
+					body: dataset.name,
 					selectable: false,
 					uid: `dataset-${dataset.id}-${dataset.name}`,
 					parent: null,
@@ -100,7 +99,7 @@ export function useTreePanel() {
 				for (const itemclass of dataset.classes) {
 					const itemclass_idx = nodes.length;
 					nodes.push({
-						icon: <Table />,
+						left: <Table />,
 						right: (
 							<ClassMenu
 								dataset_id={dataset.id}
@@ -112,7 +111,7 @@ export function useTreePanel() {
 								}}
 							/>
 						),
-						text: itemclass.name,
+						body: itemclass.name,
 						selectable: false,
 						uid: `itemclass-${itemclass.id}-${itemclass.name}`,
 						parent: dataset_idx,
@@ -121,17 +120,48 @@ export function useTreePanel() {
 					});
 
 					for (const attr of itemclass.attributes) {
+						const attr_type = attr.data_type.type;
+						let tt_text: string = attr_type;
+						let bonus_text: string = attr_type;
+
+						if (attr_type === "Hash") {
+							tt_text = `Hash (${attr.data_type.hash_type})`;
+							bonus_text = `Hash (${attr.data_type.hash_type})`;
+						} else if (attr_type === "Reference") {
+							const c = dataset.classes.find(
+								(x) =>
+									// This check is redundant, but it keeps TS happy.
+									attr.data_type.type === "Reference" &&
+									x.id === attr.data_type.class,
+							)!;
+							bonus_text = `Reference (${c.name})`;
+						}
+
 						nodes.push({
-							icon: (
-								<Tooltip
-									label={attr.data_type.type}
-									position="left"
-									offset={10}
-									color="gray"
-								>
-									{attrTypes.find((x) => x.serialize_as === attr.data_type.type)
-										?.icon || <X />}
-								</Tooltip>
+							left: (
+								<>
+									<Tooltip
+										label={tt_text}
+										position="left"
+										offset={10}
+										color="gray"
+									>
+										<div
+											style={{
+												display: "flex",
+												flexDirection: "row",
+												alignItems: "center",
+												justifyContent: "center",
+												width: "100%",
+												height: "100%",
+											}}
+										>
+											{attrTypes.find(
+												(x) => x.serialize_as === attr.data_type.type,
+											)?.icon || <X />}
+										</div>
+									</Tooltip>
+								</>
 							),
 							right: (
 								<AttrMenu
@@ -143,7 +173,24 @@ export function useTreePanel() {
 									}}
 								/>
 							),
-							text: attr.name,
+							body: (
+								<>
+									<div
+										style={{
+											width: "10rem",
+											overflowX: "scroll",
+											textWrap: "nowrap",
+										}}
+									>
+										<Text>{attr.name}</Text>
+									</div>
+									{bonus_text === null ? null : (
+										<Text c="dimmed" fs="italic" size="sm">
+											{bonus_text}
+										</Text>
+									)}
+								</>
+							),
 							selectable: false,
 							uid: `att-${attr.id}-${attr.name}`,
 							parent: itemclass_idx,
@@ -234,45 +281,39 @@ function DatasetMenu(params: {
 			{modalDelete}
 			{modalAddClass}
 			{modalRename}
-			<Menu
-				trigger="click-hover"
-				shadow="md"
-				position="right-start"
-				withArrow
-				arrowPosition="center"
-			>
-				<Menu.Target>
-					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
-						<Ellipsis />
-					</ActionIcon>
-				</Menu.Target>
 
-				<Menu.Dropdown>
-					<Menu.Label>Dataset</Menu.Label>
-					<Menu.Item
-						leftSection={<PenBox size="1.3rem" />}
-						onClick={openRename}
-					>
-						Rename
-					</Menu.Item>
-					<Menu.Item
-						leftSection={<FolderPlus size="1.3rem" />}
-						onClick={openAddClass}
-					>
-						Add class
-					</Menu.Item>
-					<Menu.Divider />
+			<Tooltip label="Edit dataset" color="dark" position="right">
+				<ActionIcon
+					color="white"
+					variant="subtle"
+					size={"2rem"}
+					onClick={openRename}
+				>
+					<PenBox size="1.3rem" />
+				</ActionIcon>
+			</Tooltip>
 
-					<Menu.Label>Danger zone</Menu.Label>
-					<Menu.Item
-						color="red"
-						leftSection={<Trash2 size="1.3rem" />}
-						onClick={openDelete}
-					>
-						Delete this dataset
-					</Menu.Item>
-				</Menu.Dropdown>
-			</Menu>
+			<Tooltip label="Add class" color="dark" position="right">
+				<ActionIcon
+					color="white"
+					variant="subtle"
+					size={"2rem"}
+					onClick={openAddClass}
+				>
+					<FolderPlus size="1.3rem" />
+				</ActionIcon>
+			</Tooltip>
+
+			<Tooltip label="Delete dataset" color="dark" position="right">
+				<ActionIcon
+					color="red"
+					variant="subtle"
+					size={"2rem"}
+					onClick={openDelete}
+				>
+					<Trash2 size="1.3rem" />
+				</ActionIcon>
+			</Tooltip>
 		</>
 	);
 }
@@ -307,42 +348,39 @@ function ClassMenu(params: {
 			{modalDelete}
 			{modalRename}
 			{modalAddAttr}
-			<Menu
-				trigger="click-hover"
-				shadow="md"
-				position="right-start"
-				withArrow
-				arrowPosition="center"
-			>
-				<Menu.Target>
-					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
-						<Ellipsis />
-					</ActionIcon>
-				</Menu.Target>
 
-				<Menu.Dropdown>
-					<Menu.Label>Class</Menu.Label>
-					<Menu.Item
-						leftSection={<PenBox size="1.3rem" />}
-						onClick={openRename}
-					>
-						Rename
-					</Menu.Item>
-					<Menu.Item leftSection={<Plus size="1.3rem" />} onClick={openAddAttr}>
-						Add attribute
-					</Menu.Item>
-					<Menu.Divider />
+			<Tooltip label="Edit class" color="dark" position="right">
+				<ActionIcon
+					color="white"
+					variant="subtle"
+					size={"2rem"}
+					onClick={openRename}
+				>
+					<PenBox size="1.3rem" />
+				</ActionIcon>
+			</Tooltip>
 
-					<Menu.Label>Danger zone</Menu.Label>
-					<Menu.Item
-						color="red"
-						leftSection={<Trash2 size="1.3rem" />}
-						onClick={openDelete}
-					>
-						Delete this class
-					</Menu.Item>
-				</Menu.Dropdown>
-			</Menu>
+			<Tooltip label="Add attribute" color="dark" position="right">
+				<ActionIcon
+					color="white"
+					variant="subtle"
+					size={"2rem"}
+					onClick={openAddAttr}
+				>
+					<Plus size="1.3rem" />
+				</ActionIcon>
+			</Tooltip>
+
+			<Tooltip label="Delete class" color="dark" position="right">
+				<ActionIcon
+					color="red"
+					variant="subtle"
+					size={"2rem"}
+					onClick={openDelete}
+				>
+					<Trash2 size="1.3rem" />
+				</ActionIcon>
+			</Tooltip>
 		</>
 	);
 }
@@ -368,39 +406,28 @@ function AttrMenu(params: {
 		<>
 			{modalRename}
 			{modalDelete}
-			<Menu
-				trigger="click-hover"
-				shadow="md"
-				position="right-start"
-				withArrow
-				arrowPosition="center"
-			>
-				<Menu.Target>
-					<ActionIcon color="gray" variant="subtle" size={"2rem"} radius={"0"}>
-						<Ellipsis />
-					</ActionIcon>
-				</Menu.Target>
 
-				<Menu.Dropdown>
-					<Menu.Label>Attribute</Menu.Label>
-					<Menu.Item
-						leftSection={<PenBox size="1.3rem" />}
-						onClick={openRename}
-					>
-						Rename
-					</Menu.Item>
-					<Menu.Divider />
+			<Tooltip label="Edit attribute" color="dark" position="right">
+				<ActionIcon
+					color="white"
+					variant="subtle"
+					size={"2rem"}
+					onClick={openRename}
+				>
+					<PenBox size="1.3rem" />
+				</ActionIcon>
+			</Tooltip>
 
-					<Menu.Label>Danger zone</Menu.Label>
-					<Menu.Item
-						color="red"
-						leftSection={<Trash2 size="1.3rem" />}
-						onClick={openDelete}
-					>
-						Delete this attribute
-					</Menu.Item>
-				</Menu.Dropdown>
-			</Menu>
+			<Tooltip label="Delete attribute" color="dark" position="right">
+				<ActionIcon
+					color="red"
+					variant="subtle"
+					size={"2rem"}
+					onClick={openDelete}
+				>
+					<Trash2 size="1.3rem" />
+				</ActionIcon>
+			</Tooltip>
 		</>
 	);
 }

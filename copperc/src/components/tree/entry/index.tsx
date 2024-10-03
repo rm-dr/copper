@@ -1,15 +1,12 @@
 import { ReactNode } from "react";
 import styles from "./tree_entry.module.scss";
 import clsx from "clsx";
-import { FloatingPosition, Tooltip } from "@mantine/core";
 import { ChevronDown } from "lucide-react";
 
 export function TreeEntry(params: {
-	icon: ReactNode;
-	icon_tooltip?: ReactNode;
-	icon_tooltip_position?: FloatingPosition;
-	text: string;
-	right: ReactNode;
+	left: ReactNode;
+	body: ReactNode;
+	right?: ReactNode;
 
 	is_selected: boolean;
 	is_expanded: boolean;
@@ -53,25 +50,11 @@ export function TreeEntry(params: {
 						}
 					}}
 				>
-					{params.icon_tooltip === undefined ? (
-						<div className={styles.tree_entry_left_icon}>{params.icon}</div>
-					) : (
-						<Tooltip
-							arrowOffset={0}
-							arrowSize={8}
-							withArrow
-							position={params.icon_tooltip_position}
-							color="gray"
-							label={params.icon_tooltip}
-							transitionProps={{ transition: "fade", duration: 200 }}
-						>
-							<div className={styles.tree_entry_left_icon}>{params.icon}</div>
-						</Tooltip>
-					)}
+					<div className={styles.tree_entry_left}>{params.left}</div>
 				</div>
 
 				<div
-					className={styles.tree_entry_text}
+					className={styles.tree_entry_body}
 					// Body click can toggle expanded or select
 					onMouseDown={(e) => {
 						if (e.button == 0) {
@@ -87,7 +70,7 @@ export function TreeEntry(params: {
 						}
 					}}
 				>
-					{params.text}
+					{params.body}
 				</div>
 				<div className={styles.tree_entry_right}>{params.right}</div>
 			</div>
