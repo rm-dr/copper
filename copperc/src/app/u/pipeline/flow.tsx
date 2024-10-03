@@ -28,8 +28,9 @@ import style from "./flow.module.scss";
 import "@xyflow/react/dist/style.css";
 
 import { nodeDefinitions, nodeTypes } from "./_nodes";
+import { Overlay } from "@mantine/core";
 
-export function useFlow(params: { onModify: () => void }) {
+export function useFlow(params: { disabled: boolean; onModify: () => void }) {
 	const [nodes, setNodes] = useState<Node[]>([]);
 	const [edges, setEdges] = useState<Edge[]>([]);
 	const [rfInstance, setRfInstance] = useState<null | ReactFlowInstance>(null);
@@ -178,16 +179,33 @@ export function useFlow(params: { onModify: () => void }) {
 				onReconnectEnd={onReconnectEnd}
 				isValidConnection={isValidConnection}
 				colorMode="dark"
+				// Disable interaction
+				edgesReconnectable={!params.disabled}
+				edgesFocusable={!params.disabled}
+				nodesDraggable={!params.disabled}
+				nodesConnectable={!params.disabled}
+				nodesFocusable={!params.disabled}
+				draggable={!params.disabled}
+				panOnDrag={!params.disabled}
+				elementsSelectable={!params.disabled}
+				zoomOnDoubleClick={!params.disabled}
+				minZoom={params.disabled ? 1 : 0.5}
+				maxZoom={params.disabled ? 1 : 3}
 			>
-				<Controls className={style.controls} />
+				{
+					/* Blur editor while disabled */
+					!params.disabled ? null : (
+						<Overlay color="#000000" backgroundOpacity={0.25} blur={5} />
+					)
+				}
 
+				<Controls className={style.controls} />
 				<Background
 					variant={BackgroundVariant.Dots}
 					gap={12}
 					size={1}
 					color="var(--mantine-color-dark-3)"
 				/>
-
 				<MiniMap
 					nodeColor={(node) => {
 						const nodedef = Object.entries(nodeDefinitions).find(

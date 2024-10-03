@@ -74,6 +74,7 @@ export function PipelineRenameButton(params: {
 export function PipelineReloadButton(params: {
 	pipeline: components["schemas"]["PipelineInfo"];
 	disabled: boolean;
+	reloading: boolean;
 	getFlow: () => ReactFlowJsonObject<Node, Edge>;
 	onClick: () => void;
 }) {
@@ -84,6 +85,7 @@ export function PipelineReloadButton(params: {
 				variant="subtle"
 				size="xs"
 				disabled={params.disabled}
+				loading={params.reloading}
 				onClick={params.onClick}
 			>
 				Reload
@@ -96,14 +98,22 @@ export function PipelineSaveButton(params: {
 	pipeline: components["schemas"]["PipelineInfo"];
 	disabled: boolean;
 	getFlow: () => ReactFlowJsonObject<Node, Edge>;
+	onStart: () => void;
 	onSuccess: (select: components["schemas"]["PipelineInfo"] | null) => void;
 }) {
 	const doSave = useMutation({
 		mutationFn: async (new_data: components["schemas"]["PipelineJson"]) => {
-			return await edgeclient.PATCH("/pipeline/{pipeline_id}", {
-				params: { path: { pipeline_id: params.pipeline.id } },
-				body: { new_data },
-			});
+			return (
+				await Promise.all([
+					edgeclient.PATCH("/pipeline/{pipeline_id}", {
+						params: { path: { pipeline_id: params.pipeline.id } },
+						body: { new_data },
+					}),
+
+					// Minimum wait time, so we get a visible loader
+					new Promise((resolve) => setTimeout(resolve, 500)),
+				])
+			)[0];
 		},
 
 		onSuccess: async (res) => {
@@ -120,6 +130,8 @@ export function PipelineSaveButton(params: {
 	});
 
 	const savePipeline = useCallback(() => {
+		params.onStart();
+
 		const raw = params.getFlow();
 		const res = serializePipeline(raw);
 
