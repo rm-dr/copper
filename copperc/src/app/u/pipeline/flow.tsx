@@ -22,7 +22,6 @@ import {
 	IsValidConnection,
 	useReactFlow,
 	getOutgoers,
-	getIncomers,
 } from "@xyflow/react";
 
 import style from "./flow.module.scss";
