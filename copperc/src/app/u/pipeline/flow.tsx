@@ -18,7 +18,6 @@ import {
 	BackgroundVariant,
 	ConnectionMode,
 	ConnectionLineType,
-	reconnectEdge,
 	IsValidConnection,
 	useReactFlow,
 	getOutgoers,
@@ -26,6 +25,10 @@ import {
 
 import style from "./flow.module.scss";
 import "@xyflow/react/dist/style.css";
+
+// Custom node styles.
+// This is not a css module so that classes are not renamed.
+import "./flow.css";
 
 import { nodeDefinitions, nodeTypes } from "./_nodes";
 import { Overlay } from "@mantine/core";
@@ -37,27 +40,29 @@ export function useFlow(params: { disabled: boolean; onModify: () => void }) {
 	const edgeReconnectSuccessful = useRef(true);
 	const { getNodes, getEdges } = useReactFlow();
 
-	const onReconnectStart = useCallback(() => {
-		params.onModify();
-		edgeReconnectSuccessful.current = false;
-	}, [params]);
-
-	const onReconnect: OnReconnect = useCallback(
-		(oldEdge, newConnection) => {
+	const onReconnectStart = useCallback(
+		(_: unknown, edge: Edge) => {
 			params.onModify();
-			edgeReconnectSuccessful.current = true;
-			setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
+			edgeReconnectSuccessful.current = false;
+
+			// delete the edge we moved so that `isValid` works like we expect
+			// (if we don't do this, the pre-drag edge will exist in the flow)
+			setEdges((eds) => eds.filter((e) => e.id !== edge.id));
 		},
 		[params],
 	);
 
+	const onReconnect: OnReconnect = useCallback(() => {
+		params.onModify();
+		edgeReconnectSuccessful.current = true;
+	}, [params]);
+
 	const onReconnectEnd = useCallback(
 		(_: unknown, edge: Edge) => {
 			params.onModify();
-			if (!edgeReconnectSuccessful.current) {
-				setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+			if (edgeReconnectSuccessful.current) {
+				setEdges((eds) => [...eds, edge]);
 			}
-
 			edgeReconnectSuccessful.current = true;
 		},
 		[params],
@@ -185,7 +190,6 @@ export function useFlow(params: { disabled: boolean; onModify: () => void }) {
 				nodesDraggable={!params.disabled}
 				nodesConnectable={!params.disabled}
 				nodesFocusable={!params.disabled}
-				draggable={!params.disabled}
 				panOnDrag={!params.disabled}
 				elementsSelectable={!params.disabled}
 				zoomOnDoubleClick={!params.disabled}
