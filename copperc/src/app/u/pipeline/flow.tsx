@@ -91,11 +91,29 @@ export function useFlow(params: { onModify: () => void }) {
 			const nodes = getNodes();
 			const edges = getEdges();
 
-			const target = nodes.find((node) => node.id === connection.target);
-			if (target === undefined) return false;
-
 			const source = nodes.find((node) => node.id === connection.source);
 			if (source === undefined) return false;
+			const sourcedef = nodeDefinitions[source.type!];
+			if (sourcedef === undefined) return false;
+			const sourceoutput = sourcedef
+				.getOutputs(source.data)
+				.find((x) => x.id === connection.sourceHandle);
+			if (sourceoutput === undefined) return false;
+
+			const target = nodes.find((node) => node.id === connection.target);
+			if (target === undefined) return false;
+			const targetdef = nodeDefinitions[target.type!];
+			if (targetdef === undefined) return false;
+
+			const targetinput = targetdef
+				.getInputs(target.data)
+				.find((x) => x.id === connection.targetHandle);
+			if (targetinput === undefined) return false;
+
+			// Make sure types match
+			if (sourceoutput.type !== targetinput.type) {
+				return false;
+			}
 
 			// Do not allow cycles
 			const hasCycle = (node: Node, visited: Set<string>) => {
