@@ -1,0 +1,21 @@
+.react-flow__handle {
+	width: 1rem !important;
+	height: 1rem !important;
+
+	background-color: var(--mantine-color-dark-1);
+	border: none;
+
+	transition: 100ms;
+}
+
+.react-flow__handle.connectingto {
+	background-color: var(--mantine-color-red-7) !important;
+	width: 1.5rem !important;
+	height: 1.5rem !important;
+}
+
+.react-flow__handle.valid {
+	width: 1.5rem !important;
+	height: 1.5rem !important;
+	background-color: var(--mantine-color-green-5) !important;
+}

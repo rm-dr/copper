@@ -27,6 +27,10 @@ import {
 import style from "./flow.module.scss";
 import "@xyflow/react/dist/style.css";
 
+// Custom node styles.
+// This is not a css module so that classes are not renamed.
+import "./flow.css";
+
 import { nodeDefinitions, nodeTypes } from "./_nodes";
 import { Overlay } from "@mantine/core";
 

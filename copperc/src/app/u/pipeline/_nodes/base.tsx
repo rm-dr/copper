@@ -80,16 +80,7 @@ export function BaseNode(params: {
 										{attrTypes.find((a) => a.serialize_as === x.type)?.icon || (
 											<X />
 										)}
-										<Handle
-											style={{
-												width: "1rem",
-												height: "1rem",
-											}}
-											type="target"
-											position={Position.Left}
-											id={x.id}
-										/>
-
+										<Handle type="target" position={Position.Left} id={x.id} />
 										<div className={`${style.port_tooltip} ${style.input}`}>
 											{x.tooltip}
 										</div>
@@ -117,16 +108,7 @@ export function BaseNode(params: {
 										{attrTypes.find((a) => a.serialize_as === x.type)?.icon || (
 											<X />
 										)}
-										<Handle
-											style={{
-												width: "1rem",
-												height: "1rem",
-											}}
-											type="source"
-											position={Position.Right}
-											id={x.id}
-										/>
-
+										<Handle type="source" position={Position.Right} id={x.id} />
 										<div className={`${style.port_tooltip} ${style.output}`}>
 											{x.tooltip}
 										</div>
