@@ -46,7 +46,7 @@ async fn main() {
 		.force_path_style(true)
 		.build();
 
-	let client = Arc::new(aws_sdk_s3::Client::from_conf(s3_config));
+	let client = aws_sdk_s3::Client::from_conf(s3_config);
 
 	// Prep runner
 	let mut runner: PipelineRunner<PipeData, CopperContext> =
@@ -88,7 +88,7 @@ async fn main() {
 		),
 
 		objectstore_client: Arc::new(
-			S3Client::new(client.clone(), &config.pipelined_objectstore_bucket).await,
+			S3Client::new(client, &config.pipelined_objectstore_bucket).await,
 		),
 
 		config,
