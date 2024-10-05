@@ -69,7 +69,7 @@ export const IfNoneNode: NodeDef<IfNoneNodeType> = {
 		type: { parameter_type: "String", value: node.data.type },
 	}),
 
-	deserialize: (serialized) => {
+	deserialize: async (serialized) => {
 		if (serialized.params === undefined) {
 			return null;
 		}

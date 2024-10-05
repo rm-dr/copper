@@ -77,7 +77,7 @@ export const InputNode: NodeDef<InputNodeType> = {
 		},
 	}),
 
-	deserialize: (serialized) => {
+	deserialize: async (serialized) => {
 		if (serialized.params === undefined) {
 			return null;
 		}

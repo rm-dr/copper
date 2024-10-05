@@ -42,7 +42,7 @@ export type NodeDef<NodeType extends Node> = {
 	 */
 	deserialize: (
 		serialized: components["schemas"]["PipelineJson"]["nodes"][string],
-	) => NodeType["data"] | null;
+	) => Promise<NodeType["data"] | null>;
 };
 
 // eslint-disable-next-line

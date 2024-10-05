@@ -27,5 +27,5 @@ export const ExtractCoversNode: NodeDef<ExtractCoversNodeType> = {
 
 	initialData: {},
 	serialize: () => ({}),
-	deserialize: () => ({}),
+	deserialize: async () => ({}),
 };
