@@ -1,9 +1,3 @@
-use std::{
-	error::Error,
-	fmt::Display,
-	io::{Seek, SeekFrom, Write},
-};
-
 use aws_sdk_s3::{
 	error::SdkError,
 	primitives::{ByteStream, SdkBody},
@@ -11,6 +5,12 @@ use aws_sdk_s3::{
 };
 use copper_util::MimeType;
 use smartstring::{LazyCompact, SmartString};
+use std::{
+	error::Error,
+	fmt::Display,
+	io::{Seek, SeekFrom, Write},
+};
+use tracing::error;
 
 //
 // MARK: Errors
@@ -344,19 +344,24 @@ impl MultipartUpload {
 		return Ok(());
 	}
 
-	/// Cancel this multipart upload
-	pub async fn cancel(self) -> Result<(), ()> {
-		self.client
+	/// Cancel this multipart upload.
+	/// This catches and logs all errors.
+	pub async fn cancel(self) -> () {
+		let res = self
+			.client
 			.client
 			.abort_multipart_upload()
 			.bucket(&self.client.bucket)
 			.key(self.key.as_str())
 			.upload_id(self.id.clone())
 			.send()
-			.await
-			.unwrap();
+			.await;
 
-		return Ok(());
+		if let Err(error) = res {
+			error!(message = "Error while canceling job", ?error);
+		}
+
+		return ();
 	}
 
 	pub async fn finish(self) -> Result<(), S3UploadFinishError> {

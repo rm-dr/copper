@@ -30,6 +30,18 @@ pub struct EdgedConfig {
 
 	/// The secret used to authenticate calls to storaged.
 	pub edged_storaged_secret: String,
+
+	/// Object store key id
+	pub edged_objectstore_key_id: String,
+	/// Object store secret
+	pub edged_objectstore_key_secret: String,
+	/// Object store url
+	pub edged_objectstore_url: String,
+	/// Object store bucket
+	pub edged_objectstore_bucket: String,
+
+	/// How long an upload job may idle before being deleted, in seconds
+	pub edged_upload_job_timeout: u64,
 }
 
 impl EdgedConfig {
