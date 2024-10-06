@@ -21,36 +21,6 @@
 
 	border-radius: 1rem;
 
-	.tree_panel_top {
-		display: flex;
-		flex-direction: row;
-		align-items: center;
-		justify-content: center;
-		width: 100%;
-
-		margin-bottom: 1rem;
-
-		background-color: var(--mantine-color-dark-6);
-		box-shadow: 5px 5px 0px 0px var(--mantine-primary-color-8);
-
-		.tree_panel_title {
-			flex-grow: 1;
-			padding: 0.5rem;
-
-			font-weight: 800;
-			font-size: 1rem;
-			border-radius: 0.2rem;
-		}
-
-		.tree_panel_button {
-			display: flex;
-			flex-direction: row;
-			align-items: center;
-			justify-content: center;
-			padding: 0.5rem;
-		}
-	}
-
 	.tree_panel_content {
 		border-style: none;
 		border-color: var(--mantine-color-dark-7);
