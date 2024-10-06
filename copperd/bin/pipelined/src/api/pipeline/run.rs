@@ -24,6 +24,7 @@ pub(super) struct AddJobRequest {
 	pub pipeline: PipelineJson,
 
 	/// A unique id for this job
+	#[schema(value_type = String)]
 	pub job_id: SmartString<LazyCompact>,
 
 	#[schema(value_type = BTreeMap<String, AttrData>)]

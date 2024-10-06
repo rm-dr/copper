@@ -216,6 +216,23 @@ export interface paths {
 		patch: operations["update_pipeline"];
 		trace?: never;
 	};
+	"/pipeline/{pipeline_id}/run": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Start a pipeline job */
+		post: operations["run_pipeline"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/storage/upload": {
 		parameters: {
 			query?: never;
@@ -324,6 +341,76 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
 	schemas: {
+		/** @description A value stored inside an attribute.
+		 *     Each of these corresponds to an [`AttrDataStub`] */
+		AttrData:
+			| {
+					data_type: components["schemas"]["AttrDataStub"];
+					/** @enum {string} */
+					type: "None";
+			  }
+			| {
+					/** @enum {string} */
+					type: "Text";
+					value: string;
+			  }
+			| {
+					/** @description If true, this integer must be non-negative */
+					is_non_negative: boolean;
+					/** @enum {string} */
+					type: "Integer";
+					/**
+					 * Format: int64
+					 * @description The integer
+					 */
+					value: number;
+			  }
+			| {
+					/** @description If true, this float must be non-negative */
+					is_non_negative: boolean;
+					/** @enum {string} */
+					type: "Float";
+					/**
+					 * Format: double
+					 * @description The float
+					 */
+					value: number;
+			  }
+			| {
+					/** @enum {string} */
+					type: "Boolean";
+					value: boolean;
+			  }
+			| {
+					/**
+					 * Format: binary
+					 * @description The hash data
+					 */
+					data: string;
+					hash_type: components["schemas"]["HashType"];
+					/** @enum {string} */
+					type: "Hash";
+			  }
+			| {
+					/** @description The object's key */
+					object_key: string;
+					/** @enum {string} */
+					type: "Blob";
+			  }
+			| {
+					/**
+					 * Format: int64
+					 * @description The item class this reference points to
+					 */
+					class: number;
+					/**
+					 * Format: int64
+					 * @description The item
+					 */
+					item: number;
+					/** @enum {string} */
+					type: "Reference";
+			  };
 		/** @description The type of data stored in an attribute.
 		 *     Each of these corresponds to a variant of [`AttrData`] */
 		AttrDataStub:
@@ -567,6 +654,13 @@ export interface components {
 		};
 		RenameDatasetRequest: {
 			new_name: string;
+		};
+		RunPipelineRequest: {
+			input: {
+				[key: string]: components["schemas"]["AttrData"];
+			};
+			/** @description A unique id for this job */
+			job_id: string;
 		};
 		StartUploadRequest: {
 			mime: string;
@@ -1404,6 +1498,52 @@ export interface operations {
 			};
 			/** @description Internal server error */
 			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	run_pipeline: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Pipeline id */
+				pipeline_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["RunPipelineRequest"];
+			};
+		};
+		responses: {
+			/** @description Job queued successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Job id already exists */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Job queue is full */
+			429: {
 				headers: {
 					[name: string]: unknown;
 				};

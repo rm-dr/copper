@@ -1,6 +1,7 @@
 use axum::routing::post;
 use axum::{extract::DefaultBodyLimit, Router};
 use copper_edged::UserInfo;
+use copper_pipelined::client::PipelinedClient;
 use copper_pipelined::helpers::S3Client;
 use copper_storaged::client::StoragedClient;
 use copper_storaged::{AttrDataStub, AttributeInfo, AttributeOptions, ClassInfo, DatasetInfo};
@@ -32,6 +33,7 @@ pub struct RouterState<Client: DatabaseClient> {
 	pub config: Arc<EdgedConfig>,
 	pub db_client: Arc<Client>,
 	pub storaged_client: Arc<dyn StoragedClient>,
+	pub pipelined_client: Arc<dyn PipelinedClient>,
 	pub auth: Arc<AuthHelper<Client>>,
 	pub objectstore_client: Arc<S3Client>,
 	pub uploader: Arc<Uploader>,
@@ -46,6 +48,7 @@ impl<Client: DatabaseClient> Clone for RouterState<Client> {
 			db_client: self.db_client.clone(),
 			auth: self.auth.clone(),
 			storaged_client: self.storaged_client.clone(),
+			pipelined_client: self.pipelined_client.clone(),
 			objectstore_client: self.objectstore_client.clone(),
 			uploader: self.uploader.clone(),
 		}

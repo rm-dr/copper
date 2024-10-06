@@ -9,18 +9,21 @@ use copper_pipelined::{
 	base::NodeParameterValue,
 	json::{EdgeJson, InputPort, NodeJson, NodeJsonPosition, OutputPort, PipelineJson},
 };
+use copper_storaged::AttrData;
 use utoipa::OpenApi;
 
 mod add;
 mod del;
 mod get;
 mod list;
+mod run;
 mod update;
 
 use add::*;
 use del::*;
 use get::*;
 use list::*;
+use run::*;
 use update::*;
 
 #[allow(non_camel_case_types)]
@@ -32,7 +35,8 @@ use update::*;
 		update_pipeline,
 		del_pipeline,
 		get_pipeline,
-		list_pipelines
+		list_pipelines,
+		run_pipeline,
 	),
 	components(schemas(
 		PipelineJson,
@@ -43,8 +47,10 @@ use update::*;
 		InputPort,
 		NewPipelineRequest,
 		UpdatePipelineRequest,
+		RunPipelineRequest,
 		NodeParameterValue,
-		PipelineInfo
+		PipelineInfo,
+		AttrData
 	))
 )]
 pub(super) struct PipelineApi;
@@ -56,4 +62,5 @@ pub(super) fn router<Client: DatabaseClient + 'static>() -> Router<RouterState<C
 		.route("/:pipeline_id", get(get_pipeline))
 		.route("/:pipeline_id", delete(del_pipeline))
 		.route("/:pipeline_id", patch(update_pipeline))
+		.route("/:pipeline_id/run", post(run_pipeline))
 }

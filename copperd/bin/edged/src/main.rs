@@ -4,7 +4,7 @@ use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::config::Credentials;
 use axum::Router;
 use config::EdgedConfig;
-use copper_pipelined::helpers::S3Client;
+use copper_pipelined::{client::ReqwestPipelineClient, helpers::S3Client};
 use copper_storaged::client::ReqwestStoragedClient;
 use copper_util::load_env;
 use database::postgres::{PgDatabaseClient, PgDatabaseOpenError};
@@ -40,13 +40,19 @@ async fn make_app(config: Arc<EdgedConfig>, objectstore_client: Arc<S3Client>) -
 		auth: Arc::new(AuthHelper::new()),
 		uploader: Arc::new(Uploader::new(config.clone(), objectstore_client.clone())),
 
-		storaged_client: Arc::new(
-			ReqwestStoragedClient::new(
-				config.edged_storaged_addr.clone(),
-				&config.edged_storaged_secret,
+		pipelined_client: Arc::new(
+			ReqwestPipelineClient::new(
+				&config.edged_pipelined_addr,
+				&config.edged_pipelined_secret,
 			)
 			// TODO: handle error
 			.unwrap(),
+		),
+
+		storaged_client: Arc::new(
+			ReqwestStoragedClient::new(&config.edged_storaged_addr, &config.edged_storaged_secret)
+				// TODO: handle error
+				.unwrap(),
 		),
 
 		objectstore_client,

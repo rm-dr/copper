@@ -31,6 +31,13 @@ pub struct EdgedConfig {
 	/// The secret used to authenticate calls to storaged.
 	pub edged_storaged_secret: String,
 
+	/// IP and port of the `pipelined` daemon we'll use
+	/// Should look like `http://127.0.0.1:3030`
+	pub edged_pipelined_addr: String,
+
+	/// The secret used to authenticate calls to pipelined.
+	pub edged_pipelined_secret: String,
+
 	/// Object store key id
 	pub edged_objectstore_key_id: String,
 	/// Object store secret
