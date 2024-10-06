@@ -78,5 +78,5 @@ export const ExtractTagsNode: NodeDef<ExtractTagsNodeType> = {
 		},
 	}),
 
-	deserialize: () => ({}),
+	deserialize: async () => ({}),
 };

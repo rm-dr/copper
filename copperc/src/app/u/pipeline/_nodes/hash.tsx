@@ -57,7 +57,7 @@ export const HashNode: NodeDef<HashNodeType> = {
 		hash_type: { parameter_type: "String", value: node.data.hash_type },
 	}),
 
-	deserialize: (serialized) => {
+	deserialize: async (serialized) => {
 		if (serialized.params === undefined) {
 			return null;
 		}

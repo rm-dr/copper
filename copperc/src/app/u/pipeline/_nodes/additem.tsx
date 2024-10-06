@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
 import { NodeDef } from ".";
 import { attrTypes } from "@/lib/attributes";
+import { useCallback } from "react";
 
 type AddItemNodeType = Node<
 	{
@@ -57,10 +58,33 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 		},
 	});
 
+	const updateInputs = useCallback(
+		(old_data: typeof data, dataset: number | null, cls: number | null) => {
+			updateNodeData(id, {
+				...old_data,
+				dataset,
+				class: cls,
+				inputs:
+					list.data === undefined || dataset === null || cls === null
+						? undefined
+						: list.data
+								.find((x) => x.id === dataset)
+								?.classes.find((x) => x.id === cls)
+								?.attributes.map((x) => ({
+									id: x.name,
+									type: x.data_type.type,
+									tooltip: x.name,
+								})) || undefined,
+			});
+		},
+		[id, updateNodeData, list],
+	);
+
 	return (
 		<>
 			<BaseNode id={id} title={"Add Item"} inputs={data.inputs}>
 				<Select
+					clearable
 					label="Select dataset"
 					disabled={list.data === undefined}
 					error={data.dataset !== null ? undefined : "No dataset selected"}
@@ -74,10 +98,10 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 					}
 					onChange={(value) => {
 						if (value === null) {
-							updateNodeData(id, { ...data, dataset: null });
+							updateInputs(data, null, null);
 						} else {
 							try {
-								updateNodeData(id, { ...data, dataset: parseInt(value) });
+								updateInputs(data, parseInt(value), null);
 							} catch {}
 						}
 
@@ -92,6 +116,7 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 				/>
 
 				<Select
+					clearable
 					key={
 						/* Make sure we get the right class list for the selected dataset */
 						`class-${data.dataset}`
@@ -111,10 +136,10 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 					}
 					onChange={(value) => {
 						if (value === null) {
-							updateNodeData(id, { ...data, class: null });
+							updateInputs(data, data.dataset, null);
 						} else {
 							try {
-								updateNodeData(id, { ...data, class: parseInt(value) });
+								updateInputs(data, data.dataset, parseInt(value));
 							} catch {}
 						}
 
@@ -125,7 +150,7 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 								.map((x) => ({ id: x.id })),
 						});
 					}}
-					value={data.class?.toString()}
+					value={data.class?.toString() || null}
 				/>
 			</BaseNode>
 		</>
@@ -163,20 +188,41 @@ export const AddItemNode: NodeDef<AddItemNodeType> = {
 		};
 	},
 
-	deserialize: (serialized) => {
+	deserialize: async (serialized) => {
 		if (serialized.params === undefined) {
 			return null;
 		}
+
+		const res = await edgeclient.GET("/dataset/list");
+		if (res.response.status === 401) {
+			location.replace("/");
+		} else if (res.response.status !== 200) {
+			return null;
+		}
+
+		const dataset = serialized.params.dataset;
+		if (dataset?.parameter_type !== "Integer") {
+			return null;
+		}
+		const datasetinfo = res.data?.find((x) => x.id === dataset.value) || null;
 
 		const cls = serialized.params.class;
 		if (cls?.parameter_type !== "Integer") {
 			return null;
 		}
+		const clsinfo =
+			datasetinfo?.classes.find((x) => x.id === cls.value) || null;
 
 		return {
-			dataset: null,
-			class: cls.value,
-			inputs: [],
+			dataset: datasetinfo?.id || null,
+			class: clsinfo?.id || null,
+
+			inputs:
+				clsinfo?.attributes.map((x) => ({
+					id: x.name,
+					type: x.data_type.type,
+					tooltip: x.name,
+				})) || [],
 		};
 	},
 };

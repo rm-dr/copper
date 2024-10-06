@@ -144,7 +144,7 @@ export const ConstantNode: NodeDef<ConstantNodeType> = {
 		);
 	},
 
-	deserialize: (serialized) => {
+	deserialize: async (serialized) => {
 		if (serialized.params === undefined) {
 			return null;
 		}

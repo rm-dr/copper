@@ -33,5 +33,5 @@ export const StripTagsNode: NodeDef<StripTagsNodeType> = {
 
 	initialData: {},
 	serialize: () => ({}),
-	deserialize: () => ({}),
+	deserialize: async () => ({}),
 };

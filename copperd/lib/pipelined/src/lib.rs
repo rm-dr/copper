@@ -1,4 +1,5 @@
 pub mod base;
+pub mod client;
 pub mod data;
 pub mod helpers;
 pub mod json;

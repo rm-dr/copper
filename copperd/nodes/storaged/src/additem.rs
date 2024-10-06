@@ -5,7 +5,7 @@ use copper_pipelined::{
 	helpers::BytesSourceReader,
 	CopperContext,
 };
-use copper_storaged::{AttrData, AttributeInfo, ClassId, ResultOrDirect, TransactionAction};
+use copper_storaged::{AttrData, AttributeInfo, ClassInfo, ResultOrDirect, TransactionAction};
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
@@ -29,9 +29,22 @@ impl Node<PipeData, CopperContext> for AddItem {
 		//
 		// Extract parameters
 		//
-		let class: ClassId = if let Some(value) = params.remove("class") {
+		let class: ClassInfo = if let Some(value) = params.remove("class") {
 			match value {
-				NodeParameterValue::Integer(x) => x.into(),
+				NodeParameterValue::Integer(x) => {
+					let class = ctx
+						.storaged_client
+						.get_class(x.into())
+						.await
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?
+						.ok_or(RunNodeError::BadParameterOther {
+							parameter: "class".into(),
+							message: "this class doesn't exist".into(),
+						})?;
+
+					class
+				}
+
 				_ => {
 					return Err(RunNodeError::BadParameterType {
 						parameter: "class".into(),
@@ -41,6 +54,30 @@ impl Node<PipeData, CopperContext> for AddItem {
 		} else {
 			return Err(RunNodeError::MissingParameter {
 				parameter: "class".into(),
+			});
+		};
+
+		// This is only used by UI, but make sure it's sane.
+		if let Some(value) = params.remove("dataset") {
+			match value {
+				NodeParameterValue::Integer(x) => {
+					if class.dataset != x.into() {
+						return Err(RunNodeError::BadParameterOther {
+							parameter: "dataset".into(),
+							message: "this class doesn't belong to this dataset".into(),
+						});
+					}
+				}
+
+				_ => {
+					return Err(RunNodeError::BadParameterType {
+						parameter: "dataset".into(),
+					})
+				}
+			}
+		} else {
+			return Err(RunNodeError::MissingParameter {
+				parameter: "dataset".into(),
 			});
 		};
 		if let Some((param, _)) = params.first_key_value() {
@@ -57,14 +94,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 		// TODO: map 404s to "no class" errors
 		debug!(message = "Getting attributes");
 		let mut attributes: BTreeMap<PortName, (AttributeInfo, Option<ResultOrDirect<AttrData>>)> =
-			ctx.storaged_client
-				.get_class(class)
-				.await
-				.map_err(|e| RunNodeError::Other(Arc::new(e)))?
-				.ok_or(RunNodeError::BadParameterOther {
-					parameter: "class".into(),
-					message: "this class doesn't exist".into(),
-				})?
+			class
 				.attributes
 				.into_iter()
 				.map(|x| (PortName::new(x.name.as_str()), (x, None)))
@@ -159,7 +189,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 		//
 
 		let action = TransactionAction::AddItem {
-			to_class: class,
+			to_class: class.id,
 			attributes: attributes
 				.into_iter()
 				.map(|(_, (k, d))| {

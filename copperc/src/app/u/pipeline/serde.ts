@@ -131,38 +131,38 @@ export function serializePipeline(
 	};
 }
 
-export function deserializePipeline(
+export async function deserializePipeline(
 	pipeline: components["schemas"]["PipelineJson"],
-): { nodes: Node[]; edges: Edge[] } {
-	const nodes = Object.entries(pipeline.nodes)
-		.map((x) => {
-			const v = x[1];
+): Promise<{ nodes: Node[]; edges: Edge[] }> {
+	const nodes = [];
 
-			const nodedef = Object.entries(nodeDefinitions).find(
-				(x) => x[1].copper_node_type === v.node_type,
-			);
-			if (nodedef === undefined) {
-				console.error(`Unknown node type ${v.node_type}`);
-				return null;
-			}
+	for (const x of Object.entries(pipeline.nodes)) {
+		const v = x[1];
 
-			const des = nodedef[1].deserialize(v);
-			if (des === null) {
-				return null;
-			}
+		const nodedef = Object.entries(nodeDefinitions).find(
+			(x) => x[1].copper_node_type === v.node_type,
+		);
+		if (nodedef === undefined) {
+			console.error(`Unknown node type ${v.node_type}`);
+			continue;
+		}
 
-			const node: Node = {
-				id: x[0],
-				type: nodedef[1].xyflow_node_type,
-				position: v.position,
-				data: des,
-				origin: [0.5, 0.0],
-				dragHandle: `.${nodestyle.node_top_label}`,
-			};
+		const des = await nodedef[1].deserialize(v);
+		if (des === null) {
+			continue;
+		}
 
-			return node;
-		})
-		.filter((x) => x !== null);
+		const node: Node = {
+			id: x[0],
+			type: nodedef[1].xyflow_node_type,
+			position: v.position,
+			data: des,
+			origin: [0.5, 0.0],
+			dragHandle: `.${nodestyle.node_top_label}`,
+		};
+
+		nodes.push(node);
+	}
 
 	const edges = Object.entries(pipeline.edges).map((x) => {
 		const v = x[1];

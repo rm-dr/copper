@@ -790,9 +790,12 @@ dependencies = [
  "aws-sdk-s3",
  "copper-storaged",
  "copper-util",
+ "reqwest",
  "serde",
+ "serde_json",
  "smartstring",
  "tokio",
+ "tracing",
  "utoipa",
 ]
 
@@ -1058,6 +1061,8 @@ name = "edged"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "aws-config",
+ "aws-sdk-s3",
  "axum",
  "axum-extra",
  "copper-edged",

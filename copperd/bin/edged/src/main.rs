@@ -1,19 +1,25 @@
 use api::RouterState;
 use auth::AuthHelper;
+use aws_config::{BehaviorVersion, Region};
+use aws_sdk_s3::config::Credentials;
 use axum::Router;
 use config::EdgedConfig;
+use copper_pipelined::{client::ReqwestPipelineClient, helpers::S3Client};
 use copper_storaged::client::ReqwestStoragedClient;
 use copper_util::load_env;
 use database::postgres::{PgDatabaseClient, PgDatabaseOpenError};
 use std::sync::Arc;
 use tracing::{debug, error, info};
+use uploader::Uploader;
 
 mod api;
-mod auth;
 mod config;
 mod database;
 
-async fn make_app(config: Arc<EdgedConfig>) -> Router {
+mod auth;
+mod uploader;
+
+async fn make_app(config: Arc<EdgedConfig>, objectstore_client: Arc<S3Client>) -> Router {
 	// Connect to database
 	let db = match PgDatabaseClient::open(&config.edged_db_addr).await {
 		Ok(db) => db,
@@ -32,14 +38,24 @@ async fn make_app(config: Arc<EdgedConfig>) -> Router {
 		config: config.clone(),
 		db_client: Arc::new(db),
 		auth: Arc::new(AuthHelper::new()),
-		storaged_client: Arc::new(
-			ReqwestStoragedClient::new(
-				config.edged_storaged_addr.clone(),
-				&config.edged_storaged_secret,
+		uploader: Arc::new(Uploader::new(config.clone(), objectstore_client.clone())),
+
+		pipelined_client: Arc::new(
+			ReqwestPipelineClient::new(
+				&config.edged_pipelined_addr,
+				&config.edged_pipelined_secret,
 			)
 			// TODO: handle error
 			.unwrap(),
 		),
+
+		storaged_client: Arc::new(
+			ReqwestStoragedClient::new(&config.edged_storaged_addr, &config.edged_storaged_secret)
+				// TODO: handle error
+				.unwrap(),
+		),
+
+		objectstore_client,
 	});
 }
 
@@ -54,6 +70,25 @@ async fn main() {
 		.init();
 
 	debug!(message = "Loaded config from environment", ?config);
+
+	let cred = Credentials::new(
+		&config.edged_objectstore_key_id,
+		&config.edged_objectstore_key_secret,
+		None,
+		None,
+		"pipelined .env",
+	);
+
+	// Config for minio
+	let s3_config = aws_sdk_s3::config::Builder::new()
+		.behavior_version(BehaviorVersion::v2024_03_28())
+		.endpoint_url(&config.edged_objectstore_url)
+		.credentials_provider(cred)
+		.force_path_style(true)
+		.region(Region::new("us-west"))
+		.build();
+
+	let client = aws_sdk_s3::Client::from_conf(s3_config);
 
 	let listener = match tokio::net::TcpListener::bind(config.edged_server_addr.to_string()).await {
 		Ok(x) => x,
@@ -75,7 +110,11 @@ async fn main() {
 	};
 	info!("listening on http://{}", listener.local_addr().unwrap());
 
-	let app = make_app(config).await;
+	let app = make_app(
+		config.clone(),
+		Arc::new(S3Client::new(client.clone(), &config.edged_objectstore_bucket).await),
+	)
+	.await;
 
 	match axum::serve(listener, app).await {
 		Ok(_) => {}

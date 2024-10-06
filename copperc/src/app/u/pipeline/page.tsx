@@ -57,13 +57,16 @@ function Main() {
 	});
 
 	const setPipeline = useCallback(
-		(pipeline: components["schemas"]["PipelineInfo"] | null, fit?: boolean) => {
+		async (
+			pipeline: components["schemas"]["PipelineInfo"] | null,
+			fit?: boolean,
+		) => {
 			setReloading(true);
 			if (pipeline === null) {
 				setNodes([]);
 				setEdges([]);
 			} else {
-				const de = deserializePipeline(pipeline.data);
+				const de = await deserializePipeline(pipeline.data);
 				setNodes(de.nodes);
 				setEdges(de.edges);
 			}
@@ -88,9 +91,10 @@ function Main() {
 	const { open: openAddPipeline, modal: modalAddPipeline } =
 		useAddPipelineModal({
 			onSuccess: (new_info) => {
-				setPipeline(new_info);
-				qc.invalidateQueries({ queryKey: ["dataset/list"] });
-				pipelines.refetch();
+				setPipeline(new_info).then(() => {
+					qc.invalidateQueries({ queryKey: ["dataset/list"] });
+					pipelines.refetch();
+				});
 			},
 		});
 
@@ -133,7 +137,9 @@ function Main() {
 								const int = value === null ? null : parseInt(value);
 								if (int === null || pipelines.data === undefined) {
 									setPipeline(null);
+									return;
 								}
+
 								const pipeline =
 									pipelines.data?.find((x) => x.id === int) || null;
 
@@ -204,8 +210,9 @@ function Main() {
 											qc.invalidateQueries({ queryKey: ["dataset/list"] }).then(
 												() => {
 													pipelines.refetch().then(() => {
-														setPipeline(new_pipeline, false);
-														setSaving(false);
+														setPipeline(new_pipeline, false).then(() => {
+															setSaving(false);
+														});
 													});
 												},
 											);

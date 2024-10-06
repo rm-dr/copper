@@ -9,7 +9,7 @@ use crate::{
 
 use super::s3client::S3Reader;
 
-pub enum BytesSourceReader<'a> {
+pub enum BytesSourceReader {
 	Array {
 		data: Option<Arc<Vec<u8>>>,
 		mime: MimeType,
@@ -19,12 +19,12 @@ pub enum BytesSourceReader<'a> {
 		receiver: async_broadcast::Receiver<Arc<Vec<u8>>>,
 		mime: MimeType,
 	},
-	S3(S3Reader<'a>),
+	S3(S3Reader),
 }
 
-impl<'a> BytesSourceReader<'a> {
+impl BytesSourceReader {
 	pub async fn open(
-		ctx: &'a CopperContext,
+		ctx: &CopperContext,
 		source: BytesSource,
 	) -> Result<Self, RunNodeError<PipeData>> {
 		return Ok(match source {

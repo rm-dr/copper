@@ -6,14 +6,7 @@ import styles from "./sidebar.module.scss";
 import { Tooltip } from "@mantine/core";
 import clsx from "clsx";
 import { usePathname } from "next/navigation";
-import {
-	Database,
-	FileIcon,
-	FileUp,
-	House,
-	Logs,
-	Waypoints,
-} from "lucide-react";
+import { Database, FileIcon, FileUp, House, Waypoints } from "lucide-react";
 
 export function SideBar() {
 	const currentRoute = usePathname();
@@ -52,12 +45,14 @@ export function SideBar() {
 
 		{ item: "break" },
 
+		/*
 		{
 			item: "link",
 			name: "Manage jobs",
 			icon: <Logs />,
 			link: "/u/jobs",
 		},
+		*/
 
 		{
 			item: "link",
