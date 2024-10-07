@@ -31,19 +31,15 @@ impl Node<PipeData, CopperContext> for AddItem {
 		//
 		let class: ClassInfo = if let Some(value) = params.remove("class") {
 			match value {
-				NodeParameterValue::Integer(x) => {
-					let class = ctx
-						.storaged_client
-						.get_class(x.into())
-						.await
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?
-						.ok_or(RunNodeError::BadParameterOther {
-							parameter: "class".into(),
-							message: "this class doesn't exist".into(),
-						})?;
-
-					class
-				}
+				NodeParameterValue::Integer(x) => ctx
+					.storaged_client
+					.get_class(x.into())
+					.await
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?
+					.ok_or(RunNodeError::BadParameterOther {
+						parameter: "class".into(),
+						message: "this class doesn't exist".into(),
+					})?,
 
 				_ => {
 					return Err(RunNodeError::BadParameterType {
@@ -61,10 +57,26 @@ impl Node<PipeData, CopperContext> for AddItem {
 		if let Some(value) = params.remove("dataset") {
 			match value {
 				NodeParameterValue::Integer(x) => {
-					if class.dataset != x.into() {
+					let dataset = ctx
+						.storaged_client
+						.get_dataset(x.into())
+						.await
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?
+						.ok_or(RunNodeError::BadParameterOther {
+							parameter: "dataset".into(),
+							message: "this dataset doesn't exist".into(),
+						})?;
+
+					if class.dataset != dataset.id {
 						return Err(RunNodeError::BadParameterOther {
 							parameter: "dataset".into(),
 							message: "this class doesn't belong to this dataset".into(),
+						});
+					}
+
+					if ctx.run_by_user != dataset.owner {
+						return Err(RunNodeError::NotAuthorized {
+							message: "you do not have permission to modify this dataset".into(),
 						});
 					}
 				}

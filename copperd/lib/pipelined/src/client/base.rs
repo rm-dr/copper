@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, error::Error, fmt::Display};
 
 use async_trait::async_trait;
-use copper_storaged::AttrData;
+use copper_storaged::{AttrData, UserId};
 use reqwest::StatusCode;
 use smartstring::{LazyCompact, SmartString};
 
@@ -50,5 +50,6 @@ pub trait PipelinedClient: Send + Sync {
 		pipeline: &PipelineJson,
 		job_id: &str,
 		input: &BTreeMap<SmartString<LazyCompact>, AttrData>,
+		as_user: UserId,
 	) -> Result<(), PipelinedRequestError>;
 }

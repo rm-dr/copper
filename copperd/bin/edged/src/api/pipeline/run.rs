@@ -76,7 +76,7 @@ pub(super) async fn run_pipeline<Client: DatabaseClient>(
 
 	let res = state
 		.pipelined_client
-		.run_pipeline(&pipe.data, &payload.job_id, &payload.input)
+		.run_pipeline(&pipe.data, &payload.job_id, &payload.input, user.id)
 		.await;
 
 	return match res {

@@ -346,7 +346,7 @@ impl MultipartUpload {
 
 	/// Cancel this multipart upload.
 	/// This catches and logs all errors.
-	pub async fn cancel(self) -> () {
+	pub async fn cancel(self) {
 		let res = self
 			.client
 			.client
@@ -360,8 +360,6 @@ impl MultipartUpload {
 		if let Err(error) = res {
 			error!(message = "Error while canceling job", ?error);
 		}
-
-		return ();
 	}
 
 	pub async fn finish(self) -> Result<(), S3UploadFinishError> {
