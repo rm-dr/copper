@@ -31,19 +31,15 @@ impl Node<PipeData, CopperContext> for AddItem {
 		//
 		let class: ClassInfo = if let Some(value) = params.remove("class") {
 			match value {
-				NodeParameterValue::Integer(x) => {
-					let class = ctx
-						.storaged_client
-						.get_class(x.into())
-						.await
-						.map_err(|e| RunNodeError::Other(Arc::new(e)))?
-						.ok_or(RunNodeError::BadParameterOther {
-							parameter: "class".into(),
-							message: "this class doesn't exist".into(),
-						})?;
-
-					class
-				}
+				NodeParameterValue::Integer(x) => ctx
+					.storaged_client
+					.get_class(x.into())
+					.await
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?
+					.ok_or(RunNodeError::BadParameterOther {
+						parameter: "class".into(),
+						message: "this class doesn't exist".into(),
+					})?,
 
 				_ => {
 					return Err(RunNodeError::BadParameterType {
