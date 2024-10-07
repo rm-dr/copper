@@ -151,11 +151,10 @@ export function ControlPanel(params: {
 						label="Select pipeline"
 						description={
 							<>
-								<div>Select the pipeline to run with uploaded files.</div>
-								<div>
-									Only pipelines with exactly one `Blob` input may be run from
-									this page.
-								</div>
+								Select the pipeline to run with uploaded files.
+								<br />
+								Only pipelines with exactly one `Blob` input may be run from
+								this page.
 							</>
 						}
 						style={{ width: "100%" }}
