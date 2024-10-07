@@ -10,6 +10,7 @@ import { ppBytes } from "@/lib/ppbytes";
 
 import styles from "./page.module.scss";
 import { ControlPanel } from "./controlpanel";
+import { NavBlocker } from "@/components/navblock";
 
 export type UploadQueuedFile = {
 	uid: number;
@@ -51,6 +52,7 @@ export default function Page() {
 
 	return (
 		<>
+			{uploadState.queue.length != 0 ? <NavBlocker /> : null}
 			<div className={styles.main}>
 				<ControlPanel
 					uploadState={uploadState}
