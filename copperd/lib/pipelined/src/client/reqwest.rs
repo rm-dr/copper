@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use copper_storaged::AttrData;
+use copper_storaged::{AttrData, UserId};
 use reqwest::{header, Client, IntoUrl, Url};
 use serde_json::json;
 use smartstring::{LazyCompact, SmartString};
@@ -46,6 +46,7 @@ impl PipelinedClient for ReqwestPipelineClient {
 		pipeline: &PipelineJson,
 		job_id: &str,
 		input: &BTreeMap<SmartString<LazyCompact>, AttrData>,
+		as_user: UserId,
 	) -> Result<(), PipelinedRequestError> {
 		self.client
 			.post(self.pipelined_url.join("/pipeline/run").unwrap())
@@ -56,7 +57,8 @@ impl PipelinedClient for ReqwestPipelineClient {
 			.json(&json!({
 				"pipeline": pipeline,
 				"job_id": job_id,
-				"input": input
+				"input": input,
+				"as_user": as_user
 			}))
 			.send()
 			.await

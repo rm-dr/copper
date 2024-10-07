@@ -42,6 +42,10 @@ pub enum RunNodeError<DataType: PipelineData> {
 	/// An edge was connected to an output port of a node that doesn't exist
 	UnrecognizedOutput { port: PortName },
 
+	/// We tried to take an action we are not authorized to take
+	/// (e.g, we tried to run `AddItem` on another user's dataset)
+	NotAuthorized { message: String },
+
 	//
 	// MARK: Node runtime errors
 	//
@@ -95,6 +99,7 @@ impl<DataType: PipelineData> Display for RunNodeError<DataType> {
 			Self::OutputSendError(_) => write!(f, "error while sending output"),
 			Self::NodeTaskJoinError(_) => write!(f, "error while joining task"),
 			Self::StreamReceiverOverflowed => write!(f, "stream receiver lagged"),
+			Self::NotAuthorized { message } => write!(f, "Not authorized: {message}"),
 
 			Self::BadInputType { port } => {
 				write!(f, "received bad data type on port `{port}`")

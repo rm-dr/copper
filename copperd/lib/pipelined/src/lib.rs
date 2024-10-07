@@ -6,7 +6,7 @@ pub mod json;
 
 use async_trait::async_trait;
 use base::{PipelineJobContext, RunNodeError};
-use copper_storaged::{client::StoragedClient, Transaction};
+use copper_storaged::{client::StoragedClient, Transaction, UserId};
 use data::PipeData;
 use helpers::S3Client;
 use smartstring::{LazyCompact, SmartString};
@@ -33,6 +33,11 @@ pub struct CopperContext {
 	/// The transaction to apply once this pipeline successfully resolves.
 	/// A pipeline should trigger AT MOST one transaction.
 	pub transaction: Mutex<Transaction>,
+
+	/// The user running this pipeline.
+	/// Used to make sure we have permission to do the
+	/// actions in this pipeline.
+	pub run_by_user: UserId,
 }
 
 #[async_trait]

@@ -9,7 +9,7 @@ use copper_pipelined::{
 	json::PipelineJson,
 	CopperContext,
 };
-use copper_storaged::{AttrData, Transaction};
+use copper_storaged::{AttrData, Transaction, UserId};
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
@@ -27,8 +27,13 @@ pub(super) struct AddJobRequest {
 	#[schema(value_type = String)]
 	pub job_id: SmartString<LazyCompact>,
 
+	/// The input to pass to this pipeline
 	#[schema(value_type = BTreeMap<String, AttrData>)]
 	pub input: BTreeMap<SmartString<LazyCompact>, AttrData>,
+
+	/// The user to run this pipeline as
+	#[schema(value_type = i64)]
+	pub as_user: UserId,
 }
 
 /// Start a pipeline job
@@ -79,6 +84,7 @@ pub(super) async fn run_pipeline(
 		storaged_client: state.storaged_client.clone(),
 		job_id: payload.job_id.clone(),
 		transaction: Mutex::new(Transaction::new()),
+		run_by_user: payload.as_user,
 	};
 
 	return match runner.add_job(context, payload.pipeline, &payload.job_id, input) {
