@@ -5,7 +5,7 @@ import styles from "./page.module.scss";
 import { Plus } from "lucide-react";
 import { Button } from "@mantine/core";
 import { useAddDatasetModal } from "./_modals/adddataset";
-import TitleBar from "@/components/title";
+import TitleBar from "@/components/titlebar";
 
 export default function Page() {
 	const { tree, reload } = useTreePanel();
