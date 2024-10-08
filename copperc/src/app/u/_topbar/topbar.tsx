@@ -12,12 +12,14 @@ import { useMutation } from "@tanstack/react-query";
 import { components } from "@/lib/api/openapi";
 import { ModalBaseSmall, modalStyle } from "@/components/modalbase";
 import { Book, Lock, UserCircle, UserPen } from "lucide-react";
+import { nav_confirm, useIsBlocked } from "@/components/navblock";
 
 export default function TopBar() {
 	// Get user info, log out if not logged in.
 	// Since the topbar is always shown, this `might` be enough to always log us out.
 	// Warrants further investigation.
 	const userInfo = useUserInfoQuery();
+	const isBlocked = useIsBlocked();
 
 	const { open: openUpdate, modal: updateModal } = useUpdateModal({
 		onSuccess: () => {
@@ -52,6 +54,10 @@ export default function TopBar() {
 							<Menu.Item
 								leftSection={<UserPen size="1.3rem" />}
 								onClick={() => {
+									if (isBlocked && !nav_confirm()) {
+										return;
+									}
+
 									const info = userInfo.data?.data;
 									if (info !== undefined) {
 										openUpdate(info);
@@ -63,6 +69,10 @@ export default function TopBar() {
 							<Menu.Item
 								leftSection={<Lock size="1.3rem" />}
 								onClick={() => {
+									if (isBlocked && !nav_confirm()) {
+										return;
+									}
+
 									edgeclient.POST("/logout").then(() => {
 										window.location.replace("/");
 									});

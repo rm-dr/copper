@@ -6,6 +6,7 @@ import { createTheme, MantineProvider, virtualColor } from "@mantine/core";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { NavigationBlockerProvider } from "@/components/navblock";
 
 const queryClient = new QueryClient();
 
@@ -29,11 +30,13 @@ export default function Provider({
 }>) {
 	return (
 		<>
-			<QueryClientProvider client={queryClient}>
-				<MantineProvider theme={theme} forceColorScheme="dark">
-					{children}
-				</MantineProvider>
-			</QueryClientProvider>
+			<NavigationBlockerProvider>
+				<QueryClientProvider client={queryClient}>
+					<MantineProvider theme={theme} forceColorScheme="dark">
+						{children}
+					</MantineProvider>
+				</QueryClientProvider>
+			</NavigationBlockerProvider>
 		</>
 	);
 }

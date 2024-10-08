@@ -20,6 +20,7 @@ import {
 	PipelineRenameButton,
 	PipelineSaveButton,
 } from "./buttons";
+import { NavBlocker } from "@/components/navblock";
 
 function Main() {
 	const [isModified, setModified] = useState<boolean>(false);
@@ -101,6 +102,7 @@ function Main() {
 	return (
 		<>
 			{modalAddPipeline}
+			{isModified || isSaving ? <NavBlocker /> : null}
 
 			<div className={style.pipeline_container}>
 				<div className={style.tools_container}>

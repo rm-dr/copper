@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { ReactElement } from "react";
 import styles from "./sidebar.module.scss";
 import { Tooltip } from "@mantine/core";
 import clsx from "clsx";
 import { usePathname } from "next/navigation";
 import { Database, FileIcon, FileUp, House, Waypoints } from "lucide-react";
+import { BlockableLink } from "@/components/navblock";
 
 export function SideBar() {
 	const currentRoute = usePathname();
@@ -73,6 +73,18 @@ export function SideBar() {
 		<div className={styles.sidebar}>
 			{links.map((i, idx) => {
 				if (i.item === "link") {
+					const href = i.link;
+					const inner = (
+						<div
+							className={clsx(
+								styles.item,
+								currentRoute == i.link && styles.itemactive,
+							)}
+						>
+							<div className={styles.itemicon}>{i.icon}</div>
+						</div>
+					);
+
 					return (
 						<Tooltip
 							key={idx}
@@ -81,16 +93,10 @@ export function SideBar() {
 							offset={10}
 							color="gray"
 						>
-							<Link href={i.link}>
-								<div
-									className={clsx(
-										styles.item,
-										currentRoute == i.link && styles.itemactive,
-									)}
-								>
-									<div className={styles.itemicon}>{i.icon}</div>
-								</div>
-							</Link>
+							{/* Div is necessary because function components cannot be given refs */}
+							<div>
+								<BlockableLink href={href}>{inner}</BlockableLink>
+							</div>
 						</Tooltip>
 					);
 				} else if (i.item === "break") {
