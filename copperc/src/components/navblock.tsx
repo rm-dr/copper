@@ -38,7 +38,7 @@ export function NavigationBlockerProvider({
 	);
 }
 
-function useIsBlocked() {
+export function useIsBlocked() {
 	const [isBlocked] = useContext(NavigationBlockerContext);
 	return isBlocked;
 }
@@ -75,6 +75,12 @@ export function NavBlocker() {
 	return null;
 }
 
+export function nav_confirm(): boolean {
+	return window.confirm(
+		"This page is asking you to confirm that you want to leave — information you’ve entered may not be saved.",
+	);
+}
+
 /**
  * A drop-in replacement for Next's `<Link/>` that asks for confirmation
  * if clicked while a `<NavBlocker/>` is active.
@@ -95,12 +101,7 @@ export function BlockableLink({
 				e.preventDefault();
 
 				// Cancel navigation
-				if (
-					isBlocked &&
-					!window.confirm(
-						"This page is asking you to confirm that you want to leave — information you’ve entered may not be saved.",
-					)
-				) {
+				if (isBlocked && !nav_confirm()) {
 					return;
 				}
 
