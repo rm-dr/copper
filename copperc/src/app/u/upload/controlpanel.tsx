@@ -9,7 +9,7 @@ import { components } from "@/lib/api/openapi";
 
 import styles from "./page.module.scss";
 import { uploadFiles } from "./uploadlogic";
-import { UploadState } from "./page";
+import { QueuedFileState, UploadState } from "./page";
 import { ppBytes } from "@/lib/ppbytes";
 
 function UploadBar({
@@ -229,10 +229,50 @@ export function ControlPanel(params: {
 										};
 									});
 
-									const ac = uploadFiles({
+									uploadFiles({
 										abort_controller: upload_ac.current,
-										setUploadState: params.setUploadState,
-										onFinishFile: (upload_job) => {
+										files: params.uploadState.queue.map((x) => ({
+											uid: x.uid,
+											file: x.file,
+										})),
+
+										onProgress: (file, uploaded_bytes) => {
+											params.setUploadState((us) => {
+												for (const q of us.queue) {
+													if (q.uid === file.uid) {
+														q.uploaded_bytes = uploaded_bytes;
+													}
+												}
+
+												return {
+													...us,
+												};
+											});
+										},
+
+										onFailFile: (file) => {
+											// Be careful with this, may cause weird behavior if not
+											// implemented properly... Especially since we're
+											// chaining promises in `uploadlogic`
+											params.setUploadState((us) => ({
+												...us,
+												queue: us.queue.filter((x) => x.uid !== file.uid),
+												failed_uploads: (us.failed_uploads += 1),
+												failed_size: (us.failed_size += file.file.size),
+											}));
+										},
+
+										onFinishFile: (file, upload_job) => {
+											// Be careful with this, may cause weird behavior if not
+											// implemented properly... Especially since we're
+											// chaining promises in `uploadlogic`
+											params.setUploadState((us) => ({
+												...us,
+												queue: us.queue.filter((x) => x.uid !== file.uid),
+												done_size: us.done_size + file.file.size,
+												done_uploads: us.done_uploads + 1,
+											}));
+
 											if (params.selected_pipeline === null) {
 												return;
 											}
@@ -279,12 +319,50 @@ export function ControlPanel(params: {
 												},
 											});
 										},
-										files: params.uploadState.queue,
-									});
+									})
+										.then(() => {
+											// Refresh abort controller,
+											// the previous one may have been cancelled
+											upload_ac.current = new AbortController();
 
-									// Refresh abort controller,
-									// the previous one may have been cancelled
-									upload_ac.current = ac;
+											params.setUploadState((us) => {
+												// Notice we don't clear the queue,
+												// since some queued jobs may not have been started.
+												// (this will happen if files are dragged in while we're uploading)
+												return {
+													...us,
+													done_size: 0,
+													failed_size: 0,
+													is_uploading: false,
+												};
+											});
+										})
+										// Aborted by user
+										.catch((err) => {
+											// Refresh abort controller,
+											// the previous one may have been cancelled
+											upload_ac.current = new AbortController();
+
+											if (err.name != "AbortError") {
+												throw err;
+											}
+
+											params.setUploadState((us) => {
+												// Clean up partially-completed jobs
+												for (const q of us.queue) {
+													q.uploaded_bytes = 0;
+												}
+
+												return {
+													...us,
+													is_uploading: false,
+												};
+											});
+										})
+										// Other errors
+										.catch((err) => {
+											console.log(err);
+										});
 								}}
 							>
 								Upload queued files

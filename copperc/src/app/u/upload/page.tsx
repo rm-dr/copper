@@ -11,7 +11,7 @@ import { ppBytes } from "@/lib/ppbytes";
 import styles from "./page.module.scss";
 import { ControlPanel } from "./controlpanel";
 
-export type UploadQueuedFile = {
+export type QueuedFileState = {
 	uid: number;
 	file: FileWithPath;
 	uploaded_bytes: number;
@@ -31,7 +31,7 @@ export type UploadState = {
 	is_uploading: boolean;
 
 	file_id_counter: number;
-	queue: UploadQueuedFile[];
+	queue: QueuedFileState[];
 };
 
 export default function Page() {
@@ -86,7 +86,7 @@ export default function Page() {
 											file,
 											uid: us.file_id_counter++,
 											uploaded_bytes: 0,
-										} as UploadQueuedFile;
+										} as QueuedFileState;
 									});
 
 									return {
@@ -178,7 +178,7 @@ function FilelistEntry({
 	progress,
 	progress_label,
 }: {
-	file: UploadQueuedFile;
+	file: QueuedFileState;
 	progress: number;
 	progress_label: string;
 }) {

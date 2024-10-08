@@ -1,6 +1,5 @@
 import { edgeclient } from "@/lib/api/client";
-import { Dispatch, SetStateAction } from "react";
-import { UploadQueuedFile, UploadState } from "./page";
+import { FileWithPath } from "@mantine/dropzone";
 
 /**
  * Start a new upload job and return its id.
@@ -121,140 +120,76 @@ export async function uploadBlob(params: {
 	return upload_info.job_id;
 }
 
+export type QueuedFile = {
+	uid: number;
+	file: FileWithPath;
+};
+
 /**
  * Upload the given files.
- *
- * This function starts a promise and returns an `AbortController` that may be used to
- * cancel it.
  */
-export function uploadFiles(params: {
-	setUploadState: Dispatch<SetStateAction<UploadState>>;
-	onFinishFile: (upload_job_id: string) => void;
+export async function uploadFiles(params: {
+	files: QueuedFile[];
 	abort_controller: AbortController;
-	files: UploadQueuedFile[];
-}): AbortController {
-	// Abort controller for this set of uploads
-	const upload_ac = new AbortController();
 
-	// Remove a job from the queue
-	// (failed)
-	const fail_upload = (file: UploadQueuedFile) => {
-		params.setUploadState((us) => {
-			const new_queue = [...us.queue];
-			for (let i = 0; i < new_queue.length; i++) {
-				if ((new_queue[i] as UploadQueuedFile).uid === file.uid) {
-					new_queue.splice(i, 1);
-				} else {
-					++i;
-				}
-			}
+	onProgress: (file: QueuedFile, uploaded_bytes: number) => void;
+	onFailFile: (file: QueuedFile) => void;
+	onFinishFile: (file: QueuedFile, upload_job_id: string) => void;
+}) {
+	const parallel_jobs = 3;
 
-			return {
-				...us,
-				queue: new_queue,
-				failed_uploads: (us.failed_uploads += 1),
-				failed_size: (us.failed_size += file.file.size),
-			};
-		});
-	};
+	function pickUpNextTask() {
+		if (params.abort_controller.signal.aborted) {
+			return null;
+		}
 
-	const do_upload = async () => {
-		for (const file of params.files) {
-			let upload_id;
-			try {
-				upload_id = await uploadBlob({
-					abort_controller: upload_ac,
+		const file = params.files.shift();
+
+		if (file !== undefined) {
+			return (
+				uploadBlob({
+					abort_controller: params.abort_controller,
 					blob: file.file,
 					file_name: file.file.name,
 
 					// Whenever we make progress on any file
 					onProgress: (uploaded_bytes) => {
-						params.setUploadState((us) => {
-							for (const q of us.queue) {
-								if (q.uid === file.uid) {
-									q.uploaded_bytes = uploaded_bytes;
-								}
-							}
-
-							return {
-								...us,
-							};
-						});
+						params.onProgress(file, uploaded_bytes);
 					},
-				});
-
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			} catch (err: any) {
-				if (err.name == "AbortError") {
-					throw err;
-				} else {
-					fail_upload(file);
-					continue;
-				}
-			}
-
-			// Remove this done job from the queue
-			// (successful)
-			params.onFinishFile(upload_id);
-			params.setUploadState((us) => {
-				const new_queue = [...us.queue];
-				for (let i = 0; i < new_queue.length; i++) {
-					if ((new_queue[i] as UploadQueuedFile).uid === file.uid) {
-						new_queue.splice(i, 1);
-					} else {
-						++i;
-					}
-				}
-
-				return {
-					...us,
-					queue: new_queue,
-					done_size: us.done_size + file.file.size,
-					done_uploads: us.done_uploads + 1,
-				};
-			});
+				})
+					.then((upload_id) => {
+						params.onFinishFile(file, upload_id);
+					})
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					.catch((err) => {
+						if (err.name == "AbortError") {
+							throw err;
+						} else {
+							params.onFailFile(file);
+						}
+					})
+			);
 		}
-	};
 
-	// Start uploading
-	do_upload()
-		.then(() => {
-			// When all jobs finish
+		return null;
+	}
 
-			params.setUploadState((us) => {
-				// Notice we don't clear the queue,
-				// since some queued jobs may not have been started.
-				// (this will happen if files are dragged in while we're uploading)
-				return {
-					...us,
-					done_size: 0,
-					failed_size: 0,
-					is_uploading: false,
-				};
-			});
-		})
-		// Aborted by user
-		.catch((err) => {
-			if (err.name != "AbortError") {
-				throw err;
+	function startChain() {
+		return Promise.resolve().then(function next(): Promise<void> {
+			const task = pickUpNextTask();
+			if (task === null) {
+				return Promise.resolve();
+			} else {
+				return task.then(next);
 			}
-
-			params.setUploadState((us) => {
-				// Clean up partially-completed jobs
-				for (const q of us.queue) {
-					q.uploaded_bytes = 0;
-				}
-
-				return {
-					...us,
-					is_uploading: false,
-				};
-			});
-		})
-		// Other errors
-		.catch((err) => {
-			console.log(err);
 		});
+	}
 
-	return upload_ac;
+	let jobs: Promise<void>[] = [];
+
+	for (let i = 0; i < parallel_jobs; i++) {
+		jobs.push(startChain());
+	}
+
+	await Promise.all(jobs);
 }
