@@ -5,9 +5,8 @@ use serde_json::json;
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 
-use crate::json::PipelineJson;
-
 use super::{PipelinedClient, PipelinedRequestError};
+use crate::{json::PipelineJson, structs::JobInfoList};
 
 pub struct ReqwestPipelineClient {
 	client: Client,
@@ -65,5 +64,41 @@ impl PipelinedClient for ReqwestPipelineClient {
 			.map_err(convert_error)?;
 
 		return Ok(());
+	}
+
+	async fn list_user_jobs(
+		&self,
+		user: UserId,
+		skip: usize,
+		count: usize,
+	) -> Result<JobInfoList, PipelinedRequestError> {
+		let url = self
+			.pipelined_url
+			.join(&format!("/job/list/{}", i64::from(user)))
+			.unwrap();
+
+		let url = reqwest::Url::parse_with_params(
+			// hack, but whatever.
+			url.as_str(),
+			[("skip", skip.to_string()), ("count", count.to_string())],
+		)
+		.unwrap();
+
+		let res = self
+			.client
+			.get(url)
+			.header(
+				header::AUTHORIZATION,
+				format!("Bearer {}", self.pipelined_secret),
+			)
+			.send()
+			.await
+			.map_err(convert_error)?;
+
+		let json = res.text().await.map_err(convert_error)?;
+		let de: JobInfoList = serde_json::from_str(&json)
+			.map_err(|e| PipelinedRequestError::Other { error: Box::new(e) })?;
+
+		return Ok(de);
 	}
 }

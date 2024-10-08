@@ -1,7 +1,9 @@
 use copper_pipelined::{
 	base::{NodeDispatcher, PipelineData, PipelineJobContext, RunNodeError},
 	json::PipelineJson,
+	structs::JobInfoState,
 };
+use copper_storaged::UserId;
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::{BTreeMap, VecDeque},
@@ -66,6 +68,20 @@ pub enum JobState<ContextType> {
 	BuildError(PipelineBuildError),
 }
 
+impl<T> From<&JobState<T>> for JobInfoState {
+	fn from(state: &JobState<T>) -> Self {
+		match &state {
+			JobState::Queued { .. } => JobInfoState::Queued,
+			JobState::Running => JobInfoState::Running,
+			JobState::Failed => JobInfoState::Failed,
+			JobState::Success => JobInfoState::Success,
+			JobState::BuildError(err) => JobInfoState::BuildError {
+				message: format!("{err}"),
+			},
+		}
+	}
+}
+
 impl<ContextType> JobState<ContextType> {
 	/// If this is `Self::Queued`, return `context` and set to `Self::Running`.
 	/// Otherwise, do nothing and return `None`.
@@ -87,10 +103,13 @@ impl<ContextType> JobState<ContextType> {
 pub struct JobEntry<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
 	pub id: SmartString<LazyCompact>,
 	pub state: JobState<ContextType>,
+	pub owner: UserId,
+
 	pub pipeline: PipelineJson,
 	pub inputs: BTreeMap<SmartString<LazyCompact>, DataType>,
 
 	pub added_at: OffsetDateTime,
+
 	pub started_at: Option<OffsetDateTime>,
 	pub finished_at: Option<OffsetDateTime>,
 }
@@ -105,7 +124,14 @@ pub struct PipelineRunner<DataType: PipelineData, ContextType: PipelineJobContex
 
 	jobs: BTreeMap<SmartString<LazyCompact>, JobEntry<DataType, ContextType>>,
 
-	/// Jobs that are queued to run
+	/// Jobs owned by each user.
+	/// Queues are ordered by add time.
+	/// Jobs are always added to the back of the deque.
+	jobs_by_user: BTreeMap<UserId, VecDeque<SmartString<LazyCompact>>>,
+
+	/// Jobs that are queued to run.
+	/// These are are ordered by add time.
+	/// Jobs are always added to the back of the deque.
 	queued_jobs: VecDeque<SmartString<LazyCompact>>,
 	running_jobs: VecDeque<SmartString<LazyCompact>>,
 	finished_jobs: VecDeque<SmartString<LazyCompact>>,
@@ -123,8 +149,10 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		Self {
 			dispatcher: NodeDispatcher::new(),
 
-			jobs: BTreeMap::new(),
 			tasks: JoinSet::new(),
+			jobs: BTreeMap::new(),
+			jobs_by_user: BTreeMap::new(),
+
 			queued_jobs: VecDeque::with_capacity(config.job_queue_size),
 			running_jobs: VecDeque::with_capacity(config.max_running_jobs),
 			finished_jobs: VecDeque::with_capacity(config.job_log_size),
@@ -139,6 +167,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		context: ContextType,
 		pipeline: PipelineJson,
 		job_id: &str,
+		owner: UserId,
 		inputs: BTreeMap<SmartString<LazyCompact>, DataType>,
 	) -> Result<(), AddJobError> {
 		if self.jobs.contains_key(job_id) {
@@ -152,12 +181,13 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		}
 
 		info!(message = "Adding job to queue", job_id);
-		self.queued_jobs.push_back(job_id.into());
 		self.jobs.insert(
 			job_id.into(),
 			JobEntry {
 				id: job_id.into(),
 				state: JobState::Queued { context },
+				owner,
+
 				pipeline,
 				inputs,
 
@@ -166,6 +196,15 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 				finished_at: None,
 			},
 		);
+
+		self.queued_jobs.push_back(job_id.into());
+		if !self.jobs_by_user.contains_key(&owner) {
+			self.jobs_by_user.insert(owner, VecDeque::new());
+		}
+		self.jobs_by_user
+			.get_mut(&owner)
+			.unwrap()
+			.push_back(job_id.into());
 
 		return Ok(());
 	}
@@ -177,13 +216,17 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		while let Some(res) = self.tasks.try_join_next() {
 			let res = res?;
 
-			let job = self.jobs.get_mut(&res.0).unwrap();
-			job.finished_at = Some(OffsetDateTime::now_utc());
-
 			// Make sure job log stays within size limit
 			while self.finished_jobs.len() >= self.config.job_log_size {
-				self.finished_jobs.pop_front();
+				let j = self.finished_jobs.pop_front().unwrap();
+				let j = self.jobs.remove(&j).unwrap();
+				let jbu = self.jobs_by_user.get_mut(&j.owner).unwrap();
+				let idx = jbu.iter().position(|x| x == &j.id).unwrap();
+				jbu.remove(idx);
 			}
+
+			let job = self.jobs.get_mut(&res.0).unwrap();
+			job.finished_at = Some(OffsetDateTime::now_utc());
 
 			self.finished_jobs.push_back(job.id.clone());
 			self.running_jobs.remove(
@@ -269,8 +312,13 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 
 					// Make sure job log stays within size limit
 					while self.finished_jobs.len() >= self.config.job_log_size {
-						self.finished_jobs.pop_front();
+						let j = self.finished_jobs.pop_front().unwrap();
+						let j = self.jobs.remove(&j).unwrap();
+						let jbu = self.jobs_by_user.get_mut(&j.owner).unwrap();
+						let idx = jbu.iter().position(|x| x == &j.id).unwrap();
+						jbu.remove(idx);
 					}
+
 					self.finished_jobs.push_back(queued_job_id);
 				}
 			}
@@ -289,13 +337,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	}
 
 	/// Get this runner's queued jobs
-	pub fn queued_jobs(&self) -> &VecDeque<SmartString<LazyCompact>> {
-		&self.queued_jobs
-	}
-
-	/// Get this runner's running jobs
-	pub fn running_jobs(&self) -> &VecDeque<SmartString<LazyCompact>> {
-		&self.running_jobs
+	pub fn jobs_by_user(&self, user: UserId) -> Option<&VecDeque<SmartString<LazyCompact>>> {
+		self.jobs_by_user.get(&user)
 	}
 
 	pub fn get_job(&self, job_id: &str) -> Option<&JobEntry<DataType, ContextType>> {
