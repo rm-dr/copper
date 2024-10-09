@@ -517,6 +517,8 @@ export interface components {
 			 * @description The id of the class
 			 */
 			id: number;
+			/** Format: int64 */
+			item_count: number;
 			/** @description This class' name */
 			name: string;
 		};

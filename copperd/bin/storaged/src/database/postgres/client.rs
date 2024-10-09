@@ -92,49 +92,57 @@ impl DatabaseClient for PgDatabaseClient {
 				.fetch_all(&mut *conn)
 				.await;
 
-			match res {
+			let mut classes = Vec::new();
+			let rows = match res {
 				Err(e) => return Err(GetDatasetError::DbError(Box::new(e))),
-				Ok(rows) => {
-					let mut classes = Vec::new();
+				Ok(rows) => rows,
+			};
 
-					for r in rows {
-						let class_id: ClassId = r.get::<i64, _>("id").into();
+			for r in rows {
+				let class_id: ClassId = r.get::<i64, _>("id").into();
 
-						let res = sqlx::query("SELECT * FROM attribute WHERE class_id=$1;")
-							.bind(i64::from(class_id))
-							.fetch_all(&mut *conn)
-							.await;
+				let res = sqlx::query("SELECT * FROM attribute WHERE class_id=$1;")
+					.bind(i64::from(class_id))
+					.fetch_all(&mut *conn)
+					.await;
 
-						let attributes: Vec<AttributeInfo> = match res {
-							Err(e) => return Err(GetDatasetError::DbError(Box::new(e))),
-							Ok(rows) => rows
-								.into_iter()
-								.map(|row| AttributeInfo {
-									id: row.get::<i64, _>("id").into(),
-									class: row.get::<i64, _>("id").into(),
-									order: row.get::<i64, _>("attr_order"),
-									name: row.get::<String, _>("pretty_name").into(),
-									data_type: serde_json::from_str(
-										row.get::<&str, _>("data_type"),
-									)
-									.unwrap(),
-									is_unique: row.get("is_unique"),
-									is_not_null: row.get("is_not_null"),
-								})
-								.collect(),
-						};
+				let attributes: Vec<AttributeInfo> = match res {
+					Err(e) => return Err(GetDatasetError::DbError(Box::new(e))),
+					Ok(rows) => rows
+						.into_iter()
+						.map(|row| AttributeInfo {
+							id: row.get::<i64, _>("id").into(),
+							class: row.get::<i64, _>("id").into(),
+							order: row.get::<i64, _>("attr_order"),
+							name: row.get::<String, _>("pretty_name").into(),
+							data_type: serde_json::from_str(row.get::<&str, _>("data_type"))
+								.unwrap(),
+							is_unique: row.get("is_unique"),
+							is_not_null: row.get("is_not_null"),
+						})
+						.collect(),
+				};
 
-						classes.push(ClassInfo {
-							dataset,
-							id: class_id,
-							name: r.get::<String, _>("pretty_name").into(),
-							attributes,
-						});
-					}
+				let res = sqlx::query("SELECT COUNT(id) FROM item WHERE class_id=$1;")
+					.bind(i64::from(class_id))
+					.fetch_one(&mut *conn)
+					.await;
 
-					classes
-				}
+				let item_count: u64 = match res {
+					Err(e) => return Err(GetDatasetError::DbError(Box::new(e))),
+					Ok(res) => res.get::<i64, _>("count").try_into().unwrap(),
+				};
+
+				classes.push(ClassInfo {
+					dataset,
+					id: class_id,
+					name: r.get::<String, _>("pretty_name").into(),
+					attributes,
+					item_count,
+				});
 			}
+
+			classes
 		};
 
 		let res = sqlx::query("SELECT * FROM dataset WHERE id=$1;")
@@ -179,52 +187,59 @@ impl DatabaseClient for PgDatabaseClient {
 							.fetch_all(&mut *conn)
 							.await;
 
-						match res {
+						let mut classes = Vec::new();
+						let rows = match res {
 							Err(e) => return Err(ListDatasetsError::DbError(Box::new(e))),
-							Ok(rows) => {
-								let mut classes = Vec::new();
+							Ok(rows) => rows,
+						};
 
-								for r in rows {
-									let class_id: ClassId = r.get::<i64, _>("id").into();
+						for r in rows {
+							let class_id: ClassId = r.get::<i64, _>("id").into();
 
-									let res =
-										sqlx::query("SELECT * FROM attribute WHERE class_id=$1;")
-											.bind(i64::from(class_id))
-											.fetch_all(&mut *conn)
-											.await;
+							let res = sqlx::query("SELECT * FROM attribute WHERE class_id=$1;")
+								.bind(i64::from(class_id))
+								.fetch_all(&mut *conn)
+								.await;
 
-									let attributes: Vec<AttributeInfo> = match res {
-										Err(e) => {
-											return Err(ListDatasetsError::DbError(Box::new(e)))
-										}
-										Ok(rows) => rows
-											.into_iter()
-											.map(|row| AttributeInfo {
-												id: row.get::<i64, _>("id").into(),
-												class: row.get::<i64, _>("id").into(),
-												order: row.get::<i64, _>("attr_order"),
-												name: row.get::<String, _>("pretty_name").into(),
-												data_type: serde_json::from_str(
-													row.get::<&str, _>("data_type"),
-												)
-												.unwrap(),
-												is_unique: row.get("is_unique"),
-												is_not_null: row.get("is_not_null"),
-											})
-											.collect(),
-									};
+							let attributes: Vec<AttributeInfo> = match res {
+								Err(e) => return Err(ListDatasetsError::DbError(Box::new(e))),
+								Ok(rows) => rows
+									.into_iter()
+									.map(|row| AttributeInfo {
+										id: row.get::<i64, _>("id").into(),
+										class: row.get::<i64, _>("id").into(),
+										order: row.get::<i64, _>("attr_order"),
+										name: row.get::<String, _>("pretty_name").into(),
+										data_type: serde_json::from_str(
+											row.get::<&str, _>("data_type"),
+										)
+										.unwrap(),
+										is_unique: row.get("is_unique"),
+										is_not_null: row.get("is_not_null"),
+									})
+									.collect(),
+							};
 
-									classes.push(ClassInfo {
-										dataset: dataset_id,
-										id: class_id,
-										name: r.get::<String, _>("pretty_name").into(),
-										attributes,
-									});
-								}
+							let res = sqlx::query("SELECT COUNT(id) FROM item WHERE class_id=$1;")
+								.bind(i64::from(class_id))
+								.fetch_one(&mut *conn)
+								.await;
 
-								classes
-							}
+							let item_count: u64 = match res {
+								Err(e) => return Err(ListDatasetsError::DbError(Box::new(e))),
+								Ok(res) => res.get::<i64, _>("count").try_into().unwrap(),
+							};
+
+							classes.push(ClassInfo {
+								dataset: dataset_id,
+								id: class_id,
+								name: r.get::<String, _>("pretty_name").into(),
+								attributes,
+								item_count,
+							});
 						}
+
+						classes
 					};
 
 					out.push(DatasetInfo {
@@ -388,6 +403,16 @@ impl DatabaseClient for PgDatabaseClient {
 				.collect(),
 		};
 
+		let res = sqlx::query("SELECT COUNT(id) FROM item WHERE class_id=$1;")
+			.bind(i64::from(class))
+			.fetch_one(&mut *conn)
+			.await;
+
+		let item_count: u64 = match res {
+			Err(e) => return Err(GetClassError::DbError(Box::new(e))),
+			Ok(res) => res.get::<i64, _>("count").try_into().unwrap(),
+		};
+
 		let res = sqlx::query("SELECT * FROM class WHERE id=$1;")
 			.bind(i64::from(class))
 			.fetch_one(&mut *conn)
@@ -401,6 +426,7 @@ impl DatabaseClient for PgDatabaseClient {
 				id: res.get::<i64, _>("id").into(),
 				name: res.get::<String, _>("pretty_name").into(),
 				attributes,
+				item_count,
 			}),
 		};
 	}
