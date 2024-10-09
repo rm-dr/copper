@@ -129,6 +129,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/job/list": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** List the logged in user's jobs */
+		get: operations["list_jobs"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/login": {
 		parameters: {
 			query?: never;
@@ -535,6 +552,40 @@ export interface components {
 			/** @description The port's name */
 			port: string;
 		};
+		JobCounts: {
+			build_errors: number;
+			failed_jobs: number;
+			queued_jobs: number;
+			running_jobs: number;
+			successful_jobs: number;
+			total_jobs: number;
+		};
+		JobInfo: {
+			added_at: string;
+			finished_at?: string | null;
+			id: string;
+			/** Format: int64 */
+			owner: number;
+			started_at?: string | null;
+			state: components["schemas"]["JobInfoState"];
+		};
+		JobInfoList: {
+			counts: components["schemas"]["JobCounts"];
+			jobs: components["schemas"]["JobInfo"][];
+			/** @description The number of jobs we skipped while paginating.
+			 *     (i.e, the true index of the first job in `jobs`) */
+			skip: number;
+		};
+		JobInfoState:
+			| "Queued"
+			| "Running"
+			| "Success"
+			| "Failed"
+			| {
+					BuildError: {
+						message: string;
+					};
+			  };
 		LoginRequest: {
 			email: string;
 			password: string;
@@ -1219,6 +1270,36 @@ export interface operations {
 			};
 			/** @description Internal server error */
 			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	list_jobs: {
+		parameters: {
+			query: {
+				skip: number;
+				count: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description This user's jobs, ordered by age */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["JobInfoList"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
 				headers: {
 					[name: string]: unknown;
 				};
