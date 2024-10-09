@@ -20,6 +20,7 @@ use crate::uploader::Uploader;
 mod attribute;
 mod class;
 mod dataset;
+mod job;
 mod login;
 mod logout;
 mod pipeline;
@@ -65,6 +66,7 @@ impl<Client: DatabaseClient> Clone for RouterState<Client> {
 		(path = "/attribute", api = attribute::AttributeApi),
 		(path = "/pipeline", api = pipeline::PipelineApi),
 		(path = "/storage", api = storage::StorageApi),
+		(path = "/job", api = job::JobApi),
 	),
 	tags(
 		(name = "Copper", description = "Copper edge daemon")
@@ -84,6 +86,7 @@ pub(super) fn router<Client: DatabaseClient + 'static>(state: RouterState<Client
 		.nest("/attribute", attribute::router())
 		.nest("/pipeline", pipeline::router())
 		.nest("/storage", storage::router())
+		.nest("/job", job::router())
 		//
 		.route("/login", post(try_login))
 		.route("/logout", post(logout))

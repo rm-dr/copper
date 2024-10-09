@@ -58,6 +58,8 @@ pub struct ClassInfo {
 	pub name: SmartString<LazyCompact>,
 
 	pub attributes: Vec<AttributeInfo>,
+
+	pub item_count: u64,
 }
 
 /// Attribute information

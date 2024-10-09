@@ -87,7 +87,13 @@ pub(super) async fn run_pipeline(
 		run_by_user: payload.as_user,
 	};
 
-	return match runner.add_job(context, payload.pipeline, &payload.job_id, input) {
+	return match runner.add_job(
+		context,
+		payload.pipeline,
+		&payload.job_id,
+		payload.as_user,
+		input,
+	) {
 		Ok(()) => StatusCode::OK.into_response(),
 		Err(AddJobError::AlreadyExists) => StatusCode::CONFLICT.into_response(),
 		Err(AddJobError::QueueFull) => StatusCode::TOO_MANY_REQUESTS.into_response(),

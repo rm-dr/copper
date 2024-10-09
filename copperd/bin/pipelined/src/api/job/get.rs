@@ -4,37 +4,16 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
-use serde::Serialize;
-use time::OffsetDateTime;
-use utoipa::ToSchema;
+use copper_pipelined::structs::JobInfo;
 
-use crate::{pipeline::runner::JobState, RouterState};
-
-#[derive(Debug, Serialize, ToSchema)]
-pub(super) struct JobResponse {
-	id: String,
-
-	state: JobResponseState,
-	added_at: OffsetDateTime,
-	started_at: Option<OffsetDateTime>,
-	finished_at: Option<OffsetDateTime>,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub(super) enum JobResponseState {
-	Queued,
-	Running,
-	Success,
-	Failed,
-	BuildError { message: String },
-}
+use crate::RouterState;
 
 /// Start a pipeline job
 #[utoipa::path(
 	get,
 	path = "/{job_id}",
 	responses(
-		(status = 200, description = "Job status", body = JobResponse),
+		(status = 200, description = "Job status", body = JobInfo),
 		(status = 401, description = "Unauthorized"),
 		(status = 404, description = "Job not found"),
 		(status = 500, description = "Internal server error"),
@@ -57,19 +36,11 @@ pub(super) async fn get_job(
 
 	return match runner.get_job(&job_id) {
 		Some(job) => {
-			let status = JobResponse {
+			let status = JobInfo {
 				id: job.id.to_string(),
+				owner: job.owner,
 
-				state: match &job.state {
-					JobState::Queued { .. } => JobResponseState::Queued,
-					JobState::Running => JobResponseState::Running,
-					JobState::Failed => JobResponseState::Failed,
-					JobState::Success => JobResponseState::Success,
-					JobState::BuildError(err) => JobResponseState::BuildError {
-						message: format!("{err}"),
-					},
-				},
-
+				state: (&job.state).into(),
 				added_at: job.added_at,
 				started_at: job.started_at,
 				finished_at: job.finished_at,
