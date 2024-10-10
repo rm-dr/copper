@@ -358,9 +358,8 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
 	schemas: {
-		/** @description A value stored inside an attribute.
-		 *     Each of these corresponds to an [`AttrDataStub`] */
-		AttrData:
+		/** @description Attribute data, provided by the user by api calls. */
+		ApiAttrData:
 			| {
 					data_type: components["schemas"]["AttrDataStub"];
 					/** @enum {string} */
@@ -410,7 +409,7 @@ export interface components {
 			  }
 			| {
 					/** @description The object's key */
-					object_key: string;
+					key: string;
 					/** @enum {string} */
 					type: "Blob";
 			  }
@@ -710,7 +709,7 @@ export interface components {
 		};
 		RunPipelineRequest: {
 			input: {
-				[key: string]: components["schemas"]["AttrData"];
+				[key: string]: components["schemas"]["ApiAttrData"];
 			};
 			/** @description A unique id for this job */
 			job_id: string;

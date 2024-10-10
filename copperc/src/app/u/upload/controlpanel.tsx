@@ -9,7 +9,7 @@ import { components } from "@/lib/api/openapi";
 
 import styles from "./page.module.scss";
 import { uploadFiles } from "./uploadlogic";
-import { QueuedFileState, UploadState } from "./page";
+import { UploadState } from "./page";
 import { ppBytes } from "@/lib/ppbytes";
 
 function UploadBar({
@@ -312,7 +312,7 @@ export function ControlPanel(params: {
 													input: {
 														[input_name]: {
 															type: "Blob",
-															object_key: upload_job,
+															key: upload_job,
 														},
 													},
 												},

@@ -123,7 +123,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 			match data {
 				Some(PipeData::Blob { source }) => {
 					// TODO: recompute if exists
-					let new_obj_key: String = rand::thread_rng()
+					let new_obj_key: SmartString<LazyCompact> = rand::thread_rng()
 						.sample_iter(&Alphanumeric)
 						.take(32)
 						.map(char::from)
@@ -156,7 +156,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 
 					attr.1 = Some(
 						AttrData::Blob {
-							object_key: new_obj_key,
+							key: new_obj_key,
 						}
 						.into(),
 					)
