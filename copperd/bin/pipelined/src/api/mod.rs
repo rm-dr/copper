@@ -2,12 +2,11 @@ use axum::{extract::DefaultBodyLimit, Router};
 use copper_pipelined::{
 	base::NodeParameterValue,
 	data::PipeData,
-	helpers::S3Client,
 	json::{EdgeJson, InputPort, NodeJson, NodeJsonPosition, OutputPort, PipelineJson},
 	CopperContext,
 };
 use copper_storaged::{client::StoragedClient, AttrData, AttrDataStub};
-use copper_util::HashType;
+use copper_util::{s3client::S3Client, HashType};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;

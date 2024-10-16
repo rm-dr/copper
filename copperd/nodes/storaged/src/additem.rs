@@ -135,7 +135,11 @@ impl Node<PipeData, CopperContext> for AddItem {
 
 					let mut upload = ctx
 						.objectstore_client
-						.create_multipart_upload(&new_obj_key, reader.mime().clone())
+						.create_multipart_upload(
+							&ctx.objectstore_blob_bucket,
+							&new_obj_key,
+							reader.mime().clone(),
+						)
 						.await
 						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
@@ -156,6 +160,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 
 					attr.1 = Some(
 						AttrData::Blob {
+							bucket: ctx.objectstore_blob_bucket.clone(),
 							key: new_obj_key,
 						}
 						.into(),

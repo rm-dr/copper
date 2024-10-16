@@ -65,10 +65,10 @@ pub(super) async fn run_pipeline(
 	let mut input = BTreeMap::new();
 	for (name, value) in payload.input {
 		match value {
-			AttrData::Blob { key } => input.insert(
+			AttrData::Blob { bucket, key } => input.insert(
 				name,
 				PipeData::Blob {
-					source: BytesSource::S3 { key },
+					source: BytesSource::S3 { bucket, key },
 				},
 			),
 

@@ -1,6 +1,8 @@
-use copper_pipelined::helpers::{MultipartUpload, S3Client};
 use copper_storaged::UserId;
-use copper_util::MimeType;
+use copper_util::{
+	s3client::{MultipartUpload, S3Client},
+	MimeType,
+};
 use errors::{NewUploadError, UploadFinishError, UploadFragmentError};
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};

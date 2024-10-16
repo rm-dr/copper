@@ -1,7 +1,6 @@
-use copper_pipelined::helpers::{
-	S3CreateMultipartUploadError, S3UploadFinishError, S3UploadPartError,
-};
 use std::{error::Error, fmt::Display};
+
+use copper_util::s3client::{S3CreateMultipartUploadError, S3UploadFinishError, S3UploadPartError};
 
 #[derive(Debug)]
 pub enum NewUploadError {

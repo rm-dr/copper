@@ -63,6 +63,7 @@ pub enum BytesSource {
 	},
 	S3 {
 		key: SmartString<LazyCompact>,
+		bucket: SmartString<LazyCompact>,
 	},
 }
 

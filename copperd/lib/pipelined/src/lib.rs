@@ -8,8 +8,8 @@ pub mod structs;
 use async_trait::async_trait;
 use base::{PipelineJobContext, RunNodeError};
 use copper_storaged::{client::StoragedClient, Transaction, UserId};
+use copper_util::s3client::S3Client;
 use data::PipeData;
-use helpers::S3Client;
 use smartstring::{LazyCompact, SmartString};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -27,18 +27,26 @@ pub struct CopperContext {
 	/// overflowing channel, larger values use more memory.
 	pub stream_channel_capacity: usize,
 
-	pub storaged_client: Arc<dyn StoragedClient>,
-	pub objectstore_client: Arc<S3Client>,
+	/// The id of this job
 	pub job_id: SmartString<LazyCompact>,
-
-	/// The transaction to apply once this pipeline successfully resolves.
-	/// A pipeline should trigger AT MOST one transaction.
-	pub transaction: Mutex<Transaction>,
 
 	/// The user running this pipeline.
 	/// Used to make sure we have permission to do the
 	/// actions in this pipeline.
 	pub run_by_user: UserId,
+
+	/// The storaged client this pipeline should use
+	pub storaged_client: Arc<dyn StoragedClient>,
+
+	/// The objectstore client this pipeline should use
+	pub objectstore_client: Arc<S3Client>,
+
+	/// The name of the bucket to store blobs in
+	pub objectstore_blob_bucket: SmartString<LazyCompact>,
+
+	/// The transaction to apply once this pipeline successfully resolves.
+	/// A pipeline triggers AT MOST one transaction.
+	pub transaction: Mutex<Transaction>,
 }
 
 #[async_trait]

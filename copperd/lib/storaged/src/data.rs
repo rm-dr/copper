@@ -56,6 +56,10 @@ pub enum AttrData {
 
 	/// Binary data stored in S3
 	Blob {
+		/// The name of the bucket this blob is stored in
+		#[schema(value_type = String)]
+		bucket: SmartString<LazyCompact>,
+
 		/// The object's key
 		#[schema(value_type = String)]
 		key: SmartString<LazyCompact>,
