@@ -8,8 +8,8 @@ use axum::{
 use axum_extra::extract::CookieJar;
 use tracing::{error, warn};
 
-use crate::database::base::client::DatabaseClient;
 use crate::{api::RouterState, uploader::errors::UploadFragmentError};
+use crate::{database::base::client::DatabaseClient, uploader::UploadJobId};
 
 /// Upload a part of a file.
 /// TODO: enforce 5MB minimum size
@@ -30,7 +30,7 @@ use crate::{api::RouterState, uploader::errors::UploadFragmentError};
 pub(super) async fn upload_part<Client: DatabaseClient>(
 	jar: CookieJar,
 	State(state): State<RouterState<Client>>,
-	Path(job_id): Path<String>,
+	Path(job_id): Path<UploadJobId>,
 	mut multipart: Multipart,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {

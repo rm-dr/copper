@@ -1,10 +1,10 @@
-use crate::database::base::client::DatabaseClient;
 use crate::RouterState;
+use crate::{apidata::ApiAttrData, database::base::client::DatabaseClient};
 use axum::{
 	routing::{delete, get, patch, post},
 	Router,
 };
-use copper_edged::{ApiAttrData, PipelineInfo};
+use copper_edged::PipelineInfo;
 use copper_pipelined::{
 	base::NodeParameterValue,
 	json::{EdgeJson, InputPort, NodeJson, NodeJsonPosition, OutputPort, PipelineJson},

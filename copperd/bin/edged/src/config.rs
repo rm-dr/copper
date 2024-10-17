@@ -47,7 +47,7 @@ pub struct EdgedConfig {
 	/// The bucket to store user uploads in
 	pub edged_objectstore_upload_bucket: String,
 
-	/// How long an upload job may idle before being deleted, in seconds
+	/// How long a pending upload job may idle before being deleted, in seconds
 	pub edged_upload_job_timeout: u64,
 }
 

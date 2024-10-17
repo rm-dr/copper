@@ -5,6 +5,8 @@ use smartstring::{LazyCompact, SmartString};
 use std::fmt::Debug;
 use utoipa::ToSchema;
 
+use crate::uploader::UploadJobId;
+
 /// Attribute data, provided by the user by api calls.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type")]
@@ -48,11 +50,17 @@ pub enum ApiAttrData {
 		data: Vec<u8>,
 	},
 
-	/// Binary data stored in S3
+	/// Binary data we uploaded previously
 	Blob {
-		/// The object's key
+		/// The upload id. This must only be used once,
+		/// uploaded files are deleted once their job is done.
+		///
+		/// Also, note that we _never_ send the S3 key to the
+		/// client---only the upload id as a proxy. This makes sure
+		/// that clients can only start jobs on uploads they own,
+		/// and reduces the risk of other creative abuse.
 		#[schema(value_type = String)]
-		key: SmartString<LazyCompact>,
+		upload_id: UploadJobId,
 	},
 
 	/// A reference to an item in another class

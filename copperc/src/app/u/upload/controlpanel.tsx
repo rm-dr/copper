@@ -312,7 +312,7 @@ export function ControlPanel(params: {
 													input: {
 														[input_name]: {
 															type: "Blob",
-															key: upload_job,
+															upload_id: upload_job,
 														},
 													},
 												},

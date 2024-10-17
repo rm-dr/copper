@@ -763,7 +763,6 @@ dependencies = [
  "argon2",
  "copper-pipelined",
  "copper-storaged",
- "copper-util",
  "serde",
  "smartstring",
  "utoipa",

@@ -5,8 +5,9 @@ use copper_util::{
 };
 use errors::{NewUploadError, UploadFinishError, UploadFragmentError};
 use rand::{distributions::Alphanumeric, Rng};
+use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
-use std::{sync::Arc, time::Duration};
+use std::{collections::BTreeMap, fmt::Display, sync::Arc, time::Duration};
 use time::OffsetDateTime;
 use tracing::{debug, info};
 
@@ -16,38 +17,92 @@ pub mod errors;
 
 const UPLOAD_ID_LENGTH: usize = 16;
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct UploadJobId {
+	id: SmartString<LazyCompact>,
+}
+
+impl UploadJobId {
+	#[inline(always)]
+	pub fn new() -> Self {
+		let id: SmartString<LazyCompact> = rand::thread_rng()
+			.sample_iter(&Alphanumeric)
+			.take(UPLOAD_ID_LENGTH)
+			.map(char::from)
+			.collect();
+
+		Self { id }
+	}
+
+	pub fn as_str(&self) -> &str {
+		&self.id
+	}
+}
+
+impl Display for UploadJobId {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", self.id)
+	}
+}
+
+pub enum UploadJobState {
+	/// This job is pending, value is upload target
+	Pending(MultipartUpload),
+
+	/// This job is done, value is S3 object key.
+	Done(SmartString<LazyCompact>),
+}
+
 pub struct UploadJob {
-	pub id: SmartString<LazyCompact>,
+	pub id: UploadJobId,
 	pub started_at: OffsetDateTime,
 	pub last_activity: OffsetDateTime,
 	pub owner: UserId,
 
-	pub uploadjob: MultipartUpload,
+	pub state: UploadJobState,
 	pub mime: MimeType,
 }
 
 pub struct Uploader {
 	config: Arc<EdgedConfig>,
-	jobs: tokio::sync::Mutex<Vec<UploadJob>>,
+	jobs: tokio::sync::Mutex<BTreeMap<UploadJobId, UploadJob>>,
 	objectstore_client: Arc<S3Client>,
+}
+
+pub enum GotJobKey {
+	NoSuchJob,
+	JobNotDone,
+	HereYouGo(SmartString<LazyCompact>),
 }
 
 impl Uploader {
 	pub fn new(config: Arc<EdgedConfig>, objectstore_client: Arc<S3Client>) -> Self {
 		Self {
 			config,
-			jobs: tokio::sync::Mutex::new(Vec::new()),
+			jobs: tokio::sync::Mutex::new(BTreeMap::new()),
 			objectstore_client,
 		}
 	}
 
-	#[inline(always)]
-	fn generate_id() -> SmartString<LazyCompact> {
-		rand::thread_rng()
-			.sample_iter(&Alphanumeric)
-			.take(UPLOAD_ID_LENGTH)
-			.map(char::from)
-			.collect()
+	/// Get a finished upload job's object key.
+	pub async fn get_job_object_key(&self, as_user: UserId, job_id: &UploadJobId) -> GotJobKey {
+		let jobs = self.jobs.lock().await;
+
+		let job = match jobs.get(job_id) {
+			Some(x) => x,
+			None => return GotJobKey::NoSuchJob,
+		};
+
+		// Make sure we are allowed to get this job
+		if job.owner != as_user {
+			return GotJobKey::NoSuchJob;
+		}
+
+		match &job.state {
+			UploadJobState::Pending(_) => GotJobKey::JobNotDone,
+			UploadJobState::Done(x) => GotJobKey::HereYouGo(x.clone()),
+		}
 	}
 
 	/// Check all active jobs in this uploader,
@@ -61,25 +116,33 @@ impl Uploader {
 		let now = OffsetDateTime::now_utc();
 		let offset = Duration::from_secs(self.config.edged_upload_job_timeout);
 
-		let mut i = 0;
-		while i < jobs.len() {
-			let j = &jobs[i];
+		let mut to_remove = Vec::new();
+		for (k, j) in jobs.iter() {
+			let should_remove = match j.state {
+				UploadJobState::Pending(_) => j.last_activity + offset < now,
+				UploadJobState::Done(_) => false,
+			};
 
-			if j.last_activity + offset < now {
+			if should_remove {
 				debug!(
-					message = "Removing job",
+					message = "Job queued for removal",
 					reason = "timeout",
 					job_id = ?j.id,
 					started_at = ?j.started_at
 				);
 
-				let job = jobs.swap_remove(i);
-				job.uploadjob.cancel().await;
-
+				to_remove.push(k.clone());
 				continue;
 			}
+		}
 
-			i += 1;
+		for k in to_remove {
+			debug!(message = "Removing job", reason = "timeout", job_id = ?k);
+			let job = jobs.remove(&k).unwrap();
+			match job.state {
+				UploadJobState::Pending(uj) => uj.cancel().await,
+				_ => unreachable!(),
+			}
 		}
 	}
 }
@@ -89,37 +152,39 @@ impl Uploader {
 		&self,
 		owner: UserId,
 		mime: MimeType,
-	) -> Result<SmartString<LazyCompact>, NewUploadError> {
+	) -> Result<UploadJobId, NewUploadError> {
 		self.check_jobs().await;
 
 		let mut jobs = self.jobs.lock().await;
-		let id = loop {
-			let id = Uploader::generate_id();
-			// TODO: check existing S3 objects
-			if jobs.iter().all(|us| us.id != id) {
-				break id;
-			}
-		};
+		let id = UploadJobId::new();
 
 		let now = OffsetDateTime::now_utc();
-		jobs.push(UploadJob {
-			id: id.clone(),
-			owner,
-			started_at: now,
-			last_activity: now,
-			mime: mime.clone(),
-			uploadjob: self
-				.objectstore_client
-				.create_multipart_upload(&id, mime)
-				.await?,
-		});
+		jobs.insert(
+			id.clone(),
+			UploadJob {
+				id: id.clone(),
+				owner,
+				started_at: now,
+				last_activity: now,
+				mime: mime.clone(),
+				state: UploadJobState::Pending(
+					self.objectstore_client
+						.create_multipart_upload(
+							&self.config.edged_objectstore_upload_bucket,
+							format!("{}/{id}", i64::from(owner)).as_str(),
+							mime,
+						)
+						.await?,
+				),
+			},
+		);
 
 		info!(
 			message = "Created a new upload job",
 			job_id = ?id,
 		);
 
-		return Ok(id);
+		return Ok(id.into());
 	}
 
 	/// Upload one fragment of an upload job.
@@ -129,17 +194,20 @@ impl Uploader {
 	pub async fn upload_part(
 		&self,
 		as_user: UserId,
-		job_id: &str,
+		job_id: &UploadJobId,
 		data: &[u8],
 		part_number: Option<i32>,
 	) -> Result<(), UploadFragmentError> {
 		self.check_jobs().await;
 
 		let mut jobs = self.jobs.lock().await;
-		let job = jobs
-			.iter_mut()
-			.find(|us| us.id == job_id)
-			.ok_or(UploadFragmentError::BadUpload)?;
+		let job = jobs.get_mut(job_id).ok_or(UploadFragmentError::BadUpload)?;
+
+		// Cannot upload parts to a finished job
+		if !matches!(job.state, UploadJobState::Pending(_)) {
+			return Err(UploadFragmentError::BadUpload);
+		}
+
 		if job.owner != as_user {
 			return Err(UploadFragmentError::NotMyUpload);
 		}
@@ -147,7 +215,10 @@ impl Uploader {
 		job.last_activity = OffsetDateTime::now_utc();
 		let part_number = match part_number {
 			Some(x) => x,
-			None => i32::try_from(job.uploadjob.n_completed_parts()).unwrap() + 1,
+			None => match &mut job.state {
+				UploadJobState::Pending(uj) => i32::try_from(uj.n_completed_parts()).unwrap() + 1,
+				UploadJobState::Done(_) => unreachable!(),
+			},
 		};
 
 		assert!(
@@ -156,28 +227,44 @@ impl Uploader {
 		);
 
 		// TODO: queue this future. CAREFUL WITH PART NUMBERS!
-		job.uploadjob.upload_part(data, part_number).await?;
+		match &mut job.state {
+			UploadJobState::Pending(uj) => uj.upload_part(data, part_number).await?,
+			UploadJobState::Done(_) => unreachable!(),
+		};
 
 		return Ok(());
 	}
 
-	pub async fn finish_job(&self, as_user: UserId, job_id: &str) -> Result<(), UploadFinishError> {
+	pub async fn finish_job(
+		&self,
+		as_user: UserId,
+		job_id: &UploadJobId,
+	) -> Result<(), UploadFinishError> {
 		self.check_jobs().await;
 
 		let mut jobs = self.jobs.lock().await;
-		let job_idx = jobs
-			.iter_mut()
-			.enumerate()
-			.find(|(_, us)| us.id == job_id)
-			.ok_or(UploadFinishError::BadUpload)?;
-		if job_idx.1.owner != as_user {
+		let job = jobs.get_mut(job_id).ok_or(UploadFinishError::BadUpload)?;
+
+		// Cannot finish a finished job
+		if matches!(job.state, UploadJobState::Done(_)) {
+			return Err(UploadFinishError::BadUpload);
+		}
+
+		if job.owner != as_user {
 			return Err(UploadFinishError::NotMyUpload);
 		}
 
-		let job_idx = job_idx.0;
-		let job = jobs.swap_remove(job_idx);
+		let done_state = UploadJobState::Done(match &job.state {
+			UploadJobState::Pending(uj) => uj.key().into(),
+			UploadJobState::Done(_) => unreachable!(),
+		});
 
-		job.uploadjob.finish().await?;
+		let uj = std::mem::replace(&mut job.state, done_state);
+
+		match uj {
+			UploadJobState::Pending(uj) => uj.finish().await?,
+			UploadJobState::Done(_) => unreachable!(),
+		};
 
 		debug!(
 			message = "Finished upload",

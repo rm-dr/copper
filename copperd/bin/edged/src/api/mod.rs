@@ -12,9 +12,8 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::auth::AuthHelper;
-use crate::database::base::client::DatabaseClient;
-
 use crate::config::EdgedConfig;
+use crate::database::base::client::DatabaseClient;
 use crate::uploader::Uploader;
 
 mod attribute;

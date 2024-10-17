@@ -319,6 +319,10 @@ impl MultipartUpload {
 		self.completed_parts.len()
 	}
 
+	pub fn key(&self) -> &str {
+		&self.key
+	}
+
 	/// Upload a part to a multipart upload.
 	/// `part_number` must be consecutive, and starts at 1.
 	pub async fn upload_part(

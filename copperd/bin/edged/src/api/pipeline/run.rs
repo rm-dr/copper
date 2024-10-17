@@ -5,7 +5,6 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_edged::ApiAttrData;
 use copper_pipelined::client::PipelinedRequestError;
 use copper_storaged::AttrData;
 use serde::Deserialize;
@@ -15,7 +14,9 @@ use tracing::error;
 use utoipa::ToSchema;
 
 use crate::{
+	apidata::ApiAttrData,
 	database::base::{client::DatabaseClient, errors::pipeline::GetPipelineError},
+	uploader::GotJobKey,
 	RouterState,
 };
 
@@ -85,10 +86,36 @@ pub(super) async fn run_pipeline<Client: DatabaseClient>(
 
 		// Some types need manual conversion
 		if let Some(x) = match &v {
-			ApiAttrData::Blob { key } => Some(AttrData::Blob {
-				bucket: (&state.config.edged_objectstore_upload_bucket).into(),
-				key: key.clone(),
-			}),
+			ApiAttrData::Blob { upload_id } => {
+				let res = state.uploader.get_job_object_key(user.id, upload_id).await;
+				match res {
+					GotJobKey::NoSuchJob => {
+						return (
+							StatusCode::BAD_REQUEST,
+							Json(format!(
+								"Invalid input: input {k} references a job that does not exist"
+							)),
+						)
+							.into_response();
+					}
+
+					GotJobKey::JobNotDone => {
+						return (
+							StatusCode::BAD_REQUEST,
+							Json(format!(
+								"Invalid input: input {k} references a job that is not finished"
+							)),
+						)
+							.into_response();
+					}
+
+					GotJobKey::HereYouGo(key) => Some(AttrData::Blob {
+						bucket: (&state.config.edged_objectstore_upload_bucket).into(),
+						key,
+					}),
+				}
+			}
+
 			_ => None,
 		} {
 			converted_input.insert(k, x);

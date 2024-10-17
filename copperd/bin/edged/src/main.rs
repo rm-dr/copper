@@ -16,6 +16,7 @@ mod api;
 mod config;
 mod database;
 
+mod apidata;
 mod auth;
 mod uploader;
 
