@@ -6,7 +6,10 @@ use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 
 use super::{PipelinedClient, PipelinedRequestError};
-use crate::{json::PipelineJson, structs::JobInfoList};
+use crate::{
+	json::PipelineJson,
+	structs::{JobInfo, JobInfoList},
+};
 
 pub struct ReqwestPipelineClient {
 	client: Client,
@@ -97,6 +100,26 @@ impl PipelinedClient for ReqwestPipelineClient {
 
 		let json = res.text().await.map_err(convert_error)?;
 		let de: JobInfoList = serde_json::from_str(&json)
+			.map_err(|e| PipelinedRequestError::Other { error: Box::new(e) })?;
+
+		return Ok(de);
+	}
+
+	async fn get_job(&self, job_id: &str) -> Result<JobInfo, PipelinedRequestError> {
+		let url = self.pipelined_url.join(&format!("/job/{job_id}")).unwrap();
+		let res = self
+			.client
+			.get(url)
+			.header(
+				header::AUTHORIZATION,
+				format!("Bearer {}", self.pipelined_secret),
+			)
+			.send()
+			.await
+			.map_err(convert_error)?;
+
+		let json = res.text().await.map_err(convert_error)?;
+		let de: JobInfo = serde_json::from_str(&json)
 			.map_err(|e| PipelinedRequestError::Other { error: Box::new(e) })?;
 
 		return Ok(de);

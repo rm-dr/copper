@@ -5,7 +5,10 @@ use copper_storaged::{AttrData, UserId};
 use reqwest::StatusCode;
 use smartstring::{LazyCompact, SmartString};
 
-use crate::{json::PipelineJson, structs::JobInfoList};
+use crate::{
+	json::PipelineJson,
+	structs::{JobInfo, JobInfoList},
+};
 
 #[derive(Debug)]
 pub enum PipelinedRequestError {
@@ -59,4 +62,6 @@ pub trait PipelinedClient: Send + Sync {
 		skip: usize,
 		count: usize,
 	) -> Result<JobInfoList, PipelinedRequestError>;
+
+	async fn get_job(&self, job_id: &str) -> Result<JobInfo, PipelinedRequestError>;
 }

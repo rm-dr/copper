@@ -1,3 +1,4 @@
+use copper_pipelined::{client::PipelinedClient, structs::JobInfoState};
 use copper_storaged::UserId;
 use copper_util::{
 	s3client::{MultipartUpload, S3Client},
@@ -93,14 +94,20 @@ pub struct Uploader {
 	config: Arc<EdgedConfig>,
 	jobs: tokio::sync::Mutex<BTreeMap<UploadJobId, UploadJob>>,
 	objectstore_client: Arc<S3Client>,
+	pipelined_client: Arc<dyn PipelinedClient>,
 }
 
 impl Uploader {
 	/// Initialize a new upload manager
-	pub fn new(config: Arc<EdgedConfig>, objectstore_client: Arc<S3Client>) -> Self {
+	pub fn new(
+		config: Arc<EdgedConfig>,
+		objectstore_client: Arc<S3Client>,
+		pipelined_client: Arc<dyn PipelinedClient>,
+	) -> Self {
 		Self {
 			config,
 			jobs: tokio::sync::Mutex::new(BTreeMap::new()),
+			pipelined_client,
 			objectstore_client,
 		}
 	}
@@ -141,18 +148,52 @@ impl Uploader {
 
 		let mut to_remove = Vec::new();
 		for (k, j) in jobs.iter() {
-			let should_remove = match j.state {
-				UploadJobState::Pending(_) => j.last_activity + offset < now,
-				UploadJobState::Done(_) => j.last_activity + offset < now,
+			let reason;
 
-				// Assigned jobs never time out
-				UploadJobState::Assigned { .. } => false,
+			let should_remove = match &j.state {
+				UploadJobState::Pending(_) => {
+					reason = "pending timeout";
+					j.last_activity + offset < now
+				}
+
+				UploadJobState::Done(_) => {
+					reason = "done timeout";
+					j.last_activity + offset < now
+				}
+
+				UploadJobState::Assigned { pipeline_job, .. } => {
+					// Apply a timeout even to assigned jobs, so that we
+					// need fewer api calls, and to prevent errors caused
+					// by a race condition
+					// (a job is assigned to a pipeline that isn't returned by pipelined)
+					if j.last_activity + offset > now {
+						reason = "UNREACHABLE";
+						false
+					} else {
+						let info = self.pipelined_client.get_job(&pipeline_job).await;
+						if info.is_err() {
+							reason = "assigned job error";
+							true
+						} else {
+							reason = "assigned job finished";
+
+							match info.unwrap().state {
+								JobInfoState::Failed => true,
+								JobInfoState::BuildError { .. } => true,
+								JobInfoState::Success => true,
+
+								JobInfoState::Queued => false,
+								JobInfoState::Running => false,
+							}
+						}
+					}
+				}
 			};
 
 			if should_remove {
 				debug!(
 					message = "Job queued for removal",
-					reason = "timeout",
+					reason,
 					job_id = ?j.id,
 					started_at = ?j.started_at,
 					state = ?j.state
@@ -164,7 +205,7 @@ impl Uploader {
 		}
 
 		for k in to_remove {
-			debug!(message = "Removing job", reason = "timeout", job_id = ?k);
+			debug!(message = "Removing job", job_id = ?k);
 			let job = jobs.remove(&k).unwrap();
 			match job.state {
 				UploadJobState::Pending(uj) => uj.cancel().await,
@@ -260,7 +301,9 @@ impl Uploader {
 			return Err(UploadFragmentError::NotMyUpload);
 		}
 
+		// Only update last_activity if request was valid
 		job.last_activity = OffsetDateTime::now_utc();
+
 		let part_number = match part_number {
 			Some(x) => x,
 			None => match &mut job.state {
@@ -304,6 +347,9 @@ impl Uploader {
 		if job.owner != as_user {
 			return Err(UploadFinishError::NotMyUpload);
 		}
+
+		// Only update last_activity if request was valid
+		job.last_activity = OffsetDateTime::now_utc();
 
 		let done_state = UploadJobState::Done(match &job.state {
 			UploadJobState::Pending(uj) => uj.key().into(),
@@ -349,6 +395,9 @@ impl Uploader {
 		if job.owner != as_user {
 			return Err(UploadAssignError::NotMyUpload);
 		}
+
+		// Only update last_activity if request was valid
+		job.last_activity = OffsetDateTime::now_utc();
 
 		let _ = std::mem::replace(
 			&mut job.state,

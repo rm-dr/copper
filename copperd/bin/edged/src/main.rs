@@ -34,21 +34,24 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 		}
 	};
 
+	let pipelined_client = Arc::new(
+		ReqwestPipelineClient::new(&config.edged_pipelined_addr, &config.edged_pipelined_secret)
+			// TODO: handle error
+			.unwrap(),
+	);
+
 	// Create app
 	return api::router(RouterState {
 		config: config.clone(),
 		db_client: Arc::new(db),
 		auth: Arc::new(AuthHelper::new()),
-		uploader: Arc::new(Uploader::new(config.clone(), s3_client_upload.clone())),
+		uploader: Arc::new(Uploader::new(
+			config.clone(),
+			s3_client_upload.clone(),
+			pipelined_client.clone(),
+		)),
 
-		pipelined_client: Arc::new(
-			ReqwestPipelineClient::new(
-				&config.edged_pipelined_addr,
-				&config.edged_pipelined_secret,
-			)
-			// TODO: handle error
-			.unwrap(),
-		),
+		pipelined_client,
 
 		storaged_client: Arc::new(
 			ReqwestStoragedClient::new(&config.edged_storaged_addr, &config.edged_storaged_secret)
