@@ -85,10 +85,14 @@ pub(super) async fn run_pipeline<Client: DatabaseClient>(
 
 		// Some types need manual conversion
 		if let Some(x) = match &v {
-			ApiAttrData::Blob { key } => Some(AttrData::Blob { key: key.clone() }),
+			ApiAttrData::Blob { key } => Some(AttrData::Blob {
+				bucket: (&state.config.edged_objectstore_upload_bucket).into(),
+				key: key.clone(),
+			}),
 			_ => None,
 		} {
 			converted_input.insert(k, x);
+			continue;
 		}
 
 		unreachable!("User-provided data {v:?} could not be converted automatically, but was not caught by the manual conversion `match`.")

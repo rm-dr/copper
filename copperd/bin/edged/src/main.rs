@@ -19,7 +19,7 @@ mod database;
 mod auth;
 mod uploader;
 
-async fn make_app(config: Arc<EdgedConfig>, objectstore_client: Arc<S3Client>) -> Router {
+async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> Router {
 	// Connect to database
 	let db = match PgDatabaseClient::open(&config.edged_db_addr).await {
 		Ok(db) => db,
@@ -38,7 +38,7 @@ async fn make_app(config: Arc<EdgedConfig>, objectstore_client: Arc<S3Client>) -
 		config: config.clone(),
 		db_client: Arc::new(db),
 		auth: Arc::new(AuthHelper::new()),
-		uploader: Arc::new(Uploader::new(config.clone(), objectstore_client.clone())),
+		uploader: Arc::new(Uploader::new(config.clone(), s3_client_upload.clone())),
 
 		pipelined_client: Arc::new(
 			ReqwestPipelineClient::new(
@@ -55,7 +55,7 @@ async fn make_app(config: Arc<EdgedConfig>, objectstore_client: Arc<S3Client>) -
 				.unwrap(),
 		),
 
-		objectstore_client,
+		s3_client_upload,
 	});
 }
 
@@ -112,7 +112,7 @@ async fn main() {
 
 	let app = make_app(
 		config.clone(),
-		Arc::new(S3Client::new(client.clone(), &config.edged_objectstore_bucket).await),
+		Arc::new(S3Client::new(client.clone()).await),
 	)
 	.await;
 
