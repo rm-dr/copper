@@ -16,7 +16,7 @@ use utoipa::ToSchema;
 use crate::{
 	apidata::ApiAttrData,
 	database::base::{client::DatabaseClient, errors::pipeline::GetPipelineError},
-	uploader::GotJobKey,
+	uploader::{errors::UploadAssignError, GotJobKey},
 	RouterState,
 };
 
@@ -88,7 +88,7 @@ pub(super) async fn run_pipeline<Client: DatabaseClient>(
 		if let Some(x) = match &v {
 			ApiAttrData::Blob { upload_id } => {
 				let res = state.uploader.get_job_object_key(user.id, upload_id).await;
-				match res {
+				let key = match res {
 					GotJobKey::NoSuchJob => {
 						return (
 							StatusCode::BAD_REQUEST,
@@ -109,7 +109,30 @@ pub(super) async fn run_pipeline<Client: DatabaseClient>(
 							.into_response();
 					}
 
-					GotJobKey::HereYouGo(key) => Some(AttrData::Blob {
+					GotJobKey::JobIsAssigned => {
+						return (
+							StatusCode::BAD_REQUEST,
+							Json(format!(
+								"Invalid input: input {k} references a job that has been assigned to a pipeline"
+							)),
+						)
+							.into_response();
+					}
+
+					GotJobKey::HereYouGo(key) => key,
+				};
+
+				let res = state
+					.uploader
+					.assign_job_to_pipeline(user.id, upload_id, &payload.job_id)
+					.await;
+
+				match res {
+					// This is impossible, we already checked these cases
+					Err(UploadAssignError::BadUpload) => unreachable!(),
+					Err(UploadAssignError::NotMyUpload) => unreachable!(),
+
+					Ok(()) => Some(AttrData::Blob {
 						bucket: (&state.config.edged_objectstore_upload_bucket).into(),
 						key,
 					}),

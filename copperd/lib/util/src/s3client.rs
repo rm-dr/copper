@@ -6,7 +6,7 @@ use aws_sdk_s3::{
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	error::Error,
-	fmt::Display,
+	fmt::{Debug, Display},
 	io::{Seek, SeekFrom, Write},
 };
 use tracing::error;
@@ -142,6 +142,35 @@ impl Error for S3UploadFinishError {
 	}
 }
 
+#[derive(Debug)]
+pub enum S3DeleteObjectError {
+	SdkError(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static + Send + Sync>
+	From<SdkError<E, R>> for S3DeleteObjectError
+{
+	fn from(value: SdkError<E, R>) -> Self {
+		Self::SdkError(Box::new(value))
+	}
+}
+
+impl Display for S3DeleteObjectError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::SdkError(_) => write!(f, "sdk error"),
+		}
+	}
+}
+
+impl Error for S3DeleteObjectError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::SdkError(x) => Some(&**x),
+		}
+	}
+}
+
 //
 // MARK: Implementations
 //
@@ -209,6 +238,21 @@ impl<'a> S3Client {
 			id: upload_id.into(),
 			completed_parts: Vec::new(),
 		});
+	}
+
+	pub async fn delete_object(
+		&'a self,
+		bucket: &str,
+		key: &str,
+	) -> Result<(), S3DeleteObjectError> {
+		self.client
+			.delete_object()
+			.bucket(bucket)
+			.key(key)
+			.send()
+			.await?;
+
+		return Ok(());
 	}
 }
 
@@ -389,5 +433,15 @@ impl MultipartUpload {
 			.await?;
 
 		return Ok(());
+	}
+}
+
+impl Debug for MultipartUpload {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(
+			f,
+			"MultipartUpload{{bucket: {}, key: {}}}",
+			self.bucket, self.key
+		)
 	}
 }
