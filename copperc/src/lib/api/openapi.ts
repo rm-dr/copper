@@ -358,9 +358,8 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
 	schemas: {
-		/** @description A value stored inside an attribute.
-		 *     Each of these corresponds to an [`AttrDataStub`] */
-		AttrData:
+		/** @description Attribute data, provided by the user by api calls. */
+		ApiAttrData:
 			| {
 					data_type: components["schemas"]["AttrDataStub"];
 					/** @enum {string} */
@@ -409,10 +408,16 @@ export interface components {
 					type: "Hash";
 			  }
 			| {
-					/** @description The object's key */
-					object_key: string;
 					/** @enum {string} */
 					type: "Blob";
+					/** @description The upload id. This must only be used once,
+					 *     uploaded files are deleted once their job is done.
+					 *
+					 *     Also, note that we _never_ send the S3 key to the
+					 *     client---only the upload id as a proxy. This makes sure
+					 *     that clients can only start jobs on uploads they own,
+					 *     and reduces the risk of other creative abuse. */
+					upload_id: string;
 			  }
 			| {
 					/**
@@ -710,7 +715,7 @@ export interface components {
 		};
 		RunPipelineRequest: {
 			input: {
-				[key: string]: components["schemas"]["AttrData"];
+				[key: string]: components["schemas"]["ApiAttrData"];
 			};
 			/** @description A unique id for this job */
 			job_id: string;

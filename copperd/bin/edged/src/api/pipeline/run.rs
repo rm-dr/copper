@@ -14,7 +14,9 @@ use tracing::error;
 use utoipa::ToSchema;
 
 use crate::{
+	apidata::ApiAttrData,
 	database::base::{client::DatabaseClient, errors::pipeline::GetPipelineError},
+	uploader::{errors::UploadAssignError, GotJobKey},
 	RouterState,
 };
 
@@ -24,8 +26,8 @@ pub(super) struct RunPipelineRequest {
 	#[schema(value_type = String)]
 	pub job_id: SmartString<LazyCompact>,
 
-	#[schema(value_type = BTreeMap<String, AttrData>)]
-	pub input: BTreeMap<SmartString<LazyCompact>, AttrData>,
+	#[schema(value_type = BTreeMap<String, ApiAttrData>)]
+	pub input: BTreeMap<SmartString<LazyCompact>, ApiAttrData>,
 }
 
 /// Start a pipeline job
@@ -74,9 +76,81 @@ pub(super) async fn run_pipeline<Client: DatabaseClient>(
 		return StatusCode::UNAUTHORIZED.into_response();
 	}
 
+	let mut converted_input: BTreeMap<SmartString<LazyCompact>, AttrData> = BTreeMap::new();
+	for (k, v) in payload.input {
+		// If we can automatically convert, do so
+		if let Ok(x) = AttrData::try_from(&v) {
+			converted_input.insert(k, x);
+			continue;
+		}
+
+		// Some types need manual conversion
+		if let Some(x) = match &v {
+			ApiAttrData::Blob { upload_id } => {
+				let res = state.uploader.get_job_object_key(user.id, upload_id).await;
+				let key = match res {
+					GotJobKey::NoSuchJob => {
+						return (
+							StatusCode::BAD_REQUEST,
+							Json(format!(
+								"Invalid input: input {k} references a job that does not exist"
+							)),
+						)
+							.into_response();
+					}
+
+					GotJobKey::JobNotDone => {
+						return (
+							StatusCode::BAD_REQUEST,
+							Json(format!(
+								"Invalid input: input {k} references a job that is not finished"
+							)),
+						)
+							.into_response();
+					}
+
+					GotJobKey::JobIsAssigned => {
+						return (
+							StatusCode::BAD_REQUEST,
+							Json(format!(
+								"Invalid input: input {k} references a job that has been assigned to a pipeline"
+							)),
+						)
+							.into_response();
+					}
+
+					GotJobKey::HereYouGo(key) => key,
+				};
+
+				let res = state
+					.uploader
+					.assign_job_to_pipeline(user.id, upload_id, &payload.job_id)
+					.await;
+
+				match res {
+					// This is impossible, we already checked these cases
+					Err(UploadAssignError::BadUpload) => unreachable!(),
+					Err(UploadAssignError::NotMyUpload) => unreachable!(),
+
+					Ok(()) => Some(AttrData::Blob {
+						bucket: (&state.config.edged_objectstore_upload_bucket).into(),
+						key,
+					}),
+				}
+			}
+
+			_ => None,
+		} {
+			converted_input.insert(k, x);
+			continue;
+		}
+
+		unreachable!("User-provided data {v:?} could not be converted automatically, but was not caught by the manual conversion `match`.")
+	}
+
 	let res = state
 		.pipelined_client
-		.run_pipeline(&pipe.data, &payload.job_id, &payload.input, user.id)
+		.run_pipeline(&pipe.data, &payload.job_id, &converted_input, user.id)
 		.await;
 
 	return match res {

@@ -12,6 +12,7 @@ pub use mime::*;
 pub mod graph;
 pub mod logging;
 pub mod names;
+pub mod s3client;
 
 /// The types of hashes we support
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

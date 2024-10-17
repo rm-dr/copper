@@ -65,10 +65,10 @@ pub(super) async fn run_pipeline(
 	let mut input = BTreeMap::new();
 	for (name, value) in payload.input {
 		match value {
-			AttrData::Blob { object_key } => input.insert(
+			AttrData::Blob { bucket, key } => input.insert(
 				name,
 				PipeData::Blob {
-					source: BytesSource::S3 { key: object_key },
+					source: BytesSource::S3 { bucket, key },
 				},
 			),
 
@@ -80,6 +80,7 @@ pub(super) async fn run_pipeline(
 	let context = CopperContext {
 		blob_fragment_size: state.config.pipelined_blob_fragment_size,
 		stream_channel_capacity: state.config.pipelined_stream_channel_size,
+		objectstore_blob_bucket: (&state.config.pipelined_objectstore_bucket).into(),
 		objectstore_client: state.objectstore_client.clone(),
 		storaged_client: state.storaged_client.clone(),
 		job_id: payload.job_id.clone(),

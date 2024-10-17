@@ -10,7 +10,8 @@ use utoipa::ToSchema;
 use super::id::{ClassId, ItemId};
 
 /// A value stored inside an attribute.
-/// Each of these corresponds to an [`AttrDataStub`]
+/// These are never directly provided by users (See `ApiAttrData`),
+/// but may be passed around in internal api calls.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type")]
 pub enum AttrData {
@@ -55,8 +56,13 @@ pub enum AttrData {
 
 	/// Binary data stored in S3
 	Blob {
+		/// The name of the bucket this blob is stored in
+		#[schema(value_type = String)]
+		bucket: SmartString<LazyCompact>,
+
 		/// The object's key
-		object_key: String,
+		#[schema(value_type = String)]
+		key: SmartString<LazyCompact>,
 	},
 
 	/// A reference to an item in another class

@@ -1,7 +1,6 @@
-use copper_pipelined::helpers::{
-	S3CreateMultipartUploadError, S3UploadFinishError, S3UploadPartError,
-};
 use std::{error::Error, fmt::Display};
+
+use copper_util::s3client::{S3CreateMultipartUploadError, S3UploadFinishError, S3UploadPartError};
 
 #[derive(Debug)]
 pub enum NewUploadError {
@@ -33,7 +32,7 @@ impl Error for NewUploadError {
 
 #[derive(Debug)]
 pub enum UploadFragmentError {
-	/// We tried to push a fragment to an upload that doesn't exist
+	/// We tried to push a fragment to an upload that doesn't exist or isn't pending
 	BadUpload,
 
 	/// We tried to push a fragment to an upload we don't own
@@ -78,7 +77,7 @@ impl Error for UploadFragmentError {
 
 #[derive(Debug)]
 pub enum UploadFinishError {
-	/// We tried to finish an upload that doesn't exist
+	/// We tried to finish an upload that doesn't exist or isn't pending
 	BadUpload,
 
 	/// We tried to finish an upload we don't own
@@ -112,6 +111,36 @@ impl Error for UploadFinishError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::S3Error(x) => Some(x),
+			_ => None,
+		}
+	}
+}
+
+#[derive(Debug)]
+pub enum UploadAssignError {
+	/// We tried to assign an upload that doesn't exist or isn't done
+	BadUpload,
+
+	/// We tried to assign an upload we don't own
+	NotMyUpload,
+}
+
+impl Display for UploadAssignError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::BadUpload => {
+				write!(f, "Tried to finish an upload that doesn't exist")
+			}
+			Self::NotMyUpload => {
+				write!(f, "Tried to finish an upload that we don't own")
+			}
+		}
+	}
+}
+
+impl Error for UploadAssignError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
 			_ => None,
 		}
 	}

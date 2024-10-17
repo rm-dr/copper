@@ -4,9 +4,9 @@ use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::config::Credentials;
 use axum::Router;
 use config::EdgedConfig;
-use copper_pipelined::{client::ReqwestPipelineClient, helpers::S3Client};
+use copper_pipelined::client::ReqwestPipelineClient;
 use copper_storaged::client::ReqwestStoragedClient;
-use copper_util::load_env;
+use copper_util::{load_env, s3client::S3Client};
 use database::postgres::{PgDatabaseClient, PgDatabaseOpenError};
 use std::sync::Arc;
 use tracing::{debug, error, info};
@@ -16,10 +16,11 @@ mod api;
 mod config;
 mod database;
 
+mod apidata;
 mod auth;
 mod uploader;
 
-async fn make_app(config: Arc<EdgedConfig>, objectstore_client: Arc<S3Client>) -> Router {
+async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> Router {
 	// Connect to database
 	let db = match PgDatabaseClient::open(&config.edged_db_addr).await {
 		Ok(db) => db,
@@ -33,21 +34,24 @@ async fn make_app(config: Arc<EdgedConfig>, objectstore_client: Arc<S3Client>) -
 		}
 	};
 
+	let pipelined_client = Arc::new(
+		ReqwestPipelineClient::new(&config.edged_pipelined_addr, &config.edged_pipelined_secret)
+			// TODO: handle error
+			.unwrap(),
+	);
+
 	// Create app
 	return api::router(RouterState {
 		config: config.clone(),
 		db_client: Arc::new(db),
 		auth: Arc::new(AuthHelper::new()),
-		uploader: Arc::new(Uploader::new(config.clone(), objectstore_client.clone())),
+		uploader: Arc::new(Uploader::new(
+			config.clone(),
+			s3_client_upload.clone(),
+			pipelined_client.clone(),
+		)),
 
-		pipelined_client: Arc::new(
-			ReqwestPipelineClient::new(
-				&config.edged_pipelined_addr,
-				&config.edged_pipelined_secret,
-			)
-			// TODO: handle error
-			.unwrap(),
-		),
+		pipelined_client,
 
 		storaged_client: Arc::new(
 			ReqwestStoragedClient::new(&config.edged_storaged_addr, &config.edged_storaged_secret)
@@ -55,7 +59,7 @@ async fn make_app(config: Arc<EdgedConfig>, objectstore_client: Arc<S3Client>) -
 				.unwrap(),
 		),
 
-		objectstore_client,
+		s3_client_upload,
 	});
 }
 
@@ -112,7 +116,7 @@ async fn main() {
 
 	let app = make_app(
 		config.clone(),
-		Arc::new(S3Client::new(client.clone(), &config.edged_objectstore_bucket).await),
+		Arc::new(S3Client::new(client.clone()).await),
 	)
 	.await;
 

@@ -1,5 +1,5 @@
-use crate::database::base::client::DatabaseClient;
 use crate::RouterState;
+use crate::{apidata::ApiAttrData, database::base::client::DatabaseClient};
 use axum::{
 	routing::{delete, get, patch, post},
 	Router,
@@ -9,7 +9,6 @@ use copper_pipelined::{
 	base::NodeParameterValue,
 	json::{EdgeJson, InputPort, NodeJson, NodeJsonPosition, OutputPort, PipelineJson},
 };
-use copper_storaged::AttrData;
 use utoipa::OpenApi;
 
 mod add;
@@ -50,7 +49,7 @@ use update::*;
 		RunPipelineRequest,
 		NodeParameterValue,
 		PipelineInfo,
-		AttrData
+		ApiAttrData
 	))
 )]
 pub(super) struct PipelineApi;

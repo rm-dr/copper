@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::ToSchema;
 
-use crate::database::base::client::DatabaseClient;
 use crate::{api::RouterState, uploader::errors::NewUploadError};
+use crate::{database::base::client::DatabaseClient, uploader::UploadJobId};
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub(super) struct StartUploadRequest {
@@ -21,7 +21,8 @@ pub(super) struct StartUploadRequest {
 
 #[derive(Debug, Serialize, ToSchema)]
 pub(super) struct StartUploadResponse {
-	job_id: String,
+	#[schema(value_type = String)]
+	job_id: UploadJobId,
 	request_body_limit: usize,
 }
 

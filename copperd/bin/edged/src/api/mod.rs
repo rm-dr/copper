@@ -2,9 +2,9 @@ use axum::routing::post;
 use axum::{extract::DefaultBodyLimit, Router};
 use copper_edged::UserInfo;
 use copper_pipelined::client::PipelinedClient;
-use copper_pipelined::helpers::S3Client;
 use copper_storaged::client::StoragedClient;
 use copper_storaged::{AttrDataStub, AttributeInfo, AttributeOptions, ClassInfo, DatasetInfo};
+use copper_util::s3client::S3Client;
 use copper_util::HashType;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
@@ -12,9 +12,8 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::auth::AuthHelper;
-use crate::database::base::client::DatabaseClient;
-
 use crate::config::EdgedConfig;
+use crate::database::base::client::DatabaseClient;
 use crate::uploader::Uploader;
 
 mod attribute;
@@ -36,7 +35,7 @@ pub struct RouterState<Client: DatabaseClient> {
 	pub storaged_client: Arc<dyn StoragedClient>,
 	pub pipelined_client: Arc<dyn PipelinedClient>,
 	pub auth: Arc<AuthHelper<Client>>,
-	pub objectstore_client: Arc<S3Client>,
+	pub s3_client_upload: Arc<S3Client>,
 	pub uploader: Arc<Uploader>,
 }
 
@@ -50,7 +49,7 @@ impl<Client: DatabaseClient> Clone for RouterState<Client> {
 			auth: self.auth.clone(),
 			storaged_client: self.storaged_client.clone(),
 			pipelined_client: self.pipelined_client.clone(),
-			objectstore_client: self.objectstore_client.clone(),
+			s3_client_upload: self.s3_client_upload.clone(),
 			uploader: self.uploader.clone(),
 		}
 	}

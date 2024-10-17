@@ -62,7 +62,8 @@ pub enum BytesSource {
 		receiver: async_broadcast::Receiver<Arc<Vec<u8>>>,
 	},
 	S3 {
-		key: String,
+		key: SmartString<LazyCompact>,
+		bucket: SmartString<LazyCompact>,
 	},
 }
 

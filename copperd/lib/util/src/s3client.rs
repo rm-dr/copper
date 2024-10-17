@@ -3,14 +3,15 @@ use aws_sdk_s3::{
 	primitives::{ByteStream, SdkBody},
 	types::{CompletedMultipartUpload, CompletedPart},
 };
-use copper_util::MimeType;
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	error::Error,
-	fmt::Display,
+	fmt::{Debug, Display},
 	io::{Seek, SeekFrom, Write},
 };
 use tracing::error;
+
+use crate::MimeType;
 
 //
 // MARK: Errors
@@ -141,40 +142,70 @@ impl Error for S3UploadFinishError {
 	}
 }
 
+#[derive(Debug)]
+pub enum S3DeleteObjectError {
+	SdkError(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static + Send + Sync>
+	From<SdkError<E, R>> for S3DeleteObjectError
+{
+	fn from(value: SdkError<E, R>) -> Self {
+		Self::SdkError(Box::new(value))
+	}
+}
+
+impl Display for S3DeleteObjectError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::SdkError(_) => write!(f, "sdk error"),
+		}
+	}
+}
+
+impl Error for S3DeleteObjectError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::SdkError(x) => Some(&**x),
+		}
+	}
+}
+
 //
 // MARK: Implementations
 //
 
+/// An interface to a specific S3 bucket
 #[derive(Clone)]
 pub struct S3Client {
 	client: aws_sdk_s3::Client,
-	bucket: String,
 }
 
-/// Provides an unbuffered interface to an S3 object.
-///
-///
 impl S3Client {
-	pub async fn new(client: aws_sdk_s3::Client, bucket: impl ToString) -> Self {
-		let bucket = bucket.to_string();
-		Self { client, bucket }
+	pub async fn new(client: aws_sdk_s3::Client) -> Self {
+		Self { client }
 	}
 }
 
 impl<'a> S3Client {
-	pub async fn create_reader(&'a self, key: &str) -> Result<S3Reader, S3ReaderError> {
+	pub async fn create_reader(
+		&'a self,
+		bucket: &str,
+		key: &str,
+	) -> Result<S3Reader, S3ReaderError> {
 		let b = self
 			.client
 			.get_object()
-			.bucket(&self.bucket)
+			.bucket(bucket)
 			.key(key)
 			.send()
 			.await?;
 
 		return Ok(S3Reader {
 			client: self.clone(),
-
+			bucket: bucket.into(),
 			key: key.into(),
+
 			cursor: 0,
 			// TODO: when does this fail?
 			size: b.content_length.unwrap().try_into().unwrap(),
@@ -184,13 +215,14 @@ impl<'a> S3Client {
 
 	pub async fn create_multipart_upload(
 		&'a self,
+		bucket: &str,
 		key: &str,
 		mime: MimeType,
 	) -> Result<MultipartUpload, S3CreateMultipartUploadError> {
 		let multipart_upload_res = self
 			.client
 			.create_multipart_upload()
-			.bucket(&self.bucket)
+			.bucket(bucket)
 			.key(key)
 			.content_type(&mime)
 			.send()
@@ -200,17 +232,35 @@ impl<'a> S3Client {
 
 		return Ok(MultipartUpload {
 			client: self.clone(),
+			bucket: bucket.into(),
 			key: key.into(),
+
 			id: upload_id.into(),
 			completed_parts: Vec::new(),
 		});
+	}
+
+	pub async fn delete_object(
+		&'a self,
+		bucket: &str,
+		key: &str,
+	) -> Result<(), S3DeleteObjectError> {
+		self.client
+			.delete_object()
+			.bucket(bucket)
+			.key(key)
+			.send()
+			.await?;
+
+		return Ok(());
 	}
 }
 
 pub struct S3Reader {
 	client: S3Client,
-
+	bucket: SmartString<LazyCompact>,
 	key: SmartString<LazyCompact>,
+
 	cursor: u64,
 	size: u64,
 	mime: MimeType,
@@ -231,7 +281,7 @@ impl S3Reader {
 			.client
 			.client
 			.get_object()
-			.bucket(&self.client.bucket)
+			.bucket(self.bucket.as_str())
 			.key(self.key.as_str())
 			.range(format!("bytes={start_byte}-{end_byte}"))
 			.send()
@@ -301,8 +351,9 @@ impl Seek for S3Reader {
 
 pub struct MultipartUpload {
 	client: S3Client,
-
+	bucket: SmartString<LazyCompact>,
 	key: SmartString<LazyCompact>,
+
 	id: SmartString<LazyCompact>,
 	completed_parts: Vec<CompletedPart>,
 }
@@ -310,6 +361,10 @@ pub struct MultipartUpload {
 impl MultipartUpload {
 	pub fn n_completed_parts(&self) -> usize {
 		self.completed_parts.len()
+	}
+
+	pub fn key(&self) -> &str {
+		&self.key
 	}
 
 	/// Upload a part to a multipart upload.
@@ -326,7 +381,7 @@ impl MultipartUpload {
 			.client
 			.client
 			.upload_part()
-			.bucket(&self.client.bucket)
+			.bucket(self.bucket.as_str())
 			.key(self.key.as_str())
 			.upload_id(self.id.clone())
 			.body(stream)
@@ -351,7 +406,7 @@ impl MultipartUpload {
 			.client
 			.client
 			.abort_multipart_upload()
-			.bucket(&self.client.bucket)
+			.bucket(self.bucket.as_str())
 			.key(self.key.as_str())
 			.upload_id(self.id.clone())
 			.send()
@@ -370,7 +425,7 @@ impl MultipartUpload {
 		self.client
 			.client
 			.complete_multipart_upload()
-			.bucket(&self.client.bucket)
+			.bucket(self.bucket.as_str())
 			.key(self.key.as_str())
 			.upload_id(self.id.clone())
 			.multipart_upload(completed_multipart_upload)
@@ -378,5 +433,15 @@ impl MultipartUpload {
 			.await?;
 
 		return Ok(());
+	}
+}
+
+impl Debug for MultipartUpload {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(
+			f,
+			"MultipartUpload{{bucket: {}, key: {}}}",
+			self.bucket, self.key
+		)
 	}
 }

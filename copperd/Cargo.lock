@@ -787,7 +787,6 @@ version = "0.1.0"
 dependencies = [
  "async-broadcast",
  "async-trait",
- "aws-sdk-s3",
  "copper-storaged",
  "copper-util",
  "reqwest",
@@ -796,7 +795,6 @@ dependencies = [
  "smartstring",
  "time",
  "tokio",
- "tracing",
  "utoipa",
 ]
 
@@ -818,11 +816,13 @@ dependencies = [
 name = "copper-util"
 version = "0.1.0"
 dependencies = [
+ "aws-sdk-s3",
  "dotenvy",
  "envy",
  "petgraph",
  "serde",
  "serde_with",
+ "smartstring",
  "tracing",
  "tracing-subscriber",
  "utoipa",

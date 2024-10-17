@@ -1,4 +1,4 @@
-use copper_util::MimeType;
+use copper_util::{s3client::S3Reader, MimeType};
 use std::sync::Arc;
 
 use crate::{
@@ -6,8 +6,6 @@ use crate::{
 	data::{BytesSource, PipeData},
 	CopperContext,
 };
-
-use super::s3client::S3Reader;
 
 pub enum BytesSourceReader {
 	Array {
@@ -35,9 +33,9 @@ impl BytesSourceReader {
 
 			BytesSource::Stream { receiver, mime } => Self::Stream { receiver, mime },
 
-			BytesSource::S3 { key } => Self::S3(
+			BytesSource::S3 { bucket, key } => Self::S3(
 				ctx.objectstore_client
-					.create_reader(&key)
+					.create_reader(&bucket, &key)
 					.await
 					.map_err(|e| RunNodeError::Other(Arc::new(e)))?,
 			),

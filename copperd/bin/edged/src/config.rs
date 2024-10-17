@@ -44,10 +44,12 @@ pub struct EdgedConfig {
 	pub edged_objectstore_key_secret: String,
 	/// Object store url
 	pub edged_objectstore_url: String,
-	/// Object store bucket
-	pub edged_objectstore_bucket: String,
+	/// The bucket to store user uploads in
+	pub edged_objectstore_upload_bucket: String,
 
 	/// How long an upload job may idle before being deleted, in seconds
+	/// - if a pending upload job does not receive a part for this many seconds, it is deleted
+	/// - if a finished upload job is not passed to a `run()` call within this many seconds, it is deleted
 	pub edged_upload_job_timeout: u64,
 }
 

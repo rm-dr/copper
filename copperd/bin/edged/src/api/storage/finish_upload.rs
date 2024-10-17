@@ -6,8 +6,8 @@ use axum::{
 use axum_extra::extract::CookieJar;
 use tracing::error;
 
-use crate::database::base::client::DatabaseClient;
 use crate::{api::RouterState, uploader::errors::UploadFinishError};
+use crate::{database::base::client::DatabaseClient, uploader::UploadJobId};
 
 /// Rename a attribute
 #[utoipa::path(
@@ -27,7 +27,7 @@ use crate::{api::RouterState, uploader::errors::UploadFinishError};
 pub(super) async fn finish_upload<Client: DatabaseClient>(
 	jar: CookieJar,
 	State(state): State<RouterState<Client>>,
-	Path(job_id): Path<String>,
+	Path(job_id): Path<UploadJobId>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {
 		Err(x) => return x,
