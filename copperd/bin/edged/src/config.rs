@@ -1,6 +1,7 @@
 use copper_util::logging::LoggingPreset;
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
+use tracing::error;
 
 /// Note that the field of this struct are not capitalized.
 /// Envy is case-insensitive, and expects Rust fields to be snake_case.
@@ -54,7 +55,22 @@ pub struct EdgedConfig {
 }
 
 impl EdgedConfig {
-	pub fn default_request_body_limit() -> usize {
-		2_000_000
+	fn default_request_body_limit() -> usize {
+		10_000_000
+	}
+
+	/// Validate this config, logging and fixing errors.
+	pub fn validate(&mut self) {
+		// Enforce minimum request body limit
+		// (S3 multipart uploads have a 5MiB min part size)
+		if self.edged_request_body_limit < 6_000_000 {
+			error!(
+				message = "EDGED_REQUEST_BODY_LIMIT is too small, setting minimum",
+				value = self.edged_request_body_limit,
+				minimum = 6_000_000
+			);
+
+			self.edged_request_body_limit = 6_000_000;
+		}
 	}
 }

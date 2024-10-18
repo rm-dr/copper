@@ -185,7 +185,7 @@ export async function uploadFiles(params: {
 		});
 	}
 
-	let jobs: Promise<void>[] = [];
+	const jobs: Promise<void>[] = [];
 
 	for (let i = 0; i < parallel_jobs; i++) {
 		jobs.push(startChain());

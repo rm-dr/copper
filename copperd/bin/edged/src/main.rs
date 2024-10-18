@@ -65,13 +65,16 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 
 #[tokio::main]
 async fn main() {
-	let config = Arc::new(load_env::<EdgedConfig>());
+	let mut config = load_env::<EdgedConfig>();
 
 	tracing_subscriber::fmt()
 		.with_env_filter(config.edged_loglevel.get_config())
 		.without_time()
 		.with_ansi(true)
 		.init();
+
+	config.validate();
+	let config = Arc::new(config);
 
 	debug!(message = "Loaded config from environment", ?config);
 
