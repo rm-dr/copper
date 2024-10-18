@@ -7,7 +7,7 @@ use std::{error::Error, fmt::Display};
 #[derive(Debug)]
 pub enum AddAttributeError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// We tried to add an attribute to a class that doesn't exist
 	NoSuchClass,
@@ -37,10 +37,16 @@ impl Display for AddAttributeError {
 impl Error for AddAttributeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			Self::NameError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for AddAttributeError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -48,7 +54,7 @@ impl Error for AddAttributeError {
 #[derive(Debug)]
 pub enum GetAttributeError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// We tried to get an attribute by id, but it doesn't exist
 	NotFound,
@@ -66,9 +72,15 @@ impl Display for GetAttributeError {
 impl Error for GetAttributeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for GetAttributeError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -76,7 +88,7 @@ impl Error for GetAttributeError {
 #[derive(Debug)]
 pub enum RenameAttributeError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// We tried to add an attribute with a name that is already taken
 	UniqueViolation,
@@ -100,10 +112,16 @@ impl Display for RenameAttributeError {
 impl Error for RenameAttributeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			Self::NameError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for RenameAttributeError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -111,7 +129,7 @@ impl Error for RenameAttributeError {
 #[derive(Debug)]
 pub enum DeleteAttributeError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 }
 
 impl Display for DeleteAttributeError {
@@ -125,7 +143,13 @@ impl Display for DeleteAttributeError {
 impl Error for DeleteAttributeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 		}
+	}
+}
+
+impl From<sqlx::Error> for DeleteAttributeError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }

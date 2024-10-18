@@ -7,7 +7,7 @@ use std::{error::Error, fmt::Display};
 #[derive(Debug)]
 pub enum AddClassError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// We tried to add a class to a dataset that doesn't exist
 	NoSuchDataset,
@@ -33,10 +33,16 @@ impl Display for AddClassError {
 impl Error for AddClassError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			Self::NameError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for AddClassError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -44,7 +50,7 @@ impl Error for AddClassError {
 #[derive(Debug)]
 pub enum GetClassError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// We tried to get a class by id, but it doesn't exist
 	NotFound,
@@ -62,9 +68,15 @@ impl Display for GetClassError {
 impl Error for GetClassError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for GetClassError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -72,7 +84,7 @@ impl Error for GetClassError {
 #[derive(Debug)]
 pub enum RenameClassError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// We tried to set an invalid name
 	NameError(NameError),
@@ -94,10 +106,16 @@ impl Display for RenameClassError {
 impl Error for RenameClassError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			Self::NameError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for RenameClassError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -105,7 +123,7 @@ impl Error for RenameClassError {
 #[derive(Debug)]
 pub enum DeleteClassError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 }
 
 impl Display for DeleteClassError {
@@ -119,7 +137,13 @@ impl Display for DeleteClassError {
 impl Error for DeleteClassError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 		}
+	}
+}
+
+impl From<sqlx::Error> for DeleteClassError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }

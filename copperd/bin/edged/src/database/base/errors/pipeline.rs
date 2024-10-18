@@ -7,7 +7,7 @@ use std::{error::Error, fmt::Display};
 #[derive(Debug)]
 pub enum AddPipelineError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// This user already has a pipeline with this name
 	UniqueViolation,
@@ -29,10 +29,16 @@ impl Display for AddPipelineError {
 impl Error for AddPipelineError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			Self::NameError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for AddPipelineError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -40,7 +46,7 @@ impl Error for AddPipelineError {
 #[derive(Debug)]
 pub enum GetPipelineError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 }
 
 impl Display for GetPipelineError {
@@ -54,8 +60,14 @@ impl Display for GetPipelineError {
 impl Error for GetPipelineError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 		}
+	}
+}
+
+impl From<sqlx::Error> for GetPipelineError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -63,7 +75,7 @@ impl Error for GetPipelineError {
 #[derive(Debug)]
 pub enum ListPipelineError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 }
 
 impl Display for ListPipelineError {
@@ -77,8 +89,14 @@ impl Display for ListPipelineError {
 impl Error for ListPipelineError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 		}
+	}
+}
+
+impl From<sqlx::Error> for ListPipelineError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -86,7 +104,7 @@ impl Error for ListPipelineError {
 #[derive(Debug)]
 pub enum UpdatePipelineError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// This user already has a pipeline with this name
 	UniqueViolation,
@@ -108,10 +126,16 @@ impl Display for UpdatePipelineError {
 impl Error for UpdatePipelineError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			Self::NameError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for UpdatePipelineError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -119,7 +143,7 @@ impl Error for UpdatePipelineError {
 #[derive(Debug)]
 pub enum DeletePipelineError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 }
 
 impl Display for DeletePipelineError {
@@ -133,7 +157,13 @@ impl Display for DeletePipelineError {
 impl Error for DeletePipelineError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 		}
+	}
+}
+
+impl From<sqlx::Error> for DeletePipelineError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }

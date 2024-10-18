@@ -7,7 +7,7 @@ use std::{error::Error, fmt::Display};
 #[derive(Debug)]
 pub enum AddDatasetError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// A dataset with this name already exists
 	UniqueViolation,
@@ -29,10 +29,16 @@ impl Display for AddDatasetError {
 impl Error for AddDatasetError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			Self::NameError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for AddDatasetError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -40,7 +46,7 @@ impl Error for AddDatasetError {
 #[derive(Debug)]
 pub enum GetDatasetError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// We tried to get a dataset by id, but it doesn't exist
 	NotFound,
@@ -58,9 +64,15 @@ impl Display for GetDatasetError {
 impl Error for GetDatasetError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for GetDatasetError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -68,7 +80,7 @@ impl Error for GetDatasetError {
 #[derive(Debug)]
 pub enum ListDatasetsError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 }
 
 impl Display for ListDatasetsError {
@@ -82,8 +94,14 @@ impl Display for ListDatasetsError {
 impl Error for ListDatasetsError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 		}
+	}
+}
+
+impl From<sqlx::Error> for ListDatasetsError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -91,7 +109,7 @@ impl Error for ListDatasetsError {
 #[derive(Debug)]
 pub enum RenameDatasetError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// A dataset with this name already exists
 	UniqueViolation,
@@ -113,10 +131,16 @@ impl Display for RenameDatasetError {
 impl Error for RenameDatasetError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			Self::NameError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for RenameDatasetError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -124,7 +148,7 @@ impl Error for RenameDatasetError {
 #[derive(Debug)]
 pub enum DeleteDatasetError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 }
 
 impl Display for DeleteDatasetError {
@@ -138,7 +162,13 @@ impl Display for DeleteDatasetError {
 impl Error for DeleteDatasetError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 		}
+	}
+}
+
+impl From<sqlx::Error> for DeleteDatasetError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
