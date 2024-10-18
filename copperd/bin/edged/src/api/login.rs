@@ -1,5 +1,5 @@
 use axum::{
-	extract::State,
+	extract::{ConnectInfo, State},
 	http::{header::SET_COOKIE, StatusCode},
 	response::{AppendHeaders, IntoResponse, Response},
 	Json,
@@ -9,7 +9,7 @@ use serde::Deserialize;
 use tracing::{error, info};
 use utoipa::ToSchema;
 
-use crate::{auth::AUTH_COOKIE_NAME, database::base::client::DatabaseClient};
+use crate::{auth::AUTH_COOKIE_NAME, database::base::client::DatabaseClient, CopperConnectInfo};
 
 use super::RouterState;
 
@@ -30,11 +30,13 @@ pub(super) struct LoginRequest {
 	),
 )]
 pub(super) async fn try_login<Client: DatabaseClient>(
+	ConnectInfo(connect_info): ConnectInfo<CopperConnectInfo>,
 	State(state): State<RouterState<Client>>,
 	Json(payload): Json<LoginRequest>,
 ) -> Response {
 	info!(
 		message = "Received login request",
+		client_ip = ?connect_info.addr.ip(),
 		payload = ?payload
 	);
 
@@ -46,6 +48,7 @@ pub(super) async fn try_login<Client: DatabaseClient>(
 		Ok(Some(x)) => {
 			info!(
 				message = "Successfully logged in",
+				client_ip = ?connect_info.addr.ip(),
 				auth_info = ?x.user,
 				payload = ?payload
 			);
@@ -66,11 +69,19 @@ pub(super) async fn try_login<Client: DatabaseClient>(
 				.into_response();
 		}
 
-		Ok(None) => return StatusCode::BAD_REQUEST.into_response(),
+		Ok(None) => {
+			info!(
+				message = "Login failed",
+				client_ip = ?connect_info.addr.ip(),
+				payload = ?payload,
+			);
+			return StatusCode::BAD_REQUEST.into_response();
+		}
 
 		Err(e) => {
 			error!(
 				message = "Could not auth user",
+				client_ip = ?connect_info.addr.ip(),
 				request_payload = ?payload,
 				error = ?e
 			);

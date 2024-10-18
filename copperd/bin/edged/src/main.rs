@@ -1,4 +1,4 @@
-use api::RouterState;
+use api::{CopperConnectInfo, RouterState};
 use auth::AuthHelper;
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::config::Credentials;
@@ -123,7 +123,12 @@ async fn main() {
 	)
 	.await;
 
-	match axum::serve(listener, app).await {
+	match axum::serve(
+		listener,
+		app.into_make_service_with_connect_info::<CopperConnectInfo>(),
+	)
+	.await
+	{
 		Ok(_) => {}
 		Err(e) => {
 			error!(message = "Main loop exited with error", error = ?e)
