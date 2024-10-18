@@ -34,7 +34,7 @@ pub struct StoragedConfig {
 
 impl StoragedConfig {
 	pub fn default_request_body_limit() -> usize {
-		2_000_000
+		6_000_000
 	}
 }
 

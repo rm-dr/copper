@@ -1,4 +1,6 @@
+use axum::extract::connect_info::Connected;
 use axum::routing::post;
+use axum::serve::IncomingStream;
 use axum::{extract::DefaultBodyLimit, Router};
 use copper_edged::UserInfo;
 use copper_pipelined::client::PipelinedClient;
@@ -6,6 +8,7 @@ use copper_storaged::client::StoragedClient;
 use copper_storaged::{AttrDataStub, AttributeInfo, AttributeOptions, ClassInfo, DatasetInfo};
 use copper_util::s3client::S3Client;
 use copper_util::HashType;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
@@ -28,6 +31,21 @@ mod user;
 
 use login::*;
 use logout::*;
+
+#[derive(Clone, Debug)]
+pub struct CopperConnectInfo {
+	pub addr: Arc<SocketAddr>,
+}
+
+impl Connected<IncomingStream<'_>> for CopperConnectInfo {
+	fn connect_info(target: IncomingStream<'_>) -> Self {
+		let addr = target.remote_addr();
+
+		Self {
+			addr: Arc::new(addr),
+		}
+	}
+}
 
 pub struct RouterState<Client: DatabaseClient> {
 	pub config: Arc<EdgedConfig>,

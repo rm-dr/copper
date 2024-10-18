@@ -38,6 +38,9 @@ pub enum UploadFragmentError {
 	/// We tried to push a fragment to an upload we don't own
 	NotMyUpload,
 
+	/// Fragment is too small
+	//PartIsTooSmall,
+
 	/// S3 client error while processing fragment
 	S3Error(S3UploadPartError),
 }

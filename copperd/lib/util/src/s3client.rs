@@ -171,6 +171,35 @@ impl Error for S3DeleteObjectError {
 	}
 }
 
+#[derive(Debug)]
+pub enum S3CreateBucketError {
+	SdkError(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static + Send + Sync>
+	From<SdkError<E, R>> for S3CreateBucketError
+{
+	fn from(value: SdkError<E, R>) -> Self {
+		Self::SdkError(Box::new(value))
+	}
+}
+
+impl Display for S3CreateBucketError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::SdkError(_) => write!(f, "sdk error"),
+		}
+	}
+}
+
+impl Error for S3CreateBucketError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::SdkError(x) => Some(&**x),
+		}
+	}
+}
+
 //
 // MARK: Implementations
 //
@@ -253,6 +282,27 @@ impl<'a> S3Client {
 			.await?;
 
 		return Ok(());
+	}
+
+	/// Create a bucket if it doesn't exist.
+	/// Returns `true` if a bucket was created, and `false` if it was already there.
+	pub async fn create_bucket(&'a self, bucket: &str) -> Result<bool, S3CreateBucketError> {
+		let res = self.client.create_bucket().bucket(bucket).send().await;
+
+		if let Err(err) = res {
+			match err.as_service_error() {
+				None => return Err(err.into()),
+				Some(x) => {
+					if x.is_bucket_already_exists() || x.is_bucket_already_owned_by_you() {
+						return Ok(false);
+					} else {
+						return Err(err.into());
+					}
+				}
+			}
+		} else {
+			return Ok(true);
+		}
 	}
 }
 

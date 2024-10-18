@@ -82,7 +82,7 @@ pub struct PipelinedConfig {
 
 impl PipelinedConfig {
 	fn default_frag_size() -> usize {
-		2_000_000
+		6_000_000
 	}
 
 	fn default_channel_size() -> usize {

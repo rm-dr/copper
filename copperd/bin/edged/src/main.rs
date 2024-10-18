@@ -1,4 +1,4 @@
-use api::RouterState;
+use api::{CopperConnectInfo, RouterState};
 use auth::AuthHelper;
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::config::Credentials;
@@ -65,13 +65,16 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 
 #[tokio::main]
 async fn main() {
-	let config = Arc::new(load_env::<EdgedConfig>());
+	let mut config = load_env::<EdgedConfig>();
 
 	tracing_subscriber::fmt()
 		.with_env_filter(config.edged_loglevel.get_config())
 		.without_time()
 		.with_ansi(true)
 		.init();
+
+	config.validate();
+	let config = Arc::new(config);
 
 	debug!(message = "Loaded config from environment", ?config);
 
@@ -92,7 +95,7 @@ async fn main() {
 		.region(Region::new("us-west"))
 		.build();
 
-	let client = aws_sdk_s3::Client::from_conf(s3_config);
+	let client = S3Client::new(aws_sdk_s3::Client::from_conf(s3_config)).await;
 
 	let listener = match tokio::net::TcpListener::bind(config.edged_server_addr.to_string()).await {
 		Ok(x) => x,
@@ -114,13 +117,14 @@ async fn main() {
 	};
 	info!("listening on http://{}", listener.local_addr().unwrap());
 
-	let app = make_app(
-		config.clone(),
-		Arc::new(S3Client::new(client.clone()).await),
-	)
-	.await;
+	let app = make_app(config.clone(), Arc::new(client)).await;
 
-	match axum::serve(listener, app).await {
+	match axum::serve(
+		listener,
+		app.into_make_service_with_connect_info::<CopperConnectInfo>(),
+	)
+	.await
+	{
 		Ok(_) => {}
 		Err(e) => {
 			error!(message = "Main loop exited with error", error = ?e)
