@@ -25,11 +25,10 @@ pub(super) async fn add_item(
 			if e.is_foreign_key_violation() {
 				return Err(AddItemError::NoSuchClass);
 			} else {
-				let e = Box::new(sqlx::Error::Database(e));
-				return Err(AddItemError::DbError(e));
+				return Err(sqlx::Error::Database(e).into());
 			}
 		}
-		Err(e) => return Err(AddItemError::DbError(Box::new(e))),
+		Err(e) => return Err(e.into()),
 	};
 
 	for (attr, value) in attributes {
@@ -48,7 +47,7 @@ pub(super) async fn add_item(
 					data_type
 				}
 				Err(sqlx::Error::RowNotFound) => return Err(AddItemError::ForeignAttribute),
-				Err(e) => return Err(AddItemError::DbError(Box::new(e))),
+				Err(e) => return Err(e.into()),
 			};
 
 		// Make sure type matches
@@ -73,11 +72,10 @@ pub(super) async fn add_item(
 				if e.is_foreign_key_violation() {
 					return Err(AddItemError::BadAttribute);
 				} else {
-					let e = Box::new(sqlx::Error::Database(e));
-					return Err(AddItemError::DbError(e));
+					return Err(sqlx::Error::Database(e).into());
 				}
 			}
-			Err(e) => return Err(AddItemError::DbError(Box::new(e))),
+			Err(e) => return Err(e.into()),
 		};
 	}
 

@@ -170,7 +170,7 @@ impl Uploader {
 						reason = "UNREACHABLE";
 						false
 					} else {
-						let info = self.pipelined_client.get_job(&pipeline_job).await;
+						let info = self.pipelined_client.get_job(pipeline_job).await;
 						if info.is_err() {
 							reason = "assigned job error";
 							true
@@ -273,7 +273,7 @@ impl Uploader {
 			job_id = ?id,
 		);
 
-		return Ok(id.into());
+		return Ok(id);
 	}
 
 	/// Upload one fragment of an upload job.

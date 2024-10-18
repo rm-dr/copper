@@ -42,15 +42,8 @@ impl DatabaseClient for PgDatabaseClient {
 		}
 
 		// Start transaction
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| AddDatasetError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| AddDatasetError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		let res =
 			sqlx::query("INSERT INTO dataset (pretty_name, owner) VALUES ($1, $2) RETURNING id;")
@@ -59,9 +52,7 @@ impl DatabaseClient for PgDatabaseClient {
 				.fetch_one(&mut *t)
 				.await;
 
-		t.commit()
-			.await
-			.map_err(|e| AddDatasetError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		let new_handle: DatasetId = match res {
 			Ok(res) => res.get::<i64, _>("id").into(),
@@ -69,69 +60,53 @@ impl DatabaseClient for PgDatabaseClient {
 				if e.is_unique_violation() {
 					return Err(AddDatasetError::UniqueViolation);
 				} else {
-					let e = Box::new(sqlx::Error::Database(e));
-					return Err(AddDatasetError::DbError(e));
+					return Err(sqlx::Error::Database(e).into());
 				}
 			}
-			Err(e) => return Err(AddDatasetError::DbError(Box::new(e))),
+			Err(e) => return Err(e.into()),
 		};
 
 		return Ok(new_handle);
 	}
 
 	async fn get_dataset(&self, dataset: DatasetId) -> Result<DatasetInfo, GetDatasetError> {
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| GetDatasetError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
 
 		let classes: Vec<ClassInfo> = {
-			let res = sqlx::query("SELECT * FROM class WHERE dataset_id=$1;")
+			let rows = sqlx::query("SELECT * FROM class WHERE dataset_id=$1;")
 				.bind(i64::from(dataset))
 				.fetch_all(&mut *conn)
-				.await;
+				.await?;
 
 			let mut classes = Vec::new();
-			let rows = match res {
-				Err(e) => return Err(GetDatasetError::DbError(Box::new(e))),
-				Ok(rows) => rows,
-			};
 
 			for r in rows {
 				let class_id: ClassId = r.get::<i64, _>("id").into();
 
-				let res = sqlx::query("SELECT * FROM attribute WHERE class_id=$1;")
+				let attr_rows = sqlx::query("SELECT * FROM attribute WHERE class_id=$1;")
 					.bind(i64::from(class_id))
 					.fetch_all(&mut *conn)
-					.await;
+					.await?;
 
-				let attributes: Vec<AttributeInfo> = match res {
-					Err(e) => return Err(GetDatasetError::DbError(Box::new(e))),
-					Ok(rows) => rows
-						.into_iter()
-						.map(|row| AttributeInfo {
-							id: row.get::<i64, _>("id").into(),
-							class: row.get::<i64, _>("id").into(),
-							order: row.get::<i64, _>("attr_order"),
-							name: row.get::<String, _>("pretty_name").into(),
-							data_type: serde_json::from_str(row.get::<&str, _>("data_type"))
-								.unwrap(),
-							is_unique: row.get("is_unique"),
-							is_not_null: row.get("is_not_null"),
-						})
-						.collect(),
-				};
+				let attributes = attr_rows
+					.into_iter()
+					.map(|row| AttributeInfo {
+						id: row.get::<i64, _>("id").into(),
+						class: row.get::<i64, _>("id").into(),
+						order: row.get::<i64, _>("attr_order"),
+						name: row.get::<String, _>("pretty_name").into(),
+						data_type: serde_json::from_str(row.get::<&str, _>("data_type")).unwrap(),
+						is_unique: row.get("is_unique"),
+						is_not_null: row.get("is_not_null"),
+					})
+					.collect();
 
 				let res = sqlx::query("SELECT COUNT(id) FROM item WHERE class_id=$1;")
 					.bind(i64::from(class_id))
 					.fetch_one(&mut *conn)
-					.await;
+					.await?;
 
-				let item_count: u64 = match res {
-					Err(e) => return Err(GetDatasetError::DbError(Box::new(e))),
-					Ok(res) => res.get::<i64, _>("count").try_into().unwrap(),
-				};
+				let item_count = res.get::<i64, _>("count").try_into().unwrap();
 
 				classes.push(ClassInfo {
 					dataset,
@@ -152,7 +127,7 @@ impl DatabaseClient for PgDatabaseClient {
 
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Err(GetDatasetError::NotFound),
-			Err(e) => Err(GetDatasetError::DbError(Box::new(e))),
+			Err(e) => Err(e.into()),
 			Ok(res) => Ok(DatasetInfo {
 				id: res.get::<i64, _>("id").into(),
 				owner: res.get::<i64, _>("owner").into(),
@@ -163,96 +138,75 @@ impl DatabaseClient for PgDatabaseClient {
 	}
 
 	async fn list_datasets(&self, owner: UserId) -> Result<Vec<DatasetInfo>, ListDatasetsError> {
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| ListDatasetsError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
 
-		let res = sqlx::query("SELECT * FROM dataset WHERE owner=$1;")
+		let rows = sqlx::query("SELECT * FROM dataset WHERE owner=$1;")
 			.bind(i64::from(owner))
 			.fetch_all(&mut *conn)
-			.await;
+			.await?;
 
-		return match res {
-			Err(e) => Err(ListDatasetsError::DbError(Box::new(e))),
-			Ok(rows) => {
-				let mut out = Vec::new();
-				for row in rows {
-					let dataset_id = row.get::<i64, _>("id").into();
+		let mut out = Vec::new();
+		for row in rows {
+			let dataset_id = row.get::<i64, _>("id").into();
 
-					let classes: Vec<ClassInfo> = {
-						let res = sqlx::query("SELECT * FROM class WHERE dataset_id=$1;")
-							.bind(i64::from(dataset_id))
-							.fetch_all(&mut *conn)
-							.await;
+			let classes: Vec<ClassInfo> = {
+				let rows = sqlx::query("SELECT * FROM class WHERE dataset_id=$1;")
+					.bind(i64::from(dataset_id))
+					.fetch_all(&mut *conn)
+					.await?;
 
-						let mut classes = Vec::new();
-						let rows = match res {
-							Err(e) => return Err(ListDatasetsError::DbError(Box::new(e))),
-							Ok(rows) => rows,
-						};
+				let mut classes = Vec::new();
 
-						for r in rows {
-							let class_id: ClassId = r.get::<i64, _>("id").into();
+				for r in rows {
+					let class_id: ClassId = r.get::<i64, _>("id").into();
 
-							let res = sqlx::query("SELECT * FROM attribute WHERE class_id=$1;")
-								.bind(i64::from(class_id))
-								.fetch_all(&mut *conn)
-								.await;
+					let attr_rows = sqlx::query("SELECT * FROM attribute WHERE class_id=$1;")
+						.bind(i64::from(class_id))
+						.fetch_all(&mut *conn)
+						.await?;
 
-							let attributes: Vec<AttributeInfo> = match res {
-								Err(e) => return Err(ListDatasetsError::DbError(Box::new(e))),
-								Ok(rows) => rows
-									.into_iter()
-									.map(|row| AttributeInfo {
-										id: row.get::<i64, _>("id").into(),
-										class: row.get::<i64, _>("id").into(),
-										order: row.get::<i64, _>("attr_order"),
-										name: row.get::<String, _>("pretty_name").into(),
-										data_type: serde_json::from_str(
-											row.get::<&str, _>("data_type"),
-										)
-										.unwrap(),
-										is_unique: row.get("is_unique"),
-										is_not_null: row.get("is_not_null"),
-									})
-									.collect(),
-							};
+					let attributes = attr_rows
+						.into_iter()
+						.map(|row| AttributeInfo {
+							id: row.get::<i64, _>("id").into(),
+							class: row.get::<i64, _>("id").into(),
+							order: row.get::<i64, _>("attr_order"),
+							name: row.get::<String, _>("pretty_name").into(),
+							data_type: serde_json::from_str(row.get::<&str, _>("data_type"))
+								.unwrap(),
+							is_unique: row.get("is_unique"),
+							is_not_null: row.get("is_not_null"),
+						})
+						.collect();
 
-							let res = sqlx::query("SELECT COUNT(id) FROM item WHERE class_id=$1;")
-								.bind(i64::from(class_id))
-								.fetch_one(&mut *conn)
-								.await;
+					let res = sqlx::query("SELECT COUNT(id) FROM item WHERE class_id=$1;")
+						.bind(i64::from(class_id))
+						.fetch_one(&mut *conn)
+						.await?;
 
-							let item_count: u64 = match res {
-								Err(e) => return Err(ListDatasetsError::DbError(Box::new(e))),
-								Ok(res) => res.get::<i64, _>("count").try_into().unwrap(),
-							};
+					let item_count = res.get::<i64, _>("count").try_into().unwrap();
 
-							classes.push(ClassInfo {
-								dataset: dataset_id,
-								id: class_id,
-								name: r.get::<String, _>("pretty_name").into(),
-								attributes,
-								item_count,
-							});
-						}
-
-						classes
-					};
-
-					out.push(DatasetInfo {
-						id: dataset_id,
-						owner: row.get::<i64, _>("owner").into(),
-						name: row.get::<String, _>("pretty_name").into(),
-						classes,
+					classes.push(ClassInfo {
+						dataset: dataset_id,
+						id: class_id,
+						name: r.get::<String, _>("pretty_name").into(),
+						attributes,
+						item_count,
 					});
 				}
 
-				return Ok(out);
-			}
-		};
+				classes
+			};
+
+			out.push(DatasetInfo {
+				id: dataset_id,
+				owner: row.get::<i64, _>("owner").into(),
+				name: row.get::<String, _>("pretty_name").into(),
+				classes,
+			});
+		}
+
+		return Ok(out);
 	}
 
 	async fn rename_dataset(
@@ -265,15 +219,8 @@ impl DatabaseClient for PgDatabaseClient {
 			Err(e) => return Err(RenameDatasetError::NameError(e)),
 		}
 
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| RenameDatasetError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| RenameDatasetError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		let res = sqlx::query("UPDATE dataset SET pretty_name=$1 WHERE id=$2;")
 			.bind(new_name)
@@ -281,9 +228,7 @@ impl DatabaseClient for PgDatabaseClient {
 			.execute(&mut *t)
 			.await;
 
-		t.commit()
-			.await
-			.map_err(|e| RenameDatasetError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		return match res {
 			Ok(_) => Ok(()),
@@ -291,36 +236,25 @@ impl DatabaseClient for PgDatabaseClient {
 				if e.is_unique_violation() {
 					Err(RenameDatasetError::UniqueViolation)
 				} else {
-					let e = Box::new(sqlx::Error::Database(e));
-					Err(RenameDatasetError::DbError(e))
+					Err(sqlx::Error::Database(e).into())
 				}
 			}
-			Err(e) => Err(RenameDatasetError::DbError(Box::new(e))),
+			Err(e) => Err(e.into()),
 		};
 	}
 
 	async fn del_dataset(&self, dataset: DatasetId) -> Result<(), DeleteDatasetError> {
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| DeleteDatasetError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| DeleteDatasetError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		// This also deletes all attributes, etc,
 		// since they're marked with ON DELETE CASCADE.
 		sqlx::query("DELETE FROM dataset WHERE id=$1;")
 			.bind(i64::from(dataset))
 			.execute(&mut *t)
-			.await
-			.map_err(|e| DeleteDatasetError::DbError(Box::new(e)))?;
+			.await?;
 
-		t.commit()
-			.await
-			.map_err(|e| DeleteDatasetError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		return Ok(());
 	}
@@ -336,15 +270,8 @@ impl DatabaseClient for PgDatabaseClient {
 		}
 
 		// Start transaction
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| AddClassError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| AddClassError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		let res = sqlx::query(
 			"INSERT INTO class (dataset_id, pretty_name) VALUES ($1, $2) RETURNING id;",
@@ -354,9 +281,7 @@ impl DatabaseClient for PgDatabaseClient {
 		.fetch_one(&mut *t)
 		.await;
 
-		t.commit()
-			.await
-			.map_err(|e| AddClassError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		let new_handle: ClassId = match res {
 			Ok(res) => res.get::<i64, _>("id").into(),
@@ -366,52 +291,41 @@ impl DatabaseClient for PgDatabaseClient {
 				} else if e.is_unique_violation() {
 					return Err(AddClassError::UniqueViolation);
 				} else {
-					let e = Box::new(sqlx::Error::Database(e));
-					return Err(AddClassError::DbError(e));
+					return Err(sqlx::Error::Database(e).into());
 				}
 			}
-			Err(e) => return Err(AddClassError::DbError(Box::new(e))),
+			Err(e) => return Err(e.into()),
 		};
 		return Ok(new_handle);
 	}
 
 	async fn get_class(&self, class: ClassId) -> Result<ClassInfo, GetClassError> {
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| GetClassError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
 
-		let res = sqlx::query("SELECT * FROM attribute WHERE class_id=$1;")
+		let rows = sqlx::query("SELECT * FROM attribute WHERE class_id=$1;")
 			.bind(i64::from(class))
 			.fetch_all(&mut *conn)
-			.await;
+			.await?;
 
-		let attributes: Vec<AttributeInfo> = match res {
-			Err(e) => return Err(GetClassError::DbError(Box::new(e))),
-			Ok(rows) => rows
-				.into_iter()
-				.map(|row| AttributeInfo {
-					id: row.get::<i64, _>("id").into(),
-					class: row.get::<i64, _>("id").into(),
-					order: row.get::<i64, _>("attr_order"),
-					name: row.get::<String, _>("pretty_name").into(),
-					data_type: serde_json::from_str(row.get::<&str, _>("data_type")).unwrap(),
-					is_unique: row.get("is_unique"),
-					is_not_null: row.get("is_not_null"),
-				})
-				.collect(),
-		};
+		let attributes = rows
+			.into_iter()
+			.map(|row| AttributeInfo {
+				id: row.get::<i64, _>("id").into(),
+				class: row.get::<i64, _>("id").into(),
+				order: row.get::<i64, _>("attr_order"),
+				name: row.get::<String, _>("pretty_name").into(),
+				data_type: serde_json::from_str(row.get::<&str, _>("data_type")).unwrap(),
+				is_unique: row.get("is_unique"),
+				is_not_null: row.get("is_not_null"),
+			})
+			.collect();
 
 		let res = sqlx::query("SELECT COUNT(id) FROM item WHERE class_id=$1;")
 			.bind(i64::from(class))
 			.fetch_one(&mut *conn)
-			.await;
+			.await?;
 
-		let item_count: u64 = match res {
-			Err(e) => return Err(GetClassError::DbError(Box::new(e))),
-			Ok(res) => res.get::<i64, _>("count").try_into().unwrap(),
-		};
+		let item_count = res.get::<i64, _>("count").try_into().unwrap();
 
 		let res = sqlx::query("SELECT * FROM class WHERE id=$1;")
 			.bind(i64::from(class))
@@ -420,7 +334,7 @@ impl DatabaseClient for PgDatabaseClient {
 
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Err(GetClassError::NotFound),
-			Err(e) => Err(GetClassError::DbError(Box::new(e))),
+			Err(e) => Err(e.into()),
 			Ok(res) => Ok(ClassInfo {
 				dataset: res.get::<i64, _>("dataset_id").into(),
 				id: res.get::<i64, _>("id").into(),
@@ -437,15 +351,8 @@ impl DatabaseClient for PgDatabaseClient {
 			Err(e) => return Err(RenameClassError::NameError(e)),
 		}
 
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| RenameClassError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| RenameClassError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		let res = sqlx::query("UPDATE class SET pretty_name=$1 WHERE id=$2;")
 			.bind(new_name)
@@ -453,48 +360,35 @@ impl DatabaseClient for PgDatabaseClient {
 			.execute(&mut *t)
 			.await;
 
-		t.commit()
-			.await
-			.map_err(|e| RenameClassError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		return match res {
 			Err(sqlx::Error::Database(e)) => {
 				if e.is_unique_violation() {
 					Err(RenameClassError::UniqueViolation)
 				} else {
-					let e = Box::new(sqlx::Error::Database(e));
-					Err(RenameClassError::DbError(e))
+					Err(sqlx::Error::Database(e).into())
 				}
 			}
 
-			Err(e) => Err(RenameClassError::DbError(Box::new(e))),
+			Err(e) => Err(e.into()),
 
 			Ok(_) => Ok(()),
 		};
 	}
 
 	async fn del_class(&self, class: ClassId) -> Result<(), DeleteClassError> {
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| DeleteClassError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| DeleteClassError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		// This also deletes all classes, attributes, etc,
 		// since they're marked with ON DELETE CASCADE.
 		sqlx::query("DELETE FROM class WHERE id=$1;")
 			.bind(i64::from(class))
 			.execute(&mut *t)
-			.await
-			.map_err(|e| DeleteClassError::DbError(Box::new(e)))?;
+			.await?;
 
-		t.commit()
-			.await
-			.map_err(|e| DeleteClassError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		return Ok(());
 	}
@@ -516,15 +410,8 @@ impl DatabaseClient for PgDatabaseClient {
 		}
 
 		// Start transaction
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| AddAttributeError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| AddAttributeError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		let res = sqlx::query(
 			"INSERT INTO attribute(class_id, attr_order, pretty_name, data_type, is_unique, is_not_null)
@@ -540,9 +427,7 @@ impl DatabaseClient for PgDatabaseClient {
 		.fetch_one(&mut *t)
 		.await;
 
-		t.commit()
-			.await
-			.map_err(|e| AddAttributeError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		let new_handle: AttributeId = match res {
 			Ok(res) => res.get::<i64, _>("id").into(),
@@ -552,11 +437,10 @@ impl DatabaseClient for PgDatabaseClient {
 				} else if e.is_unique_violation() {
 					return Err(AddAttributeError::UniqueViolation);
 				} else {
-					let e = Box::new(sqlx::Error::Database(e));
-					return Err(AddAttributeError::DbError(e));
+					return Err(sqlx::Error::Database(e).into());
 				}
 			}
-			Err(e) => return Err(AddAttributeError::DbError(Box::new(e))),
+			Err(e) => return Err(e.into()),
 		};
 
 		return Ok(new_handle);
@@ -566,11 +450,7 @@ impl DatabaseClient for PgDatabaseClient {
 		&self,
 		attribute: AttributeId,
 	) -> Result<AttributeInfo, GetAttributeError> {
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| GetAttributeError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
 
 		let res = sqlx::query("SELECT * FROM attribute WHERE id=$1;")
 			.bind(i64::from(attribute))
@@ -579,7 +459,7 @@ impl DatabaseClient for PgDatabaseClient {
 
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Err(GetAttributeError::NotFound),
-			Err(e) => Err(GetAttributeError::DbError(Box::new(e))),
+			Err(e) => Err(e.into()),
 			Ok(res) => Ok(AttributeInfo {
 				id: res.get::<i64, _>("id").into(),
 				class: res.get::<i64, _>("class_id").into(),
@@ -602,15 +482,8 @@ impl DatabaseClient for PgDatabaseClient {
 			Err(e) => return Err(RenameAttributeError::NameError(e)),
 		}
 
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| RenameAttributeError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| RenameAttributeError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		let res = sqlx::query("UPDATE attribute SET pretty_name=$1 WHERE id=$2;")
 			.bind(new_name)
@@ -618,9 +491,7 @@ impl DatabaseClient for PgDatabaseClient {
 			.execute(&mut *t)
 			.await;
 
-		t.commit()
-			.await
-			.map_err(|e| RenameAttributeError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		return match res {
 			Ok(_) => Ok(()),
@@ -629,37 +500,26 @@ impl DatabaseClient for PgDatabaseClient {
 				if e.is_unique_violation() {
 					Err(RenameAttributeError::UniqueViolation)
 				} else {
-					let e = Box::new(sqlx::Error::Database(e));
-					Err(RenameAttributeError::DbError(e))
+					Err(sqlx::Error::Database(e).into())
 				}
 			}
 
-			Err(e) => Err(RenameAttributeError::DbError(Box::new(e))),
+			Err(e) => Err(e.into()),
 		};
 	}
 
 	async fn del_attribute(&self, attribute: AttributeId) -> Result<(), DeleteAttributeError> {
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| DeleteAttributeError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| DeleteAttributeError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		// This also deletes all attribute entries, etc,
 		// since they're marked with ON DELETE CASCADE.
 		sqlx::query("DELETE FROM attribute WHERE id=$1;")
 			.bind(i64::from(attribute))
 			.execute(&mut *t)
-			.await
-			.map_err(|e| DeleteAttributeError::DbError(Box::new(e)))?;
+			.await?;
 
-		t.commit()
-			.await
-			.map_err(|e| DeleteAttributeError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		return Ok(());
 	}
@@ -673,15 +533,8 @@ impl DatabaseClient for PgDatabaseClient {
 		transaction: Transaction,
 	) -> Result<(), ApplyTransactionError> {
 		// Start transaction
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| ApplyTransactionError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| ApplyTransactionError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		let mut transaction_results: Vec<Option<AttrData>> = Vec::new();
 
@@ -728,9 +581,7 @@ impl DatabaseClient for PgDatabaseClient {
 			};
 		}
 
-		t.commit()
-			.await
-			.map_err(|e| ApplyTransactionError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		return Ok(());
 	}

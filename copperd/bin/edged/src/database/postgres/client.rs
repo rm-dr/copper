@@ -42,15 +42,8 @@ impl DatabaseClient for PgDatabaseClient {
 		}
 
 		// Start transaction
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| AddUserError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| AddUserError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		let res = sqlx::query(
 			"
@@ -65,9 +58,7 @@ impl DatabaseClient for PgDatabaseClient {
 		.fetch_one(&mut *t)
 		.await;
 
-		t.commit()
-			.await
-			.map_err(|e| AddUserError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		let new_user: UserId = match res {
 			Ok(row) => row.get::<i64, _>("id").into(),
@@ -75,22 +66,17 @@ impl DatabaseClient for PgDatabaseClient {
 				if e.is_unique_violation() {
 					return Err(AddUserError::UniqueEmailViolation);
 				} else {
-					let e = Box::new(sqlx::Error::Database(e));
-					return Err(AddUserError::DbError(e));
+					return Err(sqlx::Error::Database(e).into());
 				}
 			}
-			Err(e) => return Err(AddUserError::DbError(Box::new(e))),
+			Err(e) => return Err(AddUserError::DbError(e)),
 		};
 
 		return Ok(new_user);
 	}
 
 	async fn get_user(&self, user: UserId) -> Result<Option<UserInfo>, GetUserError> {
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| GetUserError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
 
 		let res = sqlx::query("SELECT * FROM users WHERE id=$1;")
 			.bind(i64::from(user))
@@ -99,7 +85,7 @@ impl DatabaseClient for PgDatabaseClient {
 
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Ok(None),
-			Err(e) => Err(GetUserError::DbError(Box::new(e))),
+			Err(e) => Err(e.into()),
 			Ok(res) => Ok(Some(UserInfo {
 				id: res.get::<i64, _>("id").into(),
 				name: res.get::<String, _>("user_name").into(),
@@ -110,11 +96,7 @@ impl DatabaseClient for PgDatabaseClient {
 	}
 
 	async fn get_user_by_email(&self, email: &str) -> Result<Option<UserInfo>, GetUserError> {
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| GetUserError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
 
 		let res = sqlx::query("SELECT * FROM users WHERE user_email=$1;")
 			.bind(email)
@@ -123,7 +105,7 @@ impl DatabaseClient for PgDatabaseClient {
 
 		return match res {
 			Err(sqlx::Error::RowNotFound) => return Ok(None),
-			Err(e) => Err(GetUserError::DbError(Box::new(e))),
+			Err(e) => Err(e.into()),
 			Ok(res) => Ok(Some(UserInfo {
 				id: res.get::<i64, _>("id").into(),
 				name: res.get::<String, _>("user_name").into(),
@@ -139,15 +121,8 @@ impl DatabaseClient for PgDatabaseClient {
 			Err(e) => return Err(UpdateUserError::NameError(e)),
 		}
 
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| UpdateUserError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| UpdateUserError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		let res =
 			sqlx::query("UPDATE users SET user_name=$1, user_email=$2, user_pass=$3 WHERE id=$4;")
@@ -158,9 +133,7 @@ impl DatabaseClient for PgDatabaseClient {
 				.execute(&mut *t)
 				.await;
 
-		t.commit()
-			.await
-			.map_err(|e| UpdateUserError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		return match res {
 			Ok(_) => Ok(()),
@@ -168,36 +141,25 @@ impl DatabaseClient for PgDatabaseClient {
 				if e.is_unique_violation() {
 					Err(UpdateUserError::UniqueEmailViolation)
 				} else {
-					let e = Box::new(sqlx::Error::Database(e));
-					Err(UpdateUserError::DbError(e))
+					Err(sqlx::Error::Database(e).into())
 				}
 			}
-			Err(e) => Err(UpdateUserError::DbError(Box::new(e))),
+			Err(e) => Err(e.into()),
 		};
 	}
 
 	async fn del_user(&self, user: UserId) -> Result<(), DeleteUserError> {
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| DeleteUserError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| DeleteUserError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		// TODO: we still need to delete this user's data,
 		// since it's stored in a different db.
 		sqlx::query("DELETE FROM users WHERE id=$1;")
 			.bind(i64::from(user))
 			.execute(&mut *t)
-			.await
-			.map_err(|e| DeleteUserError::DbError(Box::new(e)))?;
+			.await?;
 
-		t.commit()
-			.await
-			.map_err(|e| DeleteUserError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		return Ok(());
 	}
@@ -218,15 +180,8 @@ impl DatabaseClient for PgDatabaseClient {
 		}
 
 		// Start transaction
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| AddPipelineError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| AddPipelineError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		let res = sqlx::query(
 			"
@@ -241,9 +196,7 @@ impl DatabaseClient for PgDatabaseClient {
 		.fetch_one(&mut *t)
 		.await;
 
-		t.commit()
-			.await
-			.map_err(|e| AddPipelineError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		let new_pipeline_id: PipelineId = match res {
 			Ok(row) => row.get::<i64, _>("id").into(),
@@ -251,11 +204,10 @@ impl DatabaseClient for PgDatabaseClient {
 				if e.is_unique_violation() {
 					return Err(AddPipelineError::UniqueViolation);
 				} else {
-					let e = Box::new(sqlx::Error::Database(e));
-					return Err(AddPipelineError::DbError(e));
+					return Err(sqlx::Error::Database(e).into());
 				}
 			}
-			Err(e) => return Err(AddPipelineError::DbError(Box::new(e))),
+			Err(e) => return Err(e.into()),
 		};
 
 		return Ok(PipelineInfo {
@@ -270,11 +222,7 @@ impl DatabaseClient for PgDatabaseClient {
 		&self,
 		for_user: UserId,
 	) -> Result<Vec<PipelineInfo>, ListPipelineError> {
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| ListPipelineError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
 
 		let res = sqlx::query("SELECT * FROM pipelines WHERE owned_by=$1;")
 			.bind(i64::from(for_user))
@@ -283,7 +231,7 @@ impl DatabaseClient for PgDatabaseClient {
 
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Ok(Vec::new()),
-			Err(e) => Err(ListPipelineError::DbError(Box::new(e))),
+			Err(e) => Err(e.into()),
 			Ok(res) => Ok(res
 				.into_iter()
 				.map(|row| PipelineInfo {
@@ -302,11 +250,7 @@ impl DatabaseClient for PgDatabaseClient {
 	) -> Result<Option<PipelineInfo>, GetPipelineError> {
 		// TODO: handle deserialize failure
 
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| GetPipelineError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
 
 		let res = sqlx::query("SELECT * FROM pipelines WHERE id=$1;")
 			.bind(i64::from(pipeline))
@@ -315,7 +259,7 @@ impl DatabaseClient for PgDatabaseClient {
 
 		return match res {
 			Err(sqlx::Error::RowNotFound) => Ok(None),
-			Err(e) => Err(GetPipelineError::DbError(Box::new(e))),
+			Err(e) => Err(e.into()),
 			Ok(res) => Ok(Some(PipelineInfo {
 				id: res.get::<i64, _>("id").into(),
 				owned_by: res.get::<i64, _>("owned_by").into(),
@@ -334,15 +278,8 @@ impl DatabaseClient for PgDatabaseClient {
 			Err(e) => return Err(UpdatePipelineError::NameError(e)),
 		}
 
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| UpdatePipelineError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| UpdatePipelineError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		let res = sqlx::query("UPDATE pipelines SET owned_by=$1, name=$2, data=$3 WHERE id=$4;")
 			.bind(i64::from(new_info.owned_by))
@@ -352,9 +289,7 @@ impl DatabaseClient for PgDatabaseClient {
 			.execute(&mut *t)
 			.await;
 
-		t.commit()
-			.await
-			.map_err(|e| UpdatePipelineError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		return match res {
 			Ok(_) => Ok(new_info.clone()),
@@ -362,36 +297,25 @@ impl DatabaseClient for PgDatabaseClient {
 				if e.is_unique_violation() {
 					Err(UpdatePipelineError::UniqueViolation)
 				} else {
-					let e = Box::new(sqlx::Error::Database(e));
-					Err(UpdatePipelineError::DbError(e))
+					Err(sqlx::Error::Database(e).into())
 				}
 			}
-			Err(e) => Err(UpdatePipelineError::DbError(Box::new(e))),
+			Err(e) => Err(e.into()),
 		};
 	}
 
 	async fn del_pipeline(&self, pipeline: PipelineId) -> Result<(), DeletePipelineError> {
-		let mut conn = self
-			.pool
-			.acquire()
-			.await
-			.map_err(|e| DeletePipelineError::DbError(Box::new(e)))?;
-		let mut t = conn
-			.begin()
-			.await
-			.map_err(|e| DeletePipelineError::DbError(Box::new(e)))?;
+		let mut conn = self.pool.acquire().await?;
+		let mut t = conn.begin().await?;
 
 		// TODO: we still need to delete this user's data,
 		// since it's stored in a different db.
 		sqlx::query("DELETE FROM pipelines WHERE id=$1;")
 			.bind(i64::from(pipeline))
 			.execute(&mut *t)
-			.await
-			.map_err(|e| DeletePipelineError::DbError(Box::new(e)))?;
+			.await?;
 
-		t.commit()
-			.await
-			.map_err(|e| DeletePipelineError::DbError(Box::new(e)))?;
+		t.commit().await?;
 
 		return Ok(());
 	}

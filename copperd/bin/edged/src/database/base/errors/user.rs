@@ -7,7 +7,7 @@ use std::{error::Error, fmt::Display};
 #[derive(Debug)]
 pub enum AddUserError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// A user with this email already exists
 	UniqueEmailViolation,
@@ -30,10 +30,16 @@ impl Display for AddUserError {
 impl Error for AddUserError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			Self::NameError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for AddUserError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -41,7 +47,7 @@ impl Error for AddUserError {
 #[derive(Debug)]
 pub enum GetUserError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 }
 
 impl Display for GetUserError {
@@ -55,8 +61,14 @@ impl Display for GetUserError {
 impl Error for GetUserError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 		}
+	}
+}
+
+impl From<sqlx::Error> for GetUserError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -64,7 +76,7 @@ impl Error for GetUserError {
 #[derive(Debug)]
 pub enum UpdateUserError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// A user with this email already exists
 	UniqueEmailViolation,
@@ -86,10 +98,16 @@ impl Display for UpdateUserError {
 impl Error for UpdateUserError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			Self::NameError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for UpdateUserError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
@@ -97,7 +115,7 @@ impl Error for UpdateUserError {
 #[derive(Debug)]
 pub enum DeleteUserError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 }
 
 impl Display for DeleteUserError {
@@ -111,7 +129,13 @@ impl Display for DeleteUserError {
 impl Error for DeleteUserError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 		}
+	}
+}
+
+impl From<sqlx::Error> for DeleteUserError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }

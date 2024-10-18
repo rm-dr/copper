@@ -140,8 +140,6 @@ impl Display for UploadAssignError {
 
 impl Error for UploadAssignError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			_ => None,
-		}
+		None
 	}
 }

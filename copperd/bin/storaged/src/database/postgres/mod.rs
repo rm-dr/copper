@@ -11,7 +11,7 @@ mod migrate;
 /// An error we may encounter when connecting to postgres
 pub enum PgDatabaseOpenError {
 	/// We encountered an internal database error
-	Database(Box<dyn Error + Send + Sync>),
+	Database(sqlx::Error),
 
 	/// We encountered an error while migrating
 	Migrate(MigrationError),
@@ -29,9 +29,21 @@ impl Display for PgDatabaseOpenError {
 impl Error for PgDatabaseOpenError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::Database(e) => Some(e.as_ref()),
+			Self::Database(e) => Some(e),
 			Self::Migrate(e) => Some(e),
 		}
+	}
+}
+
+impl From<sqlx::Error> for PgDatabaseOpenError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::Database(value)
+	}
+}
+
+impl From<MigrationError> for PgDatabaseOpenError {
+	fn from(value: MigrationError) -> Self {
+		Self::Migrate(value)
 	}
 }
 
@@ -46,12 +58,8 @@ impl PgDatabaseClient {
 		info!(message = "Opening dataset", ds_type = "postgres", ?db_addr);
 
 		// Apply migrations
-		let mut conn = PgConnection::connect(db_addr)
-			.await
-			.map_err(|e| PgDatabaseOpenError::Database(Box::new(e)))?;
-		let mut mig = Migrator::new(&mut conn, db_addr, migrate::MIGRATE_STEPS)
-			.await
-			.map_err(|x| PgDatabaseOpenError::Database(Box::new(x)))?;
+		let mut conn = PgConnection::connect(db_addr).await?;
+		let mut mig = Migrator::new(&mut conn, db_addr, migrate::MIGRATE_STEPS).await?;
 		mig.up().await.map_err(PgDatabaseOpenError::Migrate)?;
 
 		drop(mig);
@@ -61,8 +69,7 @@ impl PgDatabaseClient {
 			// TODO: configure
 			.max_connections(5)
 			.connect(db_addr)
-			.await
-			.map_err(|e| PgDatabaseOpenError::Database(Box::new(e)))?;
+			.await?;
 
 		Ok(Self { pool })
 	}

@@ -6,7 +6,7 @@ use std::{error::Error, fmt::Display};
 #[derive(Debug)]
 pub enum ApplyTransactionError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// We encountered an error while adding an item
 	AddItemError(AddItemError),
@@ -45,7 +45,7 @@ impl Display for ApplyTransactionError {
 impl Error for ApplyTransactionError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			Self::AddItemError(x) => Some(x),
 			_ => None,
 		}
@@ -61,11 +61,17 @@ impl From<AddItemError> for ApplyTransactionError {
 	}
 }
 
+impl From<sqlx::Error> for ApplyTransactionError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
+	}
+}
+
 /// An error we can encounter when creating an item
 #[derive(Debug)]
 pub enum AddItemError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 
 	/// We tried to add an item to a class that doesn't exist
 	NoSuchClass,
@@ -112,8 +118,14 @@ impl Display for AddItemError {
 impl Error for AddItemError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 			_ => None,
 		}
+	}
+}
+
+impl From<sqlx::Error> for AddItemError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }

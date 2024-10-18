@@ -33,7 +33,7 @@ const AUTH_TOKEN_LIFE_HOURS: i64 = 24;
 #[derive(Debug)]
 pub enum LoginError {
 	/// Database error
-	DbError(Box<dyn Error + Send + Sync>),
+	DbError(sqlx::Error),
 }
 
 impl Display for LoginError {
@@ -47,8 +47,14 @@ impl Display for LoginError {
 impl Error for LoginError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::DbError(x) => Some(x.as_ref()),
+			Self::DbError(x) => Some(x),
 		}
+	}
+}
+
+impl From<sqlx::Error> for LoginError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
 	}
 }
 
