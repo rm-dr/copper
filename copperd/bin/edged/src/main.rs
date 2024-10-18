@@ -95,7 +95,7 @@ async fn main() {
 		.region(Region::new("us-west"))
 		.build();
 
-	let client = aws_sdk_s3::Client::from_conf(s3_config);
+	let client = S3Client::new(aws_sdk_s3::Client::from_conf(s3_config)).await;
 
 	let listener = match tokio::net::TcpListener::bind(config.edged_server_addr.to_string()).await {
 		Ok(x) => x,
@@ -117,11 +117,7 @@ async fn main() {
 	};
 	info!("listening on http://{}", listener.local_addr().unwrap());
 
-	let app = make_app(
-		config.clone(),
-		Arc::new(S3Client::new(client.clone()).await),
-	)
-	.await;
+	let app = make_app(config.clone(), Arc::new(client)).await;
 
 	match axum::serve(
 		listener,
