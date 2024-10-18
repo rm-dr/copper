@@ -90,9 +90,7 @@ impl TryFrom<ApiAttrData> for AttrData {
 		Ok(match value {
 			ApiAttrData::Blob { .. } => return Err(()),
 
-			ApiAttrData::None { data_type } => Self::None {
-				data_type: data_type.clone(),
-			},
+			ApiAttrData::None { data_type } => Self::None { data_type },
 			ApiAttrData::Boolean { value } => Self::Boolean { value },
 			ApiAttrData::Text { value } => Self::Text { value },
 			ApiAttrData::Hash { hash_type, data } => Self::Hash { hash_type, data },

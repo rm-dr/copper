@@ -198,9 +198,8 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		);
 
 		self.queued_jobs.push_back(job_id.into());
-		if !self.jobs_by_user.contains_key(&owner) {
-			self.jobs_by_user.insert(owner, VecDeque::new());
-		}
+		self.jobs_by_user.entry(owner).or_default();
+
 		self.jobs_by_user
 			.get_mut(&owner)
 			.unwrap()

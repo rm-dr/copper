@@ -50,7 +50,7 @@ pub(super) async fn start_upload<Client: DatabaseClient>(
 		Ok(job_id) => (
 			StatusCode::OK,
 			Json(StartUploadResponse {
-				job_id: job_id.into(),
+				job_id,
 				request_body_limit: state.config.edged_request_body_limit,
 			}),
 		)
