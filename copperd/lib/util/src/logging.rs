@@ -30,7 +30,7 @@ impl Display for LogLevel {
 	}
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Copy)]
 pub enum LoggingPreset {
 	Default,
 	Verbose,

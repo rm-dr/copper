@@ -5,7 +5,7 @@ use tracing::error;
 
 /// Note that the field of this struct are not capitalized.
 /// Envy is case-insensitive, and expects Rust fields to be snake_case.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct EdgedConfig {
 	/// The logging level to run with
 	#[serde(default)]
@@ -60,7 +60,7 @@ impl EdgedConfig {
 	}
 
 	/// Validate this config, logging and fixing errors.
-	pub fn validate(&mut self) {
+	pub fn validate(mut self) -> Self {
 		// Enforce minimum request body limit
 		// (S3 multipart uploads have a 5MiB min part size)
 		if self.edged_request_body_limit < 6_000_000 {
@@ -72,5 +72,7 @@ impl EdgedConfig {
 
 			self.edged_request_body_limit = 6_000_000;
 		}
+
+		return self;
 	}
 }

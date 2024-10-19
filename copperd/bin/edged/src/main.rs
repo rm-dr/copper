@@ -6,10 +6,10 @@ use axum::Router;
 use config::EdgedConfig;
 use copper_pipelined::client::ReqwestPipelineClient;
 use copper_storaged::client::ReqwestStoragedClient;
-use copper_util::{load_env, s3client::S3Client};
+use copper_util::{load_env, s3client::S3Client, LoadedEnv};
 use database::postgres::{PgDatabaseClient, PgDatabaseOpenError};
 use std::sync::Arc;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace};
 use uploader::Uploader;
 
 mod api;
@@ -34,11 +34,31 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 		}
 	};
 
-	let pipelined_client = Arc::new(
-		ReqwestPipelineClient::new(&config.edged_pipelined_addr, &config.edged_pipelined_secret)
-			// TODO: handle error
-			.unwrap(),
-	);
+	trace!(message = "Initializing storaged client");
+	let storaged_client = match ReqwestStoragedClient::new(
+		config.edged_storaged_addr.clone(),
+		&config.edged_storaged_secret,
+	) {
+		Ok(x) => Arc::new(x),
+		Err(error) => {
+			error!(message = "Could not initialize storaged client", ?error);
+			std::process::exit(1);
+		}
+	};
+	trace!(message = "Successfully initialized storaged client");
+
+	trace!(message = "Initializing pipelined client");
+	let pipelined_client = match ReqwestPipelineClient::new(
+		&config.edged_pipelined_addr,
+		&config.edged_pipelined_secret,
+	) {
+		Ok(x) => Arc::new(x),
+		Err(error) => {
+			error!(message = "Could not initialize pipelined client", ?error);
+			std::process::exit(1);
+		}
+	};
+	trace!(message = "Successfully initialized Storaged client");
 
 	// Create app
 	return api::router(RouterState {
@@ -52,20 +72,22 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 		)),
 
 		pipelined_client,
-
-		storaged_client: Arc::new(
-			ReqwestStoragedClient::new(&config.edged_storaged_addr, &config.edged_storaged_secret)
-				// TODO: handle error
-				.unwrap(),
-		),
-
+		storaged_client,
 		s3_client_upload,
 	});
 }
 
 #[tokio::main]
 async fn main() {
-	let mut config = load_env::<EdgedConfig>();
+	let config_res = match load_env::<EdgedConfig>() {
+		Ok(x) => x,
+		Err(err) => {
+			println!("Error while loading .env: {err}");
+			std::process::exit(1);
+		}
+	};
+
+	let config: Arc<EdgedConfig> = Arc::new(config_res.get_config().clone().validate());
 
 	tracing_subscriber::fmt()
 		.with_env_filter(config.edged_loglevel.get_config())
@@ -73,10 +95,18 @@ async fn main() {
 		.with_ansi(true)
 		.init();
 
-	config.validate();
-	let config = Arc::new(config);
-
-	debug!(message = "Loaded config from environment", ?config);
+	// Do this now, logging wasn't available earlier
+	match config_res {
+		LoadedEnv::FoundFile { config, path } => {
+			debug!(message = "Loaded config from .env", ?path, ?config);
+		}
+		LoadedEnv::OnlyVars(config) => {
+			debug!(
+				message = "No `.env` found, loaded config from environment",
+				?config
+			);
+		}
+	};
 
 	let cred = Credentials::new(
 		&config.edged_objectstore_key_id,
@@ -115,7 +145,14 @@ async fn main() {
 			std::process::exit(1);
 		}
 	};
-	info!("listening on http://{}", listener.local_addr().unwrap());
+
+	match listener.local_addr() {
+		Ok(x) => info!("listening on http://{x}"),
+		Err(error) => {
+			error!(message = "Could not determine local address", ?error);
+			std::process::exit(1);
+		}
+	}
 
 	let app = make_app(config.clone(), Arc::new(client)).await;
 
