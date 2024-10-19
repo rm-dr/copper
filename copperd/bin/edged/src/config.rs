@@ -51,6 +51,7 @@ pub struct EdgedConfig {
 	/// How long an upload job may idle before being deleted, in seconds
 	/// - if a pending upload job does not receive a part for this many seconds, it is deleted
 	/// - if a finished upload job is not passed to a `run()` call within this many seconds, it is deleted
+	#[serde(default = "EdgedConfig::default_upload_job_timeout")]
 	pub edged_upload_job_timeout: u64,
 
 	/// If both of the following are set, create a user with the given name & email on startup.
@@ -63,6 +64,10 @@ pub struct EdgedConfig {
 impl EdgedConfig {
 	fn default_request_body_limit() -> usize {
 		10_000_000
+	}
+
+	fn default_upload_job_timeout() -> u64 {
+		300
 	}
 
 	/// Validate this config, logging and fixing errors.

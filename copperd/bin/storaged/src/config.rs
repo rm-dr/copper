@@ -81,7 +81,7 @@ mod auth {
 			};
 
 			if token == self.storaged_secret {
-				info!(message = "Authentication successful", ?uri,);
+				debug!(message = "Authentication successful", ?uri,);
 				return true;
 			} else {
 				info!(

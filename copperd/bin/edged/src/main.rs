@@ -13,7 +13,7 @@ use database::{
 	postgres::{PgDatabaseClient, PgDatabaseOpenError},
 };
 use std::sync::Arc;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{error, info, trace, warn};
 use uploader::Uploader;
 
 mod api;
@@ -146,10 +146,10 @@ async fn main() {
 	// Do this now, logging wasn't available earlier
 	match config_res {
 		LoadedEnv::FoundFile { config, path } => {
-			debug!(message = "Loaded config from .env", ?path, ?config);
+			info!(message = "Loaded config from .env", ?path, ?config);
 		}
 		LoadedEnv::OnlyVars(config) => {
-			debug!(
+			info!(
 				message = "No `.env` found, loaded config from environment",
 				?config
 			);

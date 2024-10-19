@@ -82,7 +82,7 @@ pub struct PipelinedConfig {
 
 impl PipelinedConfig {
 	fn default_frag_size() -> usize {
-		6_000_000
+		10_000_000
 	}
 
 	fn default_channel_size() -> usize {
@@ -149,7 +149,7 @@ mod auth {
 			};
 
 			if token == self.pipelined_secret {
-				info!(message = "Authentication successful", ?uri,);
+				debug!(message = "Authentication successful", ?uri,);
 				return true;
 			} else {
 				info!(

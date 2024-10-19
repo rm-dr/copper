@@ -58,6 +58,7 @@ impl LoggingPreset {
 				nodes: LogLevel::Warn,
 
 				storaged: LogLevel::Info,
+				edged: LogLevel::Info,
 			},
 
 			Self::Verbose => LoggingConfig {
@@ -71,6 +72,7 @@ impl LoggingPreset {
 				nodes: LogLevel::Warn,
 
 				storaged: LogLevel::Debug,
+				edged: LogLevel::Debug,
 			},
 
 			Self::Develop => LoggingConfig {
@@ -84,6 +86,7 @@ impl LoggingPreset {
 				nodes: LogLevel::Warn,
 
 				storaged: LogLevel::Trace,
+				edged: LogLevel::Trace,
 			},
 
 			Self::Trace => LoggingConfig {
@@ -97,6 +100,7 @@ impl LoggingPreset {
 				nodes: LogLevel::Trace,
 
 				storaged: LogLevel::Trace,
+				edged: LogLevel::Trace,
 			},
 		}
 	}
@@ -113,6 +117,7 @@ pub struct LoggingConfig {
 	nodes: LogLevel,
 
 	storaged: LogLevel,
+	edged: LogLevel,
 }
 
 impl From<LoggingConfig> for EnvFilter {
@@ -143,6 +148,8 @@ impl From<LoggingConfig> for EnvFilter {
 				format!("pipelined_storaged={}", conf.nodes),
 				format!("pipelined_basic={}", conf.nodes),
 				format!("pipelined_audiofile={}", conf.nodes),
+				// // Edged
+				format!("edged={}", conf.edged),
 				conf.other.to_string(),
 			]
 			.join(","),
