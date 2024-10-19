@@ -20,7 +20,7 @@ jobs:
       - name: Check typos
         uses: crate-ci/typos@master
         with:
-          config: ./typos.toml
+          config: ./dev/typos.toml
 
   lychee:
     runs-on: ubuntu-latest
@@ -38,4 +38,5 @@ jobs:
         id: lychee
         uses: lycheeverse/lychee-action@v1
         with:
-          args: --config lychee.toml .
+          args: --config ./dev/lychee.toml .
+          fail: true

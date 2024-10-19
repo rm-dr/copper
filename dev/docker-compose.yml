@@ -1,0 +1,39 @@
+# Start copper's backing services in docker.
+# This is a dev environment, do not use this to deploy!
+#
+# Postgres management interface is at http://localhost:8080,
+# credentials are admin/admin (see ./copper-db-dev)
+#
+# Minio management interface is at http://localhost:9001,
+# credentials are admin/admin
+
+services:
+  copperdb-dev:
+    build: ./copper-db-dev
+    container_name: copper-db-dev
+    restart: unless-stopped
+    shm_size: 256mb
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - 5432:5432
+
+  copper-adminer-dev:
+    image: adminer
+    container_name: copper-adminer-dev
+
+    restart: always
+    ports:
+      - 8080:8080
+
+  copper-minio-dev:
+    image: minio/minio
+    container_name: copper-minio-dev
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"

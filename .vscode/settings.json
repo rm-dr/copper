@@ -2,5 +2,9 @@
 	"editor.formatOnSave": true,
 
 	// Force ts to check whole project
-	"typescript.tsserver.experimental.enableProjectDiagnostics": true
+	"typescript.tsserver.experimental.enableProjectDiagnostics": true,
+
+	"files.associations": {
+		"dev.env": "properties"
+	}
 }
