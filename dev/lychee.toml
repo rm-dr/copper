@@ -5,3 +5,4 @@ verbose = "info"
 
 glob_ignore_case = false
 exclude_path = ["copperc/node_modules", "copperc/.next", "./copperd/target"]
+exclude = ['^http(s)?://localhost']
