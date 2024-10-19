@@ -3,5 +3,8 @@
 copperd/target
 copperd/.env
 
+# Runtime data
+dist/data
+
 # Generic ignores
 *.ignore
