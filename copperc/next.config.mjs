@@ -10,16 +10,6 @@ const nextConfig = {
 		];
 	},
 
-	// TODO: env var here
-	async rewrites() {
-		return [
-			{
-				source: "/api/:path*",
-				destination: "http://localhost:2000/:path*",
-			},
-		];
-	},
-
 	webpack(config) {
 		// Grab the existing rule that handles SVG imports
 		const fileLoaderRule = config.module.rules.find((rule) =>
