@@ -4,12 +4,16 @@ use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::config::Credentials;
 use axum::Router;
 use config::EdgedConfig;
+use copper_edged::UserPassword;
 use copper_pipelined::client::ReqwestPipelineClient;
 use copper_storaged::client::ReqwestStoragedClient;
 use copper_util::{load_env, s3client::S3Client, LoadedEnv};
-use database::postgres::{PgDatabaseClient, PgDatabaseOpenError};
+use database::{
+	base::client::DatabaseClient,
+	postgres::{PgDatabaseClient, PgDatabaseOpenError},
+};
 use std::sync::Arc;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 use uploader::Uploader;
 
 mod api;
@@ -59,6 +63,50 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 		}
 	};
 	trace!(message = "Successfully initialized Storaged client");
+
+	if config.edged_init_user_email.is_some() && config.edged_init_user_pass.is_some() {
+		let email = config.edged_init_user_email.as_ref().unwrap();
+		let pass = config.edged_init_user_pass.as_ref().unwrap();
+
+		let user = match db.get_user_by_email(email).await {
+			Ok(x) => x,
+			Err(error) => {
+				error!(message = "Error while checking initial user", ?error);
+				std::process::exit(1);
+			}
+		};
+
+		if user.is_some() {
+			info!(
+				message = "Not creating initial user, a user with this email already exists",
+				EDGED_INIT_USER_EMAIL = config.edged_init_user_email,
+				EDGED_INIT_USER_PASS = config.edged_init_user_pass
+			)
+		} else {
+			info!(
+				message = "Creating initial user",
+				EDGED_INIT_USER_EMAIL = config.edged_init_user_email,
+				EDGED_INIT_USER_PASS = config.edged_init_user_pass
+			);
+			let res = db
+				.add_user(email, "Initial user", &UserPassword::new(pass))
+				.await;
+
+			match res {
+				Ok(_) => {}
+				Err(error) => {
+					error!(message = "Error while creating initial user", ?error);
+					std::process::exit(1);
+				}
+			};
+		}
+	} else if config.edged_init_user_email.is_some() || config.edged_init_user_pass.is_some() {
+		warn!(
+			message = "Not creating initial user, not all field were provided",
+			EDGED_INIT_USER_NAME = config.edged_init_user_email,
+			EDGED_INIT_USER_PASS = config.edged_init_user_pass
+		)
+	}
 
 	// Create app
 	return api::router(RouterState {

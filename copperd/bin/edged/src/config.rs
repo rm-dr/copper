@@ -52,6 +52,12 @@ pub struct EdgedConfig {
 	/// - if a pending upload job does not receive a part for this many seconds, it is deleted
 	/// - if a finished upload job is not passed to a `run()` call within this many seconds, it is deleted
 	pub edged_upload_job_timeout: u64,
+
+	/// If both of the following are set, create a user with the given name & email on startup.
+	#[serde(default)]
+	pub edged_init_user_email: Option<String>,
+	#[serde(default)]
+	pub edged_init_user_pass: Option<String>,
 }
 
 impl EdgedConfig {
