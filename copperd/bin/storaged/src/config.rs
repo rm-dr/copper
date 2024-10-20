@@ -5,7 +5,7 @@ use tracing::{debug, info};
 
 /// Note that the field of this struct are not capitalized.
 /// Envy is case-insensitive, and expects Rust fields to be snake_case.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct StoragedConfig {
 	/// The logging level to run with
 	#[serde(default)]
@@ -81,7 +81,7 @@ mod auth {
 			};
 
 			if token == self.storaged_secret {
-				info!(message = "Authentication successful", ?uri,);
+				debug!(message = "Authentication successful", ?uri,);
 				return true;
 			} else {
 				info!(

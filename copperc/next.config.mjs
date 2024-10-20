@@ -1,21 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+	output: "standalone",
+
 	async redirects() {
 		return [
 			{
 				source: "/u",
 				destination: "/u/dashboard",
 				permanent: true,
-			},
-		];
-	},
-
-	// TODO: env var here
-	async rewrites() {
-		return [
-			{
-				source: "/api/:path*",
-				destination: "http://localhost:2000/:path*",
 			},
 		];
 	},

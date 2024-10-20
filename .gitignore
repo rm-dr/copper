@@ -1,10 +1,10 @@
-# Root ignores
-/data
+# Dev artifacts
+.lycheecache
+copperd/target
+copperd/.env
+
+# Runtime data
+dist/data
 
 # Generic ignores
 *.ignore
-.lycheecache
-
-# Copperd ignores
-copperd/target
-copperd/data

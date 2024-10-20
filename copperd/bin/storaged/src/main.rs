@@ -1,10 +1,10 @@
 use api::RouterState;
 use axum::Router;
 use config::StoragedConfig;
-use copper_util::load_env;
+use copper_util::{load_env, LoadedEnv};
 use database::postgres::{PgDatabaseClient, PgDatabaseOpenError};
 use std::sync::Arc;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 mod api;
 mod config;
@@ -33,7 +33,15 @@ async fn make_app(config: Arc<StoragedConfig>) -> Router {
 
 #[tokio::main]
 async fn main() {
-	let config = Arc::new(load_env::<StoragedConfig>());
+	let config_res = match load_env::<StoragedConfig>() {
+		Ok(x) => x,
+		Err(err) => {
+			println!("Error while loading .env: {err}");
+			std::process::exit(1);
+		}
+	};
+
+	let config: Arc<StoragedConfig> = Arc::new(config_res.get_config().clone());
 
 	tracing_subscriber::fmt()
 		.with_env_filter(config.storaged_loglevel.get_config())
@@ -41,7 +49,18 @@ async fn main() {
 		.with_ansi(true)
 		.init();
 
-	debug!(message = "Loaded config from environment", ?config);
+	// Do this now, logging wasn't available earlier
+	match config_res {
+		LoadedEnv::FoundFile { config, path } => {
+			info!(message = "Loaded config from .env", ?path, ?config);
+		}
+		LoadedEnv::OnlyVars(config) => {
+			info!(
+				message = "No `.env` found, loaded config from environment",
+				?config
+			);
+		}
+	};
 
 	let listener =
 		match tokio::net::TcpListener::bind(config.storaged_server_addr.to_string()).await {
@@ -62,7 +81,14 @@ async fn main() {
 				std::process::exit(1);
 			}
 		};
-	info!("listening on http://{}", listener.local_addr().unwrap());
+
+	match listener.local_addr() {
+		Ok(x) => info!("listening on http://{x}"),
+		Err(error) => {
+			error!(message = "Could not determine local address", ?error);
+			std::process::exit(1);
+		}
+	}
 
 	let app = make_app(config).await;
 

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use copper_storaged::{AttrData, UserId};
-use reqwest::{header, Client, IntoUrl, Url};
+use reqwest::{header, Client, ClientBuilder, IntoUrl, Url};
 use serde_json::json;
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
@@ -23,7 +23,9 @@ impl ReqwestPipelineClient {
 		pipelined_secret: &str,
 	) -> Result<Self, reqwest::Error> {
 		Ok(Self {
-			client: Client::new(),
+			// This might segfault if our ssl lib isn't linked correctly.
+			// (this is why we use `rustls` everywhere, see cargo.toml)
+			client: ClientBuilder::new().build()?,
 			pipelined_url: pipelined_url.into_url()?,
 			pipelined_secret: pipelined_secret.to_string(),
 		})

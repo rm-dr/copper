@@ -1,57 +1,99 @@
-use std::io::ErrorKind;
-
 use serde::de::DeserializeOwned;
+use smartstring::{LazyCompact, SmartString};
+use std::{env::VarError, error::Error, fmt::Display, io::ErrorKind, path::PathBuf};
+
+#[derive(Debug)]
+pub enum EnvLoadError {
+	IOError(std::io::Error),
+	VarError(VarError),
+	LineParse { on_line: String, at_char: usize },
+	Other(dotenvy::Error),
+	MissingValue(SmartString<LazyCompact>),
+	OtherParseError(String),
+}
+
+impl Display for EnvLoadError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::IOError(_) => write!(f, "i/o error"),
+			Self::VarError(_) => write!(f, "varerror"),
+			Self::LineParse { on_line, at_char } => {
+				write!(f, "line parse error: `{on_line}` at char {at_char}")
+			}
+			Self::Other(_) => write!(f, "other dotenvy error"),
+			Self::MissingValue(v) => write!(f, "missing value {v}"),
+			Self::OtherParseError(msg) => write!(f, "parse error: {msg}"),
+		}
+	}
+}
+
+impl Error for EnvLoadError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::IOError(e) => Some(e),
+			Self::VarError(e) => Some(e),
+			Self::Other(e) => Some(e),
+			_ => None,
+		}
+	}
+}
+
+pub enum LoadedEnv<T> {
+	/// We loaded config from `.env` and env vars
+	FoundFile { config: T, path: PathBuf },
+
+	/// We could not find `.env` and only loaded env vars
+	OnlyVars(T),
+}
+
+impl<T> LoadedEnv<T> {
+	pub fn get_config(&self) -> &T {
+		match self {
+			Self::FoundFile { config, .. } => config,
+			Self::OnlyVars(config) => config,
+		}
+	}
+}
 
 /// Load the configuration type `T` from the current environment,
 /// including the `.env` if it exists.
-///
-/// This method calls `std::process::exit` if loading fails.
-pub fn load_env<T: DeserializeOwned>() -> T {
-	match dotenvy::dotenv() {
-		Ok(path) => {
-			println!("Loaded env from {path:?}")
-		}
+pub fn load_env<T: DeserializeOwned>() -> Result<LoadedEnv<T>, EnvLoadError> {
+	let env_path = match dotenvy::dotenv() {
+		Ok(path) => Some(path),
 
 		Err(dotenvy::Error::Io(err)) => match err.kind() {
-			ErrorKind::NotFound => {
-				println!("Could not find .env, not loading");
-			}
-
-			_ => {
-				println!("ERROR: I/O error when loading .env: {err:?}");
-				std::process::exit(1);
-			}
+			ErrorKind::NotFound => None,
+			_ => return Err(EnvLoadError::IOError(err)),
 		},
 
 		Err(dotenvy::Error::EnvVar(err)) => {
-			println!("ERROR: VarError when loading .env: {err:?}");
-			std::process::exit(1);
+			return Err(EnvLoadError::VarError(err));
 		}
 
-		Err(dotenvy::Error::LineParse(x, y)) => {
-			println!("ERROR: Line parse error when loading .env");
-			println!("On line: `{x}`");
-			println!("At char:  {}^", " ".repeat(y));
-			std::process::exit(1);
+		Err(dotenvy::Error::LineParse(on_line, at_char)) => {
+			return Err(EnvLoadError::LineParse { on_line, at_char });
 		}
 
 		Err(err) => {
-			println!("ERROR: Error while loading .env: {err:?}");
-			std::process::exit(1);
+			return Err(EnvLoadError::Other(err));
 		}
 	};
 
 	match envy::from_env::<T>() {
-		Ok(config) => return config,
+		Ok(config) => {
+			if let Some(path) = env_path {
+				return Ok(LoadedEnv::FoundFile { path, config });
+			} else {
+				return Ok(LoadedEnv::OnlyVars(config));
+			}
+		}
 
 		Err(envy::Error::MissingValue(value)) => {
-			println!("ERROR: Required env var {value} is missing");
-			std::process::exit(1);
+			return Err(EnvLoadError::MissingValue(value.into()))
 		}
 
 		Err(envy::Error::Custom(message)) => {
-			println!("ERROR: Could not parse config from env: {message}");
-			std::process::exit(1);
+			return Err(EnvLoadError::OtherParseError(message));
 		}
 	};
 }

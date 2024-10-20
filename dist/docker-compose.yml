@@ -1,0 +1,81 @@
+# Complete compose file for a simple
+# single-server deployment of copper.
+
+networks:
+  backend:
+
+services:
+  copper-db:
+    build: ./copper-db
+    container_name: copper-db
+    restart: unless-stopped
+    shm_size: 512mb
+    # Port 5432 is intentionally not exposed
+    networks:
+      - backend
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  copper-minio:
+    image: minio/minio
+    container_name: copper-minio
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    # Ports 9000 and 9001 are intentionally not exposed
+    networks:
+      - backend
+    volumes:
+      - ./data/minio:/data
+    command: server /data --console-address ":9001"
+
+  copperd:
+    image: copperd
+    # Do not start until db is ready
+    depends_on:
+      copper-db:
+        condition: service_healthy
+    container_name: copperd
+    restart: unless-stopped
+    # Port 80 is intentionally not exposed, since
+    # `copperc` forwards api requests to `copperd`.
+    networks:
+      - backend
+    environment:
+      # Remove these after initial login
+      - "EDGED_INIT_USER_EMAIL=admin"
+      - "EDGED_INIT_USER_PASS=admin"
+
+      # Required edged configuration
+      - "EDGED_DB_ADDR=postgres://admin:admin@copper-db/edged"
+      - "EDGED_OBJECTSTORE_KEY_ID=admin"
+      - "EDGED_OBJECTSTORE_KEY_SECRET=password"
+      - "EDGED_OBJECTSTORE_URL=http://copper-minio:9000"
+      - "EDGED_OBJECTSTORE_UPLOAD_BUCKET=copper-upload"
+      # Required pipelined configuration
+      - "PIPELINED_OBJECTSTORE_KEY_ID=admin"
+      - "PIPELINED_OBJECTSTORE_KEY_SECRET=password"
+      - "PIPELINED_OBJECTSTORE_URL=http://copper-minio:9000"
+      - "PIPELINED_OBJECTSTORE_BUCKET=copper-blobs"
+      # Required storaged configuration
+      - "STORAGED_DB_ADDR=postgres://admin:admin@copper-db/storaged"
+
+  copperc:
+    image: copperc
+    container_name: copperc
+    restart: unless-stopped
+    networks:
+      - backend
+
+    # This is copper's web interface,
+    # the only port we need to expose
+    ports:
+      - "127.0.0.1:3000:3000"
+
+    environment:
+      - "EDGED_ADDR=http://copperd:80"

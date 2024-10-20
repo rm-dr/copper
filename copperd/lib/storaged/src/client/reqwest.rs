@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use reqwest::{header, Client, IntoUrl, StatusCode, Url};
+use reqwest::{header, Client, ClientBuilder, IntoUrl, StatusCode, Url};
 use serde_json::json;
 
 use super::{StoragedClient, StoragedRequestError};
@@ -17,7 +17,9 @@ pub struct ReqwestStoragedClient {
 impl ReqwestStoragedClient {
 	pub fn new(storaged_url: impl IntoUrl, storaged_secret: &str) -> Result<Self, reqwest::Error> {
 		Ok(Self {
-			client: Client::new(),
+			// This might segfault if our ssl lib isn't linked correctly.
+			// (this is why we use `rustls` everywhere, see cargo.toml)
+			client: ClientBuilder::new().build()?,
 			storaged_url: storaged_url.into_url()?,
 			storaged_secret: storaged_secret.to_string(),
 		})

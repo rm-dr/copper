@@ -5,7 +5,7 @@ use tracing::error;
 
 /// Note that the field of this struct are not capitalized.
 /// Envy is case-insensitive, and expects Rust fields to be snake_case.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct EdgedConfig {
 	/// The logging level to run with
 	#[serde(default)]
@@ -51,7 +51,14 @@ pub struct EdgedConfig {
 	/// How long an upload job may idle before being deleted, in seconds
 	/// - if a pending upload job does not receive a part for this many seconds, it is deleted
 	/// - if a finished upload job is not passed to a `run()` call within this many seconds, it is deleted
+	#[serde(default = "EdgedConfig::default_upload_job_timeout")]
 	pub edged_upload_job_timeout: u64,
+
+	/// If both of the following are set, create a user with the given name & email on startup.
+	#[serde(default)]
+	pub edged_init_user_email: Option<String>,
+	#[serde(default)]
+	pub edged_init_user_pass: Option<String>,
 }
 
 impl EdgedConfig {
@@ -59,8 +66,12 @@ impl EdgedConfig {
 		10_000_000
 	}
 
+	fn default_upload_job_timeout() -> u64 {
+		300
+	}
+
 	/// Validate this config, logging and fixing errors.
-	pub fn validate(&mut self) {
+	pub fn validate(mut self) -> Self {
 		// Enforce minimum request body limit
 		// (S3 multipart uploads have a 5MiB min part size)
 		if self.edged_request_body_limit < 6_000_000 {
@@ -72,5 +83,7 @@ impl EdgedConfig {
 
 			self.edged_request_body_limit = 6_000_000;
 		}
+
+		return self;
 	}
 }

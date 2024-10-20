@@ -4,7 +4,7 @@
 		{
 			"type": "lldb",
 			"request": "launch",
-			"name": "Debug",
+			"name": "Debug pipelined",
 			"program": "${workspaceRoot}/copperd/target/debug/pipelined",
 			"args": [],
 			"cwd": "${workspaceRoot}/copperd/",
