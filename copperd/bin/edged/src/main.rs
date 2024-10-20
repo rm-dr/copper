@@ -175,6 +175,27 @@ async fn main() {
 
 	let client = S3Client::new(aws_sdk_s3::Client::from_conf(s3_config)).await;
 
+	// Create upload bucket if it doesn't exist
+	match client
+		.create_bucket(&config.edged_objectstore_upload_bucket)
+		.await
+	{
+		Ok(false) => {}
+		Ok(true) => {
+			info!(
+				message = "Created upload bucket because it didn't exist",
+				bucket = config.edged_objectstore_upload_bucket
+			);
+		}
+		Err(error) => {
+			error!(
+				message = "Error while creating upload bucket",
+				bucket = config.edged_objectstore_upload_bucket,
+				?error
+			);
+		}
+	}
+
 	let listener = match tokio::net::TcpListener::bind(config.edged_server_addr.to_string()).await {
 		Ok(x) => x,
 		Err(e) => {

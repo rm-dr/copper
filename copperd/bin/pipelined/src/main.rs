@@ -65,7 +65,28 @@ async fn main() {
 		.force_path_style(true)
 		.build();
 
-	let client = aws_sdk_s3::Client::from_conf(s3_config);
+	let client = S3Client::new(aws_sdk_s3::Client::from_conf(s3_config)).await;
+
+	// Create blobstore bucket if it doesn't exist
+	match client
+		.create_bucket(&config.pipelined_objectstore_bucket)
+		.await
+	{
+		Ok(false) => {}
+		Ok(true) => {
+			info!(
+				message = "Created storage bucket because it didn't exist",
+				bucket = config.pipelined_objectstore_bucket
+			);
+		}
+		Err(error) => {
+			error!(
+				message = "Error while creating storage bucket",
+				bucket = config.pipelined_objectstore_bucket,
+				?error
+			);
+		}
+	}
 
 	// Prep runner
 	let mut runner: PipelineRunner<PipeData, CopperContext> =
@@ -139,7 +160,7 @@ async fn main() {
 	let state = RouterState {
 		runner: Arc::new(Mutex::new(runner)),
 		storaged_client,
-		objectstore_client: Arc::new(S3Client::new(client).await),
+		objectstore_client: Arc::new(client),
 		config,
 	};
 
