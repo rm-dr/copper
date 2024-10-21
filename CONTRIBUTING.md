@@ -44,7 +44,7 @@ All dev tools are in [`./dev`](./dev/). To set up a fresh environment, do the fo
   - `cargo run --package pipelined`
   - `cargo run --package edged`
   - Any daemon that has an API provides documentation at `http://localhost:{port}/docs`
-- In a new terminal, `cd copperc` and run `npm run dev` to start the web ui.
+- In a new terminal, `cd copperc` and run `EDGED_ADDR="http://localhost:2000" npm run dev` to start the web ui.
 
 
 # Version control & Releases
