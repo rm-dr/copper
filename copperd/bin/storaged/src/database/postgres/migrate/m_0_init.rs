@@ -13,29 +13,6 @@ impl Migration for MigrationStep {
 		let mut t = conn.begin().await?;
 
 		//
-		// MARK: Database metadata
-		//
-
-		sqlx::query(
-			"CREATE TABLE meta (
-				var TEXT PRIMARY KEY NOT NULL UNIQUE,
-				val TEXT NOT NULL
-			);",
-		)
-		.execute(&mut *t)
-		.await?;
-
-		sqlx::query("CREATE INDEX idx_meta_var on meta(var);")
-			.execute(&mut *t)
-			.await?;
-
-		sqlx::query("INSERT INTO meta (var, val) VALUES ($1, $2);")
-			.bind("copper_version")
-			.bind(env!("CARGO_PKG_VERSION"))
-			.execute(&mut *t)
-			.await?;
-
-		//
 		// MARK: Datasets
 		//
 		sqlx::query(

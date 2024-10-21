@@ -2,8 +2,7 @@ use async_trait::async_trait;
 use copper_edged::{PipelineId, PipelineInfo, UserInfo, UserPassword};
 use copper_pipelined::json::PipelineJson;
 use copper_storaged::UserId;
-use copper_util::{names::check_name, MimeType};
-use serde::{Deserialize, Serialize};
+use copper_util::names::check_name;
 use sqlx::{Connection, Row};
 
 use super::PgDatabaseClient;
@@ -17,12 +16,6 @@ use crate::database::base::{
 		user::{AddUserError, DeleteUserError, GetUserError, UpdateUserError},
 	},
 };
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct BlobJsonEncoded {
-	url: String,
-	mime: MimeType,
-}
 
 #[async_trait]
 impl DatabaseClient for PgDatabaseClient {

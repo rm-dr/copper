@@ -3,8 +3,7 @@ use copper_storaged::{
 	AttrData, AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo,
 	DatasetId, DatasetInfo, ResultOrDirect, Transaction, TransactionAction, UserId,
 };
-use copper_util::{names::check_name, MimeType};
-use serde::{Deserialize, Serialize};
+use copper_util::names::check_name;
 use sqlx::{Connection, Row};
 
 use super::{helpers, PgDatabaseClient};
@@ -22,12 +21,6 @@ use crate::database::base::{
 		transaction::ApplyTransactionError,
 	},
 };
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct BlobJsonEncoded {
-	url: String,
-	mime: MimeType,
-}
 
 #[async_trait]
 impl DatabaseClient for PgDatabaseClient {
