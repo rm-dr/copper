@@ -507,7 +507,7 @@ export interface components {
 			/** @description If true, this attribute must have a value */
 			is_not_null: boolean;
 			/** @description If true, this attribute must be unique within its column */
-			unique: boolean;
+			is_unique: boolean;
 		};
 		/** @description Class information */
 		ClassInfo: {

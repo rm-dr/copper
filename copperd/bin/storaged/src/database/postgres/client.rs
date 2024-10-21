@@ -421,7 +421,7 @@ impl DatabaseClient for PgDatabaseClient {
 		.bind(i64::from(in_class))
 		.bind(name)
 		.bind(serde_json::to_string(&with_type).unwrap())
-		.bind(options.unique)
+		.bind(options.is_unique)
 		.bind(options.is_not_null)
 		.bind(i64::from(in_class))
 		.fetch_one(&mut *t)
