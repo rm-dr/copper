@@ -20,7 +20,7 @@ pub struct AttributeOptions {
 	pub is_not_null: bool,
 
 	/// If true, this attribute must be unique within its column
-	pub unique: bool,
+	pub is_unique: bool,
 }
 
 /// Dataset information

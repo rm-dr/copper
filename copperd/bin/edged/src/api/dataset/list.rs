@@ -7,7 +7,7 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_storaged::client::StoragedRequestError;
+use copper_storaged::client::{GenericRequestError, StoragedRequestError};
 use tracing::error;
 
 /// Get dataset info
@@ -29,19 +29,19 @@ pub(super) async fn list_datasets<Client: DatabaseClient>(
 	};
 
 	return match state.storaged_client.list_datasets(user.id).await {
-		Ok(x) => (StatusCode::OK, Json(x)).into_response(),
+		Ok(Ok(x)) => (StatusCode::OK, Json(x)).into_response(),
 
-		Err(StoragedRequestError::Other { error }) => {
-			error!(message = "Error in storaged client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-		}
-
-		Err(StoragedRequestError::GenericHttp { code, message }) => {
+		Ok(Err(GenericRequestError { code, message })) => {
 			if let Some(msg) = message {
 				return (code, msg).into_response();
 			} else {
 				return code.into_response();
 			}
+		}
+
+		Err(StoragedRequestError::RequestError { error }) => {
+			error!(message = "Error in storaged client", ?error);
+			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};
 }

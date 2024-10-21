@@ -125,7 +125,7 @@ function Form(params: {
 					},
 					name: values.new_attr_name,
 					options: {
-						unique: values.is_unique,
+						is_unique: values.is_unique,
 						is_not_null: values.is_not_null,
 					},
 				});

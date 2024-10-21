@@ -1,20 +1,23 @@
-use std::{error::Error, fmt::Display};
+use std::{
+	error::Error,
+	fmt::{Debug, Display},
+};
 
 use async_trait::async_trait;
 use reqwest::StatusCode;
 
 use crate::{
-	AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo, DatasetId,
-	DatasetInfo, Transaction, UserId,
+	ApplyTransactionApiError, AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId,
+	ClassInfo, DatasetId, DatasetInfo, Transaction, UserId,
 };
+
+//
+// MARK: errors
+//
 
 #[derive(Debug)]
 pub enum StoragedRequestError {
-	GenericHttp {
-		code: StatusCode,
-		message: Option<String>,
-	},
-	Other {
+	RequestError {
 		error: Box<dyn Error + Sync + Send + 'static>,
 	},
 }
@@ -22,14 +25,7 @@ pub enum StoragedRequestError {
 impl Display for StoragedRequestError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Self::GenericHttp { code, message } => {
-				if let Some(m) = message {
-					write!(f, "Request failed with code {code}: {m}")
-				} else {
-					write!(f, "Request failed with code {code}")
-				}
-			}
-			Self::Other { .. } => write!(f, "request failed"),
+			Self::RequestError { .. } => write!(f, "Request failed"),
 		}
 	}
 }
@@ -37,11 +33,35 @@ impl Display for StoragedRequestError {
 impl Error for StoragedRequestError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
-			Self::Other { error } => Some(error.as_ref()),
-			_ => None,
+			Self::RequestError { error } => Some(error.as_ref()),
 		}
 	}
 }
+
+#[derive(Debug)]
+pub struct GenericRequestError {
+	pub code: StatusCode,
+	pub message: Option<String>,
+}
+
+impl Display for GenericRequestError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match &self.message {
+			Some(x) => write!(f, "error code {}: {}", self.code, x),
+			None => write!(f, "error code {}", self.code),
+		}
+	}
+}
+
+impl Error for GenericRequestError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		None
+	}
+}
+
+//
+// MARK: client
+//
 
 #[async_trait]
 pub trait StoragedClient: Send + Sync {
@@ -53,22 +73,28 @@ pub trait StoragedClient: Send + Sync {
 		&self,
 		name: &str,
 		owner: UserId,
-	) -> Result<DatasetId, StoragedRequestError>;
+	) -> Result<Result<DatasetId, GenericRequestError>, StoragedRequestError>;
 
 	async fn get_dataset(
 		&self,
 		dataset: DatasetId,
-	) -> Result<Option<DatasetInfo>, StoragedRequestError>;
+	) -> Result<Result<Option<DatasetInfo>, GenericRequestError>, StoragedRequestError>;
 
-	async fn list_datasets(&self, owner: UserId) -> Result<Vec<DatasetInfo>, StoragedRequestError>;
+	async fn list_datasets(
+		&self,
+		owner: UserId,
+	) -> Result<Result<Vec<DatasetInfo>, GenericRequestError>, StoragedRequestError>;
 
 	async fn rename_dataset(
 		&self,
 		dataset: DatasetId,
 		new_name: &str,
-	) -> Result<(), StoragedRequestError>;
+	) -> Result<Result<(), GenericRequestError>, StoragedRequestError>;
 
-	async fn delete_dataset(&self, dataset: DatasetId) -> Result<(), StoragedRequestError>;
+	async fn delete_dataset(
+		&self,
+		dataset: DatasetId,
+	) -> Result<Result<(), GenericRequestError>, StoragedRequestError>;
 
 	//
 	// MARK: class
@@ -78,18 +104,23 @@ pub trait StoragedClient: Send + Sync {
 		&self,
 		in_dataset: DatasetId,
 		name: &str,
-	) -> Result<ClassId, StoragedRequestError>;
+	) -> Result<Result<ClassId, GenericRequestError>, StoragedRequestError>;
 
-	async fn get_class(&self, class_id: ClassId)
-		-> Result<Option<ClassInfo>, StoragedRequestError>;
+	async fn get_class(
+		&self,
+		class_id: ClassId,
+	) -> Result<Result<Option<ClassInfo>, GenericRequestError>, StoragedRequestError>;
 
 	async fn rename_class(
 		&self,
 		class: ClassId,
 		new_name: &str,
-	) -> Result<(), StoragedRequestError>;
+	) -> Result<Result<(), GenericRequestError>, StoragedRequestError>;
 
-	async fn del_class(&self, class: ClassId) -> Result<(), StoragedRequestError>;
+	async fn del_class(
+		&self,
+		class: ClassId,
+	) -> Result<Result<(), GenericRequestError>, StoragedRequestError>;
 
 	//
 	// MARK: attribute
@@ -101,25 +132,30 @@ pub trait StoragedClient: Send + Sync {
 		name: &str,
 		with_type: AttrDataStub,
 		options: AttributeOptions,
-	) -> Result<AttributeId, StoragedRequestError>;
+	) -> Result<Result<AttributeId, GenericRequestError>, StoragedRequestError>;
 
 	async fn get_attribute(
 		&self,
 		attribute: AttributeId,
-	) -> Result<Option<AttributeInfo>, StoragedRequestError>;
+	) -> Result<Result<Option<AttributeInfo>, GenericRequestError>, StoragedRequestError>;
 
 	async fn rename_attribute(
 		&self,
 		attribute: AttributeId,
 		new_name: &str,
-	) -> Result<(), StoragedRequestError>;
+	) -> Result<Result<(), GenericRequestError>, StoragedRequestError>;
 
-	async fn del_attribute(&self, attribute: AttributeId) -> Result<(), StoragedRequestError>;
+	async fn del_attribute(
+		&self,
+		attribute: AttributeId,
+	) -> Result<Result<(), GenericRequestError>, StoragedRequestError>;
 
 	//
 	// MARK: other
 	//
 
-	async fn apply_transaction(&self, transaction: Transaction)
-		-> Result<(), StoragedRequestError>;
+	async fn apply_transaction(
+		&self,
+		transaction: Transaction,
+	) -> Result<Result<(), ApplyTransactionApiError>, StoragedRequestError>;
 }

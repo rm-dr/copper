@@ -564,9 +564,9 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		}
 
 		debug!(message = "Running context completion", job_id = ?self.job_id);
-		match Arc::try_unwrap(context) {
-			Ok(x) => x.on_complete().await?,
-			Err(_) => unreachable!(),
+		match Arc::into_inner(context) {
+			Some(x) => x.on_complete().await?,
+			None => unreachable!(),
 		}
 
 		return Ok(());

@@ -57,6 +57,7 @@ impl PipelineJobContext<PipeData> for CopperContext {
 			self.storaged_client
 				.apply_transaction(transaction)
 				.await
+				.map_err(|e| RunNodeError::Other(Arc::new(e)))?
 				.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 		}
 

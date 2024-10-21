@@ -5,7 +5,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
-use copper_storaged::Transaction;
+use copper_storaged::{ApplyTransactionApiError, Transaction};
 use serde::Deserialize;
 use tracing::error;
 use utoipa::ToSchema;
@@ -53,12 +53,28 @@ pub(super) async fn apply_transaction<Client: DatabaseClient>(
 			StatusCode::INTERNAL_SERVER_ERROR.into_response()
 		}
 
-		Err(e) => {
-			error!(
-				message = "error while running transaction",
-				error = ?e
-			);
-			StatusCode::INTERNAL_SERVER_ERROR.into_response()
-		}
+		Err(ApplyTransactionError::ReferencedBadAction) => (
+			StatusCode::BAD_REQUEST,
+			Json(ApplyTransactionApiError::ReferencedBadAction),
+		)
+			.into_response(),
+
+		Err(ApplyTransactionError::ReferencedNoneResult) => (
+			StatusCode::BAD_REQUEST,
+			Json(ApplyTransactionApiError::ReferencedNoneResult),
+		)
+			.into_response(),
+
+		Err(ApplyTransactionError::ReferencedResultWithBadType) => (
+			StatusCode::BAD_REQUEST,
+			Json(ApplyTransactionApiError::ReferencedResultWithBadType),
+		)
+			.into_response(),
+
+		Err(ApplyTransactionError::AddItemError(error)) => (
+			StatusCode::BAD_REQUEST,
+			Json(ApplyTransactionApiError::AddItem { error }),
+		)
+			.into_response(),
 	};
 }

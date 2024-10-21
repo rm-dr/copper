@@ -421,7 +421,7 @@ impl DatabaseClient for PgDatabaseClient {
 		.bind(i64::from(in_class))
 		.bind(name)
 		.bind(serde_json::to_string(&with_type).unwrap())
-		.bind(options.unique)
+		.bind(options.is_unique)
 		.bind(options.is_not_null)
 		.bind(i64::from(in_class))
 		.fetch_one(&mut *t)
@@ -572,7 +572,11 @@ impl DatabaseClient for PgDatabaseClient {
 						resolved_attributes.push((k, value));
 					}
 
-					let res = helpers::add_item(&mut t, to_class, resolved_attributes).await?;
+					let res = match helpers::add_item(&mut t, to_class, resolved_attributes).await {
+						Ok(x) => x,
+						Err(x) => return Err(x.into()),
+					};
+
 					transaction_results.push(Some(AttrData::Reference {
 						class: to_class,
 						item: res,

@@ -184,11 +184,29 @@ export function useTreePanel() {
 									>
 										<Text>{attr.name}</Text>
 									</div>
-									{bonus_text === null ? null : (
-										<Text c="dimmed" fs="italic" size="sm">
-											{bonus_text}
-										</Text>
-									)}
+									<div
+										style={{
+											display: "flex",
+											flexDirection: "row",
+											gap: "0.5rem",
+										}}
+									>
+										{!attr.is_not_null ? null : (
+											<Text c="yellow" fs="italic" size="sm">
+												not null
+											</Text>
+										)}
+										{!attr.is_unique ? null : (
+											<Text c="cyan" fs="italic" size="sm">
+												unique
+											</Text>
+										)}
+										{bonus_text === null ? null : (
+											<Text c="dimmed" fs="italic" size="sm">
+												{bonus_text}
+											</Text>
+										)}
+									</div>
 								</>
 							),
 							selectable: false,
