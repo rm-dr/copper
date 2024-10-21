@@ -7,7 +7,7 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_storaged::client::StoragedRequestError;
+use copper_storaged::client::{GenericRequestError, StoragedRequestError};
 use tracing::error;
 
 /// Get class info
@@ -35,28 +35,28 @@ pub(super) async fn get_class<Client: DatabaseClient>(
 	};
 
 	let class = match state.storaged_client.get_class(class_id.into()).await {
-		Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+		Ok(Ok(None)) => return StatusCode::NOT_FOUND.into_response(),
 
-		Ok(Some(x)) => x,
+		Ok(Ok(Some(x))) => x,
 
-		Err(StoragedRequestError::Other { error }) => {
-			error!(message = "Error in storaged client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-		}
-
-		Err(StoragedRequestError::GenericHttp { code, message }) => {
+		Ok(Err(GenericRequestError { code, message })) => {
 			if let Some(msg) = message {
 				return (code, msg).into_response();
 			} else {
 				return code.into_response();
 			}
 		}
+
+		Err(StoragedRequestError::RequestError { error }) => {
+			error!(message = "Error in storaged client", ?error);
+			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+		}
 	};
 
 	match state.storaged_client.get_dataset(class.dataset).await {
-		Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+		Ok(Ok(None)) => return StatusCode::NOT_FOUND.into_response(),
 
-		Ok(Some(x)) => {
+		Ok(Ok(Some(x))) => {
 			// We can only modify our own datasets
 			if x.owner != user.id {
 				return StatusCode::UNAUTHORIZED.into_response();
@@ -64,17 +64,17 @@ pub(super) async fn get_class<Client: DatabaseClient>(
 			return (StatusCode::OK, Json(class)).into_response();
 		}
 
-		Err(StoragedRequestError::Other { error }) => {
-			error!(message = "Error in storaged client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-		}
-
-		Err(StoragedRequestError::GenericHttp { code, message }) => {
+		Ok(Err(GenericRequestError { code, message })) => {
 			if let Some(msg) = message {
 				return (code, msg).into_response();
 			} else {
 				return code.into_response();
 			}
+		}
+
+		Err(StoragedRequestError::RequestError { error }) => {
+			error!(message = "Error in storaged client", ?error);
+			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};
 }

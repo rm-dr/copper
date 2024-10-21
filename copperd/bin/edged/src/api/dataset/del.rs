@@ -5,7 +5,7 @@ use axum::{
 	response::{IntoResponse, Response},
 };
 use axum_extra::extract::CookieJar;
-use copper_storaged::client::StoragedRequestError;
+use copper_storaged::client::{GenericRequestError, StoragedRequestError};
 use tracing::error;
 
 use crate::api::RouterState;
@@ -33,26 +33,26 @@ pub(super) async fn del_dataset<Client: DatabaseClient>(
 	};
 
 	match state.storaged_client.get_dataset(dataset_id.into()).await {
-		Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+		Ok(Ok(None)) => return StatusCode::NOT_FOUND.into_response(),
 
-		Ok(Some(x)) => {
+		Ok(Ok(Some(x))) => {
 			// We can only delete our own datasets
 			if x.owner != user.id {
 				return StatusCode::UNAUTHORIZED.into_response();
 			}
 		}
 
-		Err(StoragedRequestError::Other { error }) => {
-			error!(message = "Error in storaged client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-		}
-
-		Err(StoragedRequestError::GenericHttp { code, message }) => {
+		Ok(Err(GenericRequestError { code, message })) => {
 			if let Some(msg) = message {
 				return (code, msg).into_response();
 			} else {
 				return code.into_response();
 			}
+		}
+
+		Err(StoragedRequestError::RequestError { error }) => {
+			error!(message = "Error in storaged client", ?error);
+			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};
 
@@ -62,19 +62,19 @@ pub(super) async fn del_dataset<Client: DatabaseClient>(
 		.await;
 
 	return match res {
-		Ok(()) => StatusCode::OK.into_response(),
+		Ok(Ok(())) => StatusCode::OK.into_response(),
 
-		Err(StoragedRequestError::Other { error }) => {
-			error!(message = "Error in storaged client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-		}
-
-		Err(StoragedRequestError::GenericHttp { code, message }) => {
+		Ok(Err(GenericRequestError { code, message })) => {
 			if let Some(msg) = message {
 				return (code, msg).into_response();
 			} else {
 				return code.into_response();
 			}
+		}
+
+		Err(StoragedRequestError::RequestError { error }) => {
+			error!(message = "Error in storaged client", ?error);
+			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};
 }

@@ -6,7 +6,7 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_storaged::client::StoragedRequestError;
+use copper_storaged::client::{GenericRequestError, StoragedRequestError};
 use serde::Deserialize;
 use tracing::error;
 use utoipa::ToSchema;
@@ -47,64 +47,64 @@ pub(super) async fn rename_attribute<Client: DatabaseClient>(
 		.get_attribute(attribute_id.into())
 		.await
 	{
-		Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+		Ok(Ok(None)) => return StatusCode::NOT_FOUND.into_response(),
 
-		Ok(Some(x)) => x,
+		Ok(Ok(Some(x))) => x,
 
-		Err(StoragedRequestError::Other { error }) => {
-			error!(message = "Error in storaged client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-		}
-
-		Err(StoragedRequestError::GenericHttp { code, message }) => {
+		Ok(Err(GenericRequestError { code, message })) => {
 			if let Some(msg) = message {
 				return (code, msg).into_response();
 			} else {
 				return code.into_response();
 			}
+		}
+
+		Err(StoragedRequestError::RequestError { error }) => {
+			error!(message = "Error in storaged client", ?error);
+			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};
 
 	let class = match state.storaged_client.get_class(attr.class).await {
-		Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+		Ok(Ok(None)) => return StatusCode::NOT_FOUND.into_response(),
 
-		Ok(Some(x)) => x,
+		Ok(Ok(Some(x))) => x,
 
-		Err(StoragedRequestError::Other { error }) => {
-			error!(message = "Error in storaged client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-		}
-
-		Err(StoragedRequestError::GenericHttp { code, message }) => {
+		Ok(Err(GenericRequestError { code, message })) => {
 			if let Some(msg) = message {
 				return (code, msg).into_response();
 			} else {
 				return code.into_response();
 			}
 		}
+
+		Err(StoragedRequestError::RequestError { error }) => {
+			error!(message = "Error in storaged client", ?error);
+			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+		}
 	};
 
 	match state.storaged_client.get_dataset(class.dataset).await {
-		Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+		Ok(Ok(None)) => return StatusCode::NOT_FOUND.into_response(),
 
-		Ok(Some(x)) => {
+		Ok(Ok(Some(x))) => {
 			// We can only modify our own datasets
 			if x.owner != user.id {
 				return StatusCode::UNAUTHORIZED.into_response();
 			}
 		}
 
-		Err(StoragedRequestError::Other { error }) => {
-			error!(message = "Error in storaged client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-		}
-
-		Err(StoragedRequestError::GenericHttp { code, message }) => {
+		Ok(Err(GenericRequestError { code, message })) => {
 			if let Some(msg) = message {
 				return (code, msg).into_response();
 			} else {
 				return code.into_response();
 			}
+		}
+
+		Err(StoragedRequestError::RequestError { error }) => {
+			error!(message = "Error in storaged client", ?error);
+			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};
 
@@ -114,19 +114,19 @@ pub(super) async fn rename_attribute<Client: DatabaseClient>(
 		.await;
 
 	return match res {
-		Ok(_) => StatusCode::OK.into_response(),
+		Ok(Ok(_)) => StatusCode::OK.into_response(),
 
-		Err(StoragedRequestError::Other { error }) => {
-			error!(message = "Error in storaged client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-		}
-
-		Err(StoragedRequestError::GenericHttp { code, message }) => {
+		Ok(Err(GenericRequestError { code, message })) => {
 			if let Some(msg) = message {
 				return (code, msg).into_response();
 			} else {
 				return code.into_response();
 			}
+		}
+
+		Err(StoragedRequestError::RequestError { error }) => {
+			error!(message = "Error in storaged client", ?error);
+			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};
 }

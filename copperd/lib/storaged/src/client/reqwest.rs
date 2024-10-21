@@ -2,10 +2,10 @@ use async_trait::async_trait;
 use reqwest::{header, Client, ClientBuilder, IntoUrl, StatusCode, Url};
 use serde_json::json;
 
-use super::{StoragedClient, StoragedRequestError};
+use super::{GenericRequestError, StoragedClient, StoragedRequestError};
 use crate::{
-	AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo, DatasetId,
-	DatasetInfo, Transaction, UserId,
+	ApplyTransactionApiError, AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId,
+	ClassInfo, DatasetId, DatasetInfo, Transaction, UserId,
 };
 
 pub struct ReqwestStoragedClient {
@@ -26,17 +26,6 @@ impl ReqwestStoragedClient {
 	}
 }
 
-fn convert_error(e: reqwest::Error) -> StoragedRequestError {
-	if let Some(status) = e.status() {
-		StoragedRequestError::GenericHttp {
-			code: status,
-			message: Some(e.to_string()),
-		}
-	} else {
-		StoragedRequestError::Other { error: Box::new(e) }
-	}
-}
-
 #[async_trait]
 impl StoragedClient for ReqwestStoragedClient {
 	//
@@ -47,7 +36,7 @@ impl StoragedClient for ReqwestStoragedClient {
 		&self,
 		name: &str,
 		owner: UserId,
-	) -> Result<DatasetId, StoragedRequestError> {
+	) -> Result<Result<DatasetId, GenericRequestError>, StoragedRequestError> {
 		let res = self
 			.client
 			.post(self.storaged_url.join("/dataset").unwrap())
@@ -62,19 +51,24 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
 		match res.status() {
 			StatusCode::OK => {
-				let ds: i64 = res.json().await.map_err(convert_error)?;
-				return Ok(ds.into());
+				let ds: i64 = res
+					.json()
+					.await
+					.map_err(Box::new)
+					.map_err(|error| StoragedRequestError::RequestError { error })?;
+				return Ok(Ok(ds.into()));
 			}
 
 			x => {
-				return Err(StoragedRequestError::GenericHttp {
+				return Ok(Err(GenericRequestError {
 					code: x,
 					message: res.text().await.ok(),
-				})
+				}))
 			}
 		}
 	}
@@ -82,7 +76,7 @@ impl StoragedClient for ReqwestStoragedClient {
 	async fn get_dataset(
 		&self,
 		dataset: DatasetId,
-	) -> Result<Option<DatasetInfo>, StoragedRequestError> {
+	) -> Result<Result<Option<DatasetInfo>, GenericRequestError>, StoragedRequestError> {
 		let res = self
 			.client
 			.get(
@@ -96,24 +90,32 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
 		match res.status() {
 			StatusCode::OK => {
-				let ds: DatasetInfo = res.json().await.map_err(convert_error)?;
-				return Ok(Some(ds));
+				let ds: DatasetInfo = res
+					.json()
+					.await
+					.map_err(Box::new)
+					.map_err(|error| StoragedRequestError::RequestError { error })?;
+				return Ok(Ok(Some(ds)));
 			}
 
 			x => {
-				return Err(StoragedRequestError::GenericHttp {
+				return Ok(Err(GenericRequestError {
 					code: x,
 					message: res.text().await.ok(),
-				})
+				}))
 			}
 		}
 	}
 
-	async fn list_datasets(&self, owner: UserId) -> Result<Vec<DatasetInfo>, StoragedRequestError> {
+	async fn list_datasets(
+		&self,
+		owner: UserId,
+	) -> Result<Result<Vec<DatasetInfo>, GenericRequestError>, StoragedRequestError> {
 		let res = self
 			.client
 			.get(
@@ -127,19 +129,24 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
 		match res.status() {
 			StatusCode::OK => {
-				let ds: Vec<DatasetInfo> = res.json().await.map_err(convert_error)?;
-				return Ok(ds);
+				let ds: Vec<DatasetInfo> = res
+					.json()
+					.await
+					.map_err(Box::new)
+					.map_err(|error| StoragedRequestError::RequestError { error })?;
+				return Ok(Ok(ds));
 			}
 
 			x => {
-				return Err(StoragedRequestError::GenericHttp {
+				return Ok(Err(GenericRequestError {
 					code: x,
 					message: res.text().await.ok(),
-				})
+				}))
 			}
 		}
 	}
@@ -148,7 +155,7 @@ impl StoragedClient for ReqwestStoragedClient {
 		&self,
 		dataset: DatasetId,
 		new_name: &str,
-	) -> Result<(), StoragedRequestError> {
+	) -> Result<Result<(), GenericRequestError>, StoragedRequestError> {
 		let res = self
 			.client
 			.patch(
@@ -165,23 +172,27 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
 		match res.status() {
 			StatusCode::OK => {
-				return Ok(());
+				return Ok(Ok(()));
 			}
 
 			x => {
-				return Err(StoragedRequestError::GenericHttp {
+				return Ok(Err(GenericRequestError {
 					code: x,
 					message: res.text().await.ok(),
-				})
+				}))
 			}
 		}
 	}
 
-	async fn delete_dataset(&self, dataset: DatasetId) -> Result<(), StoragedRequestError> {
+	async fn delete_dataset(
+		&self,
+		dataset: DatasetId,
+	) -> Result<Result<(), GenericRequestError>, StoragedRequestError> {
 		let res = self
 			.client
 			.delete(
@@ -195,18 +206,19 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
 		match res.status() {
 			StatusCode::OK => {
-				return Ok(());
+				return Ok(Ok(()));
 			}
 
 			x => {
-				return Err(StoragedRequestError::GenericHttp {
+				return Ok(Err(GenericRequestError {
 					code: x,
 					message: res.text().await.ok(),
-				})
+				}))
 			}
 		}
 	}
@@ -218,7 +230,7 @@ impl StoragedClient for ReqwestStoragedClient {
 		&self,
 		in_dataset: DatasetId,
 		name: &str,
-	) -> Result<ClassId, StoragedRequestError> {
+	) -> Result<Result<ClassId, GenericRequestError>, StoragedRequestError> {
 		let res = self
 			.client
 			.post(
@@ -236,19 +248,24 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
 		match res.status() {
 			StatusCode::OK => {
-				let ds: i64 = res.json().await.map_err(convert_error)?;
-				return Ok(ds.into());
+				let ds: i64 = res
+					.json()
+					.await
+					.map_err(Box::new)
+					.map_err(|error| StoragedRequestError::RequestError { error })?;
+				return Ok(Ok(ds.into()));
 			}
 
 			x => {
-				return Err(StoragedRequestError::GenericHttp {
+				return Ok(Err(GenericRequestError {
 					code: x,
 					message: res.text().await.ok(),
-				})
+				}))
 			}
 		}
 	}
@@ -256,7 +273,7 @@ impl StoragedClient for ReqwestStoragedClient {
 	async fn get_class(
 		&self,
 		class_id: ClassId,
-	) -> Result<Option<ClassInfo>, StoragedRequestError> {
+	) -> Result<Result<Option<ClassInfo>, GenericRequestError>, StoragedRequestError> {
 		let res = self
 			.client
 			.get(
@@ -270,19 +287,24 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
 		match res.status() {
 			StatusCode::OK => {
-				let class: ClassInfo = res.json().await.map_err(convert_error)?;
-				return Ok(Some(class));
+				let class: ClassInfo = res
+					.json()
+					.await
+					.map_err(Box::new)
+					.map_err(|error| StoragedRequestError::RequestError { error })?;
+				return Ok(Ok(Some(class)));
 			}
 
 			x => {
-				return Err(StoragedRequestError::GenericHttp {
+				return Ok(Err(GenericRequestError {
 					code: x,
 					message: res.text().await.ok(),
-				})
+				}))
 			}
 		}
 	}
@@ -291,7 +313,7 @@ impl StoragedClient for ReqwestStoragedClient {
 		&self,
 		class: ClassId,
 		new_name: &str,
-	) -> Result<(), StoragedRequestError> {
+	) -> Result<Result<(), GenericRequestError>, StoragedRequestError> {
 		let res = self
 			.client
 			.patch(
@@ -308,23 +330,27 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
 		match res.status() {
 			StatusCode::OK => {
-				return Ok(());
+				return Ok(Ok(()));
 			}
 
 			x => {
-				return Err(StoragedRequestError::GenericHttp {
+				return Ok(Err(GenericRequestError {
 					code: x,
 					message: res.text().await.ok(),
-				})
+				}))
 			}
 		}
 	}
 
-	async fn del_class(&self, class: ClassId) -> Result<(), StoragedRequestError> {
+	async fn del_class(
+		&self,
+		class: ClassId,
+	) -> Result<Result<(), GenericRequestError>, StoragedRequestError> {
 		let res = self
 			.client
 			.delete(
@@ -338,18 +364,19 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
 		match res.status() {
 			StatusCode::OK => {
-				return Ok(());
+				return Ok(Ok(()));
 			}
 
 			x => {
-				return Err(StoragedRequestError::GenericHttp {
+				return Ok(Err(GenericRequestError {
 					code: x,
 					message: res.text().await.ok(),
-				})
+				}))
 			}
 		}
 	}
@@ -364,7 +391,7 @@ impl StoragedClient for ReqwestStoragedClient {
 		name: &str,
 		with_type: AttrDataStub,
 		options: AttributeOptions,
-	) -> Result<AttributeId, StoragedRequestError> {
+	) -> Result<Result<AttributeId, GenericRequestError>, StoragedRequestError> {
 		let res = self
 			.client
 			.post(
@@ -384,19 +411,24 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
 		match res.status() {
 			StatusCode::OK => {
-				let ds: i64 = res.json().await.map_err(convert_error)?;
-				return Ok(ds.into());
+				let ds: i64 = res
+					.json()
+					.await
+					.map_err(Box::new)
+					.map_err(|error| StoragedRequestError::RequestError { error })?;
+				return Ok(Ok(ds.into()));
 			}
 
 			x => {
-				return Err(StoragedRequestError::GenericHttp {
+				return Ok(Err(GenericRequestError {
 					code: x,
 					message: res.text().await.ok(),
-				})
+				}))
 			}
 		}
 	}
@@ -404,7 +436,7 @@ impl StoragedClient for ReqwestStoragedClient {
 	async fn get_attribute(
 		&self,
 		attribute: AttributeId,
-	) -> Result<Option<AttributeInfo>, StoragedRequestError> {
+	) -> Result<Result<Option<AttributeInfo>, GenericRequestError>, StoragedRequestError> {
 		let res = self
 			.client
 			.get(
@@ -418,19 +450,24 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
 		match res.status() {
 			StatusCode::OK => {
-				let attribute: AttributeInfo = res.json().await.map_err(convert_error)?;
-				return Ok(Some(attribute));
+				let attribute: AttributeInfo = res
+					.json()
+					.await
+					.map_err(Box::new)
+					.map_err(|error| StoragedRequestError::RequestError { error })?;
+				return Ok(Ok(Some(attribute)));
 			}
 
 			x => {
-				return Err(StoragedRequestError::GenericHttp {
+				return Ok(Err(GenericRequestError {
 					code: x,
 					message: res.text().await.ok(),
-				})
+				}))
 			}
 		}
 	}
@@ -439,7 +476,7 @@ impl StoragedClient for ReqwestStoragedClient {
 		&self,
 		attribute: AttributeId,
 		new_name: &str,
-	) -> Result<(), StoragedRequestError> {
+	) -> Result<Result<(), GenericRequestError>, StoragedRequestError> {
 		let res = self
 			.client
 			.patch(
@@ -456,23 +493,27 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
 		match res.status() {
 			StatusCode::OK => {
-				return Ok(());
+				return Ok(Ok(()));
 			}
 
 			x => {
-				return Err(StoragedRequestError::GenericHttp {
+				return Ok(Err(GenericRequestError {
 					code: x,
 					message: res.text().await.ok(),
-				})
+				}))
 			}
 		}
 	}
 
-	async fn del_attribute(&self, attribute: AttributeId) -> Result<(), StoragedRequestError> {
+	async fn del_attribute(
+		&self,
+		attribute: AttributeId,
+	) -> Result<Result<(), GenericRequestError>, StoragedRequestError> {
 		let res = self
 			.client
 			.delete(
@@ -486,18 +527,19 @@ impl StoragedClient for ReqwestStoragedClient {
 			)
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
 		match res.status() {
 			StatusCode::OK => {
-				return Ok(());
+				return Ok(Ok(()));
 			}
 
 			x => {
-				return Err(StoragedRequestError::GenericHttp {
+				return Ok(Err(GenericRequestError {
 					code: x,
 					message: res.text().await.ok(),
-				})
+				}))
 			}
 		}
 	}
@@ -509,8 +551,9 @@ impl StoragedClient for ReqwestStoragedClient {
 	async fn apply_transaction(
 		&self,
 		transaction: Transaction,
-	) -> Result<(), StoragedRequestError> {
-		self.client
+	) -> Result<Result<(), ApplyTransactionApiError>, StoragedRequestError> {
+		let res = self
+			.client
 			.post(self.storaged_url.join("/transaction/apply").unwrap())
 			.header(
 				header::AUTHORIZATION,
@@ -521,8 +564,28 @@ impl StoragedClient for ReqwestStoragedClient {
 			}))
 			.send()
 			.await
-			.map_err(convert_error)?;
+			.map_err(Box::new)
+			.map_err(|error| StoragedRequestError::RequestError { error })?;
 
-		return Ok(());
+		match res.status() {
+			StatusCode::OK => {
+				return Ok(Ok(()));
+			}
+
+			StatusCode::BAD_REQUEST => {
+				let x: ApplyTransactionApiError = res
+					.json()
+					.await
+					.map_err(Box::new)
+					.map_err(|error| StoragedRequestError::RequestError { error })?;
+
+				return Ok(Err(x));
+			}
+
+			_ => {
+				// TODO: handle 500
+				unreachable!("Got unexpected status code")
+			}
+		}
 	}
 }

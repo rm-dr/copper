@@ -1,5 +1,6 @@
 //! Errors we can encounter when operating on attributes
 
+use copper_storaged::AddItemError;
 use std::{error::Error, fmt::Display};
 
 /// An error we can encounter when creating an attribute
@@ -54,77 +55,11 @@ impl Error for ApplyTransactionError {
 
 impl From<AddItemError> for ApplyTransactionError {
 	fn from(value: AddItemError) -> Self {
-		match value {
-			AddItemError::DbError(e) => Self::DbError(e),
-			x => Self::AddItemError(x),
-		}
+		Self::AddItemError(value)
 	}
 }
 
 impl From<sqlx::Error> for ApplyTransactionError {
-	fn from(value: sqlx::Error) -> Self {
-		Self::DbError(value)
-	}
-}
-
-/// An error we can encounter when creating an item
-#[derive(Debug)]
-pub enum AddItemError {
-	/// Database error
-	DbError(sqlx::Error),
-
-	/// We tried to add an item to a class that doesn't exist
-	NoSuchClass,
-
-	/// We tried to create an item that contains an
-	/// attribute that doesn't exist
-	BadAttribute,
-
-	/// We tried to create an item,
-	/// but provided multiple values for one attribute
-	RepeatedAttribute,
-
-	/// We tried to assign data to an attribute,
-	/// but that data has the wrong type
-	AttributeDataTypeMismatch,
-
-	/// We tried to create an item that contains an
-	/// attribute from another itemclass
-	ForeignAttribute,
-}
-
-impl Display for AddItemError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::DbError(_) => write!(f, "database backend error"),
-			Self::NoSuchClass => write!(f, "tried to add an item to a class that doesn't exist"),
-			Self::BadAttribute => {
-				write!(f, "tried to create an item an attribute that doesn't exist")
-			}
-			Self::ForeignAttribute => write!(f, "tried to create an item with a foreign attribute"),
-			Self::RepeatedAttribute => {
-				write!(f, "multiple values were provided for one attribute")
-			}
-			Self::AttributeDataTypeMismatch => {
-				write!(
-					f,
-					"tried to assign data to an attribute, but type doesn't match"
-				)
-			}
-		}
-	}
-}
-
-impl Error for AddItemError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::DbError(x) => Some(x),
-			_ => None,
-		}
-	}
-}
-
-impl From<sqlx::Error> for AddItemError {
 	fn from(value: sqlx::Error) -> Self {
 		Self::DbError(value)
 	}

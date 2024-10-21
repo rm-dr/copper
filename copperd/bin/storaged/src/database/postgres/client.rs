@@ -572,7 +572,11 @@ impl DatabaseClient for PgDatabaseClient {
 						resolved_attributes.push((k, value));
 					}
 
-					let res = helpers::add_item(&mut t, to_class, resolved_attributes).await?;
+					let res = match helpers::add_item(&mut t, to_class, resolved_attributes).await {
+						Ok(x) => x,
+						Err(x) => return Err(x.into()),
+					};
+
 					transaction_results.push(Some(AttrData::Reference {
 						class: to_class,
 						item: res,

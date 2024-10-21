@@ -36,6 +36,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 					.get_class(x.into())
 					.await
 					.map_err(|e| RunNodeError::Other(Arc::new(e)))?
+					.map_err(|e| RunNodeError::Other(Arc::new(e)))?
 					.ok_or(RunNodeError::BadParameterOther {
 						parameter: "class".into(),
 						message: "this class doesn't exist".into(),
@@ -61,6 +62,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 						.storaged_client
 						.get_dataset(x.into())
 						.await
+						.map_err(|e| RunNodeError::Other(Arc::new(e)))?
 						.map_err(|e| RunNodeError::Other(Arc::new(e)))?
 						.ok_or(RunNodeError::BadParameterOther {
 							parameter: "dataset".into(),
