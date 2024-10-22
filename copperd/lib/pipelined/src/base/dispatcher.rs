@@ -1,11 +1,11 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, error::Error, fmt::Display, marker::PhantomData};
 
-use super::{Node, NodeParameterSpec, PipelineData, PipelineJobContext};
+use super::{Node, NodeParameterSpec, PipelineData, PipelineJobContext, PipelineJobResult};
 
 // This type must be send + sync, since we use this inside tokio's async runtime.
-type NodeInitFnType<DataType, ContextType> =
-	&'static (dyn Fn() -> Box<dyn Node<DataType, ContextType>> + Send + Sync);
+type NodeInitFnType<ResultType, DataType, ContextType> =
+	&'static (dyn Fn() -> Box<dyn Node<ResultType, DataType, ContextType>> + Send + Sync);
 
 pub const INPUT_NODE_TYPE: &str = "Input";
 
@@ -27,22 +27,35 @@ impl Display for RegisterNodeError {
 impl Error for RegisterNodeError {}
 
 /// A node type we've registered inside a [`NodeDispatcher`]
-struct RegisteredNode<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
+struct RegisteredNode<
+	ResultType: PipelineJobResult,
+	DataType: PipelineData,
+	ContextType: PipelineJobContext<DataType, ResultType>,
+> {
+	_p: PhantomData<ResultType>,
+
 	/// A method that constructs a new node of this type with the provided parameters.
-	node_init: NodeInitFnType<DataType, ContextType>,
+	node_init: NodeInitFnType<ResultType, DataType, ContextType>,
 
 	/// The parameters this node takes
 	_parameters: BTreeMap<SmartString<LazyCompact>, NodeParameterSpec>,
 }
 
 /// A factory struct that constructs pipeline nodes
-pub struct NodeDispatcher<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
+pub struct NodeDispatcher<
+	ResultType: PipelineJobResult,
+	DataType: PipelineData,
+	ContextType: PipelineJobContext<DataType, ResultType>,
+> {
 	_pa: PhantomData<DataType>,
-	nodes: BTreeMap<SmartString<LazyCompact>, RegisteredNode<DataType, ContextType>>,
+	nodes: BTreeMap<SmartString<LazyCompact>, RegisteredNode<ResultType, DataType, ContextType>>,
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
-	NodeDispatcher<DataType, ContextType>
+impl<
+		ResultType: PipelineJobResult,
+		DataType: PipelineData,
+		ContextType: PipelineJobContext<DataType, ResultType>,
+	> NodeDispatcher<ResultType, DataType, ContextType>
 {
 	/// Create a new [`NodeDispatcher`]
 	pub fn new() -> Self {
@@ -60,7 +73,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		&mut self,
 		type_name: &str,
 		parameters: BTreeMap<SmartString<LazyCompact>, NodeParameterSpec>,
-		node_init: NodeInitFnType<DataType, ContextType>,
+		node_init: NodeInitFnType<ResultType, DataType, ContextType>,
 	) -> Result<(), RegisterNodeError> {
 		if self.nodes.contains_key(type_name) || type_name == INPUT_NODE_TYPE {
 			return Err(RegisterNodeError::AlreadyExists);
@@ -69,6 +82,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		self.nodes.insert(
 			type_name.into(),
 			RegisteredNode {
+				_p: PhantomData {},
 				node_init,
 				_parameters: parameters,
 			},
@@ -81,7 +95,10 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		return self.nodes.contains_key(node_name);
 	}
 
-	pub fn init_node(&self, node_type: &str) -> Option<Box<dyn Node<DataType, ContextType>>> {
+	pub fn init_node(
+		&self,
+		node_type: &str,
+	) -> Option<Box<dyn Node<ResultType, DataType, ContextType>>> {
 		if let Some(node) = self.nodes.get(node_type) {
 			return Some((node.node_init)());
 		} else {

@@ -1,17 +1,24 @@
-use api::RouterState;
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::config::Credentials;
 use config::{PipelinedConfig, ASYNC_POLL_AWAIT_MS};
-use copper_pipelined::{data::PipeData, CopperContext};
-use copper_storaged::client::ReqwestStoragedClient;
+use copper_jobqueue::{
+	base::{
+		client::JobQueueClient,
+		errors::{BuildErrorJobError, FailJobError, GetQueuedJobError, SuccessJobError},
+	},
+	postgres::{PgJobQueueClient, PgJobQueueOpenError},
+};
+use copper_pipelined::{
+	data::{BytesSource, PipeData},
+	CopperContext, JobRunResult,
+};
+use copper_storaged::{client::ReqwestStoragedClient, AttrData, Transaction};
 use copper_util::{load_env, s3client::S3Client, LoadedEnv};
-use futures::TryFutureExt;
-use pipeline::runner::{PipelineRunner, PipelineRunnerOptions};
-use std::{error::Error, future::IntoFuture, sync::Arc};
+use pipeline::runner::{DoneJobState, PipelineRunner, StartJobError};
+use std::{collections::BTreeMap, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{error, info, trace};
 
-mod api;
 mod config;
 mod pipeline;
 
@@ -65,7 +72,7 @@ async fn main() {
 		.force_path_style(true)
 		.build();
 
-	let client = S3Client::new(aws_sdk_s3::Client::from_conf(s3_config)).await;
+	let client = Arc::new(S3Client::new(aws_sdk_s3::Client::from_conf(s3_config)).await);
 
 	// Create blobstore bucket if it doesn't exist
 	match client
@@ -88,13 +95,24 @@ async fn main() {
 		}
 	}
 
-	// Prep runner
-	let mut runner: PipelineRunner<PipeData, CopperContext> =
-		PipelineRunner::new(PipelineRunnerOptions {
-			max_running_jobs: config.pipelined_max_running_jobs,
-			job_log_size: config.pipelined_job_log_size,
-			job_queue_size: config.pipelined_job_queue_size,
-		});
+	trace!(message = "Initializing job queue client");
+	let jobqueue_client = match PgJobQueueClient::open(&config.pipelined_jobqueue_db).await {
+		Ok(db) => Arc::new(db),
+		Err(PgJobQueueOpenError::Database(e)) => {
+			error!(message = "SQL error while opening job queue database", err = ?e);
+			std::process::exit(1);
+		}
+		Err(PgJobQueueOpenError::Migrate(e)) => {
+			error!(message = "Migration error while opening job queue database", err = ?e);
+			std::process::exit(1);
+		}
+	};
+	trace!(message = "Successfully initialized job queue client");
+
+	//
+	// MARK: Prep runner
+	//
+	let mut runner: PipelineRunner<JobRunResult, PipeData, CopperContext> = PipelineRunner::new();
 
 	{
 		// Base nodes
@@ -157,66 +175,139 @@ async fn main() {
 	};
 	trace!(message = "Successfully initialized storaged client");
 
-	let state = RouterState {
-		runner: Arc::new(Mutex::new(runner)),
-		storaged_client,
-		objectstore_client: Arc::new(client),
-		config,
-	};
+	loop {
+		match runner.check_done_jobs().await {
+			Ok(None) => {}
 
-	let listener =
-		match tokio::net::TcpListener::bind(state.config.pipelined_server_addr.to_string()).await {
-			Ok(x) => x,
-			Err(e) => {
-				match e.kind() {
-					std::io::ErrorKind::AddrInUse => {
+			Ok(Some(DoneJobState::Success { job_id, result })) => {
+				info!(
+					message = "Job finished successfully",
+					job_id = ?job_id
+				);
+
+				match jobqueue_client.success_job(&job_id, result).await {
+					Ok(()) => {}
+
+					Err(SuccessJobError::DbError(error)) => {
 						error!(
-							message = "Cannot bind to port, already in use",
-							port = state.config.pipelined_server_addr.as_str()
+							message = "DB error while marking job `Success`",
+							?job_id,
+							?error
 						);
 					}
-					_ => {
-						error!(message = "Error while migrating main database", err = ?e);
+
+					Err(SuccessJobError::NotRunning) => {
+						error!(
+							message = "Tried to mark a job that isn't running as `Success`",
+							?job_id
+						);
+					}
+				};
+			}
+
+			Ok(Some(DoneJobState::Failed { job_id, error })) => {
+				info!(message = "Job failed", ?job_id, ?error);
+
+				match jobqueue_client.fail_job(&job_id).await {
+					Ok(()) => {}
+
+					Err(FailJobError::DbError(error)) => {
+						error!(
+							message = "DB error while marking job `Failed`",
+							?job_id,
+							?error
+						);
+					}
+
+					Err(FailJobError::NotRunning) => {
+						error!(
+							message = "Tried to mark a job that isn't running as `Failed`",
+							?job_id
+						);
 					}
 				}
-
-				std::process::exit(1);
 			}
-		};
 
-	match listener.local_addr() {
-		Ok(x) => info!("listening on http://{x}"),
-		Err(error) => {
-			error!(message = "Could not determine local address", ?error);
-			std::process::exit(1);
+			Err(error) => {
+				error!(message = "Join error!", ?error);
+				panic!("Join error! {error:?}");
+			}
 		}
-	}
 
-	let app = api::router(state.clone());
+		if runner.n_running_jobs() < config.pipelined_max_running_jobs {
+			// Run the oldest job off the queue
+			let next = match jobqueue_client.get_queued_job().await {
+				Ok(x) => x,
+				Err(GetQueuedJobError::DbError(error)) => {
+					error!(message = "DB error while getting job", ?error);
+					tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+					continue;
+				}
+			};
 
-	// Main loop(s)
-	match tokio::try_join!(
-		run_pipes(state),
-		// Call .into on the error axum returns
-		// so that the error types of all futures
-		// in this join have the same type.
-		//
-		// The type of error is inferred from the first arg of this join.
-		axum::serve(listener, app)
-			.into_future()
-			.map_err(|x| x.into())
-	) {
-		Ok(_) => {}
-		Err(e) => {
-			error!(message = "Main loop exited with error", err = e)
+			if let Some(job) = next {
+				let mut input = BTreeMap::new();
+				for (name, value) in job.input {
+					match value {
+						AttrData::Blob { bucket, key } => input.insert(
+							name,
+							PipeData::Blob {
+								source: BytesSource::S3 { bucket, key },
+							},
+						),
+
+						// This should never fail, we handle all special cases above
+						_ => input.insert(name, PipeData::try_from(value).unwrap()),
+					};
+				}
+
+				let res = runner.start_job(
+					CopperContext {
+						blob_fragment_size: config.pipelined_blob_fragment_size,
+						stream_channel_capacity: config.pipelined_stream_channel_size,
+						job_id: job.job_id.as_str().into(),
+						run_by_user: job.owned_by.clone(),
+						storaged_client: storaged_client.clone(),
+						objectstore_blob_bucket: config
+							.pipelined_objectstore_bucket
+							.as_str()
+							.into(),
+						objectstore_client: client.clone(),
+						transaction: Mutex::new(Transaction::new()),
+					},
+					job.pipeline,
+					&job.job_id,
+					input,
+				);
+
+				match res {
+					Ok(()) => {}
+					Err(StartJobError::BuildError(err)) => {
+						match jobqueue_client
+							.builderror_job(&job.job_id, &format!("{:?}", err))
+							.await
+						{
+							Ok(()) => {}
+
+							Err(BuildErrorJobError::DbError(error)) => {
+								error!(
+									message = "DB error while marking job `BuildError`",
+									job_id = ?job.job_id,
+									?error
+								);
+							}
+
+							Err(BuildErrorJobError::NotRunning) => {
+								error!(
+									message = "Tried to mark a job that isn't running as `BuildError`",
+									job_id = ?job.job_id
+								);
+							}
+						}
+					}
+				}
+			}
 		}
-	};
-}
-
-async fn run_pipes(state: RouterState) -> Result<(), Box<dyn Error>> {
-	loop {
-		let mut runner = state.runner.lock().await;
-		runner.run().await?;
 
 		// Sleep a little bit so we don't waste cpu cycles.
 		tokio::time::sleep(std::time::Duration::from_millis(ASYNC_POLL_AWAIT_MS)).await;

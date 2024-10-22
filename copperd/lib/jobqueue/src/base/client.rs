@@ -1,17 +1,20 @@
 //! The job queue client api
 
 use async_trait::async_trait;
-use copper_pipelined::json::PipelineJson;
+use copper_pipelined::{json::PipelineJson, JobRunResult};
 use copper_storaged::{AttrData, UserId};
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 
 use crate::{
 	id::QueuedJobId,
-	info::{QueuedJobInfoList, QueuedJobInfoShort},
+	info::{QueuedJobInfo, QueuedJobInfoList, QueuedJobInfoShort},
 };
 
-use super::errors::{AddJobError, GetJobShortError, GetUserJobsError};
+use super::errors::{
+	AddJobError, BuildErrorJobError, FailJobError, GetJobShortError, GetQueuedJobError,
+	GetUserJobsError, SuccessJobError,
+};
 
 /// A generic job queue
 #[async_trait]
@@ -41,4 +44,31 @@ where
 		skip: i64,
 		count: i64,
 	) -> Result<QueuedJobInfoList, GetUserJobsError>;
+
+	/// Get the oldest job with `state = Queued` and set `state = Running`
+	/// The returned QueuedJobInfo should have `state = Running`.
+	///
+	/// This action must be globally atomic. Only one process should
+	/// ever get a queued job.
+	async fn get_queued_job(&self) -> Result<Option<QueuedJobInfo>, GetQueuedJobError>;
+
+	/// Atomically mark the given job as `BuildError`.
+	/// If this job is not `Running`, throw an error.
+	async fn builderror_job(
+		&self,
+		job_id: &QueuedJobId,
+		error_message: &str,
+	) -> Result<(), BuildErrorJobError>;
+
+	/// Atomically mark the given job as `Failed`.
+	/// If this job is not `Running`, throw an error.
+	async fn fail_job(&self, job_id: &QueuedJobId) -> Result<(), FailJobError>;
+
+	/// Atomically mark the given job as `Success`.
+	/// If this job is not `Running`, throw an error.
+	async fn success_job(
+		&self,
+		job_id: &QueuedJobId,
+		result: JobRunResult,
+	) -> Result<(), SuccessJobError>;
 }

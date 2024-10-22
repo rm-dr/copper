@@ -51,6 +51,7 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 	};
 	trace!(message = "Successfully initialized storaged client");
 
+	trace!(message = "Initializing job queue client");
 	let jobqueue_client = match PgJobQueueClient::open(&config.edged_jobqueue_db).await {
 		Ok(db) => Arc::new(db),
 		Err(PgJobQueueOpenError::Database(e)) => {
@@ -62,6 +63,7 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 			std::process::exit(1);
 		}
 	};
+	trace!(message = "Successfully initialized job queue client");
 
 	if config.edged_init_user_email.is_some() && config.edged_init_user_pass.is_some() {
 		let email = config.edged_init_user_email.as_ref().unwrap();

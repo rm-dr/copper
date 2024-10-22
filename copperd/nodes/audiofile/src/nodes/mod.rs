@@ -3,7 +3,7 @@
 use copper_pipelined::{
 	base::{NodeDispatcher, RegisterNodeError},
 	data::PipeData,
-	CopperContext,
+	CopperContext, JobRunResult,
 };
 use std::collections::BTreeMap;
 
@@ -13,7 +13,7 @@ mod striptags;
 
 /// Register all nodes in this module into the given dispatcher
 pub fn register(
-	dispatcher: &mut NodeDispatcher<PipeData, CopperContext>,
+	dispatcher: &mut NodeDispatcher<JobRunResult, PipeData, CopperContext>,
 ) -> Result<(), RegisterNodeError> {
 	dispatcher
 		.register_node("StripTags", BTreeMap::new(), &|| {

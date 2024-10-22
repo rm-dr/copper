@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
-	CopperContext,
+	CopperContext, JobRunResult,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
@@ -11,7 +11,7 @@ use tokio::sync::mpsc;
 pub struct Constant {}
 
 #[async_trait]
-impl Node<PipeData, CopperContext> for Constant {
+impl Node<JobRunResult, PipeData, CopperContext> for Constant {
 	async fn run(
 		&self,
 		_ctx: &CopperContext,

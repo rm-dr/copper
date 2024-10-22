@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use std::fmt::Debug;
 
 use super::RunNodeError;
@@ -16,10 +15,15 @@ where
 {
 }
 
-#[async_trait]
-pub trait PipelineJobContext<DataType: PipelineData>
+pub trait PipelineJobContext<DataType: PipelineData, ResultType: PipelineJobResult>
 where
 	Self: Send + Sync + 'static,
 {
-	async fn on_complete(self) -> Result<(), RunNodeError<DataType>>;
+	fn to_result(self) -> Result<ResultType, RunNodeError<DataType>>;
+}
+
+pub trait PipelineJobResult
+where
+	Self: Debug + Send + Sync + 'static,
+{
 }

@@ -3,7 +3,7 @@ use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
 	helpers::BytesSourceReader,
-	CopperContext,
+	CopperContext, JobRunResult,
 };
 use copper_storaged::{AttrData, AttributeInfo, ClassInfo, ResultOrDirect, TransactionAction};
 use rand::{distributions::Alphanumeric, Rng};
@@ -17,7 +17,7 @@ pub struct AddItem {}
 // Inputs: depends on class
 // Outputs: None
 #[async_trait]
-impl Node<PipeData, CopperContext> for AddItem {
+impl Node<JobRunResult, PipeData, CopperContext> for AddItem {
 	async fn run(
 		&self,
 		ctx: &CopperContext,
@@ -55,6 +55,7 @@ impl Node<PipeData, CopperContext> for AddItem {
 		};
 
 		// This is only used by UI, but make sure it's sane.
+
 		if let Some(value) = params.remove("dataset") {
 			match value {
 				NodeParameterValue::Integer(x) => {

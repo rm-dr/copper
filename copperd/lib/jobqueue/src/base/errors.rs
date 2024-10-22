@@ -98,3 +98,134 @@ impl From<sqlx::Error> for GetUserJobsError {
 		Self::DbError(value)
 	}
 }
+
+/// An error we can encounter when getting a queued job
+#[derive(Debug)]
+pub enum GetQueuedJobError {
+	/// Database error
+	DbError(sqlx::Error),
+}
+
+impl Display for GetQueuedJobError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::DbError(_) => write!(f, "database backend error"),
+		}
+	}
+}
+
+impl Error for GetQueuedJobError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::DbError(x) => Some(x),
+		}
+	}
+}
+
+impl From<sqlx::Error> for GetQueuedJobError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
+	}
+}
+
+/// An error we can encounter when marking a job as `BuildError`
+#[derive(Debug)]
+pub enum BuildErrorJobError {
+	/// Database error
+	DbError(sqlx::Error),
+
+	/// This job is not running
+	NotRunning,
+}
+
+impl Display for BuildErrorJobError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::DbError(_) => write!(f, "database backend error"),
+			Self::NotRunning => write!(f, "job is not running"),
+		}
+	}
+}
+
+impl Error for BuildErrorJobError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::DbError(x) => Some(x),
+			_ => None,
+		}
+	}
+}
+
+impl From<sqlx::Error> for BuildErrorJobError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
+	}
+}
+
+/// An error we can encounter when marking a job as `Failed`
+#[derive(Debug)]
+pub enum FailJobError {
+	/// Database error
+	DbError(sqlx::Error),
+
+	/// This job is not running
+	NotRunning,
+}
+
+impl Display for FailJobError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::DbError(_) => write!(f, "database backend error"),
+			Self::NotRunning => write!(f, "job is not running"),
+		}
+	}
+}
+
+impl Error for FailJobError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::DbError(x) => Some(x),
+			_ => None,
+		}
+	}
+}
+
+impl From<sqlx::Error> for FailJobError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
+	}
+}
+
+/// An error we can encounter when marking a job as `Success`
+#[derive(Debug)]
+pub enum SuccessJobError {
+	/// Database error
+	DbError(sqlx::Error),
+
+	/// This job is not running
+	NotRunning,
+}
+
+impl Display for SuccessJobError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::DbError(_) => write!(f, "database backend error"),
+			Self::NotRunning => write!(f, "job is not running"),
+		}
+	}
+}
+
+impl Error for SuccessJobError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::DbError(x) => Some(x),
+			_ => None,
+		}
+	}
+}
+
+impl From<sqlx::Error> for SuccessJobError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
+	}
+}

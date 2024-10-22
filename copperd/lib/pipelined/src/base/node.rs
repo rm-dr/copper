@@ -4,7 +4,10 @@ use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 use tokio::sync::mpsc;
 
-use super::{NodeId, NodeParameterValue, PipelineData, PipelineJobContext, PortName, RunNodeError};
+use super::{
+	NodeId, NodeParameterValue, PipelineData, PipelineJobContext, PipelineJobResult, PortName,
+	RunNodeError,
+};
 
 #[derive(Clone)]
 pub struct ThisNodeInfo {
@@ -21,8 +24,11 @@ pub struct NodeOutput<DataType: PipelineData> {
 }
 
 #[async_trait]
-pub trait Node<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>:
-	Sync + Send
+pub trait Node<
+	ResultType: PipelineJobResult,
+	DataType: PipelineData,
+	ContextType: PipelineJobContext<DataType, ResultType>,
+>: Sync + Send
 {
 	/// Run this node. TODO: document
 	async fn run(

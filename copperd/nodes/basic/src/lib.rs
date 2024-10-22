@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use copper_pipelined::{
 	base::{NodeDispatcher, RegisterNodeError},
 	data::PipeData,
-	CopperContext,
+	CopperContext, JobRunResult,
 };
 
 mod constant;
@@ -12,7 +12,7 @@ mod ifnone;
 
 /// Register all nodes in this module into the given runner.
 pub fn register(
-	dispatcher: &mut NodeDispatcher<PipeData, CopperContext>,
+	dispatcher: &mut NodeDispatcher<JobRunResult, PipeData, CopperContext>,
 ) -> Result<(), RegisterNodeError> {
 	dispatcher.register_node("IfNone", BTreeMap::new(), &|| Box::new(ifnone::IfNone {}))?;
 	dispatcher.register_node("Hash", BTreeMap::new(), &|| Box::new(hash::Hash {}))?;

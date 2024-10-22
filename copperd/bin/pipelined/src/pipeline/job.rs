@@ -1,7 +1,8 @@
 use copper_pipelined::{
 	base::{
 		Node, NodeDispatcher, NodeId, NodeOutput, NodeParameterValue, PipelineData,
-		PipelineJobContext, PortName, RunNodeError, ThisNodeInfo, INPUT_NODE_TYPE,
+		PipelineJobContext, PipelineJobResult, PortName, RunNodeError, ThisNodeInfo,
+		INPUT_NODE_TYPE,
 	},
 	json::PipelineJson,
 };
@@ -99,18 +100,25 @@ struct NodeResult<DataType: PipelineData> {
 	node_idx: GraphNodeIdx,
 }
 
-enum NodeState<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
+enum NodeState<
+	ResultType: PipelineJobResult,
+	DataType: PipelineData,
+	ContextType: PipelineJobContext<DataType, ResultType>,
+> {
 	// Store this node's instance here, so we can take ownership
 	// of it when we run.
 	NotStarted {
-		instance: Box<dyn Node<DataType, ContextType>>,
+		instance: Box<dyn Node<ResultType, DataType, ContextType>>,
 	},
 	Running,
 	Done,
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Debug
-	for NodeState<DataType, ContextType>
+impl<
+		ResultType: PipelineJobResult,
+		DataType: PipelineData,
+		ContextType: PipelineJobContext<DataType, ResultType>,
+	> Debug for NodeState<ResultType, DataType, ContextType>
 {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
@@ -121,8 +129,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Debug
 	}
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
-	NodeState<DataType, ContextType>
+impl<
+		ResultType: PipelineJobResult,
+		DataType: PipelineData,
+		ContextType: PipelineJobContext<DataType, ResultType>,
+	> NodeState<ResultType, DataType, ContextType>
 {
 	fn has_been_started(&self) -> bool {
 		return matches!(self, Self::Running | Self::Done);
@@ -138,7 +149,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 
 	/// Turn `Self::NotStarted` into `Self::Running` and return `instance`.
 	/// Returns `None` otherwise.
-	fn start(&mut self) -> Option<Box<dyn Node<DataType, ContextType>>> {
+	fn start(&mut self) -> Option<Box<dyn Node<ResultType, DataType, ContextType>>> {
 		match self {
 			Self::NotStarted { .. } => {
 				let x = std::mem::replace(self, Self::Running);
@@ -152,7 +163,11 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	}
 }
 
-struct NodeSpec<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
+struct NodeSpec<
+	ResultType: PipelineJobResult,
+	DataType: PipelineData,
+	ContextType: PipelineJobContext<DataType, ResultType>,
+> {
 	/// The node's id
 	pub id: NodeId,
 
@@ -163,13 +178,16 @@ struct NodeSpec<DataType: PipelineData, ContextType: PipelineJobContext<DataType
 	pub node_params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 
 	/// This node's state
-	pub state: NodeState<DataType, ContextType>,
+	pub state: NodeState<ResultType, DataType, ContextType>,
 }
 
 // We need to do this ourselves, since the ContextType generic
 // confuses #[derive(Debug)].
-impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> Debug
-	for NodeSpec<DataType, ContextType>
+impl<
+		ResultType: PipelineJobResult,
+		DataType: PipelineData,
+		ContextType: PipelineJobContext<DataType, ResultType>,
+	> Debug for NodeSpec<ResultType, DataType, ContextType>
 {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("NodeSpec")
@@ -223,19 +241,26 @@ struct EdgeSpec<DataType: PipelineData> {
 /// Any [`PipelineJson`] that builds into a PipelineSpec successfully
 /// should be runnable (but may encounter run-time errors)
 #[derive(Debug)]
-pub struct PipelineJob<DataType: PipelineData, ContextType: PipelineJobContext<DataType>> {
+pub struct PipelineJob<
+	ResultType: PipelineJobResult,
+	DataType: PipelineData,
+	ContextType: PipelineJobContext<DataType, ResultType>,
+> {
 	_pa: PhantomData<DataType>,
 	_pb: PhantomData<ContextType>,
 	pub job_id: SmartString<LazyCompact>,
 
-	graph: FinalizedGraph<NodeSpec<DataType, ContextType>, EdgeSpec<DataType>>,
+	graph: FinalizedGraph<NodeSpec<ResultType, DataType, ContextType>, EdgeSpec<DataType>>,
 }
 
-impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
-	PipelineJob<DataType, ContextType>
+impl<
+		ResultType: PipelineJobResult,
+		DataType: PipelineData,
+		ContextType: PipelineJobContext<DataType, ResultType>,
+	> PipelineJob<ResultType, DataType, ContextType>
 {
 	pub fn new(
-		dispatcher: &NodeDispatcher<DataType, ContextType>,
+		dispatcher: &NodeDispatcher<ResultType, DataType, ContextType>,
 		job_id: &str,
 		input: BTreeMap<SmartString<LazyCompact>, DataType>,
 		json: &PipelineJson,
@@ -254,12 +279,12 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 
 	/// Build a pipeline from its deserialized form
 	fn build(
-		dispatcher: &NodeDispatcher<DataType, ContextType>,
+		dispatcher: &NodeDispatcher<ResultType, DataType, ContextType>,
 		job_id: &str,
 		json: &PipelineJson,
 		input: BTreeMap<SmartString<LazyCompact>, DataType>,
 	) -> Result<
-		FinalizedGraph<NodeSpec<DataType, ContextType>, EdgeSpec<DataType>>,
+		FinalizedGraph<NodeSpec<ResultType, DataType, ContextType>, EdgeSpec<DataType>>,
 		PipelineBuildError,
 	> {
 		trace!(message = "Building pipeline graph", job_id);
@@ -399,7 +424,7 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 	// MARK: Run
 	//
 
-	pub async fn run(mut self, context: ContextType) -> Result<(), RunNodeError<DataType>> {
+	pub async fn run(mut self, context: ContextType) -> Result<ResultType, RunNodeError<DataType>> {
 		let context = Arc::new(context);
 
 		trace!(
@@ -564,12 +589,10 @@ impl<DataType: PipelineData, ContextType: PipelineJobContext<DataType>>
 		}
 
 		debug!(message = "Running context completion", job_id = ?self.job_id);
-		match Arc::into_inner(context) {
-			Some(x) => x.on_complete().await?,
+		return match Arc::into_inner(context) {
+			Some(x) => Ok(x.to_result()?),
 			None => unreachable!(),
-		}
-
-		return Ok(());
+		};
 	}
 
 	//

@@ -7,7 +7,7 @@ use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
 	helpers::BytesSourceReader,
-	CopperContext,
+	CopperContext, JobRunResult,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
@@ -20,7 +20,7 @@ pub struct ExtractTags {}
 // Inputs: "data" - Bytes
 // Outputs: variable, depends on tags
 #[async_trait]
-impl Node<PipeData, CopperContext> for ExtractTags {
+impl Node<JobRunResult, PipeData, CopperContext> for ExtractTags {
 	async fn run(
 		&self,
 		ctx: &CopperContext,

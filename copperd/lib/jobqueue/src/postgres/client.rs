@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
-use copper_pipelined::json::PipelineJson;
+use copper_pipelined::{json::PipelineJson, JobRunResult};
 use copper_storaged::{AttrData, UserId};
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{
@@ -13,10 +13,13 @@ use super::PgJobQueueClient;
 use crate::{
 	base::{
 		client::JobQueueClient,
-		errors::{AddJobError, GetJobShortError, GetUserJobsError},
+		errors::{
+			AddJobError, BuildErrorJobError, FailJobError, GetJobShortError, GetQueuedJobError,
+			GetUserJobsError, SuccessJobError,
+		},
 	},
 	id::QueuedJobId,
-	info::{QueuedJobCounts, QueuedJobInfoList, QueuedJobInfoShort, QueuedJobState},
+	info::{QueuedJobCounts, QueuedJobInfo, QueuedJobInfoList, QueuedJobInfoShort, QueuedJobState},
 };
 
 #[async_trait]
@@ -66,7 +69,6 @@ impl JobQueueClient for PgJobQueueClient {
 		return Ok(new_job_id);
 	}
 
-	/// Get a job by id
 	async fn get_job_short(
 		&self,
 		job_id: &QueuedJobId,
@@ -164,7 +166,7 @@ impl JobQueueClient for PgJobQueueClient {
 			match state {
 				QueuedJobState::Queued => counts.queued_jobs = n,
 				QueuedJobState::Running => counts.running_jobs = n,
-				QueuedJobState::Success => counts.successful_jobs = n,
+				QueuedJobState::Success { .. } => counts.successful_jobs = n,
 				QueuedJobState::Failed => counts.failed_jobs = n,
 				QueuedJobState::BuildError { .. } => counts.build_errors = n,
 			}
@@ -181,5 +183,139 @@ impl JobQueueClient for PgJobQueueClient {
 			counts,
 			jobs: out,
 		});
+	}
+
+	async fn get_queued_job(&self) -> Result<Option<QueuedJobInfo>, GetQueuedJobError> {
+		let mut conn = self.pool.acquire().await?;
+		let res = sqlx::query(
+			"
+			UPDATE jobs
+			SET state = $1, started_at = $2
+			WHERE id = (
+				SELECT id
+				FROM jobs
+				WHERE state = $3
+				ORDER BY created_at ASC
+				FOR UPDATE SKIP LOCKED
+				LIMIT 1
+			)
+			RETURNING *;
+			",
+		)
+		.bind(serde_json::to_string(&QueuedJobState::Running).unwrap())
+		.bind(OffsetDateTime::now_utc())
+		.bind(serde_json::to_string(&QueuedJobState::Queued).unwrap())
+		.fetch_one(&mut *conn)
+		.await;
+
+		return match res {
+			Err(sqlx::Error::RowNotFound) => Ok(None),
+			Err(e) => Err(e.into()),
+			Ok(res) => Ok(Some(QueuedJobInfo {
+				job_id: res.get::<&str, _>("id").into(),
+				owned_by: res.get::<i64, _>("owned_by").into(),
+				created_at: res.get("created_at"),
+				started_at: res.get("started_at"),
+				finished_at: res.get("finished_at"),
+				state: serde_json::from_str(res.get::<&str, _>("state").into()).unwrap(),
+				pipeline: res.get::<sqlx::types::Json<PipelineJson>, _>("pipeline").0,
+				input: res
+					.get::<sqlx::types::Json<BTreeMap<SmartString<LazyCompact>, AttrData>>, _>(
+						"input",
+					)
+					.0,
+			})),
+		};
+	}
+
+	async fn builderror_job(
+		&self,
+		job_id: &QueuedJobId,
+		error_message: &str,
+	) -> Result<(), BuildErrorJobError> {
+		let mut conn = self.pool.acquire().await?;
+		// RETURNING id is required, RowNotFound is always thrown if it is removed.
+		let res = sqlx::query(
+			"
+			UPDATE jobs
+			SET state = $1, finished_at = $2
+			WHERE id = $3
+			AND state = $4
+			RETURNING id;
+			",
+		)
+		.bind(
+			serde_json::to_string(&QueuedJobState::BuildError {
+				message: error_message.into(),
+			})
+			.unwrap(),
+		)
+		.bind(OffsetDateTime::now_utc())
+		.bind(job_id.as_str())
+		.bind(serde_json::to_string(&QueuedJobState::Running).unwrap())
+		.fetch_one(&mut *conn)
+		.await;
+
+		return match res {
+			Err(sqlx::Error::RowNotFound) => Err(BuildErrorJobError::NotRunning),
+			Err(e) => Err(e.into()),
+			Ok(_) => Ok(()),
+		};
+	}
+
+	async fn fail_job(&self, job_id: &QueuedJobId) -> Result<(), FailJobError> {
+		let mut conn = self.pool.acquire().await?;
+		// RETURNING id is required, RowNotFound is always thrown if it is removed.
+		let res = sqlx::query(
+			"
+			UPDATE jobs
+			SET state = $1, finished_at = $2
+			WHERE id = $3
+			AND state = $4
+			RETURNING id;
+			",
+		)
+		.bind(serde_json::to_string(&QueuedJobState::Failed).unwrap())
+		.bind(OffsetDateTime::now_utc())
+		.bind(job_id.as_str())
+		.bind(serde_json::to_string(&QueuedJobState::Running).unwrap())
+		.fetch_one(&mut *conn)
+		.await;
+
+		return match res {
+			Err(sqlx::Error::RowNotFound) => Err(FailJobError::NotRunning),
+			Err(e) => Err(e.into()),
+			Ok(_) => Ok(()),
+		};
+	}
+
+	async fn success_job(
+		&self,
+		job_id: &QueuedJobId,
+		result: JobRunResult,
+	) -> Result<(), SuccessJobError> {
+		let mut conn = self.pool.acquire().await?;
+		// RETURNING id is required, RowNotFound is always thrown if it is removed.
+		let res = sqlx::query(
+			"
+			UPDATE jobs
+			SET state = $1, finished_at = $2
+			WHERE id = $3
+			AND state = $4
+			RETURNING id;
+			",
+		)
+		.bind(serde_json::to_string(&QueuedJobState::Success { result }).unwrap())
+		.bind(OffsetDateTime::now_utc())
+		.bind(job_id.as_str())
+		.bind(serde_json::to_string(&QueuedJobState::Running).unwrap())
+		.fetch_one(&mut *conn)
+		.await;
+
+		return match res {
+			Err(sqlx::Error::RowNotFound) => Err(SuccessJobError::NotRunning),
+			Err(e) => Err(e.into()),
+			Ok(_) => Ok(()),
+		};
 	}
 }

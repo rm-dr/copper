@@ -1,27 +1,53 @@
 //! Helper structs that contain database element properties
 
-use std::collections::BTreeMap;
-
-use copper_pipelined::json::PipelineJson;
+use copper_pipelined::{json::PipelineJson, JobRunResult};
 use copper_storaged::{AttrData, UserId};
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
+use std::collections::BTreeMap;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
 
 use crate::id::QueuedJobId;
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+/// A queued job's state, as stored in the db
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "state")]
 pub enum QueuedJobState {
+	BuildError { message: String },
+	Queued,
+	Running,
+	Success { result: JobRunResult },
+	Failed,
+}
+
+/// A queued job's state, as returned
+/// to the user via api endpoints
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "state")]
+pub enum QueuedJobStateShort {
+	BuildError { message: String },
 	Queued,
 	Running,
 	Success,
 	Failed,
-	BuildError { message: String },
 }
 
-#[derive(Serialize, Deserialize)]
+impl From<&QueuedJobState> for QueuedJobStateShort {
+	fn from(value: &QueuedJobState) -> Self {
+		match value {
+			QueuedJobState::Queued => Self::Queued,
+			QueuedJobState::Running => Self::Running,
+			QueuedJobState::Failed => Self::Failed,
+			QueuedJobState::BuildError { message } => Self::BuildError {
+				message: message.clone(),
+			},
+			QueuedJobState::Success { .. } => Self::Success,
+		}
+	}
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct QueuedJobInfo {
 	/// A unique id for this job
 	pub job_id: QueuedJobId,
@@ -59,7 +85,7 @@ pub struct QueuedJobInfoShort {
 	pub owned_by: UserId,
 
 	/// The state of this job
-	pub state: QueuedJobState,
+	pub state: QueuedJobStateShort,
 
 	#[schema(value_type = String)]
 	pub created_at: OffsetDateTime,

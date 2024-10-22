@@ -3,7 +3,7 @@ use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
 	helpers::BytesSourceReader,
-	CopperContext,
+	CopperContext, JobRunResult,
 };
 use copper_util::HashType;
 use sha2::{Digest, Sha256, Sha512};
@@ -80,7 +80,7 @@ pub struct Hash {}
 // Inputs: "data", Bytes
 // Outputs: "hash", Hash
 #[async_trait]
-impl Node<PipeData, CopperContext> for Hash {
+impl Node<JobRunResult, PipeData, CopperContext> for Hash {
 	async fn run(
 		&self,
 		ctx: &CopperContext,
