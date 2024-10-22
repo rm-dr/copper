@@ -1,6 +1,6 @@
 [package]
-name = "copper-pipelined"
-description = ""
+name = "copper-jobqueue"
+description = "TODO"
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }
@@ -17,12 +17,15 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
-copper-util = { workspace = true }
+copper-migrate = { workspace = true }
+copper-pipelined = { workspace = true }
 copper-storaged = { workspace = true }
 
-async-trait = { workspace = true }
-serde = { workspace = true }
-tokio = { workspace = true }
 smartstring = { workspace = true }
+serde = { workspace = true }
 utoipa = { workspace = true }
-async-broadcast = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+sqlx = { workspace = true }
+time = { workspace = true }
+async-trait = { workspace = true }

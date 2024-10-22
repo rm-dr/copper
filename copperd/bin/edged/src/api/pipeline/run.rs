@@ -5,7 +5,7 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_pipelined::client::PipelinedRequestError;
+use copper_jobqueue::base::errors::AddJobError;
 use copper_storaged::AttrData;
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
@@ -149,24 +149,25 @@ pub(super) async fn run_pipeline<Client: DatabaseClient>(
 	}
 
 	let res = state
-		.pipelined_client
-		.run_pipeline(&pipe.data, &payload.job_id, &converted_input, user.id)
+		.jobqueue_client
+		.add_job(
+			payload.job_id.as_str().into(),
+			user.id,
+			&pipe.data,
+			&converted_input,
+		)
 		.await;
 
 	return match res {
-		Ok(()) => StatusCode::OK.into_response(),
+		Ok(_) => StatusCode::OK.into_response(),
 
-		Err(PipelinedRequestError::Other { error }) => {
-			error!(message = "Error in storaged client", ?error);
+		Err(AddJobError::DbError(error)) => {
+			error!(message = "DB error while queueing job", ?error, ?payload.job_id);
 			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 
-		Err(PipelinedRequestError::GenericHttp { code, message }) => {
-			if let Some(msg) = message {
-				return (code, msg).into_response();
-			} else {
-				return code.into_response();
-			}
+		Err(AddJobError::AlreadyExists) => {
+			return StatusCode::CONFLICT.into_response();
 		}
 	};
 }

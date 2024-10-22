@@ -8,15 +8,15 @@ use axum::{
 	response::{IntoResponse, Response},
 };
 use axum_extra::extract::CookieJar;
-use copper_pipelined::client::PipelinedRequestError;
+use copper_jobqueue::base::errors::GetUserJobsError;
 use serde::Deserialize;
 use tracing::error;
 use utoipa::IntoParams;
 
 #[derive(Debug, Deserialize, IntoParams)]
 pub(super) struct PaginateParams {
-	skip: usize,
-	count: usize,
+	skip: i64,
+	count: i64,
 }
 
 /// List the logged in user's jobs
@@ -25,7 +25,7 @@ pub(super) struct PaginateParams {
 	path = "/list",
 	params(PaginateParams),
 	responses(
-		(status = 200, description = "This user's jobs, ordered by age", body = JobInfoList),
+		(status = 200, description = "This user's jobs, ordered by age", body = QueuedJobInfoList),
 		(status = 401, description = "Unauthorized"),
 	),
 	security(
@@ -43,23 +43,15 @@ pub(super) async fn list_jobs<Client: DatabaseClient>(
 	};
 
 	return match state
-		.pipelined_client
-		.list_user_jobs(user.id, paginate.skip, paginate.count)
+		.jobqueue_client
+		.get_user_jobs(user.id, paginate.skip, paginate.count)
 		.await
 	{
 		Ok(x) => (StatusCode::OK, Json(x)).into_response(),
 
-		Err(PipelinedRequestError::Other { error }) => {
-			error!(message = "Error in storaged client", ?error);
+		Err(GetUserJobsError::DbError(error)) => {
+			error!(message = "Error while getting user jobs", ?error, ?user);
 			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-		}
-
-		Err(PipelinedRequestError::GenericHttp { code, message }) => {
-			if let Some(msg) = message {
-				return (code, msg).into_response();
-			} else {
-				return code.into_response();
-			}
 		}
 	};
 }

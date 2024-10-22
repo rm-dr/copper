@@ -68,6 +68,7 @@ copper-migrate = { path = "lib/migrate" }
 copper-storaged = { path = "lib/storaged" }
 copper-pipelined = { path = "lib/pipelined" }
 copper-edged = { path = "lib/edged" }
+copper-jobqueue = { path = "lib/jobqueue" }
 
 # Node implementations
 pipelined-basic = { path = "nodes/basic" }

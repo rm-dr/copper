@@ -8,6 +8,7 @@ POSTGRES="psql --username ${POSTGRES_USER}"
 EDGED_PASSWORD="edged"
 STORAGED_PASSWORD="storaged"
 
+
 echo "Initializing edged"
 $POSTGRES <<-EOSQL
 CREATE USER edged WITH CREATEDB PASSWORD '${EDGED_PASSWORD}';
@@ -19,3 +20,14 @@ $POSTGRES <<-EOSQL
 CREATE USER storaged WITH CREATEDB PASSWORD '${STORAGED_PASSWORD}';
 CREATE DATABASE storaged OWNER storaged;
 EOSQL
+
+echo "Initializing job queue"
+$POSTGRES <<-EOSQL
+CREATE DATABASE jobqueue;
+GRANT ALL PRIVILEGES ON DATABASE jobqueue TO edged;
+EOSQL
+$POSTGRES <<-EOSQL
+\c jobqueue;
+GRANT ALL ON SCHEMA public TO edged;
+EOSQL
+

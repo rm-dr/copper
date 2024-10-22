@@ -1,4 +1,4 @@
-use copper_pipelined::{client::PipelinedClient, structs::JobInfoState};
+use copper_jobqueue::{base::client::JobQueueClient, info::QueuedJobState};
 use copper_storaged::UserId;
 use copper_util::{
 	s3client::{MultipartUpload, S3Client},
@@ -94,7 +94,7 @@ pub struct Uploader {
 	config: Arc<EdgedConfig>,
 	jobs: tokio::sync::Mutex<BTreeMap<UploadJobId, UploadJob>>,
 	objectstore_client: Arc<S3Client>,
-	pipelined_client: Arc<dyn PipelinedClient>,
+	jobqueue_client: Arc<dyn JobQueueClient>,
 }
 
 impl Uploader {
@@ -102,12 +102,12 @@ impl Uploader {
 	pub fn new(
 		config: Arc<EdgedConfig>,
 		objectstore_client: Arc<S3Client>,
-		pipelined_client: Arc<dyn PipelinedClient>,
+		jobqueue_client: Arc<dyn JobQueueClient>,
 	) -> Self {
 		Self {
 			config,
 			jobs: tokio::sync::Mutex::new(BTreeMap::new()),
-			pipelined_client,
+			jobqueue_client,
 			objectstore_client,
 		}
 	}
@@ -170,7 +170,10 @@ impl Uploader {
 						reason = "UNREACHABLE";
 						false
 					} else {
-						let info = self.pipelined_client.get_job(pipeline_job).await;
+						let info = self
+							.jobqueue_client
+							.get_job_short(&pipeline_job.as_str().into())
+							.await;
 						if info.is_err() {
 							reason = "assigned job error";
 							true
@@ -178,12 +181,12 @@ impl Uploader {
 							reason = "assigned job finished";
 
 							match info.unwrap().state {
-								JobInfoState::Failed => true,
-								JobInfoState::BuildError { .. } => true,
-								JobInfoState::Success => true,
+								QueuedJobState::Failed => true,
+								QueuedJobState::BuildError { .. } => true,
+								QueuedJobState::Success => true,
 
-								JobInfoState::Queued => false,
-								JobInfoState::Running => false,
+								QueuedJobState::Queued => false,
+								QueuedJobState::Running => false,
 							}
 						}
 					}

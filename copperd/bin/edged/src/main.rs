@@ -5,7 +5,7 @@ use aws_sdk_s3::config::Credentials;
 use axum::Router;
 use config::EdgedConfig;
 use copper_edged::UserPassword;
-use copper_pipelined::client::ReqwestPipelineClient;
+use copper_jobqueue::postgres::{PgJobQueueClient, PgJobQueueOpenError};
 use copper_storaged::client::ReqwestStoragedClient;
 use copper_util::{load_env, s3client::S3Client, LoadedEnv};
 use database::{
@@ -51,18 +51,17 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 	};
 	trace!(message = "Successfully initialized storaged client");
 
-	trace!(message = "Initializing pipelined client");
-	let pipelined_client = match ReqwestPipelineClient::new(
-		&config.edged_pipelined_addr,
-		&config.edged_pipelined_secret,
-	) {
-		Ok(x) => Arc::new(x),
-		Err(error) => {
-			error!(message = "Could not initialize pipelined client", ?error);
+	let jobqueue_client = match PgJobQueueClient::open(&config.edged_jobqueue_db).await {
+		Ok(db) => Arc::new(db),
+		Err(PgJobQueueOpenError::Database(e)) => {
+			error!(message = "SQL error while opening job queue database", err = ?e);
+			std::process::exit(1);
+		}
+		Err(PgJobQueueOpenError::Migrate(e)) => {
+			error!(message = "Migration error while opening job queue database", err = ?e);
 			std::process::exit(1);
 		}
 	};
-	trace!(message = "Successfully initialized Storaged client");
 
 	if config.edged_init_user_email.is_some() && config.edged_init_user_pass.is_some() {
 		let email = config.edged_init_user_email.as_ref().unwrap();
@@ -116,10 +115,10 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 		uploader: Arc::new(Uploader::new(
 			config.clone(),
 			s3_client_upload.clone(),
-			pipelined_client.clone(),
+			jobqueue_client.clone(),
 		)),
 
-		pipelined_client,
+		jobqueue_client,
 		storaged_client,
 		s3_client_upload,
 	});

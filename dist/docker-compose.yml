@@ -52,18 +52,19 @@ services:
       - "EDGED_INIT_USER_PASS=admin"
 
       # Required edged configuration
-      - "EDGED_DB_ADDR=postgres://admin:admin@copper-db/edged"
+      - "EDGED_DB_ADDR=postgres://edged:edged@copper-db/edged"
       - "EDGED_OBJECTSTORE_KEY_ID=admin"
       - "EDGED_OBJECTSTORE_KEY_SECRET=password"
       - "EDGED_OBJECTSTORE_URL=http://copper-minio:9000"
       - "EDGED_OBJECTSTORE_UPLOAD_BUCKET=copper-upload"
+      - "EDGED_JOBQUEUE_DB=postgres://edged:edged@copper-db/jobqueue"
       # Required pipelined configuration
       - "PIPELINED_OBJECTSTORE_KEY_ID=admin"
       - "PIPELINED_OBJECTSTORE_KEY_SECRET=password"
       - "PIPELINED_OBJECTSTORE_URL=http://copper-minio:9000"
       - "PIPELINED_OBJECTSTORE_BUCKET=copper-blobs"
       # Required storaged configuration
-      - "STORAGED_DB_ADDR=postgres://admin:admin@copper-db/storaged"
+      - "STORAGED_DB_ADDR=postgres://storaged:storaged@copper-db/storaged"
 
   copperc:
     image: copperc

@@ -1,7 +1,7 @@
 use crate::database::base::client::DatabaseClient;
 use crate::RouterState;
 use axum::{routing::get, Router};
-use copper_pipelined::structs::{JobCounts, JobInfo, JobInfoList, JobInfoState};
+use copper_jobqueue::info::{QueuedJobInfoList, QueuedJobInfoShort, QueuedJobState};
 use utoipa::OpenApi;
 
 mod list;
@@ -13,7 +13,7 @@ use list::*;
 #[openapi(
 	tags(),
 	paths(list_jobs),
-	components(schemas(JobInfoList, JobInfo, JobInfoState, JobCounts))
+	components(schemas(QueuedJobInfoList, QueuedJobInfoShort, QueuedJobState))
 )]
 pub(super) struct JobApi;
 
