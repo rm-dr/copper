@@ -4,6 +4,7 @@ use axum::{
 	routing::{delete, get, patch},
 	Router,
 };
+use copper_storage::database::base::client::StorageDatabaseClient;
 use utoipa::OpenApi;
 
 mod del;
@@ -22,7 +23,10 @@ use rename::*;
 )]
 pub(super) struct AttributeApi;
 
-pub(super) fn router<Client: DatabaseClient + 'static>() -> Router<RouterState<Client>> {
+pub(super) fn router<
+	Client: DatabaseClient + 'static,
+	StorageClient: StorageDatabaseClient + 'static,
+>() -> Router<RouterState<Client, StorageClient>> {
 	Router::new()
 		.route("/:attribute_id", get(get_attribute))
 		.route("/:attribute_id", delete(del_attribute))

@@ -4,6 +4,7 @@ use axum::{
 	response::{IntoResponse, Response},
 };
 use axum_extra::extract::CookieJar;
+use copper_storage::database::base::client::StorageDatabaseClient;
 use tracing::error;
 
 use crate::{api::RouterState, uploader::errors::UploadFinishError};
@@ -24,9 +25,9 @@ use crate::{database::base::client::DatabaseClient, uploader::UploadJobId};
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn finish_upload<Client: DatabaseClient>(
+pub(super) async fn finish_upload<Client: DatabaseClient, StorageClient: StorageDatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client>>,
+	State(state): State<RouterState<Client, StorageClient>>,
 	Path(job_id): Path<UploadJobId>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {

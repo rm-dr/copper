@@ -6,7 +6,7 @@ use axum::Router;
 use config::EdgedConfig;
 use copper_edged::UserPassword;
 use copper_jobqueue::postgres::{PgJobQueueClient, PgJobQueueOpenError};
-use copper_storaged::client::ReqwestStoragedClient;
+use copper_storage::database::postgres::{PgStorageDatabaseClient, PgStorageDatabaseOpenError};
 use copper_util::{load_env, s3client::S3Client, LoadedEnv};
 use database::{
 	base::client::DatabaseClient,
@@ -38,18 +38,24 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 		}
 	};
 
-	trace!(message = "Initializing storaged client");
-	let storaged_client = match ReqwestStoragedClient::new(
-		config.edged_storaged_addr.clone(),
-		&config.edged_storaged_secret,
-	) {
-		Ok(x) => Arc::new(x),
-		Err(error) => {
-			error!(message = "Could not initialize storaged client", ?error);
-			std::process::exit(1);
-		}
-	};
-	trace!(message = "Successfully initialized storaged client");
+	trace!(message = "Connecting to storage db");
+	// Connect to database
+	let storage_db_client =
+		match PgStorageDatabaseClient::open(&config.edged_storage_db_addr, true).await {
+			Ok(db) => Arc::new(db),
+			Err(PgStorageDatabaseOpenError::Database(e)) => {
+				error!(message = "SQL error while opening storage database", err = ?e);
+				std::process::exit(1);
+			}
+
+			Err(PgStorageDatabaseOpenError::Migrate(e)) => {
+				error!(message = "Migration error while opening storage database", err = ?e);
+				std::process::exit(1);
+			}
+
+			Err(PgStorageDatabaseOpenError::NotMigrated) => unreachable!(),
+		};
+	trace!(message = "Successfully connected to storage db");
 
 	trace!(message = "Initializing job queue client");
 	let jobqueue_client = match PgJobQueueClient::open(&config.edged_jobqueue_db).await {
@@ -121,7 +127,7 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 		)),
 
 		jobqueue_client,
-		storaged_client,
+		storage_db_client,
 		s3_client_upload,
 	});
 }

@@ -6,7 +6,10 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_storaged::client::{GenericRequestError, StoragedRequestError};
+use copper_storage::database::base::{
+	client::StorageDatabaseClient,
+	errors::{class::AddClassError, dataset::GetDatasetError},
+};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::ToSchema;
@@ -32,9 +35,9 @@ pub(super) struct NewClassRequest {
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn add_class<Client: DatabaseClient>(
+pub(super) async fn add_class<Client: DatabaseClient, StorageClient: StorageDatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client>>,
+	State(state): State<RouterState<Client, StorageClient>>,
 	Path(dataset_id): Path<i64>,
 	Json(payload): Json<NewClassRequest>,
 ) -> Response {
@@ -43,47 +46,45 @@ pub(super) async fn add_class<Client: DatabaseClient>(
 		Ok(user) => user,
 	};
 
-	match state.storaged_client.get_dataset(dataset_id.into()).await {
-		Ok(Ok(None)) => return StatusCode::NOT_FOUND.into_response(),
-
-		Ok(Ok(Some(x))) => {
+	match state.storage_db_client.get_dataset(dataset_id.into()).await {
+		Ok(x) => {
 			// We can only modify our own datasets
 			if x.owner != user.id {
 				return StatusCode::UNAUTHORIZED.into_response();
 			}
 		}
 
-		Ok(Err(GenericRequestError { code, message })) => {
-			if let Some(msg) = message {
-				return (code, msg).into_response();
-			} else {
-				return code.into_response();
-			}
-		}
+		Err(GetDatasetError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
 
-		Err(StoragedRequestError::RequestError { error }) => {
-			error!(message = "Error in storaged client", ?error);
+		Err(GetDatasetError::DbError(error)) => {
+			error!(message = "Error in storage db client", ?error);
 			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};
 
 	let res = state
-		.storaged_client
+		.storage_db_client
 		.add_class(dataset_id.into(), &payload.name)
 		.await;
 
 	return match res {
-		Ok(Ok(x)) => (StatusCode::OK, Json(x)).into_response(),
+		Ok(x) => (StatusCode::OK, Json(x)).into_response(),
 
-		Ok(Err(GenericRequestError { code, message })) => {
-			if let Some(msg) = message {
-				return (code, msg).into_response();
-			} else {
-				return code.into_response();
-			}
+		Err(AddClassError::UniqueViolation) => {
+			return (
+				StatusCode::CONFLICT,
+				Json("An attribute with this name already exists"),
+			)
+				.into_response();
 		}
 
-		Err(StoragedRequestError::RequestError { error }) => {
+		Err(AddClassError::NoSuchDataset) => return StatusCode::NOT_FOUND.into_response(),
+
+		Err(AddClassError::NameError(msg)) => {
+			return (StatusCode::BAD_REQUEST, Json(format!("{}", msg))).into_response();
+		}
+
+		Err(AddClassError::DbError(error)) => {
 			error!(message = "Error in storaged client", ?error);
 			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}

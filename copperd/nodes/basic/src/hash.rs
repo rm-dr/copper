@@ -5,6 +5,7 @@ use copper_pipelined::{
 	helpers::BytesSourceReader,
 	CopperContext, JobRunResult,
 };
+use copper_storage::database::base::client::StorageDatabaseClient;
 use copper_util::HashType;
 use sha2::{Digest, Sha256, Sha512};
 use smartstring::{LazyCompact, SmartString};
@@ -80,10 +81,12 @@ pub struct Hash {}
 // Inputs: "data", Bytes
 // Outputs: "hash", Hash
 #[async_trait]
-impl Node<JobRunResult, PipeData, CopperContext> for Hash {
+impl<StorageClient: StorageDatabaseClient>
+	Node<JobRunResult, PipeData, CopperContext<StorageClient>> for Hash
+{
 	async fn run(
 		&self,
-		ctx: &CopperContext,
+		ctx: &CopperContext<StorageClient>,
 		this_node: ThisNodeInfo,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,

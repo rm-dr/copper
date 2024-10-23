@@ -6,6 +6,7 @@ use copper_pipelined::{
 	helpers::BytesSourceReader,
 	CopperContext, JobRunResult,
 };
+use copper_storage::database::base::client::StorageDatabaseClient;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
 use tokio::sync::mpsc;
@@ -16,10 +17,12 @@ pub struct ExtractCovers {}
 // Inputs: "data" - Bytes
 // Outputs: variable, depends on tags
 #[async_trait]
-impl Node<JobRunResult, PipeData, CopperContext> for ExtractCovers {
+impl<StorageClient: StorageDatabaseClient>
+	Node<JobRunResult, PipeData, CopperContext<StorageClient>> for ExtractCovers
+{
 	async fn run(
 		&self,
-		ctx: &CopperContext,
+		ctx: &CopperContext<StorageClient>,
 		this_node: ThisNodeInfo,
 		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,

@@ -9,6 +9,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use copper_jobqueue::base::errors::GetUserJobsError;
+use copper_storage::database::base::client::StorageDatabaseClient;
 use serde::Deserialize;
 use tracing::error;
 use utoipa::IntoParams;
@@ -32,9 +33,9 @@ pub(super) struct PaginateParams {
 		("bearer" = []),
 	)
 )]
-pub(super) async fn list_jobs<Client: DatabaseClient>(
+pub(super) async fn list_jobs<Client: DatabaseClient, StorageClient: StorageDatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client>>,
+	State(state): State<RouterState<Client, StorageClient>>,
 	Query(paginate): Query<PaginateParams>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {

@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 use copper_edged::{PipelineId, PipelineInfo, UserInfo, UserPassword};
 use copper_pipelined::json::PipelineJson;
-use copper_storaged::UserId;
+use copper_storage::UserId;
 
 use super::errors::{
 	pipeline::{

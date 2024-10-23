@@ -18,7 +18,7 @@ workspace = true
 
 [dependencies]
 copper-pipelined = { workspace = true }
-copper-storaged = { workspace = true }
+copper-storage = { workspace = true }
 
 smartstring = { workspace = true }
 serde = { workspace = true }

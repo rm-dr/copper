@@ -24,10 +24,10 @@ workspace = true
 copper-util = { workspace = true }
 copper-pipelined = { workspace = true }
 copper-jobqueue = { workspace = true }
-copper-storaged = { workspace = true }
+copper-storage = { workspace = true }
 # Node implementations
 pipelined-audiofile = { workspace = true }
-pipelined-storaged = { workspace = true }
+pipelined-storage = { workspace = true }
 pipelined-basic = { workspace = true }
 
 aws-sdk-s3 = { workspace = true }

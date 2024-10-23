@@ -12,7 +12,14 @@ use copper_pipelined::{
 	data::{BytesSource, PipeData},
 	CopperContext, JobRunResult,
 };
-use copper_storaged::{client::ReqwestStoragedClient, AttrData, Transaction};
+use copper_storage::{
+	database::{
+		base::{client::StorageDatabaseClient, errors::transaction::ApplyTransactionError},
+		postgres::{PgStorageDatabaseClient, PgStorageDatabaseOpenError},
+	},
+	transaction::Transaction,
+	AttrData,
+};
 use copper_util::{load_env, s3client::S3Client, LoadedEnv};
 use pipeline::runner::{DoneJobState, PipelineRunner, StartJobError};
 use std::{collections::BTreeMap, sync::Arc};
@@ -109,10 +116,31 @@ async fn main() {
 	};
 	trace!(message = "Successfully initialized job queue client");
 
+	trace!(message = "Connecting to storage db");
+	// Connect to database
+	let storage_db_client =
+		match PgStorageDatabaseClient::open(&config.pipelined_storage_db_addr, false).await {
+			Ok(db) => Arc::new(db),
+			Err(PgStorageDatabaseOpenError::Database(e)) => {
+				error!(message = "SQL error while opening storage database", err = ?e);
+				std::process::exit(1);
+			}
+			Err(PgStorageDatabaseOpenError::Migrate(e)) => {
+				error!(message = "Migration error while opening storage database", err = ?e);
+				std::process::exit(1);
+			}
+			Err(PgStorageDatabaseOpenError::NotMigrated) => {
+				error!(message = "Database not migrated");
+				std::process::exit(1);
+			}
+		};
+	trace!(message = "Successfully connected to storage db");
+
 	//
 	// MARK: Prep runner
 	//
-	let mut runner: PipelineRunner<JobRunResult, PipeData, CopperContext> = PipelineRunner::new();
+	let mut runner: PipelineRunner<JobRunResult, PipeData, CopperContext<PgStorageDatabaseClient>> =
+		PipelineRunner::new();
 
 	{
 		// Base nodes
@@ -132,7 +160,7 @@ async fn main() {
 
 	{
 		// Storaged nodes
-		use pipelined_storaged::register;
+		use pipelined_storage::register;
 		match register(runner.mut_dispatcher()) {
 			Ok(()) => {}
 			Err(error) => {
@@ -162,45 +190,92 @@ async fn main() {
 		};
 	}
 
-	trace!(message = "Initializing storaged client");
-	let storaged_client = match ReqwestStoragedClient::new(
-		config.pipelined_storaged_addr.clone(),
-		&config.pipelined_storaged_secret,
-	) {
-		Ok(x) => Arc::new(x),
-		Err(error) => {
-			error!(message = "Could not initialize storaged client", ?error);
-			std::process::exit(1);
-		}
-	};
-	trace!(message = "Successfully initialized storaged client");
-
 	loop {
 		match runner.check_done_jobs().await {
 			Ok(None) => {}
 
 			Ok(Some(DoneJobState::Success { job_id, result })) => {
 				info!(
-					message = "Job finished successfully",
+					message = "Job finished successfully, processing transaction",
 					job_id = ?job_id
 				);
 
-				match jobqueue_client.success_job(&job_id, result).await {
-					Ok(()) => {}
-
-					Err(SuccessJobError::DbError(error)) => {
-						error!(
-							message = "DB error while marking job `Success`",
-							?job_id,
-							?error
+				match storage_db_client
+					.apply_transaction(result.transaction)
+					.await
+				{
+					Ok(()) => {
+						info!(
+							message = "Transaction processed successfully",
+							job_id = ?job_id
 						);
+
+						match jobqueue_client.success_job(&job_id).await {
+							Ok(()) => {}
+
+							Err(SuccessJobError::DbError(error)) => {
+								error!(
+									message = "DB error while marking job `Success`",
+									?job_id,
+									?error
+								);
+							}
+
+							Err(SuccessJobError::NotRunning) => {
+								error!(
+									message = "Tried to mark a job that isn't running as `Success`",
+									?job_id
+								);
+							}
+						};
 					}
 
-					Err(SuccessJobError::NotRunning) => {
-						error!(
-							message = "Tried to mark a job that isn't running as `Success`",
-							?job_id
-						);
+					Err(err) => {
+						match err {
+							ApplyTransactionError::DbError(error) => {
+								error!(
+									message = "DB error while processing transaction",
+									?job_id,
+									?error
+								);
+							}
+
+							ApplyTransactionError::AddItemError(error) => {
+								info!(
+									message = "Failed applying pipeline transaction",
+									?job_id,
+									?error
+								)
+							}
+
+							error => {
+								info!(
+									message = "Failed applying pipeline transaction",
+									?job_id,
+									?error
+								)
+							}
+						};
+
+						// TODO: special fail state
+						match jobqueue_client.fail_job(&job_id).await {
+							Ok(()) => {}
+
+							Err(FailJobError::DbError(error)) => {
+								error!(
+									message = "DB error while marking job `Failed`",
+									?job_id,
+									?error
+								);
+							}
+
+							Err(FailJobError::NotRunning) => {
+								error!(
+									message = "Tried to mark a job that isn't running as `Failed`",
+									?job_id
+								);
+							}
+						};
 					}
 				};
 			}
@@ -267,7 +342,7 @@ async fn main() {
 						stream_channel_capacity: config.pipelined_stream_channel_size,
 						job_id: job.job_id.as_str().into(),
 						run_by_user: job.owned_by.clone(),
-						storaged_client: storaged_client.clone(),
+						storage_db_client: storage_db_client.clone(),
 						objectstore_blob_bucket: config
 							.pipelined_objectstore_bucket
 							.as_str()

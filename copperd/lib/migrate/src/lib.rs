@@ -162,6 +162,26 @@ impl<'a> Migrator<'a> {
 		});
 	}
 
+	/// If true, this dataset is fully migrated
+	pub fn is_up(&self) -> Result<bool, MigrationError> {
+		let mut entered_new_migrations = false;
+		for mig in &self.migrations {
+			if mig.applied {
+				if entered_new_migrations {
+					return Err(MigrationError::BadExistingMigrations);
+				}
+
+				continue;
+			}
+
+			if !entered_new_migrations {
+				entered_new_migrations = true;
+			}
+		}
+
+		return Ok(!entered_new_migrations);
+	}
+
 	/// Apply all migrations that have not yet been run on this database.
 	pub async fn up(&mut self) -> Result<(), MigrationError> {
 		let mut entered_new_migrations = false;

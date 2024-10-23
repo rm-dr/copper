@@ -1,5 +1,5 @@
-use copper_jobqueue::{base::client::JobQueueClient, info::QueuedJobStateShort};
-use copper_storaged::UserId;
+use copper_jobqueue::{base::client::JobQueueClient, info::QueuedJobState};
+use copper_storage::UserId;
 use copper_util::{
 	s3client::{MultipartUpload, S3Client},
 	MimeType,
@@ -181,12 +181,12 @@ impl Uploader {
 							reason = "assigned job finished";
 
 							match info.unwrap().state {
-								QueuedJobStateShort::Failed => true,
-								QueuedJobStateShort::BuildError { .. } => true,
-								QueuedJobStateShort::Success => true,
+								QueuedJobState::Failed => true,
+								QueuedJobState::BuildError { .. } => true,
+								QueuedJobState::Success => true,
 
-								QueuedJobStateShort::Queued => false,
-								QueuedJobStateShort::Running => false,
+								QueuedJobState::Queued => false,
+								QueuedJobState::Running => false,
 							}
 						}
 					}

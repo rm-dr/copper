@@ -10,6 +10,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use copper_pipelined::json::PipelineJson;
+use copper_storage::database::base::client::StorageDatabaseClient;
 use serde::Deserialize;
 use tracing::error;
 use utoipa::ToSchema;
@@ -36,10 +37,13 @@ pub(super) struct UpdatePipelineRequest {
 		(status = 500, description = "Internal server error"),
 	),
 )]
-pub(super) async fn update_pipeline<Client: DatabaseClient>(
+pub(super) async fn update_pipeline<
+	Client: DatabaseClient,
+	StorageClient: StorageDatabaseClient,
+>(
 	// OriginalUri(uri): OriginalUri,
 	jar: CookieJar,
-	State(state): State<RouterState<Client>>,
+	State(state): State<RouterState<Client, StorageClient>>,
 	Path(pipeline_id): Path<i64>,
 	Json(payload): Json<UpdatePipelineRequest>,
 ) -> Response {

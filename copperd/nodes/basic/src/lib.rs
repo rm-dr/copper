@@ -5,14 +5,15 @@ use copper_pipelined::{
 	data::PipeData,
 	CopperContext, JobRunResult,
 };
+use copper_storage::database::base::client::StorageDatabaseClient;
 
 mod constant;
 mod hash;
 mod ifnone;
 
 /// Register all nodes in this module into the given runner.
-pub fn register(
-	dispatcher: &mut NodeDispatcher<JobRunResult, PipeData, CopperContext>,
+pub fn register<StorageClient: StorageDatabaseClient>(
+	dispatcher: &mut NodeDispatcher<JobRunResult, PipeData, CopperContext<StorageClient>>,
 ) -> Result<(), RegisterNodeError> {
 	dispatcher.register_node("IfNone", BTreeMap::new(), &|| Box::new(ifnone::IfNone {}))?;
 	dispatcher.register_node("Hash", BTreeMap::new(), &|| Box::new(hash::Hash {}))?;

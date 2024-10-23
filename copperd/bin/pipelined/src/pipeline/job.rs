@@ -588,7 +588,6 @@ impl<
 			tokio::time::sleep(std::time::Duration::from_millis(ASYNC_POLL_AWAIT_MS)).await;
 		}
 
-		debug!(message = "Running context completion", job_id = ?self.job_id);
 		return match Arc::into_inner(context) {
 			Some(x) => Ok(x.to_result()?),
 			None => unreachable!(),

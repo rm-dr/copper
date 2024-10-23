@@ -57,7 +57,6 @@ impl LoggingPreset {
 				job: LogLevel::Info,
 				nodes: LogLevel::Warn,
 
-				storaged: LogLevel::Info,
 				edged: LogLevel::Info,
 			},
 
@@ -71,7 +70,6 @@ impl LoggingPreset {
 				job: LogLevel::Debug,
 				nodes: LogLevel::Warn,
 
-				storaged: LogLevel::Debug,
 				edged: LogLevel::Debug,
 			},
 
@@ -85,7 +83,6 @@ impl LoggingPreset {
 				job: LogLevel::Debug,
 				nodes: LogLevel::Warn,
 
-				storaged: LogLevel::Trace,
 				edged: LogLevel::Trace,
 			},
 
@@ -99,7 +96,6 @@ impl LoggingPreset {
 				job: LogLevel::Trace,
 				nodes: LogLevel::Trace,
 
-				storaged: LogLevel::Trace,
 				edged: LogLevel::Trace,
 			},
 		}
@@ -116,7 +112,6 @@ pub struct LoggingConfig {
 	job: LogLevel,
 	nodes: LogLevel,
 
-	storaged: LogLevel,
 	edged: LogLevel,
 }
 
@@ -138,8 +133,6 @@ impl From<LoggingConfig> for EnvFilter {
 				//
 				format!("tower_http={}", conf.http),
 				format!("s3={}", conf.s3),
-				// // Storaged
-				format!("storaged={}", conf.storaged),
 				// // Pipelined
 				format!("pipelined::pipeline::runner={}", conf.runner),
 				format!("pipelined::pipeline::job={}", conf.job),

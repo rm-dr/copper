@@ -5,7 +5,7 @@ use argon2::{
 	Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
 };
 use copper_pipelined::json::PipelineJson;
-use copper_storaged::UserId;
+use copper_storage::UserId;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use utoipa::ToSchema;

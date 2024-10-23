@@ -7,6 +7,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use copper_pipelined::json::PipelineJson;
+use copper_storage::database::base::client::StorageDatabaseClient;
 use serde::Deserialize;
 use tracing::error;
 use utoipa::ToSchema;
@@ -33,10 +34,10 @@ pub(super) struct NewPipelineRequest {
 		("bearer" = []),
 	)
 )]
-pub(super) async fn add_pipeline<Client: DatabaseClient>(
+pub(super) async fn add_pipeline<Client: DatabaseClient, StorageClient: StorageDatabaseClient>(
 	// OriginalUri(uri): OriginalUri,
 	jar: CookieJar,
-	State(state): State<RouterState<Client>>,
+	State(state): State<RouterState<Client, StorageClient>>,
 	Json(payload): Json<NewPipelineRequest>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {

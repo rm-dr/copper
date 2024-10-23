@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
-use copper_pipelined::{json::PipelineJson, JobRunResult};
-use copper_storaged::{AttrData, UserId};
+use copper_pipelined::json::PipelineJson;
+use copper_storage::{AttrData, UserId};
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{
 	types::{time::OffsetDateTime, Json},
@@ -289,11 +289,7 @@ impl JobQueueClient for PgJobQueueClient {
 		};
 	}
 
-	async fn success_job(
-		&self,
-		job_id: &QueuedJobId,
-		result: JobRunResult,
-	) -> Result<(), SuccessJobError> {
+	async fn success_job(&self, job_id: &QueuedJobId) -> Result<(), SuccessJobError> {
 		let mut conn = self.pool.acquire().await?;
 		// RETURNING id is required, RowNotFound is always thrown if it is removed.
 		let res = sqlx::query(
@@ -305,7 +301,7 @@ impl JobQueueClient for PgJobQueueClient {
 			RETURNING id;
 			",
 		)
-		.bind(serde_json::to_string(&QueuedJobState::Success { result }).unwrap())
+		.bind(serde_json::to_string(&QueuedJobState::Success).unwrap())
 		.bind(OffsetDateTime::now_utc())
 		.bind(job_id.as_str())
 		.bind(serde_json::to_string(&QueuedJobState::Running).unwrap())

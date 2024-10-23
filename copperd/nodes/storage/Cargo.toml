@@ -1,0 +1,27 @@
+[package]
+name = "pipelined-storage"
+description = ""
+categories = { workspace = true }
+keywords = { workspace = true }
+version = { workspace = true }
+rust-version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+copper-pipelined = { workspace = true }
+copper-storage = { workspace = true }
+
+tracing = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+smartstring = { workspace = true }
+rand = { workspace = true }

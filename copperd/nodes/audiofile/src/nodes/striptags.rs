@@ -8,6 +8,7 @@ use copper_pipelined::{
 	helpers::BytesSourceReader,
 	CopperContext, JobRunResult,
 };
+use copper_storage::database::base::client::StorageDatabaseClient;
 use copper_util::MimeType;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
@@ -20,10 +21,12 @@ pub struct StripTags {}
 // Input: "data" - Blob
 // Output: "out" - Blob
 #[async_trait]
-impl Node<JobRunResult, PipeData, CopperContext> for StripTags {
+impl<StorageClient: StorageDatabaseClient>
+	Node<JobRunResult, PipeData, CopperContext<StorageClient>> for StripTags
+{
 	async fn run(
 		&self,
-		ctx: &CopperContext,
+		ctx: &CopperContext<StorageClient>,
 		this_node: ThisNodeInfo,
 		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,

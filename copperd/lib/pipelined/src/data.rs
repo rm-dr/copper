@@ -1,4 +1,4 @@
-use copper_storaged::{AttrData, AttrDataStub};
+use copper_storage::{AttrData, AttrDataStub};
 use copper_util::{HashType, MimeType};
 use smartstring::{LazyCompact, SmartString};
 use std::{fmt::Debug, sync::Arc};

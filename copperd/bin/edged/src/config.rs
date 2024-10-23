@@ -25,16 +25,11 @@ pub struct EdgedConfig {
 	/// Must be postgres.
 	pub edged_db_addr: SmartString<LazyCompact>,
 
-	/// IP and port of the `storaged` daemon we'll use
-	/// Should look like `http://127.0.0.1:3030`
-	pub edged_storaged_addr: String,
-
-	/// The secret used to authenticate calls to storaged.
-	pub edged_storaged_secret: String,
-
 	/// The address of the job queue database.
 	/// Must be postgres.
 	pub edged_jobqueue_db: String,
+
+	pub edged_storage_db_addr: String,
 
 	/// Object store key id
 	pub edged_objectstore_key_id: String,

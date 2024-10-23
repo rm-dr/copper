@@ -1,8 +1,8 @@
 //! The job queue client api
 
 use async_trait::async_trait;
-use copper_pipelined::{json::PipelineJson, JobRunResult};
-use copper_storaged::{AttrData, UserId};
+use copper_pipelined::json::PipelineJson;
+use copper_storage::{AttrData, UserId};
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 
@@ -66,9 +66,5 @@ where
 
 	/// Atomically mark the given job as `Success`.
 	/// If this job is not `Running`, throw an error.
-	async fn success_job(
-		&self,
-		job_id: &QueuedJobId,
-		result: JobRunResult,
-	) -> Result<(), SuccessJobError>;
+	async fn success_job(&self, job_id: &QueuedJobId) -> Result<(), SuccessJobError>;
 }

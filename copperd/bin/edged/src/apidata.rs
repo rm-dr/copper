@@ -1,4 +1,4 @@
-use copper_storaged::{AttrData, AttrDataStub, ClassId, ItemId};
+use copper_storage::{AttrData, AttrDataStub, ClassId, ItemId};
 use copper_util::HashType;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};

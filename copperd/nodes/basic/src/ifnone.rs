@@ -4,6 +4,7 @@ use copper_pipelined::{
 	data::PipeData,
 	CopperContext, JobRunResult,
 };
+use copper_storage::database::base::client::StorageDatabaseClient;
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 use tokio::sync::mpsc;
@@ -16,10 +17,12 @@ pub struct IfNone {}
 // Outputs:
 // - "out", <T>
 #[async_trait]
-impl Node<JobRunResult, PipeData, CopperContext> for IfNone {
+impl<StorageClient: StorageDatabaseClient>
+	Node<JobRunResult, PipeData, CopperContext<StorageClient>> for IfNone
+{
 	async fn run(
 		&self,
-		_ctx: &CopperContext,
+		_ctx: &CopperContext<StorageClient>,
 		this_node: ThisNodeInfo,
 		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,

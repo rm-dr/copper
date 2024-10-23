@@ -34,12 +34,7 @@ pub struct PipelinedConfig {
 	#[serde(default = "PipelinedConfig::default_max_running_jobs")]
 	pub pipelined_max_running_jobs: usize,
 
-	/// IP and port of the `storaged` daemon we'll use
-	/// Should look like `http://127.0.0.1:3030`
-	pub pipelined_storaged_addr: String,
-
-	/// The secret used to authenticate calls to storaged.
-	pub pipelined_storaged_secret: String,
+	pub pipelined_storage_db_addr: String,
 
 	/// Object store key id
 	pub pipelined_objectstore_key_id: String,

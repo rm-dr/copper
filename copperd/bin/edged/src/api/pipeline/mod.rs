@@ -9,6 +9,7 @@ use copper_pipelined::{
 	base::NodeParameterValue,
 	json::{EdgeJson, InputPort, NodeJson, NodeJsonPosition, OutputPort, PipelineJson},
 };
+use copper_storage::database::base::client::StorageDatabaseClient;
 use utoipa::OpenApi;
 
 mod add;
@@ -54,7 +55,10 @@ use update::*;
 )]
 pub(super) struct PipelineApi;
 
-pub(super) fn router<Client: DatabaseClient + 'static>() -> Router<RouterState<Client>> {
+pub(super) fn router<
+	Client: DatabaseClient + 'static,
+	StorageClient: StorageDatabaseClient + 'static,
+>() -> Router<RouterState<Client, StorageClient>> {
 	Router::new()
 		.route("/", post(add_pipeline))
 		.route("/list", get(list_pipelines))

@@ -6,7 +6,9 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_storaged::client::{GenericRequestError, StoragedRequestError};
+use copper_storage::database::base::{
+	client::StorageDatabaseClient, errors::dataset::AddDatasetError,
+};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::ToSchema;
@@ -28,9 +30,9 @@ pub(super) struct NewDatasetRequest {
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn add_dataset<Client: DatabaseClient>(
+pub(super) async fn add_dataset<Client: DatabaseClient, StorageClient: StorageDatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client>>,
+	State(state): State<RouterState<Client, StorageClient>>,
 	Json(payload): Json<NewDatasetRequest>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {
@@ -39,23 +41,27 @@ pub(super) async fn add_dataset<Client: DatabaseClient>(
 	};
 
 	let res = state
-		.storaged_client
+		.storage_db_client
 		.add_dataset(&payload.name, user.id)
 		.await;
 
 	return match res {
-		Ok(Ok(x)) => (StatusCode::OK, Json(x)).into_response(),
+		Ok(x) => (StatusCode::OK, Json(x)).into_response(),
 
-		Ok(Err(GenericRequestError { code, message })) => {
-			if let Some(msg) = message {
-				return (code, msg).into_response();
-			} else {
-				return code.into_response();
-			}
+		Err(AddDatasetError::UniqueViolation) => {
+			return (
+				StatusCode::CONFLICT,
+				Json("An attribute with this name already exists"),
+			)
+				.into_response();
 		}
 
-		Err(StoragedRequestError::RequestError { error }) => {
-			error!(message = "Error in storaged client", ?error);
+		Err(AddDatasetError::NameError(msg)) => {
+			return (StatusCode::BAD_REQUEST, Json(format!("{}", msg))).into_response();
+		}
+
+		Err(AddDatasetError::DbError(error)) => {
+			error!(message = "Error in storage db client", ?error);
 			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};
