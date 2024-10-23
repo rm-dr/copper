@@ -1,6 +1,6 @@
 [package]
 name = "copper-pipelined"
-description = ""
+description = "Utilities for Copper's pipeline runner"
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }
@@ -18,7 +18,7 @@ workspace = true
 
 [dependencies]
 copper-util = { workspace = true }
-copper-storage = { workspace = true }
+copper-itemdb = { workspace = true }
 
 async-trait = { workspace = true }
 serde = { workspace = true }

@@ -7,7 +7,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use copper_edged::UserPassword;
-use copper_storage::database::base::client::StorageDatabaseClient;
+use copper_itemdb::client::base::client::ItemdbClient;
 use serde::Deserialize;
 use tracing::error;
 use utoipa::ToSchema;
@@ -35,10 +35,10 @@ pub(super) struct UpdateUserRequest {
 		(status = 500, description = "Internal server error"),
 	),
 )]
-pub(super) async fn update_user<Client: DatabaseClient, StorageClient: StorageDatabaseClient>(
+pub(super) async fn update_user<Client: DatabaseClient, Itemdb: ItemdbClient>(
 	// OriginalUri(uri): OriginalUri,
 	jar: CookieJar,
-	State(state): State<RouterState<Client, StorageClient>>,
+	State(state): State<RouterState<Client, Itemdb>>,
 	Path(user_id): Path<i64>,
 	Json(payload): Json<UpdateUserRequest>,
 ) -> Response {

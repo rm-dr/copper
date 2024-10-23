@@ -3,13 +3,13 @@ use crate::{
 	flac::blockread::{FlacBlock, FlacBlockReader, FlacBlockSelector},
 };
 use async_trait::async_trait;
+use copper_itemdb::client::base::client::ItemdbClient;
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
 	helpers::BytesSourceReader,
 	CopperContext, JobRunResult,
 };
-use copper_storage::database::base::client::StorageDatabaseClient;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
 use tokio::sync::mpsc;
@@ -21,12 +21,10 @@ pub struct ExtractTags {}
 // Inputs: "data" - Bytes
 // Outputs: variable, depends on tags
 #[async_trait]
-impl<StorageClient: StorageDatabaseClient>
-	Node<JobRunResult, PipeData, CopperContext<StorageClient>> for ExtractTags
-{
+impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for ExtractTags {
 	async fn run(
 		&self,
-		ctx: &CopperContext<StorageClient>,
+		ctx: &CopperContext<Itemdb>,
 		this_node: ThisNodeInfo,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,

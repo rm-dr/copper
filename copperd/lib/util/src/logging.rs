@@ -138,9 +138,8 @@ impl From<LoggingConfig> for EnvFilter {
 				format!("pipelined::pipeline::job={}", conf.job),
 				format!("pipelined={}", conf.pipelined),
 				// Node implementations
-				format!("pipelined_storaged={}", conf.nodes),
-				format!("pipelined_basic={}", conf.nodes),
-				format!("pipelined_audiofile={}", conf.nodes),
+				format!("nodes_basic={}", conf.nodes),
+				format!("nodes_audiofile={}", conf.nodes),
 				// // Edged
 				format!("edged={}", conf.edged),
 				conf.other.to_string(),

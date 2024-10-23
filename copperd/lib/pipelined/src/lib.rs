@@ -4,16 +4,14 @@ pub mod helpers;
 pub mod json;
 
 use base::{PipelineJobContext, PipelineJobResult, RunNodeError};
-use copper_storage::{
-	database::base::client::StorageDatabaseClient, transaction::Transaction, UserId,
-};
+use copper_itemdb::{client::base::client::ItemdbClient, transaction::Transaction, UserId};
 use copper_util::s3client::S3Client;
 use data::PipeData;
 use smartstring::{LazyCompact, SmartString};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub struct CopperContext<StorageClient: StorageDatabaseClient + 'static> {
+pub struct CopperContext<Itemdb: ItemdbClient + 'static> {
 	/// The fragment size, in bytes, in which we should read large blobs.
 	///
 	/// A larger value uses more memory, but increases performance
@@ -34,8 +32,8 @@ pub struct CopperContext<StorageClient: StorageDatabaseClient + 'static> {
 	/// actions in this pipeline.
 	pub run_by_user: UserId,
 
-	/// The storaged client this pipeline should use
-	pub storage_db_client: Arc<StorageClient>,
+	/// The itemdb client this runner should use
+	pub itemdb_client: Arc<Itemdb>,
 
 	/// The objectstore client this pipeline should use
 	pub objectstore_client: Arc<S3Client>,
@@ -55,8 +53,8 @@ pub struct JobRunResult {
 
 impl PipelineJobResult for JobRunResult {}
 
-impl<StorageClient: StorageDatabaseClient + 'static> PipelineJobContext<PipeData, JobRunResult>
-	for CopperContext<StorageClient>
+impl<Itemdb: ItemdbClient + 'static> PipelineJobContext<PipeData, JobRunResult>
+	for CopperContext<Itemdb>
 {
 	fn to_result(self) -> Result<JobRunResult, RunNodeError<PipeData>> {
 		let transaction = self.transaction.into_inner();

@@ -1,6 +1,14 @@
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::config::Credentials;
 use config::{PipelinedConfig, ASYNC_POLL_AWAIT_MS};
+use copper_itemdb::{
+	client::{
+		base::{client::ItemdbClient, errors::transaction::ApplyTransactionError},
+		postgres::{PgItemdbClient, PgItemdbOpenError},
+	},
+	transaction::Transaction,
+	AttrData,
+};
 use copper_jobqueue::{
 	base::{
 		client::JobQueueClient,
@@ -11,14 +19,6 @@ use copper_jobqueue::{
 use copper_pipelined::{
 	data::{BytesSource, PipeData},
 	CopperContext, JobRunResult,
-};
-use copper_storage::{
-	database::{
-		base::{client::StorageDatabaseClient, errors::transaction::ApplyTransactionError},
-		postgres::{PgStorageDatabaseClient, PgStorageDatabaseOpenError},
-	},
-	transaction::Transaction,
-	AttrData,
 };
 use copper_util::{load_env, s3client::S3Client, LoadedEnv};
 use pipeline::runner::{DoneJobState, PipelineRunner, StartJobError};
@@ -116,35 +116,34 @@ async fn main() {
 	};
 	trace!(message = "Successfully initialized job queue client");
 
-	trace!(message = "Connecting to storage db");
+	trace!(message = "Connecting to itemdb");
 	// Connect to database
-	let storage_db_client =
-		match PgStorageDatabaseClient::open(&config.pipelined_storage_db_addr, false).await {
-			Ok(db) => Arc::new(db),
-			Err(PgStorageDatabaseOpenError::Database(e)) => {
-				error!(message = "SQL error while opening storage database", err = ?e);
-				std::process::exit(1);
-			}
-			Err(PgStorageDatabaseOpenError::Migrate(e)) => {
-				error!(message = "Migration error while opening storage database", err = ?e);
-				std::process::exit(1);
-			}
-			Err(PgStorageDatabaseOpenError::NotMigrated) => {
-				error!(message = "Database not migrated");
-				std::process::exit(1);
-			}
-		};
-	trace!(message = "Successfully connected to storage db");
+	let itemdb_client = match PgItemdbClient::open(&config.pipelined_storage_db_addr, false).await {
+		Ok(db) => Arc::new(db),
+		Err(PgItemdbOpenError::Database(e)) => {
+			error!(message = "SQL error while opening item database", err = ?e);
+			std::process::exit(1);
+		}
+		Err(PgItemdbOpenError::Migrate(e)) => {
+			error!(message = "Migration error while opening item database", err = ?e);
+			std::process::exit(1);
+		}
+		Err(PgItemdbOpenError::NotMigrated) => {
+			error!(message = "Database not migrated");
+			std::process::exit(1);
+		}
+	};
+	trace!(message = "Successfully connected to itemdb");
 
 	//
 	// MARK: Prep runner
 	//
-	let mut runner: PipelineRunner<JobRunResult, PipeData, CopperContext<PgStorageDatabaseClient>> =
+	let mut runner: PipelineRunner<JobRunResult, PipeData, CopperContext<PgItemdbClient>> =
 		PipelineRunner::new();
 
 	{
 		// Base nodes
-		use pipelined_basic::register;
+		use nodes_basic::register;
 		match register(runner.mut_dispatcher()) {
 			Ok(()) => {}
 			Err(error) => {
@@ -159,24 +158,8 @@ async fn main() {
 	}
 
 	{
-		// Storaged nodes
-		use pipelined_storage::register;
-		match register(runner.mut_dispatcher()) {
-			Ok(()) => {}
-			Err(error) => {
-				error!(
-					message = "Could not register nodes",
-					module = "storaged",
-					?error
-				);
-				std::process::exit(1);
-			}
-		};
-	}
-
-	{
 		// Audiofile nodes
-		use pipelined_audiofile::nodes::register;
+		use nodes_audiofile::nodes::register;
 		match register(runner.mut_dispatcher()) {
 			Ok(()) => {}
 			Err(error) => {
@@ -200,10 +183,7 @@ async fn main() {
 					job_id = ?job_id
 				);
 
-				match storage_db_client
-					.apply_transaction(result.transaction)
-					.await
-				{
+				match itemdb_client.apply_transaction(result.transaction).await {
 					Ok(()) => {
 						info!(
 							message = "Transaction processed successfully",
@@ -342,7 +322,7 @@ async fn main() {
 						stream_channel_capacity: config.pipelined_stream_channel_size,
 						job_id: job.job_id.as_str().into(),
 						run_by_user: job.owned_by.clone(),
-						storage_db_client: storage_db_client.clone(),
+						itemdb_client: itemdb_client.clone(),
 						objectstore_blob_bucket: config
 							.pipelined_objectstore_bucket
 							.as_str()

@@ -4,7 +4,7 @@ path = "src/main.rs"
 
 [package]
 name = "pipelined"
-description = "Copper pipeline runner"
+description = "Copper's pipeline runner"
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }
@@ -24,11 +24,10 @@ workspace = true
 copper-util = { workspace = true }
 copper-pipelined = { workspace = true }
 copper-jobqueue = { workspace = true }
-copper-storage = { workspace = true }
+copper-itemdb = { workspace = true }
 # Node implementations
-pipelined-audiofile = { workspace = true }
-pipelined-storage = { workspace = true }
-pipelined-basic = { workspace = true }
+nodes-audiofile = { workspace = true }
+nodes-basic = { workspace = true }
 
 aws-sdk-s3 = { workspace = true }
 aws-config = { workspace = true }

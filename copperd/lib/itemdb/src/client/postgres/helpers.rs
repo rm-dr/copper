@@ -2,7 +2,7 @@ use itertools::Itertools;
 use sqlx::Row;
 
 use crate::{
-	database::base::errors::transaction::ApplyTransactionError, transaction::AddItemError,
+	client::base::errors::transaction::ApplyTransactionError, transaction::AddItemError,
 	AttrData, AttrDataStub, AttributeId, AttributeOptions, ClassId, ItemId,
 };
 

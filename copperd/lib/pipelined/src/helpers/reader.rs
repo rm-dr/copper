@@ -1,4 +1,4 @@
-use copper_storage::database::base::client::StorageDatabaseClient;
+use copper_itemdb::client::base::client::ItemdbClient;
 use copper_util::{s3client::S3Reader, MimeType};
 use std::sync::Arc;
 
@@ -22,8 +22,8 @@ pub enum BytesSourceReader {
 }
 
 impl BytesSourceReader {
-	pub async fn open<StorageClient: StorageDatabaseClient>(
-		ctx: &CopperContext<StorageClient>,
+	pub async fn open<Itemdb: ItemdbClient>(
+		ctx: &CopperContext<Itemdb>,
 		source: BytesSource,
 	) -> Result<Self, RunNodeError<PipeData>> {
 		return Ok(match source {

@@ -6,9 +6,7 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_storage::database::base::{
-	client::StorageDatabaseClient, errors::dataset::AddDatasetError,
-};
+use copper_itemdb::client::base::{client::ItemdbClient, errors::dataset::AddDatasetError};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::ToSchema;
@@ -30,9 +28,9 @@ pub(super) struct NewDatasetRequest {
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn add_dataset<Client: DatabaseClient, StorageClient: StorageDatabaseClient>(
+pub(super) async fn add_dataset<Client: DatabaseClient, Itemdb: ItemdbClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, StorageClient>>,
+	State(state): State<RouterState<Client, Itemdb>>,
 	Json(payload): Json<NewDatasetRequest>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {
@@ -41,7 +39,7 @@ pub(super) async fn add_dataset<Client: DatabaseClient, StorageClient: StorageDa
 	};
 
 	let res = state
-		.storage_db_client
+		.itemdb_client
 		.add_dataset(&payload.name, user.id)
 		.await;
 
@@ -61,7 +59,7 @@ pub(super) async fn add_dataset<Client: DatabaseClient, StorageClient: StorageDa
 		}
 
 		Err(AddDatasetError::DbError(error)) => {
-			error!(message = "Error in storage db client", ?error);
+			error!(message = "Error in itemdb client", ?error);
 			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};

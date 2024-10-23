@@ -5,8 +5,8 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
+use copper_itemdb::{client::base::client::ItemdbClient, AttrData};
 use copper_jobqueue::base::errors::AddJobError;
-use copper_storage::{database::base::client::StorageDatabaseClient, AttrData};
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
@@ -47,9 +47,9 @@ pub(super) struct RunPipelineRequest {
 		("bearer" = []),
 	)
 )]
-pub(super) async fn run_pipeline<Client: DatabaseClient, StorageClient: StorageDatabaseClient>(
+pub(super) async fn run_pipeline<Client: DatabaseClient, Itemdb: ItemdbClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, StorageClient>>,
+	State(state): State<RouterState<Client, Itemdb>>,
 	Path(pipeline_id): Path<i64>,
 	Json(payload): Json<RunPipelineRequest>,
 ) -> Response {

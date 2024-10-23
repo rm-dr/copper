@@ -9,7 +9,7 @@ mod migrate;
 
 #[derive(Debug)]
 /// An error we may encounter when connecting to postgres
-pub enum PgStorageDatabaseOpenError {
+pub enum PgItemdbOpenError {
 	/// We encountered an internal database error
 	Database(sqlx::Error),
 
@@ -21,7 +21,7 @@ pub enum PgStorageDatabaseOpenError {
 	NotMigrated,
 }
 
-impl Display for PgStorageDatabaseOpenError {
+impl Display for PgItemdbOpenError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::Database(_) => write!(f, "sql error"),
@@ -31,7 +31,7 @@ impl Display for PgStorageDatabaseOpenError {
 	}
 }
 
-impl Error for PgStorageDatabaseOpenError {
+impl Error for PgItemdbOpenError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match self {
 			Self::Database(e) => Some(e),
@@ -41,26 +41,26 @@ impl Error for PgStorageDatabaseOpenError {
 	}
 }
 
-impl From<sqlx::Error> for PgStorageDatabaseOpenError {
+impl From<sqlx::Error> for PgItemdbOpenError {
 	fn from(value: sqlx::Error) -> Self {
 		Self::Database(value)
 	}
 }
 
-impl From<MigrationError> for PgStorageDatabaseOpenError {
+impl From<MigrationError> for PgItemdbOpenError {
 	fn from(value: MigrationError) -> Self {
 		Self::Migrate(value)
 	}
 }
 
 /// A database client for postgres
-pub struct PgStorageDatabaseClient {
+pub struct PgItemdbClient {
 	pool: PgPool,
 }
 
-impl PgStorageDatabaseClient {
+impl PgItemdbClient {
 	/// Create a new [`LocalDataset`].
-	pub async fn open(db_addr: &str, migrate: bool) -> Result<Self, PgStorageDatabaseOpenError> {
+	pub async fn open(db_addr: &str, migrate: bool) -> Result<Self, PgItemdbOpenError> {
 		info!(message = "Opening dataset", ds_type = "postgres", ?db_addr);
 
 		// Apply migrations
@@ -68,12 +68,10 @@ impl PgStorageDatabaseClient {
 		let mut mig = Migrator::new(&mut conn, db_addr, migrate::MIGRATE_STEPS).await?;
 
 		if migrate {
-			mig.up()
-				.await
-				.map_err(PgStorageDatabaseOpenError::Migrate)?;
+			mig.up().await.map_err(PgItemdbOpenError::Migrate)?;
 		} else {
 			if !mig.is_up()? {
-				return Err(PgStorageDatabaseOpenError::NotMigrated);
+				return Err(PgItemdbOpenError::NotMigrated);
 			}
 		}
 

@@ -7,9 +7,7 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_storage::database::base::{
-	client::StorageDatabaseClient, errors::dataset::ListDatasetsError,
-};
+use copper_itemdb::client::base::{client::ItemdbClient, errors::dataset::ListDatasetsError};
 use tracing::error;
 
 /// Get dataset info
@@ -21,20 +19,20 @@ use tracing::error;
 		(status = 500, description = "Internal server error"),
 	),
 )]
-pub(super) async fn list_datasets<Client: DatabaseClient, StorageClient: StorageDatabaseClient>(
+pub(super) async fn list_datasets<Client: DatabaseClient, Itemdb: ItemdbClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, StorageClient>>,
+	State(state): State<RouterState<Client, Itemdb>>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {
 		Err(x) => return x,
 		Ok(user) => user,
 	};
 
-	return match state.storage_db_client.list_datasets(user.id).await {
+	return match state.itemdb_client.list_datasets(user.id).await {
 		Ok(x) => (StatusCode::OK, Json(x)).into_response(),
 
 		Err(ListDatasetsError::DbError(error)) => {
-			error!(message = "Error in storage db client", ?error);
+			error!(message = "Error in itemdb client", ?error);
 			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};

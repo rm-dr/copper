@@ -8,7 +8,7 @@ use axum_extra::extract::{
 	cookie::{Cookie, Expiration, SameSite},
 	CookieJar,
 };
-use copper_storage::database::base::client::StorageDatabaseClient;
+use copper_itemdb::client::base::client::ItemdbClient;
 use time::OffsetDateTime;
 use tracing::info;
 
@@ -25,9 +25,9 @@ use crate::{auth::AUTH_COOKIE_NAME, database::base::client::DatabaseClient};
 		(status = 500, description = "Internal server error", body = String),
 	),
 )]
-pub(super) async fn logout<Client: DatabaseClient, StorageClient: StorageDatabaseClient>(
+pub(super) async fn logout<Client: DatabaseClient, Itemdb: ItemdbClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, StorageClient>>,
+	State(state): State<RouterState<Client, Itemdb>>,
 ) -> Response {
 	info!(message = "Received logout request", cookies = ?jar);
 

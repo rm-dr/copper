@@ -6,7 +6,7 @@ use axum::{
 	Json,
 };
 use copper_edged::UserPassword;
-use copper_storage::database::base::client::StorageDatabaseClient;
+use copper_itemdb::client::base::client::ItemdbClient;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::ToSchema;
@@ -31,8 +31,8 @@ pub(super) struct NewUserRequest {
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn add_user<Client: DatabaseClient, StorageClient: StorageDatabaseClient>(
-	State(state): State<RouterState<Client, StorageClient>>,
+pub(super) async fn add_user<Client: DatabaseClient, Itemdb: ItemdbClient>(
+	State(state): State<RouterState<Client, Itemdb>>,
 	Json(payload): Json<NewUserRequest>,
 ) -> Response {
 	let password = UserPassword::new(&payload.password);

@@ -5,7 +5,7 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::cookie::{Cookie, SameSite};
-use copper_storage::database::base::client::StorageDatabaseClient;
+use copper_itemdb::client::base::client::ItemdbClient;
 use serde::Deserialize;
 use tracing::{error, info};
 use utoipa::ToSchema;
@@ -30,9 +30,9 @@ pub(super) struct LoginRequest {
 		(status = 500, description = "Internal server error", body=String),
 	),
 )]
-pub(super) async fn try_login<Client: DatabaseClient, StorageClient: StorageDatabaseClient>(
+pub(super) async fn try_login<Client: DatabaseClient, Itemdb: ItemdbClient>(
 	ConnectInfo(connect_info): ConnectInfo<CopperConnectInfo>,
-	State(state): State<RouterState<Client, StorageClient>>,
+	State(state): State<RouterState<Client, Itemdb>>,
 	Json(payload): Json<LoginRequest>,
 ) -> Response {
 	info!(

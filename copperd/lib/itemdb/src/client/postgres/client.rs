@@ -7,9 +7,9 @@ use async_trait::async_trait;
 use copper_util::names::check_name;
 use sqlx::{Connection, Row};
 
-use super::{helpers, PgStorageDatabaseClient};
-use crate::database::base::{
-	client::StorageDatabaseClient,
+use super::{helpers, PgItemdbClient};
+use crate::client::base::{
+	client::ItemdbClient,
 	errors::{
 		attribute::{
 			AddAttributeError, DeleteAttributeError, GetAttributeError, RenameAttributeError,
@@ -24,7 +24,7 @@ use crate::database::base::{
 };
 
 #[async_trait]
-impl StorageDatabaseClient for PgStorageDatabaseClient {
+impl ItemdbClient for PgItemdbClient {
 	//
 	// MARK: Dataset
 	//

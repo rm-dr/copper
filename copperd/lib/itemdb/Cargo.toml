@@ -1,6 +1,6 @@
 [package]
-name = "pipelined-storage"
-description = ""
+name = "copper-itemdb"
+description = "Copper's item database client"
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }
@@ -17,11 +17,14 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
-copper-pipelined = { workspace = true }
-copper-storage = { workspace = true }
+copper-util = { workspace = true }
+copper-migrate = { workspace = true }
 
 tracing = { workspace = true }
-tokio = { workspace = true }
-async-trait = { workspace = true }
 smartstring = { workspace = true }
-rand = { workspace = true }
+serde = { workspace = true }
+sqlx = { workspace = true }
+serde_json = { workspace = true }
+utoipa = { workspace = true }
+itertools = { workspace = true }
+async-trait = { workspace = true }

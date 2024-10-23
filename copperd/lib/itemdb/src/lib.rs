@@ -7,5 +7,5 @@ pub use info::*;
 mod id;
 pub use id::*;
 
-pub mod database;
+pub mod client;
 pub mod transaction;

@@ -17,7 +17,7 @@ use super::errors::{
 
 /// A generic database client
 #[async_trait]
-pub trait StorageDatabaseClient
+pub trait ItemdbClient
 where
 	Self: Send + Sync,
 {

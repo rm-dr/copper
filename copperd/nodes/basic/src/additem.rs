@@ -1,17 +1,17 @@
 use async_trait::async_trait;
+use copper_itemdb::{
+	client::base::{
+		client::ItemdbClient,
+		errors::{class::GetClassError, dataset::GetDatasetError},
+	},
+	transaction::{ResultOrDirect, TransactionAction},
+	AttrData, AttributeInfo, ClassInfo,
+};
 use copper_pipelined::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
 	helpers::BytesSourceReader,
 	CopperContext, JobRunResult,
-};
-use copper_storage::{
-	database::base::{
-		client::StorageDatabaseClient,
-		errors::{class::GetClassError, dataset::GetDatasetError},
-	},
-	transaction::{ResultOrDirect, TransactionAction},
-	AttrData, AttributeInfo, ClassInfo,
 };
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
@@ -24,12 +24,10 @@ pub struct AddItem {}
 // Inputs: depends on class
 // Outputs: None
 #[async_trait]
-impl<StorageClient: StorageDatabaseClient>
-	Node<JobRunResult, PipeData, CopperContext<StorageClient>> for AddItem
-{
+impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for AddItem {
 	async fn run(
 		&self,
-		ctx: &CopperContext<StorageClient>,
+		ctx: &CopperContext<Itemdb>,
 		this_node: ThisNodeInfo,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
@@ -41,16 +39,16 @@ impl<StorageClient: StorageDatabaseClient>
 		let class: ClassInfo = if let Some(value) = params.remove("class") {
 			match value {
 				NodeParameterValue::Integer(x) => ctx
-					.storage_db_client
+					.itemdb_client
 					.get_class(x.into())
 					.await
 					.map_err(|e| match e {
-					GetClassError::NotFound => RunNodeError::BadParameterOther {
-						parameter: "class".into(),
-						message: "this class doesn't exist".into(),
-					},
-					_ => RunNodeError::Other(Arc::new(e)),
-				})?,
+						GetClassError::NotFound => RunNodeError::BadParameterOther {
+							parameter: "class".into(),
+							message: "this class doesn't exist".into(),
+						},
+						_ => RunNodeError::Other(Arc::new(e)),
+					})?,
 
 				_ => {
 					return Err(RunNodeError::BadParameterType {
@@ -70,7 +68,7 @@ impl<StorageClient: StorageDatabaseClient>
 			match value {
 				NodeParameterValue::Integer(x) => {
 					let dataset =
-						ctx.storage_db_client
+						ctx.itemdb_client
 							.get_dataset(x.into())
 							.await
 							.map_err(|e| match e {

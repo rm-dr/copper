@@ -1,5 +1,5 @@
 [package]
-name = "pipelined-basic"
+name = "nodes-basic"
 description = ""
 categories = { workspace = true }
 keywords = { workspace = true }
@@ -19,8 +19,9 @@ workspace = true
 [dependencies]
 copper-util = { workspace = true }
 copper-pipelined = { workspace = true }
-copper-storage = { workspace = true }
+copper-itemdb = { workspace = true }
 
+rand = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }

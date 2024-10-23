@@ -1,5 +1,5 @@
 use copper_jobqueue::{base::client::JobQueueClient, info::QueuedJobState};
-use copper_storage::UserId;
+use copper_itemdb::UserId;
 use copper_util::{
 	s3client::{MultipartUpload, S3Client},
 	MimeType,

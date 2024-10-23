@@ -65,15 +65,14 @@ tabs_in_doc_comments = "allow"
 # Shared libraries
 copper-util = { path = "lib/util" }
 copper-migrate = { path = "lib/migrate" }
-copper-storage = { path = "lib/storage" }
+copper-itemdb = { path = "lib/itemdb" }
 copper-pipelined = { path = "lib/pipelined" }
 copper-edged = { path = "lib/edged" }
 copper-jobqueue = { path = "lib/jobqueue" }
 
 # Node implementations
-pipelined-basic = { path = "nodes/basic" }
-pipelined-storage = { path = "nodes/storage" }
-pipelined-audiofile = { path = "nodes/audiofile" }
+nodes-basic = { path = "nodes/basic" }
+nodes-audiofile = { path = "nodes/audiofile" }
 
 # Services
 # (the versions of these might matter A LOT)

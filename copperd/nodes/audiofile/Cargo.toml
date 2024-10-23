@@ -1,5 +1,5 @@
 [package]
-name = "pipelined-audiofile"
+name = "nodes-audiofile"
 description = "Audio metadata decoders"
 categories = { workspace = true }
 keywords = { workspace = true }
@@ -19,7 +19,7 @@ workspace = true
 [dependencies]
 copper-util = { workspace = true }
 copper-pipelined = { workspace = true }
-copper-storage = { workspace = true }
+copper-itemdb = { workspace = true }
 
 tracing = { workspace = true }
 smartstring = { workspace = true }
