@@ -17,6 +17,10 @@ pub enum PgJobQueueOpenError {
 
 	/// We encountered an error while migrating
 	Migrate(MigrationError),
+
+	/// We opened a database with `migrate = false`,
+	/// but this database has not been migrated.
+	NotMigrated,
 }
 
 impl Display for PgJobQueueOpenError {
@@ -24,6 +28,7 @@ impl Display for PgJobQueueOpenError {
 		match self {
 			Self::Database(_) => write!(f, "sql error"),
 			Self::Migrate(_) => write!(f, "migration error"),
+			Self::NotMigrated => write!(f, "database not migrated"),
 		}
 	}
 }
@@ -33,6 +38,7 @@ impl Error for PgJobQueueOpenError {
 		match self {
 			Self::Database(e) => Some(e),
 			Self::Migrate(e) => Some(e),
+			_ => None,
 		}
 	}
 }
@@ -56,7 +62,7 @@ pub struct PgJobQueueClient {
 
 impl PgJobQueueClient {
 	/// Create a new [`LocalDataset`].
-	pub async fn open(db_addr: &str) -> Result<Self, PgJobQueueOpenError> {
+	pub async fn open(db_addr: &str, migrate: bool) -> Result<Self, PgJobQueueOpenError> {
 		info!(
 			message = "Opening job queue",
 			queue_type = "postgres",
@@ -66,7 +72,14 @@ impl PgJobQueueClient {
 		// Apply migrations
 		let mut conn = PgConnection::connect(db_addr).await?;
 		let mut mig = Migrator::new(&mut conn, db_addr, migrate::MIGRATE_STEPS).await?;
-		mig.up().await.map_err(PgJobQueueOpenError::Migrate)?;
+
+		if migrate {
+			mig.up().await.map_err(PgJobQueueOpenError::Migrate)?;
+		} else {
+			if !mig.is_up()? {
+				return Err(PgJobQueueOpenError::NotMigrated);
+			}
+		}
 
 		drop(mig);
 		drop(conn);

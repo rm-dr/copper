@@ -18,6 +18,23 @@ pub struct PipelinedConfig {
 	#[serde(default)]
 	pub pipelined_loglevel: LoggingPreset,
 
+	/// Object store key id
+	pub pipelined_objectstore_key_id: String,
+	/// Object store secret
+	pub pipelined_objectstore_key_secret: String,
+	/// Object store url
+	pub pipelined_objectstore_url: String,
+	/// Object store bucket
+	pub pipelined_objectstore_bucket: String,
+
+	/// The address of the item db this pipeline runner should use
+	/// Looks like `postgres://user:pass@host/database`
+	pub pipelined_itemdb_addr: String,
+
+	/// The address of the jobqueue this pipeline runner should use
+	/// Looks like `postgres://user:pass@host/database`
+	pub pipelined_jobqueue_addr: String,
+
 	/// The maximum size, in bytes, of a binary fragment in the pipeline.
 	/// Smaller values slow down pipelines; larger values use more memory.
 	#[serde(default = "PipelinedConfig::default_frag_size")]
@@ -33,19 +50,6 @@ pub struct PipelinedConfig {
 	/// How many pipeline jobs to run at once
 	#[serde(default = "PipelinedConfig::default_max_running_jobs")]
 	pub pipelined_max_running_jobs: usize,
-
-	pub pipelined_storage_db_addr: String,
-
-	/// Object store key id
-	pub pipelined_objectstore_key_id: String,
-	/// Object store secret
-	pub pipelined_objectstore_key_secret: String,
-	/// Object store url
-	pub pipelined_objectstore_url: String,
-	/// Object store bucket
-	pub pipelined_objectstore_bucket: String,
-
-	pub pipelined_jobqueue_db: String,
 }
 
 impl PipelinedConfig {

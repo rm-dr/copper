@@ -47,7 +47,6 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /certs/ca-certificates.cr
 ARG builder_source="/copperd/target/x86_64-unknown-linux-musl/release"
 COPY --from=builder \
 	${builder_source}/pipelined \
-	${builder_source}/storaged \
 	${builder_source}/edged \
 	/
 
@@ -58,25 +57,7 @@ COPY --from=builder \
 
 # These vars are only used for substitutions.
 ENV SERVER_ADDR "80"
-ENV PIPELINED_PORT "1000"
-ENV STORAGED_PORT "2000"
 EXPOSE 80/tcp
-
-# Users should not modify any variables below.
 ENV EDGED_SERVER_ADDR "0.0.0.0:${SERVER_ADDR}"
-# These are bad secrets, but it's ok:
-# pipelined and storaged are bound to 127.0.0.1,
-# and thus only receive local connections.
-ENV PIPELINED_SERVER_ADDR "127.0.0.1:${PIPELINED_PORT}"
-ENV PIPELINED_SECRET "pipelined_secret"
-ENV STORAGED_SERVER_ADDR "127.0.0.1:${STORAGED_PORT}"
-ENV STORAGED_SECRET "storaged_secret"
 
-ENV EDGED_STORAGED_ADDR "http://127.0.0.1:${STORAGED_PORT}"
-ENV EDGED_STORAGED_SECRET "${STORAGED_SECRET}"
-ENV EDGED_PIPELINED_ADDR "http://127.0.0.1:${PIPELINED_PORT}"
-ENV EDGED_PIPELINED_SECRET "${PIPELINED_SECRET}"
-ENV PIPELINED_STORAGED_ADDR "http://127.0.0.1:${STORAGED_PORT}"
-ENV PIPELINED_STORAGED_SECRET "${STORAGED_SECRET}"
-
-ENTRYPOINT ["/bin/sh", "-c", "./pipelined & ./storaged & ./edged"]
+ENTRYPOINT ["/bin/sh", "-c", "./pipelined & ./edged"]

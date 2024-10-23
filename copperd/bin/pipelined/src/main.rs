@@ -103,7 +103,8 @@ async fn main() {
 	}
 
 	trace!(message = "Initializing job queue client");
-	let jobqueue_client = match PgJobQueueClient::open(&config.pipelined_jobqueue_db).await {
+	let jobqueue_client = match PgJobQueueClient::open(&config.pipelined_jobqueue_addr, false).await
+	{
 		Ok(db) => Arc::new(db),
 		Err(PgJobQueueOpenError::Database(e)) => {
 			error!(message = "SQL error while opening job queue database", err = ?e);
@@ -113,12 +114,16 @@ async fn main() {
 			error!(message = "Migration error while opening job queue database", err = ?e);
 			std::process::exit(1);
 		}
+		Err(PgJobQueueOpenError::NotMigrated) => {
+			error!(message = "Database not migrated");
+			std::process::exit(1);
+		}
 	};
 	trace!(message = "Successfully initialized job queue client");
 
 	trace!(message = "Connecting to itemdb");
 	// Connect to database
-	let itemdb_client = match PgItemdbClient::open(&config.pipelined_storage_db_addr, false).await {
+	let itemdb_client = match PgItemdbClient::open(&config.pipelined_itemdb_addr, false).await {
 		Ok(db) => Arc::new(db),
 		Err(PgItemdbOpenError::Database(e)) => {
 			error!(message = "SQL error while opening item database", err = ?e);

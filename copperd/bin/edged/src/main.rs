@@ -26,7 +26,7 @@ mod uploader;
 
 async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> Router {
 	// Connect to database
-	let db = match PgDatabaseClient::open(&config.edged_db_addr).await {
+	let db = match PgDatabaseClient::open(&config.edged_userdb_addr).await {
 		Ok(db) => db,
 		Err(PgDatabaseOpenError::Database(e)) => {
 			error!(message = "SQL error while opening database", err = ?e);
@@ -40,7 +40,7 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 
 	trace!(message = "Connecting to itemdb");
 	// Connect to database
-	let itemdb_client = match PgItemdbClient::open(&config.edged_storage_db_addr, true).await {
+	let itemdb_client = match PgItemdbClient::open(&config.edged_itemdb_addr, true).await {
 		Ok(db) => Arc::new(db),
 		Err(PgItemdbOpenError::Database(e)) => {
 			error!(message = "SQL error while opening item database", err = ?e);
@@ -57,7 +57,7 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 	trace!(message = "Successfully connected to itemdb");
 
 	trace!(message = "Initializing job queue client");
-	let jobqueue_client = match PgJobQueueClient::open(&config.edged_jobqueue_db).await {
+	let jobqueue_client = match PgJobQueueClient::open(&config.edged_jobqueue_addr, true).await {
 		Ok(db) => Arc::new(db),
 		Err(PgJobQueueOpenError::Database(e)) => {
 			error!(message = "SQL error while opening job queue database", err = ?e);
@@ -67,6 +67,7 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 			error!(message = "Migration error while opening job queue database", err = ?e);
 			std::process::exit(1);
 		}
+		Err(PgJobQueueOpenError::NotMigrated) => unreachable!(),
 	};
 	trace!(message = "Successfully initialized job queue client");
 
