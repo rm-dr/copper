@@ -7,7 +7,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use copper_itemdb::client::base::client::ItemdbClient;
-use copper_pipelined::json::PipelineJson;
+use copper_piper::json::PipelineJson;
 use serde::Deserialize;
 use tracing::error;
 use utoipa::ToSchema;

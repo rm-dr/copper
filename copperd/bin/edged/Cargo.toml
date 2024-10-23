@@ -25,7 +25,7 @@ copper-util = { workspace = true }
 copper-migrate = { workspace = true }
 copper-edged = { workspace = true }
 copper-itemdb = { workspace = true }
-copper-pipelined = { workspace = true }
+copper-piper = { workspace = true }
 copper-jobqueue = { workspace = true }
 
 aws-sdk-s3 = { workspace = true }

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
-use copper_pipelined::json::PipelineJson;
+use copper_piper::json::PipelineJson;
 use copper_itemdb::{AttrData, UserId};
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{

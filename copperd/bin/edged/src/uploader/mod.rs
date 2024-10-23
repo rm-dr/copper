@@ -1,5 +1,5 @@
-use copper_jobqueue::{base::client::JobQueueClient, info::QueuedJobState};
 use copper_itemdb::UserId;
+use copper_jobqueue::{base::client::JobQueueClient, info::QueuedJobState};
 use copper_util::{
 	s3client::{MultipartUpload, S3Client},
 	MimeType,
@@ -163,9 +163,7 @@ impl Uploader {
 
 				UploadJobState::Assigned { pipeline_job, .. } => {
 					// Apply a timeout even to assigned jobs, so that we
-					// need fewer api calls, and to prevent errors caused
-					// by a race condition
-					// (a job is assigned to a pipeline that isn't returned by pipelined)
+					// need fewer db hits, and to prevent errors caused by a race condition
 					if j.last_activity + offset > now {
 						reason = "UNREACHABLE";
 						false

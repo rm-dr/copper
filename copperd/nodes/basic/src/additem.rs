@@ -7,7 +7,7 @@ use copper_itemdb::{
 	transaction::{ResultOrDirect, TransactionAction},
 	AttrData, AttributeInfo, ClassInfo,
 };
-use copper_pipelined::{
+use copper_piper::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
 	helpers::BytesSourceReader,

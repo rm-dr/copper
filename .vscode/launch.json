@@ -4,8 +4,8 @@
 		{
 			"type": "lldb",
 			"request": "launch",
-			"name": "Debug pipelined",
-			"program": "${workspaceRoot}/copperd/target/debug/pipelined",
+			"name": "Debug piper",
+			"program": "${workspaceRoot}/copperd/target/debug/piper",
 			"args": [],
 			"cwd": "${workspaceRoot}/copperd/",
 			"sourceLanguages": ["rust"]

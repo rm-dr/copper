@@ -168,7 +168,7 @@ async fn main() {
 		&config.edged_objectstore_key_secret,
 		None,
 		None,
-		"pipelined .env",
+		"edged .env",
 	);
 
 	// Config for minio

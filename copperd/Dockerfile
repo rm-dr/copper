@@ -46,7 +46,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /certs/ca-certificates.cr
 
 ARG builder_source="/copperd/target/x86_64-unknown-linux-musl/release"
 COPY --from=builder \
-	${builder_source}/pipelined \
+	${builder_source}/piper \
 	${builder_source}/edged \
 	/
 
@@ -60,4 +60,4 @@ ENV SERVER_ADDR "80"
 EXPOSE 80/tcp
 ENV EDGED_SERVER_ADDR "0.0.0.0:${SERVER_ADDR}"
 
-ENTRYPOINT ["/bin/sh", "-c", "./pipelined & ./edged"]
+ENTRYPOINT ["/bin/sh", "-c", "./piper & ./edged"]

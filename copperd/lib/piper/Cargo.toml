@@ -1,5 +1,5 @@
 [package]
-name = "copper-pipelined"
+name = "copper-piper"
 description = "Utilities for Copper's pipeline runner"
 categories = { workspace = true }
 keywords = { workspace = true }

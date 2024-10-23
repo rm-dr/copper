@@ -52,7 +52,7 @@ impl LoggingPreset {
 				http: LogLevel::Warn,
 				s3: LogLevel::Warn,
 
-				pipelined: LogLevel::Info,
+				piper: LogLevel::Info,
 				runner: LogLevel::Info,
 				job: LogLevel::Info,
 				nodes: LogLevel::Warn,
@@ -65,7 +65,7 @@ impl LoggingPreset {
 				http: LogLevel::Warn,
 				s3: LogLevel::Warn,
 
-				pipelined: LogLevel::Debug,
+				piper: LogLevel::Debug,
 				runner: LogLevel::Debug,
 				job: LogLevel::Debug,
 				nodes: LogLevel::Warn,
@@ -78,7 +78,7 @@ impl LoggingPreset {
 				http: LogLevel::Warn,
 				s3: LogLevel::Warn,
 
-				pipelined: LogLevel::Trace,
+				piper: LogLevel::Trace,
 				runner: LogLevel::Trace,
 				job: LogLevel::Debug,
 				nodes: LogLevel::Warn,
@@ -91,7 +91,7 @@ impl LoggingPreset {
 				http: LogLevel::Warn,
 				s3: LogLevel::Warn,
 
-				pipelined: LogLevel::Trace,
+				piper: LogLevel::Trace,
 				runner: LogLevel::Trace,
 				job: LogLevel::Trace,
 				nodes: LogLevel::Trace,
@@ -107,7 +107,7 @@ pub struct LoggingConfig {
 	http: LogLevel,
 	s3: LogLevel,
 
-	pipelined: LogLevel,
+	piper: LogLevel,
 	runner: LogLevel,
 	job: LogLevel,
 	nodes: LogLevel,
@@ -133,10 +133,10 @@ impl From<LoggingConfig> for EnvFilter {
 				//
 				format!("tower_http={}", conf.http),
 				format!("s3={}", conf.s3),
-				// // Pipelined
-				format!("pipelined::pipeline::runner={}", conf.runner),
-				format!("pipelined::pipeline::job={}", conf.job),
-				format!("pipelined={}", conf.pipelined),
+				// // Piper
+				format!("piper::pipeline::runner={}", conf.runner),
+				format!("piper::pipeline::job={}", conf.job),
+				format!("piper={}", conf.piper),
 				// Node implementations
 				format!("nodes_basic={}", conf.nodes),
 				format!("nodes_audiofile={}", conf.nodes),

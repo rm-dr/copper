@@ -750,7 +750,7 @@ version = "0.1.0"
 dependencies = [
  "argon2",
  "copper-itemdb",
- "copper-pipelined",
+ "copper-piper",
  "serde",
  "smartstring",
  "utoipa",
@@ -779,7 +779,7 @@ dependencies = [
  "async-trait",
  "copper-itemdb",
  "copper-migrate",
- "copper-pipelined",
+ "copper-piper",
  "serde",
  "serde_json",
  "smartstring",
@@ -803,7 +803,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "copper-pipelined"
+name = "copper-piper"
 version = "0.1.0"
 dependencies = [
  "async-broadcast",
@@ -1074,7 +1074,7 @@ dependencies = [
  "copper-itemdb",
  "copper-jobqueue",
  "copper-migrate",
- "copper-pipelined",
+ "copper-piper",
  "copper-util",
  "rand",
  "serde",
@@ -1875,7 +1875,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "copper-itemdb",
- "copper-pipelined",
+ "copper-piper",
  "copper-util",
  "itertools",
  "paste",
@@ -1893,7 +1893,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "copper-itemdb",
- "copper-pipelined",
+ "copper-piper",
  "copper-util",
  "md5",
  "rand",
@@ -2165,14 +2165,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
-name = "pipelined"
+name = "piper"
 version = "0.1.0"
 dependencies = [
  "aws-config",
  "aws-sdk-s3",
  "copper-itemdb",
  "copper-jobqueue",
- "copper-pipelined",
+ "copper-piper",
  "copper-util",
  "nodes-audiofile",
  "nodes-basic",

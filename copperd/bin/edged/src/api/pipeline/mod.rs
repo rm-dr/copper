@@ -6,7 +6,7 @@ use axum::{
 };
 use copper_edged::PipelineInfo;
 use copper_itemdb::client::base::client::ItemdbClient;
-use copper_pipelined::{
+use copper_piper::{
 	base::NodeParameterValue,
 	json::{EdgeJson, InputPort, NodeJson, NodeJsonPosition, OutputPort, PipelineJson},
 };

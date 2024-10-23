@@ -13,46 +13,46 @@ pub const ASYNC_POLL_AWAIT_MS: u64 = 1000;
 /// Note that the field of this struct are not capitalized.
 /// Envy is case-insensitive, and expects Rust fields to be snake_case.
 #[derive(Debug, Deserialize, Clone)]
-pub struct PipelinedConfig {
+pub struct PiperConfig {
 	/// The logging level to run with
 	#[serde(default)]
-	pub pipelined_loglevel: LoggingPreset,
+	pub piper_loglevel: LoggingPreset,
 
 	/// Object store key id
-	pub pipelined_objectstore_key_id: String,
+	pub piper_objectstore_key_id: String,
 	/// Object store secret
-	pub pipelined_objectstore_key_secret: String,
+	pub piper_objectstore_key_secret: String,
 	/// Object store url
-	pub pipelined_objectstore_url: String,
+	pub piper_objectstore_url: String,
 	/// Object store bucket
-	pub pipelined_objectstore_bucket: String,
+	pub piper_objectstore_bucket: String,
 
 	/// The address of the item db this pipeline runner should use
 	/// Looks like `postgres://user:pass@host/database`
-	pub pipelined_itemdb_addr: String,
+	pub piper_itemdb_addr: String,
 
 	/// The address of the jobqueue this pipeline runner should use
 	/// Looks like `postgres://user:pass@host/database`
-	pub pipelined_jobqueue_addr: String,
+	pub piper_jobqueue_addr: String,
 
 	/// The maximum size, in bytes, of a binary fragment in the pipeline.
 	/// Smaller values slow down pipelines; larger values use more memory.
-	#[serde(default = "PipelinedConfig::default_frag_size")]
-	pub pipelined_blob_fragment_size: usize,
+	#[serde(default = "PiperConfig::default_frag_size")]
+	pub piper_blob_fragment_size: usize,
 
 	/// The message capacity of binary stream channels.
 	///
 	/// Smaller values increase the probability of pipeline runs failing due to an
 	/// overflowing channel, larger values use more memory.
-	#[serde(default = "PipelinedConfig::default_channel_size")]
-	pub pipelined_stream_channel_size: usize,
+	#[serde(default = "PiperConfig::default_channel_size")]
+	pub piper_stream_channel_size: usize,
 
 	/// How many pipeline jobs to run at once
-	#[serde(default = "PipelinedConfig::default_max_running_jobs")]
-	pub pipelined_max_running_jobs: usize,
+	#[serde(default = "PiperConfig::default_max_running_jobs")]
+	pub piper_max_running_jobs: usize,
 }
 
-impl PipelinedConfig {
+impl PiperConfig {
 	fn default_frag_size() -> usize {
 		10_000_000
 	}

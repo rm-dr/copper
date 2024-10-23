@@ -52,21 +52,21 @@ services:
       - "EDGED_INIT_USER_PASS=admin"
 
       # Required edged configuration
-      - "EDGED_USERDB_ADDR=postgres://edged:edged@localhost/edged"
-      - "EDGED_JOBQUEUE_ADDR=postgres://edged:edged@localhost/jobqueue"
-      - "EDGED_ITEMDB_ADDR=postgres://edged:edged@localhost/itemdb"
+      - "EDGED_USERDB_ADDR=postgres://admin:admin@localhost/edged"
+      - "EDGED_JOBQUEUE_ADDR=postgres://admin:admin@localhost/jobqueue"
+      - "EDGED_ITEMDB_ADDR=postgres://admin:admin@localhost/itemdb"
       - "EDGED_OBJECTSTORE_KEY_ID=admin"
       - "EDGED_OBJECTSTORE_KEY_SECRET=password"
       - "EDGED_OBJECTSTORE_URL=http://copper-minio:9000"
       - "EDGED_OBJECTSTORE_UPLOAD_BUCKET=copper-upload"
 
-      # Required pipelined configuration
-      - "PIPELINED_JOBQUEUE_ADDR=postgres://pipelined:pipelined@localhost/jobqueue"
-      - "PIPELINED_ITEMDB_ADDR=postgres://pipelined:pipelined@localhost/itemdb"
-      - "PIPELINED_OBJECTSTORE_KEY_ID=admin"
-      - "PIPELINED_OBJECTSTORE_KEY_SECRET=password"
-      - "PIPELINED_OBJECTSTORE_URL=http://copper-minio:9000"
-      - "PIPELINED_OBJECTSTORE_BUCKET=copper-blobs"
+      # Required piper configuration
+      - "PIPER_JOBQUEUE_ADDR=postgres://admin:admin@localhost/jobqueue"
+      - "PIPER_ITEMDB_ADDR=postgres://admin:admin@localhost/itemdb"
+      - "PIPER_OBJECTSTORE_KEY_ID=admin"
+      - "PIPER_OBJECTSTORE_KEY_SECRET=password"
+      - "PIPER_OBJECTSTORE_URL=http://copper-minio:9000"
+      - "PIPER_OBJECTSTORE_BUCKET=copper-blobs"
 
   copperc:
     image: copperc

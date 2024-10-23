@@ -1,5 +1,5 @@
 use copper_jobqueue::id::QueuedJobId;
-use copper_pipelined::{
+use copper_piper::{
 	base::{NodeDispatcher, PipelineData, PipelineJobContext, PipelineJobResult, RunNodeError},
 	json::PipelineJson,
 };

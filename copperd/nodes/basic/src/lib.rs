@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use copper_itemdb::client::base::client::ItemdbClient;
-use copper_pipelined::{
+use copper_piper::{
 	base::{NodeDispatcher, RegisterNodeError},
 	data::PipeData,
 	CopperContext, JobRunResult,

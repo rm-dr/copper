@@ -1,6 +1,6 @@
 //! Helper structs that contain database element properties
 
-use copper_pipelined::json::PipelineJson;
+use copper_piper::json::PipelineJson;
 use copper_itemdb::{AttrData, UserId};
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};

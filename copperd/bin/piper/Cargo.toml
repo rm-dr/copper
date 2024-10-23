@@ -1,9 +1,9 @@
 [[bin]]
-name = "pipelined"
+name = "piper"
 path = "src/main.rs"
 
 [package]
-name = "pipelined"
+name = "piper"
 description = "Copper's pipeline runner"
 categories = { workspace = true }
 keywords = { workspace = true }
@@ -22,7 +22,7 @@ workspace = true
 
 [dependencies]
 copper-util = { workspace = true }
-copper-pipelined = { workspace = true }
+copper-piper = { workspace = true }
 copper-jobqueue = { workspace = true }
 copper-itemdb = { workspace = true }
 # Node implementations

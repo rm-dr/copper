@@ -1,6 +1,6 @@
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::config::Credentials;
-use config::{PipelinedConfig, ASYNC_POLL_AWAIT_MS};
+use config::{PiperConfig, ASYNC_POLL_AWAIT_MS};
 use copper_itemdb::{
 	client::{
 		base::{client::ItemdbClient, errors::transaction::ApplyTransactionError},
@@ -16,7 +16,7 @@ use copper_jobqueue::{
 	},
 	postgres::{PgJobQueueClient, PgJobQueueOpenError},
 };
-use copper_pipelined::{
+use copper_piper::{
 	data::{BytesSource, PipeData},
 	CopperContext, JobRunResult,
 };
@@ -33,7 +33,7 @@ mod pipeline;
 // #[tokio::main(flavor = "current_thread")]
 #[tokio::main]
 async fn main() {
-	let config_res = match load_env::<PipelinedConfig>() {
+	let config_res = match load_env::<PiperConfig>() {
 		Ok(x) => x,
 		Err(err) => {
 			println!("Error while loading .env: {err}");
@@ -41,10 +41,10 @@ async fn main() {
 		}
 	};
 
-	let config: Arc<PipelinedConfig> = Arc::new(config_res.get_config().clone());
+	let config: Arc<PiperConfig> = Arc::new(config_res.get_config().clone());
 
 	tracing_subscriber::fmt()
-		.with_env_filter(config.pipelined_loglevel.get_config())
+		.with_env_filter(config.piper_loglevel.get_config())
 		.without_time()
 		.with_ansi(true)
 		.init();
@@ -63,17 +63,17 @@ async fn main() {
 	};
 
 	let cred = Credentials::new(
-		&config.pipelined_objectstore_key_id,
-		&config.pipelined_objectstore_key_secret,
+		&config.piper_objectstore_key_id,
+		&config.piper_objectstore_key_secret,
 		None,
 		None,
-		"pipelined .env",
+		"piper .env",
 	);
 
 	// Config for minio
 	let s3_config = aws_sdk_s3::config::Builder::new()
 		.behavior_version(BehaviorVersion::v2024_03_28())
-		.endpoint_url(&config.pipelined_objectstore_url)
+		.endpoint_url(&config.piper_objectstore_url)
 		.credentials_provider(cred)
 		.region(Region::new("us-west"))
 		.force_path_style(true)
@@ -82,29 +82,25 @@ async fn main() {
 	let client = Arc::new(S3Client::new(aws_sdk_s3::Client::from_conf(s3_config)).await);
 
 	// Create blobstore bucket if it doesn't exist
-	match client
-		.create_bucket(&config.pipelined_objectstore_bucket)
-		.await
-	{
+	match client.create_bucket(&config.piper_objectstore_bucket).await {
 		Ok(false) => {}
 		Ok(true) => {
 			info!(
 				message = "Created storage bucket because it didn't exist",
-				bucket = config.pipelined_objectstore_bucket
+				bucket = config.piper_objectstore_bucket
 			);
 		}
 		Err(error) => {
 			error!(
 				message = "Error while creating storage bucket",
-				bucket = config.pipelined_objectstore_bucket,
+				bucket = config.piper_objectstore_bucket,
 				?error
 			);
 		}
 	}
 
 	trace!(message = "Initializing job queue client");
-	let jobqueue_client = match PgJobQueueClient::open(&config.pipelined_jobqueue_addr, false).await
-	{
+	let jobqueue_client = match PgJobQueueClient::open(&config.piper_jobqueue_addr, false).await {
 		Ok(db) => Arc::new(db),
 		Err(PgJobQueueOpenError::Database(e)) => {
 			error!(message = "SQL error while opening job queue database", err = ?e);
@@ -123,7 +119,7 @@ async fn main() {
 
 	trace!(message = "Connecting to itemdb");
 	// Connect to database
-	let itemdb_client = match PgItemdbClient::open(&config.pipelined_itemdb_addr, false).await {
+	let itemdb_client = match PgItemdbClient::open(&config.piper_itemdb_addr, false).await {
 		Ok(db) => Arc::new(db),
 		Err(PgItemdbOpenError::Database(e)) => {
 			error!(message = "SQL error while opening item database", err = ?e);
@@ -294,7 +290,7 @@ async fn main() {
 			}
 		}
 
-		if runner.n_running_jobs() < config.pipelined_max_running_jobs {
+		if runner.n_running_jobs() < config.piper_max_running_jobs {
 			// Run the oldest job off the queue
 			let next = match jobqueue_client.get_queued_job().await {
 				Ok(x) => x,
@@ -323,15 +319,12 @@ async fn main() {
 
 				let res = runner.start_job(
 					CopperContext {
-						blob_fragment_size: config.pipelined_blob_fragment_size,
-						stream_channel_capacity: config.pipelined_stream_channel_size,
+						blob_fragment_size: config.piper_blob_fragment_size,
+						stream_channel_capacity: config.piper_stream_channel_size,
 						job_id: job.job_id.as_str().into(),
 						run_by_user: job.owned_by.clone(),
 						itemdb_client: itemdb_client.clone(),
-						objectstore_blob_bucket: config
-							.pipelined_objectstore_bucket
-							.as_str()
-							.into(),
+						objectstore_blob_bucket: config.piper_objectstore_bucket.as_str().into(),
 						objectstore_client: client.clone(),
 						transaction: Mutex::new(Transaction::new()),
 					},

@@ -4,7 +4,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use copper_itemdb::client::base::client::ItemdbClient;
-use copper_pipelined::{
+use copper_piper::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
 	helpers::BytesSourceReader,
