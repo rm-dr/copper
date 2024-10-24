@@ -100,38 +100,42 @@ async fn main() {
 	}
 
 	trace!(message = "Initializing job queue client");
-	let jobqueue_client = match PgJobQueueClient::open(&config.piper_jobqueue_addr, false).await {
-		Ok(db) => Arc::new(db),
-		Err(PgJobQueueOpenError::Database(e)) => {
-			error!(message = "SQL error while opening job queue database", err = ?e);
-			std::process::exit(1);
-		}
-		Err(PgJobQueueOpenError::Migrate(e)) => {
-			error!(message = "Migration error while opening job queue database", err = ?e);
-			std::process::exit(1);
-		}
-		Err(PgJobQueueOpenError::NotMigrated) => {
-			error!(message = "Database not migrated");
-			std::process::exit(1);
-		}
+	let jobqueue_client = loop {
+		match PgJobQueueClient::open(&config.piper_jobqueue_addr, false).await {
+			Ok(db) => break Arc::new(db),
+			Err(PgJobQueueOpenError::Database(e)) => {
+				error!(message = "SQL error while opening job queue database", err = ?e);
+				std::process::exit(1);
+			}
+			Err(PgJobQueueOpenError::Migrate(e)) => {
+				error!(message = "Migration error while opening job queue database", err = ?e);
+				std::process::exit(1);
+			}
+			Err(PgJobQueueOpenError::NotMigrated) => {
+				error!(message = "Database not migrated, waiting");
+				tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+			}
+		};
 	};
 	trace!(message = "Successfully initialized job queue client");
 
 	trace!(message = "Connecting to itemdb");
 	// Connect to database
-	let itemdb_client = match PgItemdbClient::open(&config.piper_itemdb_addr, false).await {
-		Ok(db) => Arc::new(db),
-		Err(PgItemdbOpenError::Database(e)) => {
-			error!(message = "SQL error while opening item database", err = ?e);
-			std::process::exit(1);
-		}
-		Err(PgItemdbOpenError::Migrate(e)) => {
-			error!(message = "Migration error while opening item database", err = ?e);
-			std::process::exit(1);
-		}
-		Err(PgItemdbOpenError::NotMigrated) => {
-			error!(message = "Database not migrated");
-			std::process::exit(1);
+	let itemdb_client = loop {
+		match PgItemdbClient::open(&config.piper_itemdb_addr, false).await {
+			Ok(db) => break Arc::new(db),
+			Err(PgItemdbOpenError::Database(e)) => {
+				error!(message = "SQL error while opening item database", err = ?e);
+				std::process::exit(1);
+			}
+			Err(PgItemdbOpenError::Migrate(e)) => {
+				error!(message = "Migration error while opening item database", err = ?e);
+				std::process::exit(1);
+			}
+			Err(PgItemdbOpenError::NotMigrated) => {
+				error!(message = "Database not migrated, waiting");
+				tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+			}
 		}
 	};
 	trace!(message = "Successfully connected to itemdb");
