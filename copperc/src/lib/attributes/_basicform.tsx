@@ -130,12 +130,14 @@ export function AttrCommonOptions(params: {
 			<Switch
 				label="Unique"
 				key={params.form.key("is_unique")}
+				disabled={params.isLoading}
 				{...params.form.getInputProps("is_unique")}
 			/>
 
 			<Switch
 				label="Not null"
 				key={params.form.key("is_not_null")}
+				disabled={params.isLoading}
 				{...params.form.getInputProps("is_not_null")}
 			/>
 		</>
