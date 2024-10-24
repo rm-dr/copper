@@ -576,7 +576,10 @@ impl ItemdbClient for PgItemdbClient {
 
 					let res = match helpers::add_item(&mut t, to_class, resolved_attributes).await {
 						Ok(x) => x,
-						Err(x) => return Err(x.into()),
+						Err(x) => {
+							t.rollback().await?;
+							return Err(x.into());
+						}
 					};
 
 					transaction_results.push(Some(AttrData::Reference {
