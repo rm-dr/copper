@@ -8,6 +8,7 @@ use axum::{
 	response::{IntoResponse, Response},
 };
 use axum_extra::extract::CookieJar;
+use copper_itemdb::client::base::client::ItemdbClient;
 use tracing::error;
 
 /// List the logged in user's pipelines
@@ -20,9 +21,9 @@ use tracing::error;
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn list_pipelines<Client: DatabaseClient>(
+pub(super) async fn list_pipelines<Client: DatabaseClient, Itemdb: ItemdbClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client>>,
+	State(state): State<RouterState<Client, Itemdb>>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {
 		Err(x) => return x,

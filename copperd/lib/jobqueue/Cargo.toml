@@ -1,0 +1,31 @@
+[package]
+name = "copper-jobqueue"
+description = "Job queue client for Copper"
+categories = { workspace = true }
+keywords = { workspace = true }
+version = { workspace = true }
+rust-version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+copper-migrate = { workspace = true }
+copper-piper = { workspace = true }
+copper-itemdb = { workspace = true }
+
+smartstring = { workspace = true }
+serde = { workspace = true }
+utoipa = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+sqlx = { workspace = true }
+time = { workspace = true }
+async-trait = { workspace = true }

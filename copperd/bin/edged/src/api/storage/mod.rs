@@ -1,6 +1,7 @@
 use crate::database::base::client::DatabaseClient;
 use crate::RouterState;
 use axum::{routing::post, Router};
+use copper_itemdb::client::base::client::ItemdbClient;
 use utoipa::OpenApi;
 
 mod finish_upload;
@@ -19,7 +20,8 @@ use upload_part::*;
 )]
 pub(super) struct StorageApi;
 
-pub(super) fn router<Client: DatabaseClient + 'static>() -> Router<RouterState<Client>> {
+pub(super) fn router<Client: DatabaseClient + 'static, Itemdb: ItemdbClient + 'static>(
+) -> Router<RouterState<Client, Itemdb>> {
 	Router::new()
 		.route("/upload", post(start_upload))
 		.route("/upload/:upload_id/part", post(upload_part))

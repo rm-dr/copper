@@ -1,5 +1,5 @@
-use copper_pipelined::{client::PipelinedClient, structs::JobInfoState};
-use copper_storaged::UserId;
+use copper_itemdb::UserId;
+use copper_jobqueue::{base::client::JobQueueClient, info::QueuedJobState};
 use copper_util::{
 	s3client::{MultipartUpload, S3Client},
 	MimeType,
@@ -94,7 +94,7 @@ pub struct Uploader {
 	config: Arc<EdgedConfig>,
 	jobs: tokio::sync::Mutex<BTreeMap<UploadJobId, UploadJob>>,
 	objectstore_client: Arc<S3Client>,
-	pipelined_client: Arc<dyn PipelinedClient>,
+	jobqueue_client: Arc<dyn JobQueueClient>,
 }
 
 impl Uploader {
@@ -102,12 +102,12 @@ impl Uploader {
 	pub fn new(
 		config: Arc<EdgedConfig>,
 		objectstore_client: Arc<S3Client>,
-		pipelined_client: Arc<dyn PipelinedClient>,
+		jobqueue_client: Arc<dyn JobQueueClient>,
 	) -> Self {
 		Self {
 			config,
 			jobs: tokio::sync::Mutex::new(BTreeMap::new()),
-			pipelined_client,
+			jobqueue_client,
 			objectstore_client,
 		}
 	}
@@ -163,14 +163,15 @@ impl Uploader {
 
 				UploadJobState::Assigned { pipeline_job, .. } => {
 					// Apply a timeout even to assigned jobs, so that we
-					// need fewer api calls, and to prevent errors caused
-					// by a race condition
-					// (a job is assigned to a pipeline that isn't returned by pipelined)
+					// need fewer db hits, and to prevent errors caused by a race condition
 					if j.last_activity + offset > now {
 						reason = "UNREACHABLE";
 						false
 					} else {
-						let info = self.pipelined_client.get_job(pipeline_job).await;
+						let info = self
+							.jobqueue_client
+							.get_job_short(&pipeline_job.as_str().into())
+							.await;
 						if info.is_err() {
 							reason = "assigned job error";
 							true
@@ -178,12 +179,13 @@ impl Uploader {
 							reason = "assigned job finished";
 
 							match info.unwrap().state {
-								JobInfoState::Failed => true,
-								JobInfoState::BuildError { .. } => true,
-								JobInfoState::Success => true,
+								QueuedJobState::FailedRunning { .. } => true,
+								QueuedJobState::FailedTransaction { .. } => true,
+								QueuedJobState::BuildError { .. } => true,
+								QueuedJobState::Success => true,
 
-								JobInfoState::Queued => false,
-								JobInfoState::Running => false,
+								QueuedJobState::Queued => false,
+								QueuedJobState::Running => false,
 							}
 						}
 					}

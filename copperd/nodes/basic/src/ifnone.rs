@@ -1,8 +1,9 @@
 use async_trait::async_trait;
-use copper_pipelined::{
+use copper_itemdb::client::base::client::ItemdbClient;
+use copper_piper::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
-	CopperContext,
+	CopperContext, JobRunResult,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
@@ -16,10 +17,10 @@ pub struct IfNone {}
 // Outputs:
 // - "out", <T>
 #[async_trait]
-impl Node<PipeData, CopperContext> for IfNone {
+impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for IfNone {
 	async fn run(
 		&self,
-		_ctx: &CopperContext,
+		_ctx: &CopperContext<Itemdb>,
 		this_node: ThisNodeInfo,
 		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,

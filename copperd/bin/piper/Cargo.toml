@@ -1,0 +1,38 @@
+[[bin]]
+name = "piper"
+path = "src/main.rs"
+
+[package]
+name = "piper"
+description = "Copper's pipeline runner"
+categories = { workspace = true }
+keywords = { workspace = true }
+version = { workspace = true }
+rust-version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+copper-util = { workspace = true }
+copper-piper = { workspace = true }
+copper-jobqueue = { workspace = true }
+copper-itemdb = { workspace = true }
+# Node implementations
+nodes-audiofile = { workspace = true }
+nodes-basic = { workspace = true }
+
+aws-sdk-s3 = { workspace = true }
+aws-config = { workspace = true }
+tokio = { workspace = true }
+smartstring = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

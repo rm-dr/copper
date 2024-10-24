@@ -559,40 +559,6 @@ export interface components {
 			/** @description The port's name */
 			port: string;
 		};
-		JobCounts: {
-			build_errors: number;
-			failed_jobs: number;
-			queued_jobs: number;
-			running_jobs: number;
-			successful_jobs: number;
-			total_jobs: number;
-		};
-		JobInfo: {
-			added_at: string;
-			finished_at?: string | null;
-			id: string;
-			/** Format: int64 */
-			owner: number;
-			started_at?: string | null;
-			state: components["schemas"]["JobInfoState"];
-		};
-		JobInfoList: {
-			counts: components["schemas"]["JobCounts"];
-			jobs: components["schemas"]["JobInfo"][];
-			/** @description The number of jobs we skipped while paginating.
-			 *     (i.e, the true index of the first job in `jobs`) */
-			skip: number;
-		};
-		JobInfoState:
-			| "Queued"
-			| "Running"
-			| "Success"
-			| "Failed"
-			| {
-					BuildError: {
-						message: string;
-					};
-			  };
 		LoginRequest: {
 			email: string;
 			password: string;
@@ -704,6 +670,65 @@ export interface components {
 				[key: string]: components["schemas"]["NodeJson"];
 			};
 		};
+		QueuedJobCounts: {
+			/** Format: int64 */
+			build_errors: number;
+			/** Format: int64 */
+			failed_jobs: number;
+			/** Format: int64 */
+			queued_jobs: number;
+			/** Format: int64 */
+			running_jobs: number;
+			/** Format: int64 */
+			successful_jobs: number;
+			/** Format: int64 */
+			total_jobs: number;
+		};
+		QueuedJobInfoList: {
+			counts: components["schemas"]["QueuedJobCounts"];
+			jobs: components["schemas"]["QueuedJobInfoShort"][];
+			/**
+			 * Format: int64
+			 * @description The number of jobs we skipped while paginating.
+			 *     (i.e, the true index of the first job in `jobs`)
+			 */
+			skip: number;
+		};
+		QueuedJobInfoShort: {
+			created_at: string;
+			finished_at?: string | null;
+			/** @description A unique id for this job */
+			job_id: string;
+			/**
+			 * Format: int64
+			 * @description The user that owns this job
+			 */
+			owned_by: number;
+			started_at?: string | null;
+			state: components["schemas"]["QueuedJobState"];
+		};
+		QueuedJobState:
+			| {
+					/** @enum {string} */
+					state: "Queued";
+			  }
+			| {
+					/** @enum {string} */
+					state: "Running";
+			  }
+			| {
+					/** @enum {string} */
+					state: "Success";
+			  }
+			| {
+					/** @enum {string} */
+					state: "Failed";
+			  }
+			| {
+					message: string;
+					/** @enum {string} */
+					state: "BuildError";
+			  };
 		RenameAttributeRequest: {
 			new_name: string;
 		};
@@ -1302,7 +1327,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					"application/json": components["schemas"]["JobInfoList"];
+					"application/json": components["schemas"]["QueuedJobInfoList"];
 				};
 			};
 			/** @description Unauthorized */

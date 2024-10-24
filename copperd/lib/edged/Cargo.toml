@@ -1,6 +1,6 @@
 [package]
 name = "copper-edged"
-description = "TODO"
+description = "Copper's user-facing api server"
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }
@@ -17,8 +17,8 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
-copper-pipelined = { workspace = true }
-copper-storaged = { workspace = true }
+copper-piper = { workspace = true }
+copper-itemdb = { workspace = true }
 
 smartstring = { workspace = true }
 serde = { workspace = true }

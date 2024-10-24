@@ -2,11 +2,12 @@
 
 use crate::flac::proc::metastrip::FlacMetaStrip;
 use async_trait::async_trait;
-use copper_pipelined::{
+use copper_itemdb::client::base::client::ItemdbClient;
+use copper_piper::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::{BytesSource, PipeData},
 	helpers::BytesSourceReader,
-	CopperContext,
+	CopperContext, JobRunResult,
 };
 use copper_util::MimeType;
 use smartstring::{LazyCompact, SmartString};
@@ -20,10 +21,10 @@ pub struct StripTags {}
 // Input: "data" - Blob
 // Output: "out" - Blob
 #[async_trait]
-impl Node<PipeData, CopperContext> for StripTags {
+impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for StripTags {
 	async fn run(
 		&self,
-		ctx: &CopperContext,
+		ctx: &CopperContext<Itemdb>,
 		this_node: ThisNodeInfo,
 		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,

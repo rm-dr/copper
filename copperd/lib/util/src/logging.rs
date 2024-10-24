@@ -52,12 +52,11 @@ impl LoggingPreset {
 				http: LogLevel::Warn,
 				s3: LogLevel::Warn,
 
-				pipelined: LogLevel::Info,
+				piper: LogLevel::Info,
 				runner: LogLevel::Info,
 				job: LogLevel::Info,
 				nodes: LogLevel::Warn,
 
-				storaged: LogLevel::Info,
 				edged: LogLevel::Info,
 			},
 
@@ -66,12 +65,11 @@ impl LoggingPreset {
 				http: LogLevel::Warn,
 				s3: LogLevel::Warn,
 
-				pipelined: LogLevel::Debug,
+				piper: LogLevel::Debug,
 				runner: LogLevel::Debug,
 				job: LogLevel::Debug,
 				nodes: LogLevel::Warn,
 
-				storaged: LogLevel::Debug,
 				edged: LogLevel::Debug,
 			},
 
@@ -80,12 +78,11 @@ impl LoggingPreset {
 				http: LogLevel::Warn,
 				s3: LogLevel::Warn,
 
-				pipelined: LogLevel::Trace,
+				piper: LogLevel::Trace,
 				runner: LogLevel::Trace,
 				job: LogLevel::Debug,
 				nodes: LogLevel::Warn,
 
-				storaged: LogLevel::Trace,
 				edged: LogLevel::Trace,
 			},
 
@@ -94,12 +91,11 @@ impl LoggingPreset {
 				http: LogLevel::Warn,
 				s3: LogLevel::Warn,
 
-				pipelined: LogLevel::Trace,
+				piper: LogLevel::Trace,
 				runner: LogLevel::Trace,
 				job: LogLevel::Trace,
 				nodes: LogLevel::Trace,
 
-				storaged: LogLevel::Trace,
 				edged: LogLevel::Trace,
 			},
 		}
@@ -111,12 +107,11 @@ pub struct LoggingConfig {
 	http: LogLevel,
 	s3: LogLevel,
 
-	pipelined: LogLevel,
+	piper: LogLevel,
 	runner: LogLevel,
 	job: LogLevel,
 	nodes: LogLevel,
 
-	storaged: LogLevel,
 	edged: LogLevel,
 }
 
@@ -138,16 +133,13 @@ impl From<LoggingConfig> for EnvFilter {
 				//
 				format!("tower_http={}", conf.http),
 				format!("s3={}", conf.s3),
-				// // Storaged
-				format!("storaged={}", conf.storaged),
-				// // Pipelined
-				format!("pipelined::pipeline::runner={}", conf.runner),
-				format!("pipelined::pipeline::job={}", conf.job),
-				format!("pipelined={}", conf.pipelined),
+				// // Piper
+				format!("piper::pipeline::runner={}", conf.runner),
+				format!("piper::pipeline::job={}", conf.job),
+				format!("piper={}", conf.piper),
 				// Node implementations
-				format!("pipelined_storaged={}", conf.nodes),
-				format!("pipelined_basic={}", conf.nodes),
-				format!("pipelined_audiofile={}", conf.nodes),
+				format!("nodes_basic={}", conf.nodes),
+				format!("nodes_audiofile={}", conf.nodes),
 				// // Edged
 				format!("edged={}", conf.edged),
 				conf.other.to_string(),

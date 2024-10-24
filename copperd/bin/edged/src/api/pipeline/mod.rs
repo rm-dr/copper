@@ -5,7 +5,8 @@ use axum::{
 	Router,
 };
 use copper_edged::PipelineInfo;
-use copper_pipelined::{
+use copper_itemdb::client::base::client::ItemdbClient;
+use copper_piper::{
 	base::NodeParameterValue,
 	json::{EdgeJson, InputPort, NodeJson, NodeJsonPosition, OutputPort, PipelineJson},
 };
@@ -54,7 +55,8 @@ use update::*;
 )]
 pub(super) struct PipelineApi;
 
-pub(super) fn router<Client: DatabaseClient + 'static>() -> Router<RouterState<Client>> {
+pub(super) fn router<Client: DatabaseClient + 'static, Itemdb: ItemdbClient + 'static>(
+) -> Router<RouterState<Client, Itemdb>> {
 	Router::new()
 		.route("/", post(add_pipeline))
 		.route("/list", get(list_pipelines))

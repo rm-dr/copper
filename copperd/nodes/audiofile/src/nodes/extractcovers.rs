@@ -1,10 +1,11 @@
 use crate::flac::proc::pictures::FlacPictureReader;
 use async_trait::async_trait;
-use copper_pipelined::{
+use copper_itemdb::client::base::client::ItemdbClient;
+use copper_piper::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::{BytesSource, PipeData},
 	helpers::BytesSourceReader,
-	CopperContext,
+	CopperContext, JobRunResult,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
@@ -16,10 +17,10 @@ pub struct ExtractCovers {}
 // Inputs: "data" - Bytes
 // Outputs: variable, depends on tags
 #[async_trait]
-impl Node<PipeData, CopperContext> for ExtractCovers {
+impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for ExtractCovers {
 	async fn run(
 		&self,
-		ctx: &CopperContext,
+		ctx: &CopperContext<Itemdb>,
 		this_node: ThisNodeInfo,
 		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,

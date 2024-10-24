@@ -5,8 +5,8 @@ use aws_sdk_s3::config::Credentials;
 use axum::Router;
 use config::EdgedConfig;
 use copper_edged::UserPassword;
-use copper_pipelined::client::ReqwestPipelineClient;
-use copper_storaged::client::ReqwestStoragedClient;
+use copper_itemdb::client::postgres::{PgItemdbClient, PgItemdbOpenError};
+use copper_jobqueue::postgres::{PgJobQueueClient, PgJobQueueOpenError};
 use copper_util::{load_env, s3client::S3Client, LoadedEnv};
 use database::{
 	base::client::DatabaseClient,
@@ -26,7 +26,7 @@ mod uploader;
 
 async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> Router {
 	// Connect to database
-	let db = match PgDatabaseClient::open(&config.edged_db_addr).await {
+	let db = match PgDatabaseClient::open(&config.edged_userdb_addr).await {
 		Ok(db) => db,
 		Err(PgDatabaseOpenError::Database(e)) => {
 			error!(message = "SQL error while opening database", err = ?e);
@@ -38,31 +38,38 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 		}
 	};
 
-	trace!(message = "Initializing storaged client");
-	let storaged_client = match ReqwestStoragedClient::new(
-		config.edged_storaged_addr.clone(),
-		&config.edged_storaged_secret,
-	) {
-		Ok(x) => Arc::new(x),
-		Err(error) => {
-			error!(message = "Could not initialize storaged client", ?error);
+	trace!(message = "Connecting to itemdb");
+	// Connect to database
+	let itemdb_client = match PgItemdbClient::open(&config.edged_itemdb_addr, true).await {
+		Ok(db) => Arc::new(db),
+		Err(PgItemdbOpenError::Database(e)) => {
+			error!(message = "SQL error while opening item database", err = ?e);
 			std::process::exit(1);
 		}
-	};
-	trace!(message = "Successfully initialized storaged client");
 
-	trace!(message = "Initializing pipelined client");
-	let pipelined_client = match ReqwestPipelineClient::new(
-		&config.edged_pipelined_addr,
-		&config.edged_pipelined_secret,
-	) {
-		Ok(x) => Arc::new(x),
-		Err(error) => {
-			error!(message = "Could not initialize pipelined client", ?error);
+		Err(PgItemdbOpenError::Migrate(e)) => {
+			error!(message = "Migration error while opening item database", err = ?e);
 			std::process::exit(1);
 		}
+
+		Err(PgItemdbOpenError::NotMigrated) => unreachable!(),
 	};
-	trace!(message = "Successfully initialized Storaged client");
+	trace!(message = "Successfully connected to itemdb");
+
+	trace!(message = "Initializing job queue client");
+	let jobqueue_client = match PgJobQueueClient::open(&config.edged_jobqueue_addr, true).await {
+		Ok(db) => Arc::new(db),
+		Err(PgJobQueueOpenError::Database(e)) => {
+			error!(message = "SQL error while opening job queue database", err = ?e);
+			std::process::exit(1);
+		}
+		Err(PgJobQueueOpenError::Migrate(e)) => {
+			error!(message = "Migration error while opening job queue database", err = ?e);
+			std::process::exit(1);
+		}
+		Err(PgJobQueueOpenError::NotMigrated) => unreachable!(),
+	};
+	trace!(message = "Successfully initialized job queue client");
 
 	if config.edged_init_user_email.is_some() && config.edged_init_user_pass.is_some() {
 		let email = config.edged_init_user_email.as_ref().unwrap();
@@ -116,11 +123,11 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 		uploader: Arc::new(Uploader::new(
 			config.clone(),
 			s3_client_upload.clone(),
-			pipelined_client.clone(),
+			jobqueue_client.clone(),
 		)),
 
-		pipelined_client,
-		storaged_client,
+		jobqueue_client,
+		itemdb_client,
 		s3_client_upload,
 	});
 }
@@ -161,7 +168,7 @@ async fn main() {
 		&config.edged_objectstore_key_secret,
 		None,
 		None,
-		"pipelined .env",
+		"edged .env",
 	);
 
 	// Config for minio

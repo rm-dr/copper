@@ -3,9 +3,10 @@ use axum::routing::post;
 use axum::serve::IncomingStream;
 use axum::{extract::DefaultBodyLimit, Router};
 use copper_edged::UserInfo;
-use copper_pipelined::client::PipelinedClient;
-use copper_storaged::client::StoragedClient;
-use copper_storaged::{AttrDataStub, AttributeInfo, AttributeOptions, ClassInfo, DatasetInfo};
+use copper_itemdb::client::base::client::ItemdbClient;
+use copper_itemdb::{AttrDataStub, AttributeInfo, AttributeOptions, ClassInfo, DatasetInfo};
+use copper_jobqueue::base::client::JobQueueClient;
+use copper_jobqueue::info::QueuedJobCounts;
 use copper_util::s3client::S3Client;
 use copper_util::HashType;
 use std::net::SocketAddr;
@@ -47,11 +48,11 @@ impl Connected<IncomingStream<'_>> for CopperConnectInfo {
 	}
 }
 
-pub struct RouterState<Client: DatabaseClient> {
+pub struct RouterState<Client: DatabaseClient, Itemdb: ItemdbClient> {
 	pub config: Arc<EdgedConfig>,
 	pub db_client: Arc<Client>,
-	pub storaged_client: Arc<dyn StoragedClient>,
-	pub pipelined_client: Arc<dyn PipelinedClient>,
+	pub itemdb_client: Arc<Itemdb>,
+	pub jobqueue_client: Arc<dyn JobQueueClient>,
 	pub auth: Arc<AuthHelper<Client>>,
 	pub s3_client_upload: Arc<S3Client>,
 	pub uploader: Arc<Uploader>,
@@ -59,14 +60,14 @@ pub struct RouterState<Client: DatabaseClient> {
 
 // We need to impl this manually, since `DatabaseClient`
 // doesn't implement `Clone`
-impl<Client: DatabaseClient> Clone for RouterState<Client> {
+impl<Client: DatabaseClient, Itemdb: ItemdbClient> Clone for RouterState<Client, Itemdb> {
 	fn clone(&self) -> Self {
 		Self {
 			config: self.config.clone(),
 			db_client: self.db_client.clone(),
 			auth: self.auth.clone(),
-			storaged_client: self.storaged_client.clone(),
-			pipelined_client: self.pipelined_client.clone(),
+			itemdb_client: self.itemdb_client.clone(),
+			jobqueue_client: self.jobqueue_client.clone(),
 			s3_client_upload: self.s3_client_upload.clone(),
 			uploader: self.uploader.clone(),
 		}
@@ -89,11 +90,13 @@ impl<Client: DatabaseClient> Clone for RouterState<Client> {
 		(name = "Copper", description = "Copper edge daemon")
 	),
 	paths(try_login, logout),
-	components(schemas(UserInfo, LoginRequest, AttrDataStub, AttributeOptions, DatasetInfo, AttributeInfo, HashType, ClassInfo))
+	components(schemas(UserInfo, LoginRequest, AttrDataStub, AttributeOptions, DatasetInfo, AttributeInfo, HashType, ClassInfo, QueuedJobCounts))
 )]
 struct ApiDoc;
 
-pub(super) fn router<Client: DatabaseClient + 'static>(state: RouterState<Client>) -> Router {
+pub(super) fn router<Client: DatabaseClient + 'static, Itemdb: ItemdbClient + 'static>(
+	state: RouterState<Client, Itemdb>,
+) -> Router {
 	Router::new()
 		.merge(SwaggerUi::new("/docs").url("/docs/openapi.json", ApiDoc::openapi()))
 		//

@@ -1,9 +1,10 @@
 //! Pipeline nodes for processing audio files
 
-use copper_pipelined::{
+use copper_itemdb::client::base::client::ItemdbClient;
+use copper_piper::{
 	base::{NodeDispatcher, RegisterNodeError},
 	data::PipeData,
-	CopperContext,
+	CopperContext, JobRunResult,
 };
 use std::collections::BTreeMap;
 
@@ -12,8 +13,8 @@ mod extracttags;
 mod striptags;
 
 /// Register all nodes in this module into the given dispatcher
-pub fn register(
-	dispatcher: &mut NodeDispatcher<PipeData, CopperContext>,
+pub fn register<Itemdb: ItemdbClient>(
+	dispatcher: &mut NodeDispatcher<JobRunResult, PipeData, CopperContext<Itemdb>>,
 ) -> Result<(), RegisterNodeError> {
 	dispatcher
 		.register_node("StripTags", BTreeMap::new(), &|| {

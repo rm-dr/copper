@@ -7,7 +7,10 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_storaged::client::{GenericRequestError, StoragedRequestError};
+use copper_itemdb::client::base::{
+	client::ItemdbClient,
+	errors::{class::GetClassError, dataset::GetDatasetError},
+};
 use tracing::error;
 
 /// Get class info
@@ -24,9 +27,9 @@ use tracing::error;
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn get_class<Client: DatabaseClient>(
+pub(super) async fn get_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client>>,
+	State(state): State<RouterState<Client, Itemdb>>,
 	Path(class_id): Path<i64>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {
@@ -34,46 +37,31 @@ pub(super) async fn get_class<Client: DatabaseClient>(
 		Ok(user) => user,
 	};
 
-	let class = match state.storaged_client.get_class(class_id.into()).await {
-		Ok(Ok(None)) => return StatusCode::NOT_FOUND.into_response(),
+	let class = match state.itemdb_client.get_class(class_id.into()).await {
+		Ok(x) => x,
 
-		Ok(Ok(Some(x))) => x,
+		Err(GetClassError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
 
-		Ok(Err(GenericRequestError { code, message })) => {
-			if let Some(msg) = message {
-				return (code, msg).into_response();
-			} else {
-				return code.into_response();
-			}
-		}
-
-		Err(StoragedRequestError::RequestError { error }) => {
-			error!(message = "Error in storaged client", ?error);
+		Err(GetClassError::DbError(error)) => {
+			error!(message = "Error in itemdb client", ?error);
 			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};
 
-	match state.storaged_client.get_dataset(class.dataset).await {
-		Ok(Ok(None)) => return StatusCode::NOT_FOUND.into_response(),
-
-		Ok(Ok(Some(x))) => {
+	match state.itemdb_client.get_dataset(class.dataset).await {
+		Ok(x) => {
 			// We can only modify our own datasets
 			if x.owner != user.id {
 				return StatusCode::UNAUTHORIZED.into_response();
 			}
+
 			return (StatusCode::OK, Json(class)).into_response();
 		}
 
-		Ok(Err(GenericRequestError { code, message })) => {
-			if let Some(msg) = message {
-				return (code, msg).into_response();
-			} else {
-				return code.into_response();
-			}
-		}
+		Err(GetDatasetError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
 
-		Err(StoragedRequestError::RequestError { error }) => {
-			error!(message = "Error in storaged client", ?error);
+		Err(GetDatasetError::DbError(error)) => {
+			error!(message = "Error in itemdb client", ?error);
 			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};

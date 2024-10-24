@@ -1,8 +1,9 @@
 use async_trait::async_trait;
-use copper_pipelined::{
+use copper_itemdb::client::base::client::ItemdbClient;
+use copper_piper::{
 	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
-	CopperContext,
+	CopperContext, JobRunResult,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
@@ -11,10 +12,10 @@ use tokio::sync::mpsc;
 pub struct Constant {}
 
 #[async_trait]
-impl Node<PipeData, CopperContext> for Constant {
+impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for Constant {
 	async fn run(
 		&self,
-		_ctx: &CopperContext,
+		_ctx: &CopperContext<Itemdb>,
 		this_node: ThisNodeInfo,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,

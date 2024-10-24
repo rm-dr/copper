@@ -6,7 +6,10 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_storaged::client::{GenericRequestError, StoragedRequestError};
+use copper_itemdb::client::base::{
+	client::ItemdbClient,
+	errors::dataset::{GetDatasetError, RenameDatasetError},
+};
 use serde::Deserialize;
 use tracing::error;
 use utoipa::ToSchema;
@@ -32,9 +35,9 @@ pub(super) struct RenameDatasetRequest {
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn rename_dataset<Client: DatabaseClient>(
+pub(super) async fn rename_dataset<Client: DatabaseClient, Itemdb: ItemdbClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client>>,
+	State(state): State<RouterState<Client, Itemdb>>,
 	Path(dataset_id): Path<i64>,
 	Json(payload): Json<RenameDatasetRequest>,
 ) -> Response {
@@ -43,48 +46,44 @@ pub(super) async fn rename_dataset<Client: DatabaseClient>(
 		Ok(user) => user,
 	};
 
-	match state.storaged_client.get_dataset(dataset_id.into()).await {
-		Ok(Ok(None)) => return StatusCode::NOT_FOUND.into_response(),
-
-		Ok(Ok(Some(x))) => {
-			// We can only rename our own datasets
+	match state.itemdb_client.get_dataset(dataset_id.into()).await {
+		Ok(x) => {
+			// We can only modify our own datasets
 			if x.owner != user.id {
 				return StatusCode::UNAUTHORIZED.into_response();
 			}
 		}
 
-		Ok(Err(GenericRequestError { code, message })) => {
-			if let Some(msg) = message {
-				return (code, msg).into_response();
-			} else {
-				return code.into_response();
-			}
-		}
+		Err(GetDatasetError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
 
-		Err(StoragedRequestError::RequestError { error }) => {
-			error!(message = "Error in storaged client", ?error);
+		Err(GetDatasetError::DbError(error)) => {
+			error!(message = "Error in itemdb client", ?error);
 			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};
 
 	let res = state
-		.storaged_client
+		.itemdb_client
 		.rename_dataset(dataset_id.into(), &payload.new_name)
 		.await;
 
 	return match res {
-		Ok(Ok(())) => StatusCode::OK.into_response(),
+		Ok(()) => StatusCode::OK.into_response(),
 
-		Ok(Err(GenericRequestError { code, message })) => {
-			if let Some(msg) = message {
-				return (code, msg).into_response();
-			} else {
-				return code.into_response();
-			}
+		Err(RenameDatasetError::UniqueViolation) => {
+			return (
+				StatusCode::CONFLICT,
+				Json("An attribute with this name already exists"),
+			)
+				.into_response();
 		}
 
-		Err(StoragedRequestError::RequestError { error }) => {
-			error!(message = "Error in storaged client", ?error);
+		Err(RenameDatasetError::NameError(msg)) => {
+			return (StatusCode::BAD_REQUEST, Json(format!("{}", msg))).into_response();
+		}
+
+		Err(RenameDatasetError::DbError(error)) => {
+			error!(message = "Error in itemdb client", ?error);
 			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
 	};
