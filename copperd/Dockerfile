@@ -56,8 +56,8 @@ COPY --from=builder \
 #
 
 # These vars are only used for substitutions.
-ENV SERVER_ADDR "80"
+ENV SERVER_ADDR="80"
 EXPOSE 80/tcp
-ENV EDGED_SERVER_ADDR "0.0.0.0:${SERVER_ADDR}"
+ENV EDGED_SERVER_ADDR="0.0.0.0:${SERVER_ADDR}"
 
 ENTRYPOINT ["/bin/sh", "-c", "./piper & ./edged"]
