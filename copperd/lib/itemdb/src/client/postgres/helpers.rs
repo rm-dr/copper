@@ -2,8 +2,8 @@ use itertools::Itertools;
 use sqlx::Row;
 
 use crate::{
-	client::base::errors::transaction::ApplyTransactionError, transaction::AddItemError,
-	AttrData, AttrDataStub, AttributeId, AttributeOptions, ClassId, ItemId,
+	client::base::errors::transaction::ApplyTransactionError, transaction::AddItemError, AttrData,
+	AttrDataStub, AttributeId, AttributeOptions, ClassId, ItemId,
 };
 
 pub(super) enum SqlxOrItemError {
@@ -99,6 +99,36 @@ pub(super) async fn add_item(
 			return Err(AddItemError::NotNullViolated.into());
 		}
 
+		let value_ser = serde_json::to_string(&value).unwrap();
+
+		// Check "unique" constraint
+		// Has no effect on blobs, so don't check them.
+		// (this is why that switch is hidden in ui)
+		if attr_options.is_unique && value.as_stub() != AttrDataStub::Blob {
+			// Look for non-unique row
+			match sqlx::query(
+				"
+				SELECT COUNT(*) FROM attribute_instance
+				WHERE attribute_id=$1
+				AND attribute_value=$2
+				",
+			)
+			.bind(i64::from(attr))
+			.bind(&value_ser)
+			.fetch_one(&mut **t)
+			.await
+			{
+				Ok(res) => {
+					let count: i64 = res.get("count");
+					if count != 0 {
+						return Err(AddItemError::UniqueViolated.into());
+					}
+				}
+
+				Err(e) => return Err(e.into()),
+			};
+		}
+
 		// Create the attribute instance
 		let res = sqlx::query(
 			"INSERT INTO attribute_instance (item_id, attribute_id, attribute_value)
@@ -106,7 +136,7 @@ pub(super) async fn add_item(
 		)
 		.bind(i64::from(new_item))
 		.bind(i64::from(attr))
-		.bind(serde_json::to_string(&value).unwrap())
+		.bind(&value_ser)
 		.execute(&mut **t)
 		.await;
 
