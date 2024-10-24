@@ -487,13 +487,9 @@ export interface components {
 			 * @description The id of this attribute
 			 */
 			id: number;
-			/** @description If true, this attribute must contain a value */
-			is_not_null: boolean;
-			/** @description If true, each item in this attribute's class must
-			 *     have a unique value in this attribute */
-			is_unique: boolean;
 			/** @description This attribute's name */
 			name: string;
+			options: components["schemas"]["AttributeOptions"];
 			/**
 			 * Format: int64
 			 * @description The order of this attribute in its class.
@@ -707,7 +703,13 @@ export interface components {
 			started_at?: string | null;
 			state: components["schemas"]["QueuedJobState"];
 		};
+		/** @description A queued job's state, as stored in the db */
 		QueuedJobState:
+			| {
+					message: string;
+					/** @enum {string} */
+					state: "BuildError";
+			  }
 			| {
 					/** @enum {string} */
 					state: "Queued";
@@ -717,17 +719,18 @@ export interface components {
 					state: "Running";
 			  }
 			| {
+					message: string;
 					/** @enum {string} */
-					state: "Success";
-			  }
-			| {
-					/** @enum {string} */
-					state: "Failed";
+					state: "FailedRunning";
 			  }
 			| {
 					message: string;
 					/** @enum {string} */
-					state: "BuildError";
+					state: "FailedTransaction";
+			  }
+			| {
+					/** @enum {string} */
+					state: "Success";
 			  };
 		RenameAttributeRequest: {
 			new_name: string;

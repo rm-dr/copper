@@ -90,8 +90,10 @@ impl ItemdbClient for PgItemdbClient {
 						order: row.get::<i64, _>("attr_order"),
 						name: row.get::<String, _>("pretty_name").into(),
 						data_type: serde_json::from_str(row.get::<&str, _>("data_type")).unwrap(),
-						is_unique: row.get("is_unique"),
-						is_not_null: row.get("is_not_null"),
+						options: AttributeOptions {
+							is_unique: row.get("is_unique"),
+							is_not_null: row.get("is_not_null"),
+						},
 					})
 					.collect();
 
@@ -168,8 +170,10 @@ impl ItemdbClient for PgItemdbClient {
 							name: row.get::<String, _>("pretty_name").into(),
 							data_type: serde_json::from_str(row.get::<&str, _>("data_type"))
 								.unwrap(),
-							is_unique: row.get("is_unique"),
-							is_not_null: row.get("is_not_null"),
+							options: AttributeOptions {
+								is_unique: row.get("is_unique"),
+								is_not_null: row.get("is_not_null"),
+							},
 						})
 						.collect();
 
@@ -309,8 +313,10 @@ impl ItemdbClient for PgItemdbClient {
 				order: row.get::<i64, _>("attr_order"),
 				name: row.get::<String, _>("pretty_name").into(),
 				data_type: serde_json::from_str(row.get::<&str, _>("data_type")).unwrap(),
-				is_unique: row.get("is_unique"),
-				is_not_null: row.get("is_not_null"),
+				options: AttributeOptions {
+					is_unique: row.get("is_unique"),
+					is_not_null: row.get("is_not_null"),
+				},
 			})
 			.collect();
 
@@ -460,8 +466,10 @@ impl ItemdbClient for PgItemdbClient {
 				order: res.get::<i64, _>("attr_order"),
 				name: res.get::<String, _>("pretty_name").into(),
 				data_type: serde_json::from_str(res.get::<&str, _>("data_type")).unwrap(),
-				is_unique: res.get("is_unique"),
-				is_not_null: res.get("is_not_null"),
+				options: AttributeOptions {
+					is_unique: res.get("is_unique"),
+					is_not_null: res.get("is_not_null"),
+				},
 			}),
 		};
 	}
