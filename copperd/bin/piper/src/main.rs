@@ -216,7 +216,7 @@ async fn main() {
 					}
 
 					Err(err) => {
-						match err {
+						match &err {
 							ApplyTransactionError::DbError(error) => {
 								error!(
 									message = "DB error while processing transaction",
@@ -243,7 +243,10 @@ async fn main() {
 						};
 
 						// TODO: special fail state
-						match jobqueue_client.fail_job(&job_id).await {
+						match jobqueue_client
+							.fail_job_transaction(&job_id, &format!("{}", err))
+							.await
+						{
 							Ok(()) => {}
 
 							Err(FailJobError::DbError(error)) => {
@@ -268,7 +271,10 @@ async fn main() {
 			Ok(Some(DoneJobState::Failed { job_id, error })) => {
 				info!(message = "Job failed", ?job_id, ?error);
 
-				match jobqueue_client.fail_job(&job_id).await {
+				match jobqueue_client
+					.fail_job_run(&job_id, &format!("{}", error))
+					.await
+				{
 					Ok(()) => {}
 
 					Err(FailJobError::DbError(error)) => {

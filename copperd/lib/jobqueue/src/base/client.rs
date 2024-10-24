@@ -1,8 +1,8 @@
 //! The job queue client api
 
 use async_trait::async_trait;
-use copper_piper::json::PipelineJson;
 use copper_itemdb::{AttrData, UserId};
+use copper_piper::json::PipelineJson;
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 
@@ -60,9 +60,17 @@ where
 		error_message: &str,
 	) -> Result<(), BuildErrorJobError>;
 
-	/// Atomically mark the given job as `Failed`.
+	/// Atomically mark the given job as `FailedRunning`.
 	/// If this job is not `Running`, throw an error.
-	async fn fail_job(&self, job_id: &QueuedJobId) -> Result<(), FailJobError>;
+	async fn fail_job_run(&self, job_id: &QueuedJobId, message: &str) -> Result<(), FailJobError>;
+
+	/// Atomically mark the given job as `FailedRunning`.
+	/// If this job is not `Running`, throw an error.
+	async fn fail_job_transaction(
+		&self,
+		job_id: &QueuedJobId,
+		message: &str,
+	) -> Result<(), FailJobError>;
 
 	/// Atomically mark the given job as `Success`.
 	/// If this job is not `Running`, throw an error.

@@ -1,7 +1,7 @@
 //! Helper structs that contain database element properties
 
-use copper_piper::json::PipelineJson;
 use copper_itemdb::{AttrData, UserId};
+use copper_piper::json::PipelineJson;
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
@@ -17,8 +17,9 @@ pub enum QueuedJobState {
 	BuildError { message: String },
 	Queued,
 	Running,
+	FailedRunning { message: String },
+	FailedTransaction { message: String },
 	Success,
-	Failed,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

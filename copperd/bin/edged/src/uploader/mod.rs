@@ -179,7 +179,8 @@ impl Uploader {
 							reason = "assigned job finished";
 
 							match info.unwrap().state {
-								QueuedJobState::Failed => true,
+								QueuedJobState::FailedRunning { .. } => true,
+								QueuedJobState::FailedTransaction { .. } => true,
 								QueuedJobState::BuildError { .. } => true,
 								QueuedJobState::Success => true,
 

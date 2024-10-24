@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
-use copper_piper::json::PipelineJson;
 use copper_itemdb::{AttrData, UserId};
+use copper_piper::json::PipelineJson;
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{
 	types::{time::OffsetDateTime, Json},
@@ -164,11 +164,12 @@ impl JobQueueClient for PgJobQueueClient {
 			let n: i64 = row.get("count");
 
 			match state {
-				QueuedJobState::Queued => counts.queued_jobs = n,
-				QueuedJobState::Running => counts.running_jobs = n,
-				QueuedJobState::Success { .. } => counts.successful_jobs = n,
-				QueuedJobState::Failed => counts.failed_jobs = n,
-				QueuedJobState::BuildError { .. } => counts.build_errors = n,
+				QueuedJobState::Queued => counts.queued_jobs += n,
+				QueuedJobState::Running => counts.running_jobs += n,
+				QueuedJobState::Success { .. } => counts.successful_jobs += n,
+				QueuedJobState::FailedRunning { .. } => counts.failed_jobs += n,
+				QueuedJobState::FailedTransaction { .. } => counts.failed_jobs += n,
+				QueuedJobState::BuildError { .. } => counts.build_errors += n,
 			}
 		}
 
@@ -263,7 +264,7 @@ impl JobQueueClient for PgJobQueueClient {
 		};
 	}
 
-	async fn fail_job(&self, job_id: &QueuedJobId) -> Result<(), FailJobError> {
+	async fn fail_job_run(&self, job_id: &QueuedJobId, message: &str) -> Result<(), FailJobError> {
 		let mut conn = self.pool.acquire().await?;
 		// RETURNING id is required, RowNotFound is always thrown if it is removed.
 		let res = sqlx::query(
@@ -275,7 +276,47 @@ impl JobQueueClient for PgJobQueueClient {
 			RETURNING id;
 			",
 		)
-		.bind(serde_json::to_string(&QueuedJobState::Failed).unwrap())
+		.bind(
+			serde_json::to_string(&QueuedJobState::FailedRunning {
+				message: message.into(),
+			})
+			.unwrap(),
+		)
+		.bind(OffsetDateTime::now_utc())
+		.bind(job_id.as_str())
+		.bind(serde_json::to_string(&QueuedJobState::Running).unwrap())
+		.fetch_one(&mut *conn)
+		.await;
+
+		return match res {
+			Err(sqlx::Error::RowNotFound) => Err(FailJobError::NotRunning),
+			Err(e) => Err(e.into()),
+			Ok(_) => Ok(()),
+		};
+	}
+
+	async fn fail_job_transaction(
+		&self,
+		job_id: &QueuedJobId,
+		message: &str,
+	) -> Result<(), FailJobError> {
+		let mut conn = self.pool.acquire().await?;
+		// RETURNING id is required, RowNotFound is always thrown if it is removed.
+		let res = sqlx::query(
+			"
+			UPDATE jobs
+			SET state = $1, finished_at = $2
+			WHERE id = $3
+			AND state = $4
+			RETURNING id;
+			",
+		)
+		.bind(
+			serde_json::to_string(&QueuedJobState::FailedTransaction {
+				message: message.into(),
+			})
+			.unwrap(),
+		)
 		.bind(OffsetDateTime::now_utc())
 		.bind(job_id.as_str())
 		.bind(serde_json::to_string(&QueuedJobState::Running).unwrap())
