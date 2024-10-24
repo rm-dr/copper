@@ -13,7 +13,7 @@ use super::{
 	id::{AttributeId, ClassId, DatasetId, ItemId},
 };
 
-#[derive(Debug, Deserialize, Serialize, ToSchema, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, Default)]
 /// Options we can set when creating an attribute
 pub struct AttributeOptions {
 	/// If true, this attribute must have a value
@@ -85,12 +85,8 @@ pub struct AttributeInfo {
 	/// The type of data stored in this attribute
 	pub data_type: AttrDataStub,
 
-	/// If true, this attribute must contain a value
-	pub is_not_null: bool,
-
-	/// If true, each item in this attribute's class must
-	/// have a unique value in this attribute
-	pub is_unique: bool,
+	/// This attribute's options
+	pub options: AttributeOptions,
 }
 
 /// Item information

@@ -32,29 +32,43 @@ pub enum AddItemError {
 
 	/// We tried to create an item with attribute that violate a "not null" constraint
 	NotNullViolated,
+
+	/// We tried to create an item with attribute that violate a "unique" constraint
+	UniqueViolated,
 }
 
 impl Display for AddItemError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::NoSuchClass => write!(f, "tried to add an item to a class that doesn't exist"),
+			Self::ForeignAttribute => write!(f, "tried to create an item with a foreign attribute"),
+
 			Self::BadAttribute => {
 				write!(f, "tried to create an item an attribute that doesn't exist")
 			}
-			Self::ForeignAttribute => write!(f, "tried to create an item with a foreign attribute"),
+
 			Self::RepeatedAttribute => {
 				write!(f, "multiple values were provided for one attribute")
 			}
+
 			Self::AttributeDataTypeMismatch => {
 				write!(
 					f,
 					"tried to assign data to an attribute, but type doesn't match"
 				)
 			}
+
 			Self::NotNullViolated => {
 				write!(
 					f,
 					"tried to create an item with attributes that violate a `not null` constraint"
+				)
+			}
+
+			Self::UniqueViolated => {
+				write!(
+					f,
+					"tried to create an item with attributes that violate a `unique` constraint"
 				)
 			}
 		}

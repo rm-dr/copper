@@ -45,3 +45,19 @@ jobs:
         with:
           args: --config ./dev/lychee.toml .
           fail: true
+
+  prettier:
+    runs-on: ubuntu-latest
+    container: node:18.20.4
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        working-directory: ./copperc
+        run: npm ci
+
+      - name: Run prettier
+        working-directory: ./copperc
+        run: npx prettier --check .

@@ -66,8 +66,8 @@ function Form(params: {
 				value === null
 					? "Attribute name is required"
 					: value.trim().length === 0
-					? "Attribute name cannot be empty"
-					: null,
+						? "Attribute name cannot be empty"
+						: null,
 		},
 	});
 

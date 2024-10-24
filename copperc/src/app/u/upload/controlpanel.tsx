@@ -125,7 +125,7 @@ export function ControlPanel(params: {
 						value: x.id.toString(),
 						disabled,
 					};
-			  });
+				});
 
 	const select_value =
 		params.selected_pipeline === null
@@ -372,10 +372,10 @@ export function ControlPanel(params: {
 							{params.selected_pipeline === null
 								? "We cannot upload files without a pipeline to run."
 								: params.uploadState.queue.length === 0
-								? "Cannot upload, the queue is empty."
-								: params.uploadState.is_uploading
-								? "Uploading..."
-								: null}
+									? "Cannot upload, the queue is empty."
+									: params.uploadState.is_uploading
+										? "Uploading..."
+										: null}
 						</Text>
 					</div>
 				</div>

@@ -142,6 +142,14 @@ impl Migration for MigrationStep {
 			.execute(&mut *t)
 			.await?;
 
+		sqlx::query("CREATE INDEX idx_attrinst_attr on attribute_instance(attribute_id);")
+			.execute(&mut *t)
+			.await?;
+
+		sqlx::query("CREATE INDEX idx_attrinst_value on attribute_instance(attribute_value);")
+			.execute(&mut *t)
+			.await?;
+
 		//
 		// MARK: finish
 		//

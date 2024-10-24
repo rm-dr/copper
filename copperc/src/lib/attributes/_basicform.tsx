@@ -49,8 +49,8 @@ export function BasicForm(params: {
 				value === null
 					? "Attribute name is required"
 					: value.trim().length === 0
-					? "Attribute name cannot be empty"
-					: null,
+						? "Attribute name cannot be empty"
+						: null,
 		},
 	});
 
@@ -130,12 +130,14 @@ export function AttrCommonOptions(params: {
 			<Switch
 				label="Unique"
 				key={params.form.key("is_unique")}
+				disabled={params.isLoading}
 				{...params.form.getInputProps("is_unique")}
 			/>
 
 			<Switch
 				label="Not null"
 				key={params.form.key("is_not_null")}
+				disabled={params.isLoading}
 				{...params.form.getInputProps("is_not_null")}
 			/>
 		</>

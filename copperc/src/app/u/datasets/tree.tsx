@@ -191,12 +191,12 @@ export function useTreePanel() {
 											gap: "0.5rem",
 										}}
 									>
-										{!attr.is_not_null ? null : (
+										{!attr.options.is_not_null ? null : (
 											<Text c="yellow" fs="italic" size="sm">
 												not null
 											</Text>
 										)}
-										{!attr.is_unique ? null : (
+										{!attr.options.is_unique ? null : (
 											<Text c="cyan" fs="italic" size="sm">
 												unique
 											</Text>
