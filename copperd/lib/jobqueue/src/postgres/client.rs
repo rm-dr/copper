@@ -95,7 +95,7 @@ impl JobQueueClient for PgJobQueueClient {
 				created_at: res.get("created_at"),
 				started_at: res.get("started_at"),
 				finished_at: res.get("finished_at"),
-				state: serde_json::from_str(res.get::<&str, _>("state").into()).unwrap(),
+				state: serde_json::from_str(res.get::<&str, _>("state")).unwrap(),
 			}),
 		};
 	}
@@ -132,7 +132,7 @@ impl JobQueueClient for PgJobQueueClient {
 				created_at: row.get("created_at"),
 				started_at: row.get("started_at"),
 				finished_at: row.get("finished_at"),
-				state: serde_json::from_str(row.get::<&str, _>("state").into()).unwrap(),
+				state: serde_json::from_str(row.get::<&str, _>("state")).unwrap(),
 			})
 		}
 
@@ -160,7 +160,7 @@ impl JobQueueClient for PgJobQueueClient {
 
 		for row in res {
 			let state: QueuedJobState =
-				serde_json::from_str(row.get::<&str, _>("state").into()).unwrap();
+				serde_json::from_str(row.get::<&str, _>("state")).unwrap();
 			let n: i64 = row.get("count");
 
 			match state {
@@ -218,7 +218,7 @@ impl JobQueueClient for PgJobQueueClient {
 				created_at: res.get("created_at"),
 				started_at: res.get("started_at"),
 				finished_at: res.get("finished_at"),
-				state: serde_json::from_str(res.get::<&str, _>("state").into()).unwrap(),
+				state: serde_json::from_str(res.get::<&str, _>("state")).unwrap(),
 				pipeline: res.get::<sqlx::types::Json<PipelineJson>, _>("pipeline").0,
 				input: res
 					.get::<sqlx::types::Json<BTreeMap<SmartString<LazyCompact>, AttrData>>, _>(

@@ -115,7 +115,6 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 		// (extract inputs)
 		//
 
-		// TODO: map 404s to "no class" errors
 		debug!(message = "Getting attributes");
 		let mut attributes: BTreeMap<PortName, (AttributeInfo, Option<ResultOrDirect<AttrData>>)> =
 			class

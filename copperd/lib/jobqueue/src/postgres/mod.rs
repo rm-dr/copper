@@ -75,11 +75,9 @@ impl PgJobQueueClient {
 
 		if migrate {
 			mig.up().await.map_err(PgJobQueueOpenError::Migrate)?;
-		} else {
-			if !mig.is_up()? {
-				return Err(PgJobQueueOpenError::NotMigrated);
-			}
-		}
+		} else if !mig.is_up()? {
+  				return Err(PgJobQueueOpenError::NotMigrated);
+  			}
 
 		drop(mig);
 		drop(conn);

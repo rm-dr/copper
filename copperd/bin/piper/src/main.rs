@@ -242,7 +242,6 @@ async fn main() {
 							}
 						};
 
-						// TODO: special fail state
 						match jobqueue_client
 							.fail_job_transaction(&job_id, &format!("{}", err))
 							.await
@@ -332,7 +331,7 @@ async fn main() {
 						blob_fragment_size: config.piper_blob_fragment_size,
 						stream_channel_capacity: config.piper_stream_channel_size,
 						job_id: job.job_id.as_str().into(),
-						run_by_user: job.owned_by.clone(),
+						run_by_user: job.owned_by,
 						itemdb_client: itemdb_client.clone(),
 						objectstore_blob_bucket: config.piper_objectstore_bucket.as_str().into(),
 						objectstore_client: client.clone(),

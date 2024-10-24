@@ -1,6 +1,6 @@
 [package]
 name = "copper-edged"
-description = "TODO"
+description = "Copper's user-facing api server"
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }

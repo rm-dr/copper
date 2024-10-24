@@ -278,6 +278,7 @@ impl<
 	//
 
 	/// Build a pipeline from its deserialized form
+	#[allow(clippy::type_complexity)]
 	fn build(
 		dispatcher: &NodeDispatcher<ResultType, DataType, ContextType>,
 		job_id: &str,

@@ -1,6 +1,6 @@
 [package]
 name = "copper-jobqueue"
-description = "TODO"
+description = "Job queue client for Copper"
 categories = { workspace = true }
 keywords = { workspace = true }
 version = { workspace = true }
