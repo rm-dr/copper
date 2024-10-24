@@ -132,7 +132,7 @@ function Main() {
 									: pipelines.data.map((x) => ({
 											label: x.name,
 											value: x.id.toString(),
-									  }))
+										}))
 							}
 							value={pipeline === null ? null : pipeline.id.toString()}
 							onChange={(value) => {

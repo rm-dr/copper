@@ -59,8 +59,11 @@ export const nodeDefinitions: Record<string, NodeDef<any>> = {
 	[AddItemNode.xyflow_node_type]: AddItemNode,
 } as const;
 
-export const nodeTypes = Object.keys(nodeDefinitions).reduce((res, key) => {
-	res[key] = nodeDefinitions[key as keyof typeof nodeDefinitions]!.node;
-	return res;
-	// eslint-disable-next-line
-}, {} as Record<string, NodeDef<any>["node"]>) as NodeTypes;
+export const nodeTypes = Object.keys(nodeDefinitions).reduce(
+	(res, key) => {
+		res[key] = nodeDefinitions[key as keyof typeof nodeDefinitions]!.node;
+		return res;
+		// eslint-disable-next-line
+	},
+	{} as Record<string, NodeDef<any>["node"]>,
+) as NodeTypes;

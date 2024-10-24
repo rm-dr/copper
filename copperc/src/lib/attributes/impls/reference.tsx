@@ -81,8 +81,8 @@ function Form(params: {
 				value === null
 					? "Attribute name is required"
 					: value.trim().length === 0
-					? "Attribute name cannot be empty"
-					: null,
+						? "Attribute name cannot be empty"
+						: null,
 
 			reference_target_class: (value) =>
 				value === null ? "Reference target is required" : null,
@@ -157,7 +157,7 @@ function Form(params: {
 							: datasetinfo.data.classes.map((x) => ({
 									label: x.name,
 									value: x.id.toString(),
-							  }))
+								}))
 					}
 					clearable
 					disabled={doCreate.isPending}

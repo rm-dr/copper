@@ -94,7 +94,7 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 							: list.data.map((x) => ({
 									label: x.name,
 									value: x.id.toString(),
-							  }))
+								}))
 					}
 					onChange={(value) => {
 						if (value === null) {
