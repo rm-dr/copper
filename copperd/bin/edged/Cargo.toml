@@ -45,3 +45,4 @@ sqlx = { workspace = true }
 async-trait = { workspace = true }
 rand = { workspace = true }
 time = { workspace = true }
+itertools = { workspace = true }

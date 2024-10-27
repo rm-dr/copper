@@ -59,6 +59,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/class/{class_id}/items": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get class info */
+		get: operations["list_items"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/dataset": {
 		parameters: {
 			query?: never;
@@ -359,7 +376,7 @@ export type webhooks = Record<string, never>;
 export interface components {
 	schemas: {
 		/** @description Attribute data, provided by the user by api calls. */
-		ApiAttrData:
+		ApiInputAttrData:
 			| {
 					data_type: components["schemas"]["AttrDataStub"];
 					/** @enum {string} */
@@ -555,6 +572,74 @@ export interface components {
 			/** @description The port's name */
 			port: string;
 		};
+		/** @description Attribute data returned to the user */
+		ItemAttrData:
+			| {
+					/** @enum {string} */
+					type: "None";
+			  }
+			| {
+					/** @enum {string} */
+					type: "Text";
+					value: string;
+			  }
+			| {
+					/** @enum {string} */
+					type: "Integer";
+					/** Format: int64 */
+					value: number;
+			  }
+			| {
+					/** @enum {string} */
+					type: "Float";
+					/** Format: double */
+					value: number;
+			  }
+			| {
+					/** @enum {string} */
+					type: "Boolean";
+					value: boolean;
+			  }
+			| {
+					/** @enum {string} */
+					type: "Hash";
+					value: string;
+			  }
+			| {
+					/** @enum {string} */
+					type: "Blob";
+			  }
+			| {
+					/** Format: int64 */
+					class: number;
+					/** Format: int64 */
+					item: number;
+					/** @enum {string} */
+					type: "Reference";
+			  };
+		ItemListResponse: {
+			items: components["schemas"]["ItemlistItemInfo"][];
+			/** Format: int64 */
+			skip: number;
+			/** Format: int64 */
+			total: number;
+		};
+		ItemlistItemInfo: {
+			/** @description All attributes this item has */
+			attribute_values: {
+				[key: string]: components["schemas"]["ItemAttrData"];
+			};
+			/**
+			 * Format: int64
+			 * @description The class this item belongs to
+			 */
+			class: number;
+			/**
+			 * Format: int64
+			 * @description The id of this item
+			 */
+			id: number;
+		};
 		LoginRequest: {
 			email: string;
 			password: string;
@@ -743,7 +828,7 @@ export interface components {
 		};
 		RunPipelineRequest: {
 			input: {
-				[key: string]: components["schemas"]["ApiAttrData"];
+				[key: string]: components["schemas"]["ApiInputAttrData"];
 			};
 			/** @description A unique id for this job */
 			job_id: string;
@@ -1060,6 +1145,53 @@ export interface operations {
 				content?: never;
 			};
 			/** @description Dataset does not exist */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	list_items: {
+		parameters: {
+			query: {
+				skip: number;
+				count: number;
+			};
+			header?: never;
+			path: {
+				/** @description Class id */
+				class_id: number;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Class info */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ItemListResponse"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Class not found */
 			404: {
 				headers: {
 					[name: string]: unknown;

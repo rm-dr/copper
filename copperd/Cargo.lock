@@ -1076,6 +1076,7 @@ dependencies = [
  "copper-migrate",
  "copper-piper",
  "copper-util",
+ "itertools",
  "rand",
  "serde",
  "serde_json",
