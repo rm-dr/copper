@@ -306,6 +306,10 @@ impl<'a> S3Client {
 	}
 }
 
+//
+// MARK: S3Reader
+//
+
 pub struct S3Reader {
 	client: S3Client,
 	bucket: SmartString<LazyCompact>,

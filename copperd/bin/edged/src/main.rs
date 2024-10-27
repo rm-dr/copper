@@ -20,11 +20,10 @@ mod api;
 mod config;
 mod database;
 
-mod apidata;
 mod auth;
 mod uploader;
 
-async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> Router {
+async fn make_app(config: Arc<EdgedConfig>, s3_client: Arc<S3Client>) -> Router {
 	// Connect to database
 	let db = match PgDatabaseClient::open(&config.edged_userdb_addr).await {
 		Ok(db) => db,
@@ -122,13 +121,13 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client_upload: Arc<S3Client>) -> 
 		auth: Arc::new(AuthHelper::new()),
 		uploader: Arc::new(Uploader::new(
 			config.clone(),
-			s3_client_upload.clone(),
+			s3_client.clone(),
 			jobqueue_client.clone(),
 		)),
 
 		jobqueue_client,
 		itemdb_client,
-		s3_client_upload,
+		s3_client,
 	});
 }
 

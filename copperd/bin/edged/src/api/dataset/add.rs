@@ -7,13 +7,13 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use copper_itemdb::client::base::{client::ItemdbClient, errors::dataset::AddDatasetError};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tracing::error;
 use utoipa::ToSchema;
 
 use crate::api::RouterState;
 
-#[derive(Deserialize, Serialize, ToSchema, Debug)]
+#[derive(Deserialize, ToSchema, Debug)]
 pub(super) struct NewDatasetRequest {
 	name: String,
 }
