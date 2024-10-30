@@ -8,12 +8,16 @@ import { useForm, UseFormReturnType } from "@mantine/form";
 import { AttrNameEntry, AttrSubmitButtons } from "../_basicform";
 import { Switch } from "@mantine/core";
 
-export const _blobAttrType: attrTypeInfo = {
+export const _blobAttrType: attrTypeInfo<"Blob"> = {
 	pretty_name: "Blob",
 	serialize_as: "Blob",
 	icon: <Binary />,
 	create_params: {
 		form: (params) => BlobForm({ attr_type: { type: "Blob" }, ...params }),
+	},
+
+	table_cell: () => {
+		return "Blob";
 	},
 };
 

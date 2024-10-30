@@ -12,12 +12,20 @@ import { Switch } from "@mantine/core";
 import { components } from "@/lib/api/openapi";
 import { edgeclient } from "@/lib/api/client";
 
-export const _floatAttrType: attrTypeInfo = {
+export const _floatAttrType: attrTypeInfo<"Float"> = {
 	pretty_name: "Float",
 	serialize_as: "Float",
 	icon: <Omega />,
 	create_params: {
 		form: (params) => Form(params),
+	},
+
+	table_cell: (value) => {
+		if (value.type !== "Float") {
+			return null;
+		}
+
+		return value.value;
 	},
 };
 

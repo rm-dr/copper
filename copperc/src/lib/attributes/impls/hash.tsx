@@ -12,12 +12,20 @@ import {
 } from "../_basicform";
 import { Select } from "@mantine/core";
 
-export const _hashAttrType: attrTypeInfo = {
+export const _hashAttrType: attrTypeInfo<"Hash"> = {
 	pretty_name: "Hash",
 	serialize_as: "Hash",
 	icon: <Shell />,
 	create_params: {
 		form: (params) => Form(params),
+	},
+
+	table_cell: (value) => {
+		if (value.type !== "Hash") {
+			return null;
+		}
+
+		return value.value;
 	},
 };
 

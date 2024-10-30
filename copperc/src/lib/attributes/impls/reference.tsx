@@ -12,12 +12,20 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { ReactElement } from "react";
 import { Select } from "@mantine/core";
 
-export const _referenceAttrType: attrTypeInfo = {
+export const _referenceAttrType: attrTypeInfo<"Reference"> = {
 	pretty_name: "Reference",
 	serialize_as: "Reference",
 	icon: <Ampersand />,
 	create_params: {
 		form: (params) => Form(params),
+	},
+
+	table_cell: (value) => {
+		if (value.type !== "Reference") {
+			return null;
+		}
+
+		return value.item;
 	},
 };
 

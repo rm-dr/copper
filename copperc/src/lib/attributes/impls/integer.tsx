@@ -12,12 +12,20 @@ import { components } from "@/lib/api/openapi";
 import { useMutation } from "@tanstack/react-query";
 import { ReactElement } from "react";
 
-export const _integerAttrType: attrTypeInfo = {
+export const _integerAttrType: attrTypeInfo<"Integer"> = {
 	pretty_name: "Integer",
 	serialize_as: "Integer",
 	icon: <Sigma />,
 	create_params: {
 		form: (params) => Form(params),
+	},
+
+	table_cell: (value) => {
+		if (value.type !== "Integer") {
+			return null;
+		}
+
+		return value.value;
 	},
 };
 

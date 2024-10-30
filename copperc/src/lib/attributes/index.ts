@@ -7,13 +7,17 @@ import { _floatAttrType } from "./impls/float";
 import { _integerAttrType } from "./impls/integer";
 import { _hashAttrType } from "./impls/hash";
 import { _referenceAttrType } from "./impls/reference";
+import { components } from "../api/openapi";
 
-export type attrTypeInfo = {
+export type attrTypeInfo<
+	SerializeAs extends
+		components["schemas"]["ItemAttrData"]["type"] = components["schemas"]["ItemAttrData"]["type"],
+> = {
 	// Pretty name to display to user
 	pretty_name: string;
 
 	// The name of this data type in copper's api
-	serialize_as: string;
+	serialize_as: SerializeAs;
 
 	// Icon to use for attrs of this type
 	icon: ReactNode;
@@ -32,9 +36,13 @@ export type attrTypeInfo = {
 			close: () => void;
 		}) => ReactElement;
 	};
+
+	table_cell: (
+		value: components["schemas"]["ItemAttrData"],
+	) => null | ReactNode;
 };
 
-export const attrTypes: attrTypeInfo[] = [
+export const attrTypes = [
 	_textAttrType,
 	_booleanAttrType,
 	_blobAttrType,

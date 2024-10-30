@@ -3,6 +3,7 @@ import { NodeDef } from ".";
 import { BaseNode } from "./base";
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { Select } from "@mantine/core";
+import { components } from "@/lib/api/openapi";
 
 type IfNoneNodeType = Node<
 	{
@@ -75,12 +76,12 @@ export const IfNoneNode: NodeDef<IfNoneNodeType> = {
 		}
 
 		const t = serialized.params.type;
-		if (t?.parameter_type !== "String") {
+		if (t?.parameter_type === undefined) {
 			return null;
 		}
 
 		return {
-			type: t.value,
+			type: t.value as components["schemas"]["AttrDataStub"]["type"],
 		};
 	},
 };
