@@ -6,7 +6,7 @@ import {
 	AttrSubmitButtons,
 } from "../_basicform";
 import { useForm, UseFormReturnType } from "@mantine/form";
-import { Switch } from "@mantine/core";
+import { NumberInput, Switch } from "@mantine/core";
 import { edgeclient } from "@/lib/api/client";
 import { components } from "@/lib/api/openapi";
 import { useMutation } from "@tanstack/react-query";
@@ -21,11 +21,52 @@ export const _integerAttrType: attrTypeInfo<"Integer"> = {
 	},
 
 	table_cell: (value) => {
-		if (value.type !== "Integer") {
-			return null;
-		}
+		return (
+			<div
+				style={{
+					paddingLeft: "0.5rem",
+					width: "100%",
+					overflow: "hidden",
+					textOverflow: "ellipsis",
+					whiteSpace: "nowrap",
+					color: "var(--mantine-color-white)",
+				}}
+			>
+				{value.value}
+			</div>
+		);
+	},
 
-		return value.value;
+	editor: {
+		type: "inline",
+
+		old_value: (value) => {
+			return (
+				<div
+					style={{
+						paddingLeft: "0.5rem",
+						width: "100%",
+						overflow: "hidden",
+						textOverflow: "ellipsis",
+						whiteSpace: "nowrap",
+						color: "var(--mantine-color-white)",
+					}}
+				>
+					{value.value}
+				</div>
+			);
+		},
+
+		new_value: (params) => {
+			return (
+				<NumberInput
+					placeholder="empty value"
+					allowDecimal={false}
+					allowNegative={true}
+					defaultValue={params.value?.value}
+				/>
+			);
+		},
 	},
 };
 

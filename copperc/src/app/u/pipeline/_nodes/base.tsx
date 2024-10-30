@@ -2,8 +2,8 @@ import { ReactNode } from "react";
 import { Handle, Node, Position, useReactFlow } from "@xyflow/react";
 import style from "./nodes.module.scss";
 import { ActionIcon } from "@mantine/core";
-import { Trash2, X } from "lucide-react";
-import { attrTypes } from "@/lib/attributes";
+import { Trash2 } from "lucide-react";
+import { DataType, getAttrTypeInfo } from "@/lib/attributes";
 
 function EmptyMarker() {
 	return (
@@ -27,13 +27,13 @@ export function BaseNode(params: {
 	top_color?: string;
 
 	outputs?: {
-		type: (typeof attrTypes)[number]["serialize_as"];
+		type: DataType;
 		id: string;
 		tooltip: string;
 	}[];
 
 	inputs?: {
-		type: (typeof attrTypes)[number]["serialize_as"];
+		type: DataType;
 		id: string;
 		tooltip: string;
 	}[];
@@ -77,9 +77,7 @@ export function BaseNode(params: {
 										key={`handle-${x.id}`}
 										className={`${style.node_port} ${style.input}`}
 									>
-										{attrTypes.find((a) => a.serialize_as === x.type)?.icon || (
-											<X />
-										)}
+										{getAttrTypeInfo(x.type).icon}
 										<Handle type="target" position={Position.Left} id={x.id} />
 										<div className={`${style.port_tooltip} ${style.input}`}>
 											{x.tooltip}
@@ -105,9 +103,7 @@ export function BaseNode(params: {
 										key={`handle-${x.id}`}
 										className={`${style.node_port} ${style.output}`}
 									>
-										{attrTypes.find((a) => a.serialize_as === x.type)?.icon || (
-											<X />
-										)}
+										{getAttrTypeInfo(x.type).icon}
 										<Handle type="source" position={Position.Right} id={x.id} />
 										<div className={`${style.port_tooltip} ${style.output}`}>
 											{x.tooltip}

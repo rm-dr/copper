@@ -265,6 +265,7 @@ export function AddNodeButton(params: {
 	const node = nodeDefinitions[params.node_type];
 	if (node === undefined) {
 		console.error(`Unknown node type ${params.node_type}`);
+		throw new Error(`Unknown node type ${params.node_type}`);
 		return;
 	}
 

@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
 import { components } from "@/lib/api/openapi";
 import { ReactElement, useState } from "react";
-import { attrTypes } from "@/lib/attributes";
+import { DataType, dataTypes, getAttrTypeInfo } from "@/lib/attributes";
 
 export function useAddAttributeModal(params: {
 	dataset_id: number;
@@ -20,9 +20,7 @@ export function useAddAttributeModal(params: {
 		response: string | null;
 	}>({ type: null, response: null });
 
-	const [newAttrType, setNewAttrType] = useState<
-		components["schemas"]["AttrDataStub"]["type"] | null
-	>(null);
+	const [newAttrType, setNewAttrType] = useState<DataType | null>(null);
 
 	// Get input ui for attr-specific parameters
 	let NewAttrForm:
@@ -35,13 +33,12 @@ export function useAddAttributeModal(params: {
 		  }) => ReactElement) = null;
 
 	if (newAttrType !== null) {
-		const d = attrTypes.find((x) => {
-			return x.serialize_as === newAttrType;
-		});
-		if (d !== undefined && d.create_params !== null) {
+		const attrdef = getAttrTypeInfo(newAttrType);
+
+		if (attrdef.create_params !== null) {
 			// This is a function, but don't call it here!
 			// It's a react component that is placed into tsx below.
-			NewAttrForm = d.create_params.form;
+			NewAttrForm = attrdef.create_params.form;
 		}
 	}
 
@@ -104,11 +101,14 @@ export function useAddAttributeModal(params: {
 				<Select
 					required={true}
 					placeholder={"select attribute type"}
-					data={attrTypes.map((x) => ({
-						label: x.pretty_name,
-						value: x.serialize_as,
-						disabled: false,
-					}))}
+					data={dataTypes.map((x) => {
+						const attrdef = getAttrTypeInfo(x);
+						return {
+							label: attrdef.pretty_name,
+							value: attrdef.serialize_as,
+							disabled: false,
+						};
+					})}
 					disabled={doCreate.isPending}
 					error={errorMessage.type !== null}
 					onChange={(val) => {

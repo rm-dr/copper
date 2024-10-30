@@ -9,8 +9,8 @@ import { BaseNode } from "./base";
 import { useQuery } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
 import { NodeDef } from ".";
-import { attrTypes } from "@/lib/attributes";
 import { useCallback } from "react";
+import { DataType } from "@/lib/attributes";
 
 type AddItemNodeType = Node<
 	{
@@ -18,7 +18,7 @@ type AddItemNodeType = Node<
 		class: null | number;
 
 		inputs: {
-			type: (typeof attrTypes)[number]["serialize_as"];
+			type: DataType;
 			id: string;
 			tooltip: string;
 		}[];

@@ -1,0 +1,125 @@
+.edit_container {
+	display: flex;
+	flex-direction: row;
+	align-items: first baseline;
+	justify-self: start;
+	gap: 4rem;
+
+	width: 100%;
+	height: 100%;
+}
+
+.attr_container {
+	display: flex;
+	flex-direction: column;
+	flex-grow: 1;
+
+	max-height: 100%;
+	overflow: scroll;
+
+	.attr_row {
+		display: flex;
+		flex-direction: row;
+		overflow: hidden;
+		background-color: var(--mantine-color-dark-9);
+		min-height: 3rem;
+		max-height: 10rem;
+
+		.row_icon {
+			width: 2rem;
+			min-height: 100%;
+			background-color: var(--mantine-primary-color-8);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border-bottom: 2px solid var(--mantine-primary-color-6);
+		}
+
+		.row_name {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+
+			width: 10rem;
+			min-height: 100%;
+			padding: 0.25rem;
+			background-color: var(--mantine-color-dark-8);
+			user-select: none;
+			border-bottom: 2px solid var(--mantine-color-dark-7);
+		}
+
+		.row_value_old {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+
+			overflow-y: scroll;
+			white-space: pre-line;
+			text-wrap: pretty;
+			overflow-wrap: anywhere;
+			width: calc((100% - 10rem - 2rem) / 2);
+			padding: 0.25rem;
+			padding-left: 0.5rem;
+			border-right: 2px solid var(--mantine-color-dark-7);
+			border-bottom: 2px solid var(--mantine-color-dark-7);
+		}
+
+		.row_value_new {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+
+			padding: 0.25rem;
+			overflow-x: scroll;
+			overflow-y: scroll;
+			width: calc((100% - 10rem - 2rem) / 2);
+			padding-left: 0.5rem;
+			border-bottom: 2px solid var(--mantine-color-dark-6);
+		}
+	}
+}
+
+.panel_container {
+	display: inline-flex;
+	vertical-align: top;
+	flex-direction: column;
+
+	width: 30%;
+	height: 100%;
+
+	border-style: solid;
+	border-color: transparent;
+	border-radius: 0.5rem;
+	overflow: hidden;
+
+	.panel_title {
+		display: flex;
+		flex-direction: row;
+		overflow: hidden;
+		width: 100%;
+		height: 2rem;
+
+		.panel_title_icon {
+			width: 2rem;
+			min-height: 100%;
+			background-color: var(--mantine-primary-color-8);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.panel_title_name {
+			flex-grow: 1;
+			min-height: 100%;
+			padding: 0.25rem;
+			background-color: var(--mantine-color-dark-6);
+			user-select: none;
+		}
+	}
+
+	.panel_body {
+		width: 100%;
+		flex-grow: 1;
+		background-color: var(--mantine-color-dark-7);
+	}
+}

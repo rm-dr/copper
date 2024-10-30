@@ -6,13 +6,11 @@ import {
 	FolderPlus,
 	PenBox,
 	Plus,
-	RefreshCw,
 	Table,
 	Trash2,
 	TriangleAlert,
 	X,
 } from "lucide-react";
-import { ReactNode } from "react";
 import { ActionIcon, Text, Tooltip } from "@mantine/core";
 import { useDeleteDatasetModal } from "./_modals/deletedataset";
 import { useRenameDatasetModal } from "./_modals/renamedataset";
@@ -22,33 +20,8 @@ import { useRenameClassModal } from "./_modals/renameclass";
 import { useDeleteAttributeModal } from "./_modals/deleteattribute";
 import { useRenameAttributeModal } from "./_modals/renameattribute";
 import { useAddAttributeModal } from "./_modals/addattribute";
-import styles from "./page.module.scss";
-import { attrTypes } from "@/lib/attributes";
-
-const Wrapper = (params: { children: ReactNode }) => {
-	return (
-		<div
-			style={{
-				display: "flex",
-				alignItems: "center",
-				justifyContent: "center",
-				width: "100%",
-				marginTop: "2rem",
-				marginBottom: "2rem",
-				userSelect: "none",
-			}}
-		>
-			<div
-				style={{
-					display: "block",
-					textAlign: "center",
-				}}
-			>
-				{params.children}
-			</div>
-		</div>
-	);
-};
+import { getAttrTypeInfo } from "@/lib/attributes";
+import { Spinner, Wrapper } from "@/components/spinner";
 
 export function useTreePanel() {
 	const {
@@ -156,9 +129,7 @@ export function useTreePanel() {
 												height: "100%",
 											}}
 										>
-											{attrTypes.find(
-												(x) => x.serialize_as === attr.data_type.type,
-											)?.icon || <X />}
+											{getAttrTypeInfo(attr.data_type.type).icon}
 										</div>
 									</Tooltip>
 								</>
@@ -229,12 +200,7 @@ export function useTreePanel() {
 	if (list.isPending) {
 		tree = (
 			<Wrapper>
-				<RefreshCw
-					size="3rem"
-					color="var(--mantine-color-dimmed)"
-					className={styles.rotating}
-				/>
-
+				<Spinner />
 				<Text size="1.3rem" c="dimmed">
 					Loading...
 				</Text>

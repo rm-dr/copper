@@ -360,7 +360,7 @@ export function ControlPanel(params: {
 										})
 										// Other errors
 										.catch((err) => {
-											console.log(err);
+											console.error(err);
 										});
 								}}
 							>

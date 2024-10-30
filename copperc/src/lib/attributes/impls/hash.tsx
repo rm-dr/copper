@@ -10,7 +10,7 @@ import {
 	AttrNameEntry,
 	AttrSubmitButtons,
 } from "../_basicform";
-import { Select } from "@mantine/core";
+import { Select, Textarea } from "@mantine/core";
 
 export const _hashAttrType: attrTypeInfo<"Hash"> = {
 	pretty_name: "Hash",
@@ -21,11 +21,30 @@ export const _hashAttrType: attrTypeInfo<"Hash"> = {
 	},
 
 	table_cell: (value) => {
-		if (value.type !== "Hash") {
-			return null;
-		}
-
 		return value.value;
+	},
+
+	editor: {
+		type: "inline",
+
+		old_value: (value) => {
+			return value.value;
+		},
+
+		new_value: (params) => {
+			return (
+				<Textarea
+					radius="0px"
+					placeholder="no value"
+					autosize
+					minRows={1}
+					defaultValue={params.value?.value}
+					onChange={(x) =>
+						params.onChange({ type: "Hash", value: x.currentTarget.value })
+					}
+				/>
+			);
+		},
 	},
 };
 

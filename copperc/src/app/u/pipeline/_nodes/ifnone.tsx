@@ -1,20 +1,19 @@
-import { attrTypes } from "@/lib/attributes";
 import { NodeDef } from ".";
 import { BaseNode } from "./base";
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { Select } from "@mantine/core";
 import { components } from "@/lib/api/openapi";
+import { DataType, dataTypes } from "@/lib/attributes";
 
 type IfNoneNodeType = Node<
 	{
-		type: (typeof attrTypes)[number]["serialize_as"];
+		type: DataType;
 	},
 	"ifnone"
 >;
 
 function IfNoneNodeElement({ data, id }: NodeProps<IfNoneNodeType>) {
 	const { getEdges, deleteElements, updateNodeData } = useReactFlow();
-	const types = attrTypes.map((x) => x.serialize_as);
 
 	return (
 		<>
@@ -31,7 +30,7 @@ function IfNoneNodeElement({ data, id }: NodeProps<IfNoneNodeType>) {
 					clearable={false}
 					label="Data type"
 					placeholder="Pick value"
-					data={types}
+					data={dataTypes}
 					onChange={(value) => {
 						if (value === null || value === data.type) {
 							return;

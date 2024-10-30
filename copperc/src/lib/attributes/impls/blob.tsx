@@ -1,12 +1,14 @@
-import { ReactElement } from "react";
+import { ReactElement, ReactNode } from "react";
 import { attrTypeInfo } from "..";
-import { Binary } from "lucide-react";
+import { Binary, Trash2, Upload, X } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { components } from "@/lib/api/openapi";
 import { edgeclient } from "@/lib/api/client";
 import { useForm, UseFormReturnType } from "@mantine/form";
 import { AttrNameEntry, AttrSubmitButtons } from "../_basicform";
-import { Switch } from "@mantine/core";
+import { ActionIcon, Switch, Text } from "@mantine/core";
+import { ppBytes } from "@/lib/ppbytes";
+import Image from "next/image";
 
 export const _blobAttrType: attrTypeInfo<"Blob"> = {
 	pretty_name: "Blob",
@@ -16,8 +18,84 @@ export const _blobAttrType: attrTypeInfo<"Blob"> = {
 		form: (params) => BlobForm({ attr_type: { type: "Blob" }, ...params }),
 	},
 
-	table_cell: () => {
-		return "Blob";
+	table_cell: (value) => {
+		return (
+			<div
+				style={{
+					paddingLeft: "0.5rem",
+					overflow: "hidden",
+					width: "100%",
+					textOverflow: "ellipsis",
+					whiteSpace: "nowrap",
+					color: "var(--mantine-color-dimmed)",
+					fontFamily: "monospace",
+					fontStyle: "italic",
+				}}
+			>
+				{value.mime}
+
+				{value.size === null || value.size === undefined
+					? " (??? bytes)"
+					: ` (${ppBytes(value.size)})`}
+			</div>
+		);
+	},
+
+	editor: {
+		type: "panel",
+
+		panel_body: (params) => {
+			const data_url = `/api/item/${params.item_id}/attr/${params.attr_id}`;
+
+			let inner: ReactNode | null = (
+				<_PanelBodyUnknown
+					src={data_url}
+					icon={<X />}
+					attr_value={params.value}
+				/>
+			);
+
+			if (params.value.mime != null && params.value.mime.startsWith("image/")) {
+				inner = <_PanelBodyImage src={data_url} attr_value={params.value} />;
+			} else if (
+				params.value.mime != null &&
+				params.value.mime.startsWith("audio/")
+			) {
+				inner = <_PanelBodyAudio src={data_url} attr_value={params.value} />;
+			}
+
+			return (
+				<div
+					style={{
+						height: "100%",
+						width: "100%",
+						display: "flex",
+						flexDirection: "column",
+					}}
+				>
+					<div
+						style={{
+							width: "100%",
+							flexGrow: 1,
+							padding: params.inner !== true ? "0.5rem" : undefined,
+							cursor: "zoom-in",
+						}}
+					>
+						<a
+							target="_blank"
+							href={data_url}
+							rel="noopener noreferrer"
+							style={{ width: "100%", height: "100%", cursor: "inherit" }}
+						>
+							{inner}
+						</a>
+					</div>
+					{params.inner !== true ? (
+						<_PanelBottom attr_value={params.value} />
+					) : null}
+				</div>
+			);
+		},
 	},
 };
 
@@ -123,5 +201,122 @@ function BlobForm(params: {
 				/>
 			</div>
 		</form>
+	);
+}
+
+export function _PanelBodyImage(params: {
+	src: string;
+	attr_value: Extract<components["schemas"]["ItemAttrData"], { type: "Blob" }>;
+}) {
+	return (
+		<div
+			style={{
+				position: "relative",
+				width: "100%",
+				height: "100%",
+			}}
+		>
+			<Image
+				alt=""
+				src={params.src}
+				fill
+				style={{
+					objectFit: "contain",
+				}}
+			/>
+		</div>
+	);
+}
+
+export function _PanelBottom(params: {
+	attr_value: Extract<
+		components["schemas"]["ItemAttrData"],
+		{ type: "Blob" } | { type: "Binary" }
+	>;
+}) {
+	return (
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "row",
+				alignItems: "center",
+				width: "100%",
+				gap: "0.5rem",
+				backgroundColor: "var(--mantine-color-dark-6)",
+				padding: "0.5rem",
+			}}
+		>
+			<div>
+				<Text>
+					{params.attr_value.size === null ||
+					params.attr_value.size === undefined
+						? "??? bytes"
+						: ppBytes(params.attr_value.size)}
+				</Text>
+			</div>
+			<div style={{ flexGrow: 1 }}>
+				<Text ff="monospace">{params.attr_value.mime}</Text>
+			</div>
+			<div>
+				<ActionIcon variant="filled" color="red">
+					<Trash2 />
+				</ActionIcon>
+			</div>
+			<div>
+				<ActionIcon variant="filled">
+					<Upload />
+				</ActionIcon>
+			</div>
+		</div>
+	);
+}
+
+export function _PanelBodyAudio(params: {
+	src: string;
+	attr_value: Extract<
+		components["schemas"]["ItemAttrData"],
+		{ type: "Blob" } | { type: "Binary" }
+	>;
+}) {
+	return (
+		<audio controls>
+			<source src={params.src} type={params.attr_value.mime as string}></source>
+		</audio>
+	);
+}
+
+export function _PanelBodyUnknown(params: {
+	src: string;
+	icon: ReactNode;
+	attr_value: Extract<
+		components["schemas"]["ItemAttrData"],
+		{ type: "Blob" } | { type: "Binary" }
+	>;
+}) {
+	return (
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "column",
+				justifyContent: "center",
+				alignItems: "center",
+				color: "var(--mantine-color-dimmed)",
+				height: "100%",
+			}}
+		>
+			<div>{params.icon}</div>
+			<div>
+				<Text>
+					{params.attr_value.size === null ||
+					params.attr_value.size === undefined
+						? "??? bytes"
+						: ppBytes(params.attr_value.size)}{" "}
+					of binary data
+				</Text>{" "}
+			</div>
+			<div>
+				<Text>Click to download.</Text>
+			</div>
+		</div>
 	);
 }
