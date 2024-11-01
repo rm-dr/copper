@@ -2,7 +2,7 @@
 
 use crate::{
 	transaction::Transaction, AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId,
-	ClassInfo, DatasetId, DatasetInfo, ItemInfo, UserId,
+	ClassInfo, DatasetId, DatasetInfo, ItemId, ItemInfo, UserId,
 };
 use async_trait::async_trait;
 
@@ -12,7 +12,7 @@ use super::errors::{
 	dataset::{
 		AddDatasetError, DeleteDatasetError, GetDatasetError, ListDatasetsError, RenameDatasetError,
 	},
-	item::{CountItemsError, ListItemsError},
+	item::{CountItemsError, GetItemError, ListItemsError},
 	transaction::ApplyTransactionError,
 };
 
@@ -93,6 +93,9 @@ where
 	//
 	// MARK: Item
 	//
+
+	/// Get item details
+	async fn get_item(&self, item: ItemId) -> Result<ItemInfo, GetItemError>;
 
 	async fn list_items(
 		&self,

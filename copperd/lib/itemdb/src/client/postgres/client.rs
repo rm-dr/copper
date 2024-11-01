@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::{
-	client::base::errors::item::{CountItemsError, ListItemsError},
+	client::base::errors::item::{CountItemsError, GetItemError, ListItemsError},
 	transaction::{ResultOrDirect, Transaction, TransactionAction},
 	AttrData, AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo,
 	DatasetId, DatasetInfo, ItemId, ItemInfo, UserId,
@@ -532,6 +532,65 @@ impl ItemdbClient for PgItemdbClient {
 	//
 	// MARK: Items
 	//
+
+	async fn get_item(&self, item: ItemId) -> Result<ItemInfo, GetItemError> {
+		let mut conn = self.pool.acquire().await?;
+
+		let (id, class): (ItemId, ClassId) = {
+			let res = sqlx::query("SELECT * FROM item WHERE id=$1;")
+				.bind(i64::from(item))
+				.fetch_one(&mut *conn)
+				.await;
+
+			match res {
+				Err(sqlx::Error::RowNotFound) => return Err(GetItemError::NotFound),
+				Err(e) => return Err(e.into()),
+				Ok(res) => (
+					res.get::<i64, _>("id").into(),
+					res.get::<i64, _>("class_id").into(),
+				),
+			}
+		};
+
+		let mut attribute_values: BTreeMap<AttributeId, AttrData> = BTreeMap::new();
+
+		// Initialize attributes as empty...
+		let res = sqlx::query("SELECT id, data_type FROM attribute WHERE class_id=$1;")
+			.bind(i64::from(class))
+			.fetch_all(&mut *conn)
+			.await?;
+		for row in res {
+			attribute_values.insert(
+				row.get::<i64, _>("id").into(),
+				AttrData::None {
+					data_type: serde_json::from_str(row.get::<&str, _>("data_type")).unwrap(),
+				},
+			);
+		}
+
+		// ...and fill those that have data
+		//
+		// Empty attributes will not have an instance, and will remain `None`
+		// as set above.
+		let res = sqlx::query("SELECT * FROM attribute_instance WHERE item_id=$1;")
+			.bind(i64::from(item))
+			.fetch_all(&mut *conn)
+			.await?;
+		for row in res {
+			let attr_id: AttributeId = row.get::<i64, _>("attribute_id").into();
+			let value: AttrData =
+				serde_json::from_str(row.get::<&str, _>("attribute_value")).unwrap();
+
+			let x = attribute_values.insert(attr_id, value);
+			assert!(x.is_some())
+		}
+
+		Ok(ItemInfo {
+			id,
+			class,
+			attribute_values,
+		})
+	}
 
 	async fn list_items(
 		&self,

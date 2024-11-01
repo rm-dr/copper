@@ -23,6 +23,7 @@ use crate::uploader::Uploader;
 mod attribute;
 mod class;
 mod dataset;
+mod item;
 mod job;
 mod login;
 mod logout;
@@ -54,7 +55,7 @@ pub struct RouterState<Client: DatabaseClient, Itemdb: ItemdbClient> {
 	pub itemdb_client: Arc<Itemdb>,
 	pub jobqueue_client: Arc<dyn JobQueueClient>,
 	pub auth: Arc<AuthHelper<Client>>,
-	pub s3_client_upload: Arc<S3Client>,
+	pub s3_client: Arc<S3Client>,
 	pub uploader: Arc<Uploader>,
 }
 
@@ -68,7 +69,7 @@ impl<Client: DatabaseClient, Itemdb: ItemdbClient> Clone for RouterState<Client,
 			auth: self.auth.clone(),
 			itemdb_client: self.itemdb_client.clone(),
 			jobqueue_client: self.jobqueue_client.clone(),
-			s3_client_upload: self.s3_client_upload.clone(),
+			s3_client: self.s3_client.clone(),
 			uploader: self.uploader.clone(),
 		}
 	}
@@ -85,6 +86,7 @@ impl<Client: DatabaseClient, Itemdb: ItemdbClient> Clone for RouterState<Client,
 		(path = "/pipeline", api = pipeline::PipelineApi),
 		(path = "/storage", api = storage::StorageApi),
 		(path = "/job", api = job::JobApi),
+		(path = "/item", api = item::ItemApi),
 	),
 	tags(
 		(name = "Copper", description = "Copper edge daemon")
@@ -107,6 +109,7 @@ pub(super) fn router<Client: DatabaseClient + 'static, Itemdb: ItemdbClient + 's
 		.nest("/pipeline", pipeline::router())
 		.nest("/storage", storage::router())
 		.nest("/job", job::router())
+		.nest("/item", item::router())
 		//
 		.route("/login", post(try_login))
 		.route("/logout", post(logout))

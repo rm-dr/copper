@@ -69,3 +69,37 @@ impl From<sqlx::Error> for CountItemsError {
 		Self::DbError(value)
 	}
 }
+
+/// An error we can encounter when getting item info
+#[derive(Debug)]
+pub enum GetItemError {
+	/// Database error
+	DbError(sqlx::Error),
+
+	/// An item with this id doesn't exist
+	NotFound,
+}
+
+impl Display for GetItemError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::DbError(_) => write!(f, "database backend error"),
+			Self::NotFound => write!(f, "item not found"),
+		}
+	}
+}
+
+impl Error for GetItemError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		match self {
+			Self::DbError(x) => Some(x),
+			_ => None,
+		}
+	}
+}
+
+impl From<sqlx::Error> for GetItemError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(value)
+	}
+}

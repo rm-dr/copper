@@ -18,7 +18,7 @@ use copper_itemdb::{
 			item::{CountItemsError, ListItemsError},
 		},
 	},
-	AttrData, AttributeId, ClassId, ItemId, ItemInfo,
+	AttrData, AttributeId, ClassId, ItemId,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -51,7 +51,10 @@ pub(super) enum ItemAttrData {
 		value: String,
 	},
 
-	Blob,
+	Blob {
+		mime: String,
+		size: Option<i64>,
+	},
 
 	Reference {
 		#[schema(value_type = i64)]
@@ -62,17 +65,31 @@ pub(super) enum ItemAttrData {
 	},
 }
 
-impl From<&AttrData> for ItemAttrData {
-	fn from(value: &AttrData) -> Self {
-		value.clone().into()
-	}
-}
-
-impl From<AttrData> for ItemAttrData {
-	fn from(value: AttrData) -> Self {
-		match value {
+impl ItemAttrData {
+	async fn from_attr_data<Client: DatabaseClient, Itemdb: ItemdbClient>(
+		state: &RouterState<Client, Itemdb>,
+		value: AttrData,
+	) -> Result<Self, Response> {
+		Ok(match value {
 			AttrData::None { .. } => ItemAttrData::None,
-			AttrData::Blob { .. } => ItemAttrData::Blob,
+			AttrData::Blob { bucket, key } => {
+				let meta = match state
+					.s3_client
+					.get_object_metadata(bucket.as_str(), key.as_str())
+					.await
+				{
+					Ok(x) => x,
+					Err(error) => {
+						error!(message = "Error in itemdb client", ?error);
+						return Err(StatusCode::INTERNAL_SERVER_ERROR.into_response());
+					}
+				};
+
+				ItemAttrData::Blob {
+					mime: meta.mime.to_string(),
+					size: meta.size,
+				}
+			}
 			AttrData::Integer { value, .. } => ItemAttrData::Integer { value },
 			AttrData::Float { value, .. } => ItemAttrData::Float { value },
 			AttrData::Boolean { value } => ItemAttrData::Boolean { value },
@@ -85,7 +102,7 @@ impl From<AttrData> for ItemAttrData {
 			AttrData::Hash { data, .. } => ItemAttrData::Hash {
 				value: data.into_iter().map(|x| format!("{x:02X?}")).join(""),
 			},
-		}
+		})
 	}
 }
 
@@ -102,20 +119,6 @@ pub struct ItemlistItemInfo {
 	/// All attributes this item has
 	#[schema(value_type = BTreeMap<i64, ItemAttrData>)]
 	pub attribute_values: BTreeMap<AttributeId, ItemAttrData>,
-}
-
-impl From<&ItemInfo> for ItemlistItemInfo {
-	fn from(value: &ItemInfo) -> Self {
-		Self {
-			id: value.id,
-			class: value.class,
-			attribute_values: value
-				.attribute_values
-				.iter()
-				.map(|(k, v)| (*k, v.into()))
-				.collect(),
-		}
-	}
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -199,12 +202,33 @@ pub(super) async fn list_items<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		.await
 	{
 		Ok(x) => {
+			let mut items = Vec::new();
+
+			for i in x {
+				let mut attribute_values = BTreeMap::new();
+				for (attr_id, data) in i.attribute_values {
+					match ItemAttrData::from_attr_data(&state, data).await {
+						Ok(x) => {
+							attribute_values.insert(attr_id, x);
+						}
+
+						Err(res) => return res,
+					}
+				}
+
+				items.push(ItemlistItemInfo {
+					id: i.id,
+					class: i.class,
+					attribute_values,
+				})
+			}
+
 			return (
 				StatusCode::OK,
 				Json(ItemListResponse {
 					total,
 					skip: paginate.skip,
-					items: x.iter().map(|x| x.into()).collect(),
+					items,
 				}),
 			)
 				.into_response();

@@ -146,6 +146,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/item/{item_idx}/attr/{attr_idx}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get the value of an item's attribute */
+		get: operations["get_attr"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/job/list": {
 		parameters: {
 			query?: never;
@@ -606,6 +623,9 @@ export interface components {
 					value: string;
 			  }
 			| {
+					mime: string;
+					/** Format: int64 */
+					size?: number | null;
 					/** @enum {string} */
 					type: "Blob";
 			  }
@@ -1434,6 +1454,38 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content?: never;
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	get_attr: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Item id */
+				item_idx: number;
+				/** @description Attribute id */
+				attr_idx: number;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The attribute's data */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DatasetInfo"][];
+				};
 			};
 			/** @description Internal server error */
 			500: {
