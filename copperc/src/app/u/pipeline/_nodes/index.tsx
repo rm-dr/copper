@@ -45,7 +45,7 @@ export type NodeDef<NodeType extends Node> = {
 	) => Promise<NodeType["data"] | null>;
 };
 
-// eslint-disable-next-line
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const nodeDefinitions: Record<string, NodeDef<any>> = {
 	[InputNode.xyflow_node_type]: InputNode,
 	[ConstantNode.xyflow_node_type]: ConstantNode,
@@ -64,6 +64,6 @@ export const nodeTypes = Object.keys(nodeDefinitions).reduce(
 		res[key] = nodeDefinitions[key as keyof typeof nodeDefinitions]!.node;
 		return res;
 	},
-	// eslint-disable-next-line
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	{} as Record<string, NodeDef<any>["node"]>,
 ) as NodeTypes;

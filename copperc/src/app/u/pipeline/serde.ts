@@ -144,7 +144,7 @@ export async function deserializePipeline(
 		);
 		if (nodedef === undefined) {
 			console.error(`Unknown node type ${v.node_type}`);
-			continue;
+			throw new Error(`Unknown node type ${v.node_type}`);
 		}
 
 		const des = await nodedef[1].deserialize(v);
