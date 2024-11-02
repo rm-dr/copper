@@ -7,6 +7,7 @@
 		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",
+		"prettier": "prettier --check .",
 		"openapi": "openapi-typescript; prettier --write src/lib/api/openapi.ts",
 		"depcheck": "npm-check --no-emoji"
 	},
