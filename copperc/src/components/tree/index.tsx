@@ -59,20 +59,20 @@ export function useTree<D>(params: { defaultOpen?: boolean }) {
 		/>
 	);
 
-	const setTreeData = useCallback((data: TreeNode<D>[]) => {
+	const setTreeData = useCallback((new_data: TreeNode<D>[]) => {
 		// Note that we don't de-select anything when data
 		// changes. This is intentional.
 		setOpened((o) => {
 			// Auto-close nodes that were removed from the tree
 			const s = new Set(o);
 			for (const i in s.keys) {
-				if (!data.some((x) => x.uid === i)) {
+				if (!new_data.some((x) => x.uid === i)) {
 					s.delete(i);
 				}
 			}
 			return s;
 		});
-		setData(data);
+		setData(new_data);
 	}, []);
 
 	return { node, data, setTreeData, selected };

@@ -60,4 +60,20 @@ jobs:
 
       - name: Run prettier
         working-directory: ./copperc
-        run: npx prettier --check .
+        run: npm run prettier
+
+  eslint:
+    runs-on: ubuntu-latest
+    container: node:18.20.4
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        working-directory: ./copperc
+        run: npm ci
+
+      - name: Run eslint
+        working-directory: ./copperc
+        run: npm run lint

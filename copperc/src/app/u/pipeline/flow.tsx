@@ -94,11 +94,11 @@ export function useFlow(params: { disabled: boolean; onModify: () => void }) {
 
 	const isValidConnection: IsValidConnection = useCallback(
 		(connection) => {
-			const nodes = getNodes();
-			const edges = getEdges();
+			const c_nodes = getNodes();
+			const c_edges = getEdges();
 
 			// Get source node details
-			const source = nodes.find((node) => node.id === connection.source);
+			const source = c_nodes.find((node) => node.id === connection.source);
 			if (source === undefined) return false;
 			const sourcedef = nodeDefinitions[source.type!];
 			if (sourcedef === undefined) return false;
@@ -108,7 +108,7 @@ export function useFlow(params: { disabled: boolean; onModify: () => void }) {
 			if (sourceoutput === undefined) return false;
 
 			// Get target node details
-			const target = nodes.find((node) => node.id === connection.target);
+			const target = c_nodes.find((node) => node.id === connection.target);
 			if (target === undefined) return false;
 			const targetdef = nodeDefinitions[target.type!];
 			if (targetdef === undefined) return false;
@@ -123,7 +123,7 @@ export function useFlow(params: { disabled: boolean; onModify: () => void }) {
 			}
 
 			// Make sure target handle is not already connected
-			const incoming_edges = edges.filter((x) => x.target === target.id);
+			const incoming_edges = c_edges.filter((x) => x.target === target.id);
 			const repeat_input = incoming_edges.reduce(
 				(prev, edge) => prev || edge.targetHandle === targetinput.id,
 				false,
@@ -135,7 +135,7 @@ export function useFlow(params: { disabled: boolean; onModify: () => void }) {
 				if (visited.has(node.id)) return true;
 				visited.add(node.id);
 
-				for (const out of getOutgoers(node, nodes, edges)) {
+				for (const out of getOutgoers(node, c_nodes, c_edges)) {
 					if (out.id === source.id) return true;
 					if (hasCycle(out, visited)) return true;
 				}

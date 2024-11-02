@@ -1,6 +1,9 @@
 {
 	"extends": ["next/core-web-vitals", "next/typescript"],
 	"rules": {
-		"no-mixed-spaces-and-tabs": "off"
+		"no-mixed-spaces-and-tabs": "off",
+		"no-restricted-syntax": ["error", "WithStatement"],
+		"@typescript-eslint/no-shadow": "error",
+		"@typescript-eslint/no-empty-function": "error"
 	}
 }

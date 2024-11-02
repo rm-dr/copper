@@ -23,7 +23,11 @@ import { useRouter } from "next/navigation";
 
 const NavigationBlockerContext = createContext<
 	[isBlocked: boolean, setBlocked: Dispatch<SetStateAction<boolean>>]
->([false, () => {}]);
+>([
+	false,
+	// eslint-disable-next-line @typescript-eslint/no-empty-function
+	() => {},
+]);
 
 export function NavigationBlockerProvider({
 	children,

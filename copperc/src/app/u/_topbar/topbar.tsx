@@ -168,11 +168,11 @@ function useUpdateModal(params: { onSuccess: () => void }) {
 	});
 
 	return {
-		open: (userInfo: components["schemas"]["UserInfo"]) => {
-			setUserInfo(userInfo);
+		open: (new_userInfo: components["schemas"]["UserInfo"]) => {
+			setUserInfo(new_userInfo);
 			form.setValues({
-				email: userInfo.email,
-				name: userInfo.name,
+				email: new_userInfo.email,
+				name: new_userInfo.name,
 				password: null,
 				password_again: null,
 			});
