@@ -105,7 +105,7 @@ export function ControlPanel(params: {
 					// exactly one `Blob` input.
 					let disabled = false;
 					const inputs = Object.entries(x.data.nodes).filter(
-						(x) => x[1].node_type === "Input",
+						(y) => y[1].node_type === "Input",
 					);
 					if (inputs.length !== 1) {
 						disabled = true;

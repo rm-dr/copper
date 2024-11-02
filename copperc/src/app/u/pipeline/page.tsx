@@ -59,20 +59,20 @@ function Main() {
 
 	const setPipeline = useCallback(
 		async (
-			pipeline: components["schemas"]["PipelineInfo"] | null,
+			new_pipeline: components["schemas"]["PipelineInfo"] | null,
 			fit?: boolean,
 		) => {
 			setReloading(true);
-			if (pipeline === null) {
+			if (new_pipeline === null) {
 				setNodes([]);
 				setEdges([]);
 			} else {
-				const de = await deserializePipeline(pipeline.data);
+				const de = await deserializePipeline(new_pipeline.data);
 				setNodes(de.nodes);
 				setEdges(de.edges);
 			}
 
-			_setPipeline(pipeline);
+			_setPipeline(new_pipeline);
 
 			// Hack that makes sure `fitView` is called _after_ nodes are updated.
 			// This also gives us a minimum of 500ms while reloading time
@@ -142,10 +142,10 @@ function Main() {
 									return;
 								}
 
-								const pipeline =
+								const new_pipeline =
 									pipelines.data?.find((x) => x.id === int) || null;
 
-								setPipeline(pipeline);
+								setPipeline(new_pipeline);
 							}}
 						/>
 
@@ -246,7 +246,9 @@ function Main() {
 								text="Input"
 								node_type="pipelineinput"
 								setNodes={setNodes}
-								onInfo={() => {}}
+								onInfo={() => {
+									console.log("todo");
+								}}
 								onModify={() => {
 									setModified(true);
 								}}
@@ -257,7 +259,9 @@ function Main() {
 								text="Constant"
 								node_type="constant"
 								setNodes={setNodes}
-								onInfo={() => {}}
+								onInfo={() => {
+									console.log("todo");
+								}}
 								onModify={() => {
 									setModified(true);
 								}}
@@ -268,7 +272,9 @@ function Main() {
 								text="IfNone"
 								node_type="ifnone"
 								setNodes={setNodes}
-								onInfo={() => {}}
+								onInfo={() => {
+									console.log("todo");
+								}}
 								onModify={() => {
 									setModified(true);
 								}}
@@ -279,7 +285,9 @@ function Main() {
 								text="Checksum"
 								node_type="hash"
 								setNodes={setNodes}
-								onInfo={() => {}}
+								onInfo={() => {
+									console.log("todo");
+								}}
 								onModify={() => {
 									setModified(true);
 								}}
@@ -293,7 +301,9 @@ function Main() {
 								text="Add item"
 								node_type="additem"
 								setNodes={setNodes}
-								onInfo={() => {}}
+								onInfo={() => {
+									console.log("todo");
+								}}
 								onModify={() => {
 									setModified(true);
 								}}
@@ -307,7 +317,9 @@ function Main() {
 								text="Strip tags"
 								node_type="striptags"
 								setNodes={setNodes}
-								onInfo={() => {}}
+								onInfo={() => {
+									console.log("todo");
+								}}
 								onModify={() => {
 									setModified(true);
 								}}
@@ -317,7 +329,9 @@ function Main() {
 								text="Extract tags"
 								node_type="extracttags"
 								setNodes={setNodes}
-								onInfo={() => {}}
+								onInfo={() => {
+									console.log("todo");
+								}}
 								onModify={() => {
 									setModified(true);
 								}}
@@ -327,7 +341,9 @@ function Main() {
 								text="Extract covers"
 								node_type="extractcovers"
 								setNodes={setNodes}
-								onInfo={() => {}}
+								onInfo={() => {
+									console.log("todo");
+								}}
 								onModify={() => {
 									setModified(true);
 								}}

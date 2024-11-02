@@ -140,7 +140,7 @@ export async function deserializePipeline(
 		const v = x[1];
 
 		const nodedef = Object.entries(nodeDefinitions).find(
-			(x) => x[1].copper_node_type === v.node_type,
+			(y) => y[1].copper_node_type === v.node_type,
 		);
 		if (nodedef === undefined) {
 			console.error(`Unknown node type ${v.node_type}`);
