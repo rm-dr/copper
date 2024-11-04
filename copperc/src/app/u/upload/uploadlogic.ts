@@ -138,51 +138,39 @@ export async function uploadFiles(params: {
 }) {
 	const parallel_jobs = 3;
 
-	function pickUpNextTask() {
-		if (params.abort_controller.signal.aborted) {
-			return null;
-		}
-
-		const file = params.files.shift();
-
-		if (file !== undefined) {
-			return (
-				uploadBlob({
-					abort_controller: params.abort_controller,
-					blob: file.file,
-					file_name: file.file.name,
-
-					// Whenever we make progress on any file
-					onProgress: (uploaded_bytes) => {
-						params.onProgress(file, uploaded_bytes);
-					},
-				})
-					.then((upload_id) => {
-						params.onFinishFile(file, upload_id);
-					})
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					.catch((err) => {
-						if (err.name == "AbortError") {
-							throw err;
-						} else {
-							params.onFailFile(file);
-						}
-					})
-			);
-		}
-
-		return null;
-	}
-
-	function startChain() {
-		return Promise.resolve().then(function next(): Promise<void> {
-			const task = pickUpNextTask();
-			if (task === null) {
-				return Promise.resolve();
-			} else {
-				return task.then(next);
+	async function startChain(): Promise<void> {
+		while (true) {
+			if (params.abort_controller.signal.aborted) {
+				return;
 			}
-		});
+
+			const file = params.files.shift();
+
+			if (file === undefined) {
+				return;
+			}
+
+			await uploadBlob({
+				abort_controller: params.abort_controller,
+				blob: file.file,
+				file_name: file.file.name,
+
+				// Whenever we make progress on any file
+				onProgress: (uploaded_bytes) => {
+					params.onProgress(file, uploaded_bytes);
+				},
+			})
+				.then((upload_id) => {
+					params.onFinishFile(file, upload_id);
+				})
+				.catch((err) => {
+					if (err.name == "AbortError") {
+						throw err;
+					} else {
+						params.onFailFile(file);
+					}
+				});
+		}
 	}
 
 	const jobs: Promise<void>[] = [];
