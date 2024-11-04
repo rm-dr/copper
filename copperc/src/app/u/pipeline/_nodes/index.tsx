@@ -63,7 +63,7 @@ export const nodeTypes = Object.keys(nodeDefinitions).reduce(
 	(res, key) => {
 		res[key] = nodeDefinitions[key as keyof typeof nodeDefinitions]!.node;
 		return res;
-		// eslint-disable-next-line
 	},
+	// eslint-disable-next-line
 	{} as Record<string, NodeDef<any>["node"]>,
 ) as NodeTypes;
