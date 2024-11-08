@@ -395,11 +395,6 @@ export interface components {
 		/** @description Attribute data, provided by the user by api calls. */
 		ApiInputAttrData:
 			| {
-					data_type: components["schemas"]["AttrDataStub"];
-					/** @enum {string} */
-					type: "None";
-			  }
-			| {
 					/** @enum {string} */
 					type: "Text";
 					value: string;
@@ -591,10 +586,6 @@ export interface components {
 		};
 		/** @description Attribute data returned to the user */
 		ItemAttrData:
-			| {
-					/** @enum {string} */
-					type: "None";
-			  }
 			| {
 					/** @enum {string} */
 					type: "Text";

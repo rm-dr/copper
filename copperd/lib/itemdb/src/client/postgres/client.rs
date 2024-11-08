@@ -554,24 +554,8 @@ impl ItemdbClient for PgItemdbClient {
 
 		let mut attribute_values: BTreeMap<AttributeId, AttrData> = BTreeMap::new();
 
-		// Initialize attributes as empty...
-		let res = sqlx::query("SELECT id, data_type FROM attribute WHERE class_id=$1;")
-			.bind(i64::from(class))
-			.fetch_all(&mut *conn)
-			.await?;
-		for row in res {
-			attribute_values.insert(
-				row.get::<i64, _>("id").into(),
-				AttrData::None {
-					data_type: serde_json::from_str(row.get::<&str, _>("data_type")).unwrap(),
-				},
-			);
-		}
-
-		// ...and fill those that have data
-		//
-		// Empty attributes will not have an instance, and will remain `None`
-		// as set above.
+		// Fill in attributes that have data
+		// Empty attributes will be `None`.
 		let res = sqlx::query("SELECT * FROM attribute_instance WHERE item_id=$1;")
 			.bind(i64::from(item))
 			.fetch_all(&mut *conn)
@@ -582,7 +566,7 @@ impl ItemdbClient for PgItemdbClient {
 				serde_json::from_str(row.get::<&str, _>("attribute_value")).unwrap();
 
 			let x = attribute_values.insert(attr_id, value);
-			assert!(x.is_some())
+			assert!(x.is_none()) // Each insert should be new
 		}
 
 		Ok(ItemInfo {

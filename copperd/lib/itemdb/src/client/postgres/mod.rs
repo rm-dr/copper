@@ -70,8 +70,8 @@ impl PgItemdbClient {
 		if migrate {
 			mig.up().await.map_err(PgItemdbOpenError::Migrate)?;
 		} else if !mig.is_up()? {
-  				return Err(PgItemdbOpenError::NotMigrated);
-  			}
+			return Err(PgItemdbOpenError::NotMigrated);
+		}
 
 		drop(mig);
 		drop(conn);

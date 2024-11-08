@@ -15,9 +15,6 @@ use super::id::{ClassId, ItemId};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum AttrData {
-	/// Typed, unset data
-	None { data_type: AttrDataStub },
-
 	/// A block of text
 	Text { value: SmartString<LazyCompact> },
 
@@ -71,11 +68,6 @@ pub enum AttrData {
 }
 
 impl AttrData {
-	/// Is this `Self::None`?
-	pub fn is_none(&self) -> bool {
-		matches!(self, Self::None { .. })
-	}
-
 	/// Is this `Self::Blob`?
 	pub fn is_blob(&self) -> bool {
 		matches!(self, Self::Blob { .. })
@@ -89,7 +81,6 @@ impl AttrData {
 	/// Convert this data instance to its type
 	pub fn as_stub(&self) -> AttrDataStub {
 		match self {
-			Self::None { data_type } => *data_type,
 			Self::Blob { .. } => AttrDataStub::Blob,
 			Self::Boolean { .. } => AttrDataStub::Boolean,
 			Self::Text { .. } => AttrDataStub::Text,

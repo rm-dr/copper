@@ -29,8 +29,6 @@ use utoipa::{IntoParams, ToSchema};
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(tag = "type")]
 pub(super) enum ItemAttrData {
-	None,
-
 	Text {
 		value: String,
 	},
@@ -71,7 +69,6 @@ impl ItemAttrData {
 		value: AttrData,
 	) -> Result<Self, Response> {
 		Ok(match value {
-			AttrData::None { .. } => ItemAttrData::None,
 			AttrData::Blob { bucket, key } => {
 				let meta = match state
 					.s3_client

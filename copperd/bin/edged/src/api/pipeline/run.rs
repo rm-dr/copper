@@ -5,7 +5,7 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_itemdb::{client::base::client::ItemdbClient, AttrData, AttrDataStub, ClassId, ItemId};
+use copper_itemdb::{client::base::client::ItemdbClient, AttrData, ClassId, ItemId};
 use copper_jobqueue::base::errors::AddJobError;
 use copper_util::HashType;
 use serde::Deserialize;
@@ -24,9 +24,6 @@ use crate::{
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 #[serde(tag = "type")]
 pub(super) enum ApiInputAttrData {
-	/// Typed, unset data
-	None { data_type: AttrDataStub },
-
 	/// A block of text
 	Text {
 		#[schema(value_type = String)]
@@ -103,7 +100,6 @@ impl TryFrom<ApiInputAttrData> for AttrData {
 		Ok(match value {
 			ApiInputAttrData::Blob { .. } => return Err(()),
 
-			ApiInputAttrData::None { data_type } => Self::None { data_type },
 			ApiInputAttrData::Boolean { value } => Self::Boolean { value },
 			ApiInputAttrData::Text { value } => Self::Text { value },
 			ApiInputAttrData::Hash { hash_type, data } => Self::Hash { hash_type, data },

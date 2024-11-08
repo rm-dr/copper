@@ -220,17 +220,8 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 			to_class: class.id,
 			attributes: attributes
 				.into_iter()
-				.map(|(_, (k, d))| {
-					(
-						k.id,
-						d.unwrap_or(
-							AttrData::None {
-								data_type: k.data_type,
-							}
-							.into(),
-						),
-					)
-				})
+				.map(|(_, (k, d))| (k.id, d))
+				.filter_map(|(k, v)| v.map(|v| (k, v)))
 				.collect(),
 		};
 
