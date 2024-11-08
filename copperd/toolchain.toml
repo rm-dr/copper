@@ -1,0 +1,10 @@
+[toolchain]
+channel = "1.82.0"
+
+# The "minimal" profile provides the following components:
+# rustc, rust-std, cargo
+profile = "minimal"
+components = ["rustfmt", "clippy", "rust-analyzer"]
+
+# This is additive, host is always included.
+targets = ["x86_64-unknown-linux-musl", "x86_64-unknown-linux-gnu"]
