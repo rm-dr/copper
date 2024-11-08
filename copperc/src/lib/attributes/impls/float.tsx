@@ -8,16 +8,64 @@ import {
 import { ReactElement } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useForm, UseFormReturnType } from "@mantine/form";
-import { Switch } from "@mantine/core";
+import { NumberInput, Switch } from "@mantine/core";
 import { components } from "@/lib/api/openapi";
 import { edgeclient } from "@/lib/api/client";
 
-export const _floatAttrType: attrTypeInfo = {
+export const _floatAttrType: attrTypeInfo<"Float"> = {
 	pretty_name: "Float",
 	serialize_as: "Float",
 	icon: <Omega />,
 	create_params: {
 		form: (params) => Form(params),
+	},
+
+	table_cell: (value) => {
+		return (
+			<div
+				style={{
+					paddingLeft: "0.5rem",
+					width: "100%",
+					overflow: "hidden",
+					textOverflow: "ellipsis",
+					whiteSpace: "nowrap",
+					color: "var(--mantine-color-white)",
+				}}
+			>
+				{value.value}
+			</div>
+		);
+	},
+
+	editor: {
+		type: "inline",
+
+		old_value: (value) => {
+			return (
+				<div
+					style={{
+						paddingLeft: "0.5rem",
+						width: "100%",
+						overflow: "hidden",
+						textOverflow: "ellipsis",
+						whiteSpace: "nowrap",
+						color: "var(--mantine-color-white)",
+					}}
+				>
+					{value.value}
+				</div>
+			);
+		},
+
+		new_value: (params) => {
+			return (
+				<NumberInput
+					placeholder="empty value"
+					allowDecimal={true}
+					defaultValue={params.value?.value}
+				/>
+			);
+		},
 	},
 };
 

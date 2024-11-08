@@ -10,19 +10,13 @@ use utoipa::ToSchema;
 use super::id::{ClassId, ItemId};
 
 /// A value stored inside an attribute.
-/// These are never directly provided by users (See `ApiAttrData`),
-/// but may be passed around in internal api calls.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+/// These are never directly provided by users,
+/// and are serialized as json in the item db.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum AttrData {
-	/// Typed, unset data
-	None { data_type: AttrDataStub },
-
 	/// A block of text
-	Text {
-		#[schema(value_type = String)]
-		value: SmartString<LazyCompact>,
-	},
+	Text { value: SmartString<LazyCompact> },
 
 	/// An integer
 	Integer {
@@ -57,32 +51,23 @@ pub enum AttrData {
 	/// Binary data stored in S3
 	Blob {
 		/// The name of the bucket this blob is stored in
-		#[schema(value_type = String)]
 		bucket: SmartString<LazyCompact>,
 
 		/// The object's key
-		#[schema(value_type = String)]
 		key: SmartString<LazyCompact>,
 	},
 
 	/// A reference to an item in another class
 	Reference {
 		/// The item class this reference points to
-		#[schema(value_type = i64)]
 		class: ClassId,
 
 		/// The item
-		#[schema(value_type = i64)]
 		item: ItemId,
 	},
 }
 
 impl AttrData {
-	/// Is this `Self::None`?
-	pub fn is_none(&self) -> bool {
-		matches!(self, Self::None { .. })
-	}
-
 	/// Is this `Self::Blob`?
 	pub fn is_blob(&self) -> bool {
 		matches!(self, Self::Blob { .. })
@@ -96,7 +81,6 @@ impl AttrData {
 	/// Convert this data instance to its type
 	pub fn as_stub(&self) -> AttrDataStub {
 		match self {
-			Self::None { data_type } => *data_type,
 			Self::Blob { .. } => AttrDataStub::Blob,
 			Self::Boolean { .. } => AttrDataStub::Boolean,
 			Self::Text { .. } => AttrDataStub::Text,

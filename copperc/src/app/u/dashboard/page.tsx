@@ -7,6 +7,8 @@ import { edgeclient } from "@/lib/api/client";
 import { ppBytes } from "@/lib/ppbytes";
 import { Fragment } from "react";
 import { Text } from "@mantine/core";
+import { Spinner, Wrapper } from "@/components/spinner";
+import { TriangleAlert } from "lucide-react";
 
 function JobCountEntry(params: {
 	title: string;
@@ -55,14 +57,32 @@ function JobStatusPanel() {
 		},
 	});
 
-	if (jobstatus.data === undefined) {
+	if (jobstatus.isPending) {
 		return (
 			<div className={styles.panel}>
 				<TitleBar text="Job status" />
 				<div className={styles.panel_content}>
-					<Text size="1rem" c="red">
-						Could not fetch jobs
-					</Text>
+					<Wrapper>
+						<Spinner />
+
+						<Text size="1.3rem" c="dimmed">
+							Loading...
+						</Text>
+					</Wrapper>
+				</div>
+			</div>
+		);
+	} else if (jobstatus.data === undefined) {
+		return (
+			<div className={styles.panel}>
+				<TitleBar text="Job status" />
+				<div className={styles.panel_content}>
+					<Wrapper>
+						<TriangleAlert size="3rem" color="var(--mantine-color-red-5)" />
+						<Text size="1.3rem" c="red">
+							Could not fetch jobs
+						</Text>
+					</Wrapper>
 				</div>
 			</div>
 		);
@@ -175,21 +195,51 @@ function StorageStatusPanel() {
 		},
 	});
 
-	if (datasets.data === undefined) {
+	if (datasets.isPending) {
 		return (
 			<div className={styles.panel}>
 				<TitleBar text="Storage summary" />
 				<div className={styles.panel_content}>
-					<Text size="1rem" c="red">
-						Could not fetch storage summary
-					</Text>
+					<Wrapper>
+						<Spinner />
+						<Text size="1.3rem" c="dimmed">
+							Loading...
+						</Text>
+					</Wrapper>
 				</div>
 
 				<TitleBar text="Storage by dataset" />
 				<div className={styles.panel_content}>
-					<Text size="1rem" c="red">
-						Could not fetch datasets
-					</Text>
+					<Wrapper>
+						<Spinner />
+						<Text size="1.3rem" c="dimmed">
+							Loading...
+						</Text>
+					</Wrapper>
+				</div>
+			</div>
+		);
+	} else if (datasets.data === undefined) {
+		return (
+			<div className={styles.panel}>
+				<TitleBar text="Storage summary" />
+				<div className={styles.panel_content}>
+					<Wrapper>
+						<TriangleAlert size="3rem" color="var(--mantine-color-red-5)" />
+						<Text size="1.3rem" c="red">
+							Could not fetch storage summary
+						</Text>
+					</Wrapper>
+				</div>
+
+				<TitleBar text="Storage by dataset" />
+				<div className={styles.panel_content}>
+					<Wrapper>
+						<TriangleAlert size="3rem" color="var(--mantine-color-red-5)" />
+						<Text size="1.3rem" c="red">
+							Could not fetch datasets
+						</Text>
+					</Wrapper>
 				</div>
 			</div>
 		);
@@ -246,44 +296,6 @@ function StorageStatusPanel() {
 }
 
 export default function Page() {
-	const jobstatus = useQuery({
-		queryKey: ["job/list"],
-		refetchInterval: 1000,
-
-		queryFn: async () => {
-			const res = await edgeclient.GET("/job/list", {
-				params: {
-					query: {
-						skip: 0,
-						count: 100,
-					},
-				},
-			});
-			if (res.response.status === 401) {
-				location.replace("/");
-			}
-
-			if (res.response.status !== 200) {
-				throw new Error("could not get jobs");
-			}
-
-			return res.data!;
-		},
-	});
-
-	if (jobstatus.data === undefined) {
-		return (
-			<div className={styles.panel}>
-				<TitleBar text="Job status" />
-				<div className={styles.panel_content}>
-					<Text size="1rem" c="red">
-						Could not fetch jobs
-					</Text>
-				</div>
-			</div>
-		);
-	}
-
 	return (
 		<>
 			<div className={styles.main}>

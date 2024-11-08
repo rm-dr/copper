@@ -10,14 +10,41 @@ import {
 	AttrNameEntry,
 	AttrSubmitButtons,
 } from "../_basicform";
-import { Select } from "@mantine/core";
+import { Select, Textarea } from "@mantine/core";
 
-export const _hashAttrType: attrTypeInfo = {
+export const _hashAttrType: attrTypeInfo<"Hash"> = {
 	pretty_name: "Hash",
 	serialize_as: "Hash",
 	icon: <Shell />,
 	create_params: {
 		form: (params) => Form(params),
+	},
+
+	table_cell: (value) => {
+		return value.value;
+	},
+
+	editor: {
+		type: "inline",
+
+		old_value: (value) => {
+			return value.value;
+		},
+
+		new_value: (params) => {
+			return (
+				<Textarea
+					radius="0px"
+					placeholder="no value"
+					autosize
+					minRows={1}
+					defaultValue={params.value?.value}
+					onChange={(x) =>
+						params.onChange({ type: "Hash", value: x.currentTarget.value })
+					}
+				/>
+			);
+		},
 	},
 };
 

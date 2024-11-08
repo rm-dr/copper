@@ -25,7 +25,7 @@ pub struct PiperConfig {
 	/// Object store url
 	pub piper_objectstore_url: String,
 	/// Object store bucket
-	pub piper_objectstore_bucket: String,
+	pub piper_objectstore_storage_bucket: String,
 
 	/// The address of the item db this pipeline runner should use
 	/// Looks like `postgres://user:pass@host/database`

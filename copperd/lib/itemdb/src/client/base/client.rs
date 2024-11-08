@@ -2,7 +2,7 @@
 
 use crate::{
 	transaction::Transaction, AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId,
-	ClassInfo, DatasetId, DatasetInfo, UserId,
+	ClassInfo, DatasetId, DatasetInfo, ItemId, ItemInfo, UserId,
 };
 use async_trait::async_trait;
 
@@ -12,6 +12,7 @@ use super::errors::{
 	dataset::{
 		AddDatasetError, DeleteDatasetError, GetDatasetError, ListDatasetsError, RenameDatasetError,
 	},
+	item::{CountItemsError, GetItemError, ListItemsError},
 	transaction::ApplyTransactionError,
 };
 
@@ -88,6 +89,22 @@ where
 
 	/// Delete an attribute
 	async fn del_attribute(&self, attribute: AttributeId) -> Result<(), DeleteAttributeError>;
+
+	//
+	// MARK: Item
+	//
+
+	/// Get item details
+	async fn get_item(&self, item: ItemId) -> Result<ItemInfo, GetItemError>;
+
+	async fn list_items(
+		&self,
+		class: ClassId,
+		skip: i64,
+		count: usize,
+	) -> Result<Vec<ItemInfo>, ListItemsError>;
+
+	async fn count_items(&self, class: ClassId) -> Result<i64, CountItemsError>;
 
 	//
 	// MARK: Transactions

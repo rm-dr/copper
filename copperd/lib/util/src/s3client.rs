@@ -204,6 +204,11 @@ impl Error for S3CreateBucketError {
 // MARK: Implementations
 //
 
+pub struct ObjectMetadata {
+	pub mime: MimeType,
+	pub size: Option<i64>,
+}
+
 /// An interface to a specific S3 bucket
 #[derive(Clone)]
 pub struct S3Client {
@@ -217,6 +222,45 @@ impl S3Client {
 }
 
 impl<'a> S3Client {
+	pub async fn get_object_stream(
+		&'a self,
+		bucket: &str,
+		key: &str,
+	) -> Result<ByteStream, S3ReaderError> {
+		let b = self
+			.client
+			.get_object()
+			.bucket(bucket)
+			.key(key)
+			.send()
+			.await?;
+
+		return Ok(b.body);
+	}
+
+	pub async fn get_object_metadata(
+		&'a self,
+		bucket: &str,
+		key: &str,
+	) -> Result<ObjectMetadata, S3ReaderError> {
+		let b = self
+			.client
+			.get_object()
+			.bucket(bucket)
+			.key(key)
+			.send()
+			.await?;
+
+		let mime = b
+			.content_type()
+			.map(MimeType::from)
+			.unwrap_or(MimeType::Other("application/octet-stream".into()));
+
+		let size = b.content_length();
+
+		return Ok(ObjectMetadata { mime, size });
+	}
+
 	pub async fn create_reader(
 		&'a self,
 		bucket: &str,
@@ -305,6 +349,10 @@ impl<'a> S3Client {
 		}
 	}
 }
+
+//
+// MARK: S3Reader
+//
 
 pub struct S3Reader {
 	client: S3Client,

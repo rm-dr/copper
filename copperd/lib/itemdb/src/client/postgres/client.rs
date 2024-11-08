@@ -1,7 +1,10 @@
+use std::collections::BTreeMap;
+
 use crate::{
+	client::base::errors::item::{CountItemsError, GetItemError, ListItemsError},
 	transaction::{ResultOrDirect, Transaction, TransactionAction},
 	AttrData, AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo,
-	DatasetId, DatasetInfo, UserId,
+	DatasetId, DatasetInfo, ItemId, ItemInfo, UserId,
 };
 use async_trait::async_trait;
 use copper_util::names::check_name;
@@ -524,6 +527,123 @@ impl ItemdbClient for PgItemdbClient {
 		t.commit().await?;
 
 		return Ok(());
+	}
+
+	//
+	// MARK: Items
+	//
+
+	async fn get_item(&self, item: ItemId) -> Result<ItemInfo, GetItemError> {
+		let mut conn = self.pool.acquire().await?;
+
+		let (id, class): (ItemId, ClassId) = {
+			let res = sqlx::query("SELECT * FROM item WHERE id=$1;")
+				.bind(i64::from(item))
+				.fetch_one(&mut *conn)
+				.await;
+
+			match res {
+				Err(sqlx::Error::RowNotFound) => return Err(GetItemError::NotFound),
+				Err(e) => return Err(e.into()),
+				Ok(res) => (
+					res.get::<i64, _>("id").into(),
+					res.get::<i64, _>("class_id").into(),
+				),
+			}
+		};
+
+		let mut attribute_values: BTreeMap<AttributeId, AttrData> = BTreeMap::new();
+
+		// Fill in attributes that have data
+		// Empty attributes will be `None`.
+		let res = sqlx::query("SELECT * FROM attribute_instance WHERE item_id=$1;")
+			.bind(i64::from(item))
+			.fetch_all(&mut *conn)
+			.await?;
+		for row in res {
+			let attr_id: AttributeId = row.get::<i64, _>("attribute_id").into();
+			let value: AttrData =
+				serde_json::from_str(row.get::<&str, _>("attribute_value")).unwrap();
+
+			let x = attribute_values.insert(attr_id, value);
+			assert!(x.is_none()) // Each insert should be new
+		}
+
+		Ok(ItemInfo {
+			id,
+			class,
+			attribute_values,
+		})
+	}
+
+	async fn list_items(
+		&self,
+		class: ClassId,
+		skip: i64,
+		count: usize,
+	) -> Result<Vec<ItemInfo>, ListItemsError> {
+		let mut conn = self.pool.acquire().await?;
+
+		let res = sqlx::query(
+			"
+			SELECT * FROM attribute_instance
+			WHERE item_id in (
+				SELECT id FROM item
+				WHERE class_id=$1
+				ORDER BY id
+				OFFSET $2 LIMIT $3
+			)
+			ORDER BY item_id;
+			",
+		)
+		.bind(i64::from(class))
+		.bind(skip)
+		.bind(i64::try_from(count).unwrap())
+		.fetch_all(&mut *conn)
+		.await;
+		// Produces three columns:
+		// item_id, attribute_id, attribute_value
+
+		return match res {
+			Err(sqlx::Error::RowNotFound) => Err(ListItemsError::ClassNotFound),
+			Err(e) => Err(e.into()),
+			Ok(rows) => {
+				let mut out: BTreeMap<ItemId, ItemInfo> = BTreeMap::new();
+
+				for row in rows {
+					let item_id: ItemId = row.get::<i64, _>("item_id").into();
+					let attr_id: AttributeId = row.get::<i64, _>("attribute_id").into();
+					let value: AttrData =
+						serde_json::from_str(row.get::<&str, _>("attribute_value")).unwrap();
+
+					out.entry(item_id).or_insert_with(|| ItemInfo {
+						id: item_id,
+						class,
+						attribute_values: BTreeMap::new(),
+					});
+
+					let x = out.get_mut(&item_id).unwrap();
+					x.attribute_values.insert(attr_id, value);
+				}
+
+				Ok(out.into_values().collect())
+			}
+		};
+	}
+
+	async fn count_items(&self, class: ClassId) -> Result<i64, CountItemsError> {
+		let mut conn = self.pool.acquire().await?;
+
+		let res = sqlx::query("SELECT COUNT(*) FROM item WHERE class_id=$1;")
+			.bind(i64::from(class))
+			.fetch_one(&mut *conn)
+			.await;
+
+		return match res {
+			Err(sqlx::Error::RowNotFound) => Err(CountItemsError::ClassNotFound),
+			Err(e) => Err(e.into()),
+			Ok(res) => Ok(res.get("count")),
+		};
 	}
 
 	//

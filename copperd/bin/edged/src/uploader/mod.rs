@@ -39,10 +39,6 @@ impl UploadJobId {
 
 		Self { id }
 	}
-
-	pub fn as_str(&self) -> &str {
-		&self.id
-	}
 }
 
 impl Display for UploadJobId {

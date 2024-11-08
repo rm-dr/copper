@@ -6,18 +6,67 @@ import {
 	AttrSubmitButtons,
 } from "../_basicform";
 import { useForm, UseFormReturnType } from "@mantine/form";
-import { Switch } from "@mantine/core";
+import { NumberInput, Switch } from "@mantine/core";
 import { edgeclient } from "@/lib/api/client";
 import { components } from "@/lib/api/openapi";
 import { useMutation } from "@tanstack/react-query";
 import { ReactElement } from "react";
 
-export const _integerAttrType: attrTypeInfo = {
+export const _integerAttrType: attrTypeInfo<"Integer"> = {
 	pretty_name: "Integer",
 	serialize_as: "Integer",
 	icon: <Sigma />,
 	create_params: {
 		form: (params) => Form(params),
+	},
+
+	table_cell: (value) => {
+		return (
+			<div
+				style={{
+					paddingLeft: "0.5rem",
+					width: "100%",
+					overflow: "hidden",
+					textOverflow: "ellipsis",
+					whiteSpace: "nowrap",
+					color: "var(--mantine-color-white)",
+				}}
+			>
+				{value.value}
+			</div>
+		);
+	},
+
+	editor: {
+		type: "inline",
+
+		old_value: (value) => {
+			return (
+				<div
+					style={{
+						paddingLeft: "0.5rem",
+						width: "100%",
+						overflow: "hidden",
+						textOverflow: "ellipsis",
+						whiteSpace: "nowrap",
+						color: "var(--mantine-color-white)",
+					}}
+				>
+					{value.value}
+				</div>
+			);
+		},
+
+		new_value: (params) => {
+			return (
+				<NumberInput
+					placeholder="empty value"
+					allowDecimal={false}
+					allowNegative={true}
+					defaultValue={params.value?.value}
+				/>
+			);
+		},
 	},
 };
 

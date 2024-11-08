@@ -1,0 +1,96 @@
+.divTable {
+	display: flex;
+	flex-direction: column;
+
+	background-color: var(--mantine-color-dark-9);
+
+	padding-left: 1rem;
+	padding-right: 1rem;
+	overflow: hidden;
+
+	.thead {
+		margin-bottom: 1rem;
+		background-color: var(--mantine-color-dark-6);
+		box-shadow: 5px 5px 0px 0px var(--mantine-primary-color-8);
+
+		.button {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+
+			transition: 200ms;
+			opacity: 0.5;
+			height: 100%;
+
+			&.resizer {
+				cursor: col-resize;
+
+				&:hover {
+					color: var(--mantine-primary-color-5);
+				}
+
+				&.isResizing {
+					color: var(--mantine-primary-color-5);
+					opacity: 1;
+				}
+			}
+
+			&.delete:hover {
+				color: var(--mantine-color-red-5);
+				opacity: 1;
+			}
+		}
+	}
+
+	.tbody {
+		overflow-y: scroll;
+	}
+
+	.th {
+		position: relative;
+		height: 100%;
+		padding: 0.5rem;
+		min-width: 4rem;
+		user-select: none;
+
+		font-weight: bold;
+		text-align: center;
+		text-overflow: ellipsis;
+
+		border-style: dotted;
+		border-width: 0px 2px 0px 0px;
+		border-color: var(--mantine-color-dark-2);
+	}
+
+	.tr {
+		display: flex;
+		width: 100%;
+		user-select: none;
+
+		&:nth-child(even) {
+			background-color: color-mix(in srgb, white 3%, transparent);
+		}
+
+		&:hover {
+			background-color: color-mix(in srgb, white 8%, transparent);
+		}
+	}
+
+	.td {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+
+		overflow: hidden;
+		min-width: 4rem;
+
+		height: 2rem;
+		font-size: 1rem;
+		padding: 0;
+
+		border-style: dotted;
+		border-width: 0px 2px 0px 0px;
+		border-color: var(--mantine-color-dark-5);
+	}
+}

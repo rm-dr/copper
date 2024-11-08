@@ -82,18 +82,21 @@ async fn main() {
 	let client = Arc::new(S3Client::new(aws_sdk_s3::Client::from_conf(s3_config)).await);
 
 	// Create blobstore bucket if it doesn't exist
-	match client.create_bucket(&config.piper_objectstore_bucket).await {
+	match client
+		.create_bucket(&config.piper_objectstore_storage_bucket)
+		.await
+	{
 		Ok(false) => {}
 		Ok(true) => {
 			info!(
 				message = "Created storage bucket because it didn't exist",
-				bucket = config.piper_objectstore_bucket
+				bucket = config.piper_objectstore_storage_bucket
 			);
 		}
 		Err(error) => {
 			error!(
 				message = "Error while creating storage bucket",
-				bucket = config.piper_objectstore_bucket,
+				bucket = config.piper_objectstore_storage_bucket,
 				?error
 			);
 		}
@@ -333,7 +336,10 @@ async fn main() {
 						job_id: job.job_id.as_str().into(),
 						run_by_user: job.owned_by,
 						itemdb_client: itemdb_client.clone(),
-						objectstore_blob_bucket: config.piper_objectstore_bucket.as_str().into(),
+						objectstore_blob_bucket: config
+							.piper_objectstore_storage_bucket
+							.as_str()
+							.into(),
 						objectstore_client: client.clone(),
 						transaction: Mutex::new(Transaction::new()),
 					},

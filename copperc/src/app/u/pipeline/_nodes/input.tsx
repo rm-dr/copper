@@ -3,6 +3,7 @@ import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { BaseNode } from "./base";
 import { dataTypes } from "@/lib/attributes";
 import { NodeDef } from ".";
+import { components } from "@/lib/api/openapi";
 
 const types = ["Text", "Integer", "Float"] as const;
 
@@ -33,7 +34,11 @@ function InputNodeElement({ data, id }: NodeProps<InputNodeType>) {
 							return;
 						}
 
-						if (dataTypes.includes(value)) {
+						if (
+							dataTypes.includes(
+								value as components["schemas"]["AttrDataStub"]["type"],
+							)
+						) {
 							updateNodeData(id, {
 								type: value,
 							});

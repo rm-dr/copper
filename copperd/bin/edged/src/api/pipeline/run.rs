@@ -5,8 +5,9 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_itemdb::{client::base::client::ItemdbClient, AttrData};
+use copper_itemdb::{client::base::client::ItemdbClient, AttrData, ClassId, ItemId};
 use copper_jobqueue::base::errors::AddJobError;
+use copper_util::HashType;
 use serde::Deserialize;
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
@@ -14,11 +15,114 @@ use tracing::error;
 use utoipa::ToSchema;
 
 use crate::{
-	apidata::ApiAttrData,
 	database::base::{client::DatabaseClient, errors::pipeline::GetPipelineError},
-	uploader::{errors::UploadAssignError, GotJobKey},
+	uploader::{errors::UploadAssignError, GotJobKey, UploadJobId},
 	RouterState,
 };
+
+/// Attribute data, provided by the user by api calls.
+#[derive(Debug, Clone, Deserialize, ToSchema)]
+#[serde(tag = "type")]
+pub(super) enum ApiInputAttrData {
+	/// A block of text
+	Text {
+		#[schema(value_type = String)]
+		value: SmartString<LazyCompact>,
+	},
+
+	/// An integer
+	Integer {
+		/// The integer
+		value: i64,
+
+		/// If true, this integer must be non-negative
+		is_non_negative: bool,
+	},
+
+	/// A float
+	Float {
+		/// The float
+		value: f64,
+
+		/// If true, this float must be non-negative
+		is_non_negative: bool,
+	},
+
+	/// A boolean
+	Boolean { value: bool },
+
+	/// A checksum
+	Hash {
+		/// The type of this hash
+		hash_type: HashType,
+
+		/// The hash data
+		data: Vec<u8>,
+	},
+
+	/// Binary data we uploaded previously
+	Blob {
+		/// The upload id. This must only be used once,
+		/// uploaded files are deleted once their job is done.
+		///
+		/// Also, note that we _never_ send the S3 key to the
+		/// client---only the upload id as a proxy. This makes sure
+		/// that clients can only start jobs on uploads they own,
+		/// and reduces the risk of other creative abuse.
+		#[schema(value_type = String)]
+		upload_id: UploadJobId,
+	},
+
+	/// A reference to an item in another class
+	Reference {
+		/// The item class this reference points to
+		#[schema(value_type = i64)]
+		class: ClassId,
+
+		/// The item
+		#[schema(value_type = i64)]
+		item: ItemId,
+	},
+}
+
+impl TryFrom<&ApiInputAttrData> for AttrData {
+	type Error = ();
+
+	fn try_from(value: &ApiInputAttrData) -> Result<Self, Self::Error> {
+		value.clone().try_into()
+	}
+}
+
+impl TryFrom<ApiInputAttrData> for AttrData {
+	type Error = ();
+
+	fn try_from(value: ApiInputAttrData) -> Result<Self, Self::Error> {
+		Ok(match value {
+			ApiInputAttrData::Blob { .. } => return Err(()),
+
+			ApiInputAttrData::Boolean { value } => Self::Boolean { value },
+			ApiInputAttrData::Text { value } => Self::Text { value },
+			ApiInputAttrData::Hash { hash_type, data } => Self::Hash { hash_type, data },
+			ApiInputAttrData::Reference { class, item } => Self::Reference { class, item },
+
+			ApiInputAttrData::Float {
+				value,
+				is_non_negative,
+			} => Self::Float {
+				value,
+				is_non_negative,
+			},
+
+			ApiInputAttrData::Integer {
+				value,
+				is_non_negative,
+			} => Self::Integer {
+				value,
+				is_non_negative,
+			},
+		})
+	}
+}
 
 #[derive(Deserialize, ToSchema, Debug)]
 pub(super) struct RunPipelineRequest {
@@ -26,8 +130,8 @@ pub(super) struct RunPipelineRequest {
 	#[schema(value_type = String)]
 	pub job_id: SmartString<LazyCompact>,
 
-	#[schema(value_type = BTreeMap<String, ApiAttrData>)]
-	pub input: BTreeMap<SmartString<LazyCompact>, ApiAttrData>,
+	#[schema(value_type = BTreeMap<String, ApiInputAttrData>)]
+	pub input: BTreeMap<SmartString<LazyCompact>, ApiInputAttrData>,
 }
 
 /// Start a pipeline job
@@ -86,7 +190,7 @@ pub(super) async fn run_pipeline<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 		// Some types need manual conversion
 		if let Some(x) = match &v {
-			ApiAttrData::Blob { upload_id } => {
+			ApiInputAttrData::Blob { upload_id } => {
 				let res = state.uploader.get_job_object_key(user.id, upload_id).await;
 				let key = match res {
 					GotJobKey::NoSuchJob => {

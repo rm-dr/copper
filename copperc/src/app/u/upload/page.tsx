@@ -96,8 +96,6 @@ export default function Page() {
 										queue: [...us.queue, ...new_files],
 									};
 								});
-
-								console.log(uploadState);
 							}}
 							preventDropOnDocument={true}
 							disabled={uploadState.is_uploading}

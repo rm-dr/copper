@@ -1,5 +1,5 @@
+use crate::database::base::client::DatabaseClient;
 use crate::RouterState;
-use crate::{apidata::ApiAttrData, database::base::client::DatabaseClient};
 use axum::{
 	routing::{delete, get, patch, post},
 	Router,
@@ -50,7 +50,7 @@ use update::*;
 		RunPipelineRequest,
 		NodeParameterValue,
 		PipelineInfo,
-		ApiAttrData
+		ApiInputAttrData
 	))
 )]
 pub(super) struct PipelineApi;

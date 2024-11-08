@@ -7,13 +7,35 @@ import { _floatAttrType } from "./impls/float";
 import { _integerAttrType } from "./impls/integer";
 import { _hashAttrType } from "./impls/hash";
 import { _referenceAttrType } from "./impls/reference";
+import { components } from "../api/openapi";
 
-export type attrTypeInfo = {
+export type DataType =
+	components["schemas"]["AttributeInfo"]["data_type"]["type"];
+
+// Hack types to enforce `attrTypes`
+type NonEmptyArray<T> = [T, ...T[]];
+type MustInclude<T, U extends T[]> = [T] extends [U[keyof U]] ? U : never;
+function stringUnionToArray<T>() {
+	return <U extends NonEmptyArray<T>>(...elements: MustInclude<T, U>) =>
+		elements;
+}
+
+export const dataTypes = stringUnionToArray<DataType>()(
+	"Text",
+	"Integer",
+	"Float",
+	"Boolean",
+	"Hash",
+	"Blob",
+	"Reference",
+);
+
+export type attrTypeInfo<SerializeAs extends DataType = DataType> = {
 	// Pretty name to display to user
 	pretty_name: string;
 
 	// The name of this data type in copper's api
-	serialize_as: string;
+	serialize_as: SerializeAs;
 
 	// Icon to use for attrs of this type
 	icon: ReactNode;
@@ -32,16 +54,85 @@ export type attrTypeInfo = {
 			close: () => void;
 		}) => ReactElement;
 	};
+
+	// TODO: what does null mean?
+	// TODO: stricter types
+	table_cell: (
+		value: Extract<
+			components["schemas"]["ItemAttrData"],
+			{ type: SerializeAs }
+		>,
+	) => null | ReactNode;
+
+	editor:
+		| {
+				type: "inline";
+
+				old_value: (
+					value: Extract<
+						components["schemas"]["ItemAttrData"],
+						{ type: SerializeAs }
+					>,
+				) => null | ReactNode;
+
+				new_value: (params: {
+					value: Extract<
+						components["schemas"]["ItemAttrData"],
+						{ type: SerializeAs }
+					> | null;
+
+					onChange: (
+						value:
+							| Extract<
+									components["schemas"]["ItemAttrData"],
+									{
+										type: SerializeAs;
+									}
+							  >
+							| {
+									type: SerializeAs;
+									value: null;
+							  },
+					) => void;
+				}) => null | ReactNode;
+		  }
+		| {
+				type: "panel";
+
+				panel_body: (params: {
+					item_id: number;
+					attr_id: number;
+
+					value: Extract<
+						components["schemas"]["ItemAttrData"],
+						{ type: SerializeAs }
+					>;
+
+					// If this is true, this is drawn inside another panel.
+					// Exclude extra padding and toolbars.
+					inner?: boolean;
+				}) => ReactNode;
+		  };
 };
 
-export const attrTypes: attrTypeInfo[] = [
-	_textAttrType,
-	_booleanAttrType,
-	_blobAttrType,
-	_floatAttrType,
-	_integerAttrType,
-	_hashAttrType,
-	_referenceAttrType,
-] as const;
+export function getAttrTypeInfo<T extends DataType = DataType>(
+	type: T,
+): attrTypeInfo<T> {
+	const x = {
+		[_textAttrType.serialize_as]: _textAttrType,
+		[_booleanAttrType.serialize_as]: _booleanAttrType,
+		[_blobAttrType.serialize_as]: _blobAttrType,
+		[_floatAttrType.serialize_as]: _floatAttrType,
+		[_integerAttrType.serialize_as]: _integerAttrType,
+		[_hashAttrType.serialize_as]: _hashAttrType,
+		[_referenceAttrType.serialize_as]: _referenceAttrType,
+	}[type as string];
 
-export const dataTypes = attrTypes.map((x) => x.serialize_as);
+	if (x === undefined) {
+		const msg = `attr type ${type} isn't fully defined`;
+		console.error(msg);
+		throw new Error(msg);
+	}
+
+	return x as unknown as attrTypeInfo<T>;
+}

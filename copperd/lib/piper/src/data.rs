@@ -73,7 +73,6 @@ impl TryFrom<AttrData> for PipeData {
 	fn try_from(value: AttrData) -> Result<Self, Self::Error> {
 		return Ok(match value {
 			AttrData::Blob { .. } => return Err(()),
-			AttrData::None { .. } => return Err(()),
 			AttrData::Reference { .. } => return Err(()),
 
 			AttrData::Text { value } => Self::Text { value },
