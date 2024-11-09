@@ -21,6 +21,9 @@ pub enum AddAttributeError {
 	/// We tried to create an attribute with an invalid name
 	#[error("invalid name")]
 	NameError(#[from] NameError),
+
+	#[error("tried to create a `not null` attribute that would implicitly create null attributes")]
+	CreatedNotNullWhenItemsExist,
 }
 
 /// An error we can encounter when getting attribute info

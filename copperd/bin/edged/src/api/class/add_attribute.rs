@@ -104,6 +104,14 @@ pub(super) async fn add_attribute<Client: DatabaseClient, Itemdb: ItemdbClient>(
 			return (StatusCode::BAD_REQUEST, Json(format!("{}", msg))).into_response();
 		}
 
+		Err(AddAttributeError::CreatedNotNullWhenItemsExist) => {
+			return (
+				StatusCode::BAD_REQUEST,
+				Json("Cannot create `not null` attribute, this class has items"),
+			)
+				.into_response();
+		}
+
 		Err(AddAttributeError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
 			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
