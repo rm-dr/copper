@@ -10,10 +10,10 @@ import { _referenceAttrType } from "./impls/reference";
 import { components } from "../api/openapi";
 import { stringUnionToArray } from "../util";
 
-export type DataType =
+export type AttrDataType =
 	components["schemas"]["AttributeInfo"]["data_type"]["type"];
 
-export const dataTypes = stringUnionToArray<DataType>()(
+export const attrDataTypes = stringUnionToArray<AttrDataType>()(
 	"Text",
 	"Integer",
 	"Float",
@@ -23,7 +23,7 @@ export const dataTypes = stringUnionToArray<DataType>()(
 	"Reference",
 );
 
-export type attrTypeInfo<SerializeAs extends DataType = DataType> = {
+export type attrTypeInfo<SerializeAs extends AttrDataType = AttrDataType> = {
 	// Pretty name to display to user
 	pretty_name: string;
 
@@ -37,9 +37,9 @@ export type attrTypeInfo<SerializeAs extends DataType = DataType> = {
 	// Consumes a function is called whenever parameters change,
 	// returns html that controls this input.
 	create_params: {
-		/// The form we use to create this attr.
-		/// This should contain everything (including buttons),
-		/// except for the attribute type selector.
+		// The form we use to create this attr.
+		// This should contain everything (including buttons),
+		// except for the attribute type selector.
 		form: (params: {
 			dataset_id: number;
 			class_id: number;
@@ -108,7 +108,7 @@ export type attrTypeInfo<SerializeAs extends DataType = DataType> = {
 		  };
 };
 
-export function getAttrTypeInfo<T extends DataType = DataType>(
+export function getAttrTypeInfo<T extends AttrDataType = AttrDataType>(
 	type: T,
 ): attrTypeInfo<T> {
 	const x = {

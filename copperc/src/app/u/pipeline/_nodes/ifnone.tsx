@@ -1,13 +1,12 @@
-import { NodeDef } from ".";
+import { NodeDef, PipelineDataType } from ".";
 import { BaseNode } from "./base";
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { Select } from "@mantine/core";
-import { components } from "@/lib/api/openapi";
-import { DataType, dataTypes } from "@/lib/attributes";
+import { attrDataTypes } from "@/lib/attributes";
 
 type IfNoneNodeType = Node<
 	{
-		type: DataType;
+		type: PipelineDataType;
 	},
 	"ifnone"
 >;
@@ -30,7 +29,7 @@ function IfNoneNodeElement({ data, id }: NodeProps<IfNoneNodeType>) {
 					clearable={false}
 					label="Data type"
 					placeholder="Pick value"
-					data={dataTypes}
+					data={attrDataTypes}
 					onChange={(value) => {
 						if (value === null || value === data.type) {
 							return;
@@ -80,7 +79,7 @@ export const IfNoneNode: NodeDef<IfNoneNodeType> = {
 		}
 
 		return {
-			type: t.value as components["schemas"]["AttrDataStub"]["type"],
+			type: t.value as PipelineDataType,
 		};
 	},
 };

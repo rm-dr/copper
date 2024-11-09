@@ -8,9 +8,8 @@ import {
 import { BaseNode } from "./base";
 import { useQuery } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
-import { NodeDef } from ".";
+import { NodeDef, PipelineDataType } from ".";
 import { useCallback } from "react";
-import { DataType } from "@/lib/attributes";
 
 type AddItemNodeType = Node<
 	{
@@ -18,7 +17,7 @@ type AddItemNodeType = Node<
 		class: null | number;
 
 		inputs: {
-			type: DataType;
+			type: PipelineDataType;
 			id: string;
 			tooltip: string;
 		}[];
@@ -82,7 +81,22 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 
 	return (
 		<>
-			<BaseNode id={id} title={"Add Item"} inputs={data.inputs}>
+			<BaseNode
+				id={id}
+				title={"Add Item"}
+				inputs={data.inputs}
+				outputs={
+					data.class === null
+						? []
+						: [
+								{
+									id: "newid",
+									tooltip: "Reference to new item",
+									type: `Reference(${data.class})`,
+								},
+							]
+				}
+			>
 				<Select
 					clearable
 					label="Select dataset"
@@ -168,8 +182,18 @@ export const AddItemNode: NodeDef<AddItemNodeType> = {
 		inputs: [],
 	},
 
-	getInputs: (data) => data.inputs,
-	getOutputs: () => [],
+	getInputs: (data) =>
+		data.inputs.map((x) => {
+			return {
+				id: x.id,
+				type: x.type,
+			};
+		}),
+
+	getOutputs: (data) =>
+		data.class === null
+			? []
+			: [{ id: "newid", type: `Reference(${data.class})` }],
 
 	serialize: (node) => {
 		if (node.data.class === null || node.data.dataset === null) {
@@ -220,8 +244,12 @@ export const AddItemNode: NodeDef<AddItemNodeType> = {
 			inputs:
 				clsinfo?.attributes.map((x) => ({
 					id: x.name,
-					type: x.data_type.type,
 					tooltip: x.name,
+
+					type:
+						x.data_type.type === "Reference"
+							? `Reference(${x.data_type.class})`
+							: x.data_type.type,
 				})) || [],
 		};
 	},

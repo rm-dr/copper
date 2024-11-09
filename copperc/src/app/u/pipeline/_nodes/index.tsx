@@ -8,7 +8,12 @@ import { IfNoneNode } from "./ifnone";
 import { InputNode } from "./input";
 import { StripTagsNode } from "./striptags";
 import { Node, NodeProps, NodeTypes } from "@xyflow/react";
-import { DataType } from "@/lib/attributes";
+import { AttrDataType } from "@/lib/attributes";
+
+// Corresponds to `PipeData` in our Rust code
+export type PipelineDataType =
+	| Exclude<AttrDataType, "Reference">
+	| `Reference(${number})`;
 
 export type NodeDef<NodeType extends Node> = {
 	xyflow_node_type: string;
@@ -21,12 +26,12 @@ export type NodeDef<NodeType extends Node> = {
 
 	getInputs: (data: NodeType["data"]) => {
 		id: string;
-		type: DataType;
+		type: PipelineDataType;
 	}[];
 
 	getOutputs: (data: NodeType["data"]) => {
 		id: string;
-		type: DataType;
+		type: PipelineDataType;
 	}[];
 
 	/**
