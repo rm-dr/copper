@@ -20,6 +20,7 @@ workspace = true
 copper-util = { workspace = true }
 copper-migrate = { workspace = true }
 
+thiserror = { workspace = true }
 tracing = { workspace = true }
 smartstring = { workspace = true }
 serde = { workspace = true }

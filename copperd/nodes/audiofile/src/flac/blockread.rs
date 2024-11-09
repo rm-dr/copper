@@ -2,10 +2,9 @@
 
 use std::{
 	collections::VecDeque,
-	error::Error,
-	fmt::Display,
 	io::{Cursor, Read, Seek, Write},
 };
+use thiserror::Error;
 
 use super::{
 	blocks::{
@@ -142,37 +141,15 @@ impl FlacBlock {
 }
 
 /// An error produced by a [`FlacBlockReader`]
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum FlacBlockReaderError {
 	/// Could not decode flac data
-	DecodeError(FlacDecodeError),
+	#[error("decode error while reading flac blocks")]
+	DecodeError(#[from] FlacDecodeError),
 
 	/// Tried to finish or push data to a finished reader.
+	#[error("flac block reader is already finished")]
 	AlreadyFinished,
-}
-
-impl Display for FlacBlockReaderError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::DecodeError(_) => write!(f, "decode error while reading flac blocks"),
-			Self::AlreadyFinished => write!(f, "flac block reader is already finished"),
-		}
-	}
-}
-
-impl Error for FlacBlockReaderError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		Some(match self {
-			Self::DecodeError(e) => e,
-			Self::AlreadyFinished => return None,
-		})
-	}
-}
-
-impl From<FlacDecodeError> for FlacBlockReaderError {
-	fn from(value: FlacDecodeError) -> Self {
-		Self::DecodeError(value)
-	}
 }
 
 /// A buffered flac block reader.

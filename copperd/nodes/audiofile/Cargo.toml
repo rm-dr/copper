@@ -22,6 +22,7 @@ copper-piper = { workspace = true }
 copper-itemdb = { workspace = true }
 
 tracing = { workspace = true }
+thiserror = { workspace = true }
 smartstring = { workspace = true }
 serde_with = { workspace = true }
 tokio = { workspace = true }

@@ -5,10 +5,10 @@ use aws_sdk_s3::{
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{
-	error::Error,
-	fmt::{Debug, Display},
+	fmt::Debug,
 	io::{Seek, SeekFrom, Write},
 };
+use thiserror::Error;
 use tracing::error;
 
 use crate::MimeType;
@@ -17,10 +17,13 @@ use crate::MimeType;
 // MARK: Errors
 //
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum S3ReaderError {
-	SdkError(Box<dyn std::error::Error + Send + Sync>),
-	ByteStreamError(aws_sdk_s3::primitives::ByteStreamError),
+	#[error("sdk error")]
+	SdkError(#[from] Box<dyn std::error::Error + Send + Sync>),
+
+	#[error("byte stream error")]
+	ByteStreamError(#[from] aws_sdk_s3::primitives::ByteStreamError),
 }
 
 impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static + Send + Sync>
@@ -31,33 +34,10 @@ impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static 
 	}
 }
 
-impl From<aws_sdk_s3::primitives::ByteStreamError> for S3ReaderError {
-	fn from(value: aws_sdk_s3::primitives::ByteStreamError) -> Self {
-		Self::ByteStreamError(value)
-	}
-}
-
-impl Display for S3ReaderError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::SdkError(_) => write!(f, "sdk error"),
-			Self::ByteStreamError(_) => write!(f, "byte stream error"),
-		}
-	}
-}
-
-impl Error for S3ReaderError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::SdkError(x) => Some(&**x),
-			Self::ByteStreamError(x) => Some(x),
-		}
-	}
-}
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum S3UploadPartError {
-	SdkError(Box<dyn std::error::Error + Send + Sync>),
+	#[error("sdk error")]
+	SdkError(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static + Send + Sync>
@@ -68,25 +48,10 @@ impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static 
 	}
 }
 
-impl Display for S3UploadPartError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::SdkError(_) => write!(f, "sdk error"),
-		}
-	}
-}
-
-impl Error for S3UploadPartError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::SdkError(x) => Some(&**x),
-		}
-	}
-}
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum S3CreateMultipartUploadError {
-	SdkError(Box<dyn std::error::Error + Send + Sync>),
+	#[error("sdk error")]
+	SdkError(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static + Send + Sync>
@@ -97,25 +62,10 @@ impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static 
 	}
 }
 
-impl Display for S3CreateMultipartUploadError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::SdkError(_) => write!(f, "sdk error"),
-		}
-	}
-}
-
-impl Error for S3CreateMultipartUploadError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::SdkError(x) => Some(&**x),
-		}
-	}
-}
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum S3UploadFinishError {
-	SdkError(Box<dyn std::error::Error + Send + Sync>),
+	#[error("sdk error")]
+	SdkError(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static + Send + Sync>
@@ -126,25 +76,10 @@ impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static 
 	}
 }
 
-impl Display for S3UploadFinishError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::SdkError(_) => write!(f, "sdk error"),
-		}
-	}
-}
-
-impl Error for S3UploadFinishError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::SdkError(x) => Some(&**x),
-		}
-	}
-}
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum S3DeleteObjectError {
-	SdkError(Box<dyn std::error::Error + Send + Sync>),
+	#[error("sdk error")]
+	SdkError(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static + Send + Sync>
@@ -155,25 +90,10 @@ impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static 
 	}
 }
 
-impl Display for S3DeleteObjectError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::SdkError(_) => write!(f, "sdk error"),
-		}
-	}
-}
-
-impl Error for S3DeleteObjectError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::SdkError(x) => Some(&**x),
-		}
-	}
-}
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum S3CreateBucketError {
-	SdkError(Box<dyn std::error::Error + Send + Sync>),
+	#[error("sdk error")]
+	SdkError(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static + Send + Sync>
@@ -181,22 +101,6 @@ impl<E: std::error::Error + 'static + Send + Sync, R: std::fmt::Debug + 'static 
 {
 	fn from(value: SdkError<E, R>) -> Self {
 		Self::SdkError(Box::new(value))
-	}
-}
-
-impl Display for S3CreateBucketError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::SdkError(_) => write!(f, "sdk error"),
-		}
-	}
-}
-
-impl Error for S3CreateBucketError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::SdkError(x) => Some(&**x),
-		}
 	}
 }
 

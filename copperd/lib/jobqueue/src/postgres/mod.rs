@@ -3,56 +3,27 @@ use sqlx::{
 	postgres::{PgConnection, PgPoolOptions},
 	Connection, PgPool,
 };
-use std::{error::Error, fmt::Display};
+use thiserror::Error;
 use tracing::info;
 
 mod client;
 mod migrate;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 /// An error we may encounter when connecting to postgres
 pub enum PgJobQueueOpenError {
 	/// We encountered an internal database error
-	Database(sqlx::Error),
+	#[error("sql error")]
+	Database(#[from] sqlx::Error),
 
 	/// We encountered an error while migrating
-	Migrate(MigrationError),
+	#[error("migration error")]
+	Migrate(#[from] MigrationError),
 
 	/// We opened a database with `migrate = false`,
 	/// but this database has not been migrated.
+	#[error("database not migrated")]
 	NotMigrated,
-}
-
-impl Display for PgJobQueueOpenError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::Database(_) => write!(f, "sql error"),
-			Self::Migrate(_) => write!(f, "migration error"),
-			Self::NotMigrated => write!(f, "database not migrated"),
-		}
-	}
-}
-
-impl Error for PgJobQueueOpenError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::Database(e) => Some(e),
-			Self::Migrate(e) => Some(e),
-			_ => None,
-		}
-	}
-}
-
-impl From<sqlx::Error> for PgJobQueueOpenError {
-	fn from(value: sqlx::Error) -> Self {
-		Self::Database(value)
-	}
-}
-
-impl From<MigrationError> for PgJobQueueOpenError {
-	fn from(value: MigrationError) -> Self {
-		Self::Migrate(value)
-	}
 }
 
 /// A database client for Postgres
@@ -76,8 +47,8 @@ impl PgJobQueueClient {
 		if migrate {
 			mig.up().await.map_err(PgJobQueueOpenError::Migrate)?;
 		} else if !mig.is_up()? {
-  				return Err(PgJobQueueOpenError::NotMigrated);
-  			}
+			return Err(PgJobQueueOpenError::NotMigrated);
+		}
 
 		drop(mig);
 		drop(conn);

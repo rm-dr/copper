@@ -1,105 +1,38 @@
 //! Errors we can encounter when operating on classes
-
-use std::{error::Error, fmt::Display};
+use thiserror::Error;
 
 /// An error we can encounter when listing items
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ListItemsError {
 	/// Database error
-	DbError(sqlx::Error),
+	#[error("database backend error")]
+	DbError(#[from] sqlx::Error),
 
 	/// We tried get items from a class that doesn't exist
+	#[error("class not found")]
 	ClassNotFound,
-}
-
-impl Display for ListItemsError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::DbError(_) => write!(f, "database backend error"),
-			Self::ClassNotFound => write!(f, "class not found"),
-		}
-	}
-}
-
-impl Error for ListItemsError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::DbError(x) => Some(x),
-			_ => None,
-		}
-	}
-}
-
-impl From<sqlx::Error> for ListItemsError {
-	fn from(value: sqlx::Error) -> Self {
-		Self::DbError(value)
-	}
 }
 
 /// An error we can encounter when counting
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum CountItemsError {
 	/// Database error
-	DbError(sqlx::Error),
+	#[error("database backend error")]
+	DbError(#[from] sqlx::Error),
 
 	/// We tried count items in a class that doesn't exist
+	#[error("class not found")]
 	ClassNotFound,
 }
 
-impl Display for CountItemsError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::DbError(_) => write!(f, "database backend error"),
-			Self::ClassNotFound => write!(f, "class not found"),
-		}
-	}
-}
-
-impl Error for CountItemsError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::DbError(x) => Some(x),
-			_ => None,
-		}
-	}
-}
-
-impl From<sqlx::Error> for CountItemsError {
-	fn from(value: sqlx::Error) -> Self {
-		Self::DbError(value)
-	}
-}
-
 /// An error we can encounter when getting item info
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum GetItemError {
 	/// Database error
-	DbError(sqlx::Error),
+	#[error("database backend error")]
+	DbError(#[from] sqlx::Error),
 
 	/// An item with this id doesn't exist
+	#[error("item not found")]
 	NotFound,
-}
-
-impl Display for GetItemError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::DbError(_) => write!(f, "database backend error"),
-			Self::NotFound => write!(f, "item not found"),
-		}
-	}
-}
-
-impl Error for GetItemError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::DbError(x) => Some(x),
-			_ => None,
-		}
-	}
-}
-
-impl From<sqlx::Error> for GetItemError {
-	fn from(value: sqlx::Error) -> Self {
-		Self::DbError(value)
-	}
 }

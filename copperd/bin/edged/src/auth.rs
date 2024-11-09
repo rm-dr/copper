@@ -1,5 +1,3 @@
-use std::{error::Error, fmt::Display, marker::PhantomData};
-
 use axum::{
 	http::{header::SET_COOKIE, StatusCode},
 	response::{AppendHeaders, IntoResponse, Response},
@@ -13,6 +11,8 @@ use copper_edged::UserInfo;
 use copper_itemdb::{client::base::client::ItemdbClient, UserId};
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
+use std::marker::PhantomData;
+use thiserror::Error;
 use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
 use tracing::error;
@@ -30,32 +30,10 @@ const AUTH_TOKEN_LIFE_HOURS: i64 = 24;
 //
 
 /// An error we can encounter when getting user info
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum LoginError {
-	/// Database error
-	DbError(sqlx::Error),
-}
-
-impl Display for LoginError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::DbError(_) => write!(f, "database backend error"),
-		}
-	}
-}
-
-impl Error for LoginError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::DbError(x) => Some(x),
-		}
-	}
-}
-
-impl From<sqlx::Error> for LoginError {
-	fn from(value: sqlx::Error) -> Self {
-		Self::DbError(value)
-	}
+	#[error("database backend error")]
+	DbError(#[from] sqlx::Error),
 }
 
 //

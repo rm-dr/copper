@@ -10,11 +10,11 @@ use copper_util::graph::{finalized::FinalizedGraph, graph::Graph, util::GraphNod
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::{BTreeMap, HashMap},
-	error::Error,
-	fmt::{Debug, Display},
+	fmt::Debug,
 	marker::PhantomData,
 	sync::Arc,
 };
+use thiserror::Error;
 use tokio::{
 	sync::mpsc::{self, error::TryRecvError},
 	task::{JoinError, JoinSet},
@@ -28,9 +28,10 @@ use crate::config::ASYNC_POLL_AWAIT_MS;
 //
 
 /// An error we encounter when a pipeline spec is invalid
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum PipelineBuildError {
 	/// An edge references a node, but it doesn't exist
+	#[error("edge `{edge_id}` references a node `{invalid_node_id}` that doesn't exist")]
 	NoNode {
 		/// The edge that references an invalid node
 		edge_id: SmartString<LazyCompact>,
@@ -40,54 +41,20 @@ pub enum PipelineBuildError {
 	},
 
 	/// We found a node with an invalid type
+	#[error("invalid node type `{bad_type}`")]
 	BadNodeType { bad_type: SmartString<LazyCompact> },
 
 	/// This pipeline has a cycle and is thus invalid
+	#[error("this pipeline has a cycle")]
 	HasCycle,
 
 	/// We expected an input, but it wasn't provided
+	#[error("missing pipeline input `{input}`")]
 	MissingInput { input: SmartString<LazyCompact> },
 
 	/// An input node wasn't specified properly
+	#[error("input node `{node}` is invalid")]
 	InvalidInputNode { node: NodeId },
-}
-
-impl Display for PipelineBuildError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::NoNode {
-				edge_id,
-				invalid_node_id,
-			} => {
-				writeln!(
-					f,
-					"edge `{edge_id}` references a node `{invalid_node_id}` that doesn't exist"
-				)
-			}
-
-			Self::BadNodeType { bad_type } => {
-				writeln!(f, "invalid node type `{bad_type}`")
-			}
-
-			Self::HasCycle => {
-				writeln!(f, "this pipeline has a cycle")
-			}
-
-			Self::MissingInput { input } => {
-				writeln!(f, "missing pipeline input `{input}`")
-			}
-
-			Self::InvalidInputNode { node } => {
-				writeln!(f, "Input node `{node}` is invalid")
-			}
-		}
-	}
-}
-
-impl Error for PipelineBuildError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		None
-	}
 }
 
 //

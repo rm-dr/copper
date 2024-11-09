@@ -17,6 +17,7 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
+thiserror = { workspace = true }
 dotenvy = { workspace = true }
 envy = { workspace = true }
 tracing = { workspace = true }

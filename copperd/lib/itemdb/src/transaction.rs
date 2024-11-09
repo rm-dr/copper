@@ -1,6 +1,6 @@
 //! Definitions for high-level dataset transactions
 use serde::{Deserialize, Serialize};
-use std::{error::Error, fmt::Display};
+use thiserror::Error;
 
 use crate::{AttrData, AttrDataStub, AttributeId, ClassId};
 
@@ -9,76 +9,39 @@ use crate::{AttrData, AttrDataStub, AttributeId, ClassId};
 //
 
 /// An error we can encounter when creating an item
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Error)]
 pub enum AddItemError {
 	/// We tried to add an item to a class that doesn't exist
+	#[error("tried to add an item to a class that doesn't exist")]
 	NoSuchClass,
 
 	/// We tried to create an item that contains an
 	/// attribute that doesn't exist
+	#[error("tried to create an item an attribute that doesn't exist")]
 	BadAttribute,
 
 	/// We tried to create an item,
 	/// but provided multiple values for one attribute
+	#[error("multiple values were provided for one attribute")]
 	RepeatedAttribute,
 
 	/// We tried to assign data to an attribute,
 	/// but that data has the wrong type
+	#[error("tried to assign data to an attribute, but type doesn't match")]
 	AttributeDataTypeMismatch,
 
 	/// We tried to create an item that contains an
 	/// attribute from another class
+	#[error("tried to create an item with a foreign attribute")]
 	ForeignAttribute,
 
 	/// We tried to create an item with attribute that violate a "not null" constraint
+	#[error("tried to create an item with attributes that violate a `not null` constraint")]
 	NotNullViolated,
 
 	/// We tried to create an item with attribute that violate a "unique" constraint
+	#[error("tried to create an item with attributes that violate a `unique` constraint")]
 	UniqueViolated,
-}
-
-impl Display for AddItemError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::NoSuchClass => write!(f, "tried to add an item to a class that doesn't exist"),
-			Self::ForeignAttribute => write!(f, "tried to create an item with a foreign attribute"),
-
-			Self::BadAttribute => {
-				write!(f, "tried to create an item an attribute that doesn't exist")
-			}
-
-			Self::RepeatedAttribute => {
-				write!(f, "multiple values were provided for one attribute")
-			}
-
-			Self::AttributeDataTypeMismatch => {
-				write!(
-					f,
-					"tried to assign data to an attribute, but type doesn't match"
-				)
-			}
-
-			Self::NotNullViolated => {
-				write!(
-					f,
-					"tried to create an item with attributes that violate a `not null` constraint"
-				)
-			}
-
-			Self::UniqueViolated => {
-				write!(
-					f,
-					"tried to create an item with attributes that violate a `unique` constraint"
-				)
-			}
-		}
-	}
-}
-
-impl Error for AddItemError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		None
-	}
 }
 
 //

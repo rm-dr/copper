@@ -4,7 +4,8 @@ use copper_piper::{
 	json::PipelineJson,
 };
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, error::Error, fmt::Display};
+use std::collections::BTreeMap;
+use thiserror::Error;
 use tokio::task::{JoinError, JoinSet};
 use tracing::debug;
 
@@ -15,31 +16,10 @@ use crate::pipeline::job::PipelineJob;
 // MARK: Errors
 //
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum StartJobError {
-	BuildError(PipelineBuildError),
-}
-
-impl Display for StartJobError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::BuildError(_) => write!(f, "pipeline build error"),
-		}
-	}
-}
-
-impl Error for StartJobError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::BuildError(e) => Some(e),
-		}
-	}
-}
-
-impl From<PipelineBuildError> for StartJobError {
-	fn from(value: PipelineBuildError) -> Self {
-		Self::BuildError(value)
-	}
+	#[error("pipeline build error")]
+	BuildError(#[from] PipelineBuildError),
 }
 
 //

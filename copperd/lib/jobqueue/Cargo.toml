@@ -21,6 +21,7 @@ copper-migrate = { workspace = true }
 copper-piper = { workspace = true }
 copper-itemdb = { workspace = true }
 
+thiserror = { workspace = true }
 smartstring = { workspace = true }
 serde = { workspace = true }
 utoipa = { workspace = true }
