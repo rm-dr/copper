@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{AttrData, AttrDataStub, AttributeId, ClassId};
+use crate::{AttrData, AttrDataStub, AttributeId, ClassId, ItemId};
 
 //
 // MARK: Errors
@@ -41,7 +41,7 @@ pub enum AddItemError {
 
 	/// We tried to create an item with attribute that violate a "unique" constraint
 	#[error("tried to create an item with attributes that violate a `unique` constraint")]
-	UniqueViolated,
+	UniqueViolated { conflicting_ids: Vec<ItemId> },
 }
 
 //
@@ -67,6 +67,17 @@ impl<T> From<T> for ResultOrDirect<T> {
 	}
 }
 
+#[derive(Debug)]
+pub enum OnUniqueConflictAction {
+	/// Fail the transaction
+	Fail,
+
+	/// Do not add an item, return the item we conflicted with.
+	/// If we conflicted with one item, return its id.
+	/// If we conflicted with more than one, fail.
+	ConflictIdOrFail,
+}
+
 /// A single action in a transaction
 #[derive(Debug)]
 pub enum TransactionAction {
@@ -81,6 +92,9 @@ pub enum TransactionAction {
 		/// Each attribute may be directly provided, or
 		/// computed from the result of a previous transaction.
 		attributes: Vec<(AttributeId, ResultOrDirect<AttrData>)>,
+
+		/// What to do if we encounter a "unique" attribute conflict
+		on_unique_conflict: OnUniqueConflictAction,
 	},
 }
 

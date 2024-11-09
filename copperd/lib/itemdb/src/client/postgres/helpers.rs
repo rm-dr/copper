@@ -95,6 +95,10 @@ pub(super) async fn add_item(
 		}
 	}
 
+	// Keep track of ALL conflicts
+	// (even those across multiple attributes)
+	let mut conflicting_ids = Vec::new();
+
 	// Now, create instances for every attribute we got.
 	for attr in all_attrs.into_iter() {
 		let value = attributes
@@ -117,20 +121,19 @@ pub(super) async fn add_item(
 				// Look for non-unique row
 				match sqlx::query(
 					"
-					SELECT COUNT(*) FROM attribute_instance
+					SELECT id FROM attribute_instance
 					WHERE attribute_id=$1
 					AND attribute_value=$2
 					",
 				)
 				.bind(i64::from(attr.id))
 				.bind(&value_ser)
-				.fetch_one(&mut **t)
+				.fetch_all(&mut **t)
 				.await
 				{
 					Ok(res) => {
-						let count: i64 = res.get("count");
-						if count != 0 {
-							return Err(AddItemError::UniqueViolated.into());
+						for row in res {
+							conflicting_ids.push(row.get::<i64, _>("id").into())
 						}
 					}
 
@@ -166,6 +169,10 @@ pub(super) async fn add_item(
 				return Err(AddItemError::NotNullViolated.into());
 			}
 		}
+	}
+
+	if conflicting_ids.len() != 0 {
+		return Err(AddItemError::UniqueViolated { conflicting_ids }.into());
 	}
 
 	return Ok(new_item);

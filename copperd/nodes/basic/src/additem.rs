@@ -4,7 +4,7 @@ use copper_itemdb::{
 		client::ItemdbClient,
 		errors::{class::GetClassError, dataset::GetDatasetError},
 	},
-	transaction::{ResultOrDirect, TransactionAction},
+	transaction::{OnUniqueConflictAction, ResultOrDirect, TransactionAction},
 	AttrData, AttributeInfo, ClassInfo,
 };
 use copper_piper::{
@@ -218,11 +218,14 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 
 		let action = TransactionAction::AddItem {
 			to_class: class.id,
+
 			attributes: attributes
 				.into_iter()
 				.map(|(_, (k, d))| (k.id, d))
 				.filter_map(|(k, v)| v.map(|v| (k, v)))
 				.collect(),
+
+			on_unique_conflict: OnUniqueConflictAction::Fail,
 		};
 
 		let mut trans = ctx.transaction.lock().await;

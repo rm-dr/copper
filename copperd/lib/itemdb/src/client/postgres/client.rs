@@ -2,7 +2,9 @@ use std::collections::BTreeMap;
 
 use crate::{
 	client::base::errors::item::{CountItemsError, GetItemError, ListItemsError},
-	transaction::{ResultOrDirect, Transaction, TransactionAction},
+	transaction::{
+		AddItemError, OnUniqueConflictAction, ResultOrDirect, Transaction, TransactionAction,
+	},
 	AttrData, AttrDataStub, AttributeId, AttributeInfo, AttributeOptions, ClassId, ClassInfo,
 	DatasetId, DatasetInfo, ItemId, ItemInfo, UserId,
 };
@@ -10,7 +12,10 @@ use async_trait::async_trait;
 use copper_util::names::check_name;
 use sqlx::{Connection, Row};
 
-use super::{helpers, PgItemdbClient};
+use super::{
+	helpers::{self, SqlxOrItemError},
+	PgItemdbClient,
+};
 use crate::client::base::{
 	client::ItemdbClient,
 	errors::{
@@ -680,6 +685,7 @@ impl ItemdbClient for PgItemdbClient {
 				TransactionAction::AddItem {
 					to_class,
 					attributes,
+					on_unique_conflict,
 				} => {
 					let mut resolved_attributes = Vec::new();
 
@@ -711,6 +717,31 @@ impl ItemdbClient for PgItemdbClient {
 
 					let res = match helpers::add_item(&mut t, to_class, resolved_attributes).await {
 						Ok(x) => x,
+
+						Err(SqlxOrItemError::AddItem(AddItemError::UniqueViolated {
+							mut conflicting_ids,
+						})) => match on_unique_conflict {
+							OnUniqueConflictAction::Fail => {
+								t.rollback().await?;
+								return Err(SqlxOrItemError::AddItem(
+									AddItemError::UniqueViolated { conflicting_ids },
+								)
+								.into());
+							}
+
+							OnUniqueConflictAction::ConflictIdOrFail => {
+								if conflicting_ids.len() == 1 {
+									conflicting_ids.pop().unwrap()
+								} else {
+									t.rollback().await?;
+									return Err(SqlxOrItemError::AddItem(
+										AddItemError::UniqueViolated { conflicting_ids },
+									)
+									.into());
+								}
+							}
+						},
+
 						Err(x) => {
 							t.rollback().await?;
 							return Err(x.into());
