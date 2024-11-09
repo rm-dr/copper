@@ -1,18 +1,11 @@
 import { Select } from "@mantine/core";
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { BaseNode } from "./base";
-import { dataTypes } from "@/lib/attributes";
+import { DataType, dataTypes } from "@/lib/attributes";
 import { NodeDef } from ".";
 import { components } from "@/lib/api/openapi";
 
-const types = ["Text", "Integer", "Float"] as const;
-
-type InputNodeType = Node<
-	{
-		type: (typeof types)[number];
-	},
-	"pipelineinput"
->;
+type InputNodeType = Node<{ type: DataType }, "pipelineinput">;
 
 function InputNodeElement({ data, id }: NodeProps<InputNodeType>) {
 	const { deleteElements, getEdges, updateNodeData } = useReactFlow();
@@ -92,8 +85,6 @@ export const InputNode: NodeDef<InputNodeType> = {
 			return null;
 		}
 
-		return {
-			type: data_type.value as (typeof types)[number],
-		};
+		return { type: data_type.value as DataType };
 	},
 };

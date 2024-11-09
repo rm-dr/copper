@@ -8,17 +8,10 @@ import { _integerAttrType } from "./impls/integer";
 import { _hashAttrType } from "./impls/hash";
 import { _referenceAttrType } from "./impls/reference";
 import { components } from "../api/openapi";
+import { stringUnionToArray } from "../util";
 
 export type DataType =
 	components["schemas"]["AttributeInfo"]["data_type"]["type"];
-
-// Hack types to enforce `attrTypes`
-type NonEmptyArray<T> = [T, ...T[]];
-type MustInclude<T, U extends T[]> = [T] extends [U[keyof U]] ? U : never;
-function stringUnionToArray<T>() {
-	return <U extends NonEmptyArray<T>>(...elements: MustInclude<T, U>) =>
-		elements;
-}
 
 export const dataTypes = stringUnionToArray<DataType>()(
 	"Text",
