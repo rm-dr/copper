@@ -135,6 +135,8 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client: Arc<S3Client>) -> Router 
 async fn main() {
 	let config_res = match load_env::<EdgedConfig>() {
 		Ok(x) => x,
+
+		#[expect(clippy::print_stdout)]
 		Err(err) => {
 			println!("Error while loading .env: {err}");
 			std::process::exit(1);

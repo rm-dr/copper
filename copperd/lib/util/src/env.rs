@@ -43,6 +43,7 @@ impl<T> LoadedEnv<T> {
 
 /// Load the configuration type `T` from the current environment,
 /// including the `.env` if it exists.
+#[expect(clippy::wildcard_enum_match_arm)]
 pub fn load_env<T: DeserializeOwned>() -> Result<LoadedEnv<T>, EnvLoadError> {
 	let env_path = match dotenvy::dotenv() {
 		Ok(path) => Some(path),

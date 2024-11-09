@@ -42,7 +42,7 @@ pub(super) async fn upload_part<Client: DatabaseClient, Itemdb: ItemdbClient>(
 	// Parse multipart data
 	let mut data: Option<Bytes> = None;
 	while let Some(field) = multipart.next_field().await.unwrap() {
-		let name = field.name().unwrap().to_string();
+		let name = field.name().unwrap().to_owned();
 
 		match &name[..] {
 			"part_data" => {

@@ -132,18 +132,21 @@ impl VorbisComment {
 		let mut block = [0u8; 4];
 
 		let vendor = {
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut block)
 				.map_err(|_| VorbisCommentDecodeError::MalformedData)?;
 
 			let length = u32::from_le_bytes(block);
 			let mut text = vec![0u8; length.try_into().unwrap()];
 
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut text)
 				.map_err(|_| VorbisCommentDecodeError::MalformedData)?;
 
 			String::from_utf8(text)?
 		};
 
+		#[expect(clippy::map_err_ignore)]
 		d.read_exact(&mut block)
 			.map_err(|_| VorbisCommentDecodeError::MalformedData)?;
 		let n_comments: usize = u32::from_le_bytes(block).try_into().unwrap();
@@ -152,12 +155,14 @@ impl VorbisComment {
 		let mut pictures = Vec::new();
 		for _ in 0..n_comments {
 			let comment = {
+				#[expect(clippy::map_err_ignore)]
 				d.read_exact(&mut block)
 					.map_err(|_| VorbisCommentDecodeError::MalformedData)?;
 
 				let length = u32::from_le_bytes(block);
 				let mut text = vec![0u8; length.try_into().unwrap()];
 
+				#[expect(clippy::map_err_ignore)]
 				d.read_exact(&mut text)
 					.map_err(|_| VorbisCommentDecodeError::MalformedData)?;
 
@@ -172,6 +177,7 @@ impl VorbisComment {
 
 			if !val.is_empty() {
 				if var.to_uppercase() == "METADATA_BLOCK_PICTURE" {
+					#[expect(clippy::map_err_ignore)]
 					pictures.push(
 						FlacPictureBlock::decode(
 							&base64::prelude::BASE64_STANDARD
@@ -248,7 +254,11 @@ impl VorbisComment {
 				x -= x % 3;
 				x += 3;
 			}
-			sum += 4 * (x / 3);
+
+			#[expect(clippy::integer_division)]
+			{
+				sum += 4 * (x / 3);
+			}
 
 			// Add "METADATA_BLOCK_PICTURE="
 			sum += 23;
@@ -298,8 +308,11 @@ impl VorbisComment {
 
 		for p in &self.pictures {
 			let mut pic_data = Vec::new();
+
+			#[expect(clippy::map_err_ignore)]
 			p.encode(false, false, &mut pic_data)
 				.map_err(|_| VorbisCommentEncodeError::PictureEncodeError)?;
+
 			let pic_string = format!(
 				"METADATA_BLOCK_PICTURE={}",
 				&base64::prelude::BASE64_STANDARD.encode(&pic_data)

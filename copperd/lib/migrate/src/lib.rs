@@ -40,7 +40,7 @@ pub enum MigrationError {
 
 	/// We could not deserialize a migration record
 	#[error("could not deserialize migration")]
-	MalformedMigrationRecord,
+	MalformedMigrationRecord(#[from] serde_json::Error),
 }
 
 /// A migration entry in the database,
@@ -105,8 +105,7 @@ impl<'a> Migrator<'a> {
 
 		let mut ap_migs: BTreeMap<SmartString<LazyCompact>, MigrationRecord> = BTreeMap::new();
 		for row in res {
-			let r: MigrationRecord = serde_json::from_str(row.get("val"))
-				.map_err(|_| MigrationError::MalformedMigrationRecord)?;
+			let r: MigrationRecord = serde_json::from_str(row.get("val"))?;
 			ap_migs.insert(r.name.clone(), r);
 		}
 

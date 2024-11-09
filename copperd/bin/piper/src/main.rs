@@ -35,6 +35,8 @@ mod pipeline;
 async fn main() {
 	let config_res = match load_env::<PiperConfig>() {
 		Ok(x) => x,
+
+		#[expect(clippy::print_stdout)]
 		Err(err) => {
 			println!("Error while loading .env: {err}");
 			std::process::exit(1);
