@@ -49,7 +49,7 @@ pub(super) async fn update_user<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 	// Users can only update themselves.
 	if user.id != user_id.into() {
-		return StatusCode::UNAUTHORIZED.into_response();
+		return (StatusCode::UNAUTHORIZED, Json("Unauthorized")).into_response();
 	}
 
 	// Update user info
@@ -86,7 +86,12 @@ pub(super) async fn update_user<Client: DatabaseClient, Itemdb: ItemdbClient>(
 				message = "Database error while renaming user",
 				error = ?e
 			);
-			StatusCode::INTERNAL_SERVER_ERROR.into_response()
+
+			(
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response()
 		}
 	};
 }

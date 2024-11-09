@@ -50,15 +50,21 @@ pub(super) async fn add_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		Ok(x) => {
 			// We can only modify our own datasets
 			if x.owner != user.id {
-				return StatusCode::UNAUTHORIZED.into_response();
+				return (StatusCode::UNAUTHORIZED, Json("Unauthorized")).into_response();
 			}
 		}
 
-		Err(GetDatasetError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
+		Err(GetDatasetError::NotFound) => {
+			return (StatusCode::NOT_FOUND, Json("Dataset not found")).into_response()
+		}
 
 		Err(GetDatasetError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
@@ -78,7 +84,9 @@ pub(super) async fn add_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
 				.into_response();
 		}
 
-		Err(AddClassError::NoSuchDataset) => return StatusCode::NOT_FOUND.into_response(),
+		Err(AddClassError::NoSuchDataset) => {
+			return (StatusCode::NOT_FOUND, Json("Dataset not found")).into_response()
+		}
 
 		Err(AddClassError::NameError(msg)) => {
 			return (StatusCode::BAD_REQUEST, Json(format!("{}", msg))).into_response();
@@ -86,7 +94,11 @@ pub(super) async fn add_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 		Err(AddClassError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 }

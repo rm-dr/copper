@@ -59,7 +59,12 @@ pub(super) async fn add_user<Client: DatabaseClient, Itemdb: ItemdbClient>(
 				message = "Database error while making new user",
 				error = ?e
 			);
-			StatusCode::INTERNAL_SERVER_ERROR.into_response()
+
+			(
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response()
 		}
 	};
 }

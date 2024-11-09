@@ -52,22 +52,35 @@ pub(super) async fn rename_attribute<Client: DatabaseClient, Itemdb: ItemdbClien
 	let attr = match state.itemdb_client.get_attribute(attribute_id.into()).await {
 		Ok(x) => x,
 
-		Err(GetAttributeError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
+		Err(GetAttributeError::NotFound) => {
+			return (StatusCode::NOT_FOUND, Json("Attribute not found")).into_response()
+		}
 
 		Err(GetAttributeError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
 	let class = match state.itemdb_client.get_class(attr.class).await {
 		Ok(x) => x,
 
-		Err(GetClassError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
+		// In theory unreachable, but possible with unlucky timing
+		Err(GetClassError::NotFound) => {
+			return (StatusCode::NOT_FOUND, Json("Class not found")).into_response()
+		}
 
 		Err(GetClassError::DbError(error)) => {
 			error!(message = "Error in item db client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
@@ -75,15 +88,22 @@ pub(super) async fn rename_attribute<Client: DatabaseClient, Itemdb: ItemdbClien
 		Ok(x) => {
 			// We can only modify our own datasets
 			if x.owner != user.id {
-				return StatusCode::UNAUTHORIZED.into_response();
+				return (StatusCode::UNAUTHORIZED, Json("Unauthorized")).into_response();
 			}
 		}
 
-		Err(GetDatasetError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
+		// In theory unreachable, but possible with unlucky timing
+		Err(GetDatasetError::NotFound) => {
+			return (StatusCode::NOT_FOUND, Json("Dataset not found")).into_response()
+		}
 
 		Err(GetDatasetError::DbError(error)) => {
 			error!(message = "Error in item db client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
@@ -109,7 +129,11 @@ pub(super) async fn rename_attribute<Client: DatabaseClient, Itemdb: ItemdbClien
 
 		Err(RenameAttributeError::DbError(error)) => {
 			error!(message = "Error in item db client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 }

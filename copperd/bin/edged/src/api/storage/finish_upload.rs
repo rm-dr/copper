@@ -2,6 +2,7 @@ use axum::{
 	extract::{Path, State},
 	http::StatusCode,
 	response::{IntoResponse, Response},
+	Json,
 };
 use axum_extra::extract::CookieJar;
 use copper_itemdb::client::base::client::ItemdbClient;
@@ -39,12 +40,16 @@ pub(super) async fn finish_upload<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		Ok(()) => StatusCode::OK.into_response(),
 
 		Err(UploadFinishError::NotMyUpload) | Err(UploadFinishError::BadUpload) => {
-			return StatusCode::NOT_FOUND.into_response();
+			return (StatusCode::NOT_FOUND, Json("Upload not found")).into_response();
 		}
 
 		Err(UploadFinishError::S3Error(error)) => {
 			error!(message = "S3 error while finishing job", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 }

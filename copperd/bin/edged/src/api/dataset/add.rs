@@ -60,7 +60,7 @@ pub(super) async fn add_dataset<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 		Err(AddDatasetError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, Json("Internal server error")).into_response();
 		}
 	};
 }

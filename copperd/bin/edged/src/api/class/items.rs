@@ -78,7 +78,11 @@ impl ItemAttrData {
 					Ok(x) => x,
 					Err(error) => {
 						error!(message = "Error in itemdb client", ?error);
-						return Err(StatusCode::INTERNAL_SERVER_ERROR.into_response());
+						return Err((
+							StatusCode::INTERNAL_SERVER_ERROR,
+							Json("Internal server error"),
+						)
+							.into_response());
 					}
 				};
 
@@ -164,7 +168,11 @@ pub(super) async fn list_items<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 		Err(GetClassError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
@@ -172,24 +180,40 @@ pub(super) async fn list_items<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		Ok(x) => {
 			// We can only modify our own class
 			if x.owner != user.id {
-				return StatusCode::UNAUTHORIZED.into_response();
+				return (StatusCode::UNAUTHORIZED, Json("Unauthorized")).into_response();
 			}
 		}
 
-		Err(GetDatasetError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
+		// In theory unreachable, but possible with unlucky timing
+		Err(GetDatasetError::NotFound) => {
+			return (StatusCode::NOT_FOUND, Json("Dataset not found")).into_response()
+		}
 
 		Err(GetDatasetError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
 	let total = match state.itemdb_client.count_items(class.id).await {
 		Ok(x) => x,
-		Err(CountItemsError::ClassNotFound) => return StatusCode::NOT_FOUND.into_response(),
+
+		// In theory unreachable, but possible with unlucky timing
+		Err(CountItemsError::ClassNotFound) => {
+			return (StatusCode::NOT_FOUND, Json("Class not found")).into_response()
+		}
+
 		Err(CountItemsError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
@@ -231,11 +255,17 @@ pub(super) async fn list_items<Client: DatabaseClient, Itemdb: ItemdbClient>(
 				.into_response();
 		}
 
-		Err(ListItemsError::ClassNotFound) => return StatusCode::NOT_FOUND.into_response(),
+		Err(ListItemsError::ClassNotFound) => {
+			return (StatusCode::NOT_FOUND, Json("Class not found")).into_response()
+		}
 
 		Err(ListItemsError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 }

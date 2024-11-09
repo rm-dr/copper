@@ -38,7 +38,7 @@ pub(super) async fn list_pipelines<Client: DatabaseClient, Itemdb: ItemdbClient>
 				user_id = ?user.id,
 				?error,
 			);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, Json("Internal server error")).into_response();
 		}
 	};
 }

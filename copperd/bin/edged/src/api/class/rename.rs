@@ -52,11 +52,17 @@ pub(super) async fn rename_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
 	let class = match state.itemdb_client.get_class(class_id.into()).await {
 		Ok(x) => x,
 
-		Err(GetClassError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
+		Err(GetClassError::NotFound) => {
+			return (StatusCode::NOT_FOUND, Json("Class not found")).into_response()
+		}
 
 		Err(GetClassError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
@@ -64,15 +70,22 @@ pub(super) async fn rename_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		Ok(x) => {
 			// We can only modify our own datasets
 			if x.owner != user.id {
-				return StatusCode::UNAUTHORIZED.into_response();
+				return (StatusCode::UNAUTHORIZED, Json("Unauthorized")).into_response();
 			}
 		}
 
-		Err(GetDatasetError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
+		// In theory unreachable, but possible with unlucky timing
+		Err(GetDatasetError::NotFound) => {
+			return (StatusCode::NOT_FOUND, Json("Dataset not found")).into_response()
+		}
 
 		Err(GetDatasetError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
@@ -98,7 +111,11 @@ pub(super) async fn rename_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 		Err(RenameClassError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 }
