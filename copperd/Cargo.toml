@@ -61,6 +61,40 @@ needless_return = "allow"
 new_without_default = "allow"
 tabs_in_doc_comments = "allow"
 
+
+# Extra
+expect_used = "deny"
+#unwrap_used = "deny"
+#panic = "deny"
+dbg_macro = "deny"
+allow_attributes = "deny"
+create_dir = "deny"
+filetype_is_file = "deny"
+integer_division = "deny"
+lossy_float_literal = "deny"
+map_err_ignore = "deny"
+mutex_atomic = "deny"
+needless_raw_strings = "deny"
+print_stderr = "deny"
+print_stdout = "deny"
+str_to_string = "deny"
+string_add = "deny"
+string_to_string = "deny"
+unimplemented = "deny"
+use_debug = "deny"
+verbose_file_reads = "deny"
+#wildcard_enum_match_arm = "deny"
+
+# Pedantic
+large_types_passed_by_value = "deny"
+match_on_vec_items = "deny"
+
+# Cargo
+wildcard_dependencies = "deny"
+negative_feature_names = "deny"
+redundant_feature_names = "deny"
+#multiple_crate_versions = "deny"
+
 [workspace.dependencies]
 # Shared libraries
 copper-util = { path = "lib/util" }

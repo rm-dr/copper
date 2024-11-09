@@ -46,34 +46,48 @@ impl FlacMetablockDecode for FlacStreaminfoBlock {
 
 		let min_block_size = {
 			let mut block = [0u8; 4];
+
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut block[2..])
 				.map_err(|_| FlacDecodeError::MalformedBlock)?;
+
 			u32::from_be_bytes(block)
 		};
 
 		let max_block_size = {
 			let mut block = [0u8; 4];
+
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut block[2..])
 				.map_err(|_| FlacDecodeError::MalformedBlock)?;
+
 			u32::from_be_bytes(block)
 		};
 
 		let min_frame_size = {
 			let mut block = [0u8; 4];
+
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut block[1..])
 				.map_err(|_| FlacDecodeError::MalformedBlock)?;
+
 			u32::from_be_bytes(block)
 		};
 
 		let max_frame_size = {
 			let mut block = [0u8; 4];
+
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut block[1..])
 				.map_err(|_| FlacDecodeError::MalformedBlock)?;
+
 			u32::from_be_bytes(block)
 		};
 
 		let (sample_rate, channels, bits_per_sample, total_samples) = {
 			let mut block = [0u8; 8];
+
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut block)
 				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 
@@ -117,6 +131,7 @@ impl FlacMetablockDecode for FlacStreaminfoBlock {
 
 		let md5_signature = {
 			let mut block = [0u8; 16];
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut block)
 				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 			block

@@ -55,18 +55,21 @@ impl FlacMetablockDecode for FlacPictureBlock {
 		// This is re-used whenever we need to read four bytes
 		let mut block = [0u8; 4];
 
+		#[expect(clippy::map_err_ignore)]
 		d.read_exact(&mut block)
 			.map_err(|_| FlacDecodeError::MalformedBlock)?;
 		let picture_type = PictureType::from_idx(u32::from_be_bytes(block))?;
 
 		// Image format
 		let mime = {
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut block)
 				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 
 			let mime_length = u32::from_be_bytes(block).try_into().unwrap();
 			let mut mime = vec![0u8; mime_length];
 
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut mime)
 				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 
@@ -75,12 +78,14 @@ impl FlacMetablockDecode for FlacPictureBlock {
 
 		// Image description
 		let description = {
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut block)
 				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 
 			let desc_length = u32::from_be_bytes(block).try_into().unwrap();
 			let mut desc = vec![0u8; desc_length];
 
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut desc)
 				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 
@@ -88,33 +93,39 @@ impl FlacMetablockDecode for FlacPictureBlock {
 		};
 
 		// Image width
+		#[expect(clippy::map_err_ignore)]
 		d.read_exact(&mut block)
 			.map_err(|_| FlacDecodeError::MalformedBlock)?;
 		let width = u32::from_be_bytes(block);
 
 		// Image height
+		#[expect(clippy::map_err_ignore)]
 		d.read_exact(&mut block)
 			.map_err(|_| FlacDecodeError::MalformedBlock)?;
 		let height = u32::from_be_bytes(block);
 
 		// Image bit depth
+		#[expect(clippy::map_err_ignore)]
 		d.read_exact(&mut block)
 			.map_err(|_| FlacDecodeError::MalformedBlock)?;
 		let depth = u32::from_be_bytes(block);
 
 		// Color count for indexed images
+		#[expect(clippy::map_err_ignore)]
 		d.read_exact(&mut block)
 			.map_err(|_| FlacDecodeError::MalformedBlock)?;
 		let color_count = u32::from_be_bytes(block);
 
 		// Image data length
 		let img_data = {
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut block)
 				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 
 			let data_length = u32::from_be_bytes(block).try_into().unwrap();
 			let mut img_data = vec![0u8; data_length];
 
+			#[expect(clippy::map_err_ignore)]
 			d.read_exact(&mut img_data)
 				.map_err(|_| FlacDecodeError::MalformedBlock)?;
 
@@ -138,8 +149,8 @@ impl FlacMetablockEncode for FlacPictureBlock {
 	fn get_len(&self) -> u32 {
 		(4 + (4 + self.mime.to_string().len())
 			+ (4 + self.description.len())
-			+ 4 + 4 + 4 + 4
-			+ (4 + self.img_data.len()))
+			+ 4 + 4 + 4
+			+ 4 + (4 + self.img_data.len()))
 		.try_into()
 		.unwrap()
 	}
@@ -167,7 +178,7 @@ impl FlacMetablockEncode for FlacPictureBlock {
 		drop(mime);
 
 		target.write_all(&u32::try_from(self.description.len()).unwrap().to_be_bytes())?;
-		target.write_all(self.description.to_string().as_bytes())?;
+		target.write_all(self.description.as_bytes())?;
 
 		target.write_all(&self.width.to_be_bytes())?;
 		target.write_all(&self.height.to_be_bytes())?;

@@ -29,8 +29,11 @@ impl FlacMetablockDecode for FlacApplicationBlock {
 		let mut d = Cursor::new(data);
 
 		let mut block = [0u8; 4];
+
+		#[expect(clippy::map_err_ignore)]
 		d.read_exact(&mut block)
 			.map_err(|_| FlacDecodeError::MalformedBlock)?;
+
 		let application_id = u32::from_be_bytes(block);
 
 		let data = {
