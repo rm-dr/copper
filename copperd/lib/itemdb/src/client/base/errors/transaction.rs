@@ -1,67 +1,31 @@
 //! Errors we can encounter when operating on attributes
-
-use std::{error::Error, fmt::Display};
+use thiserror::Error;
 
 use crate::transaction::AddItemError;
 
 /// An error we can encounter when creating an attribute
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ApplyTransactionError {
 	/// Database error
-	DbError(sqlx::Error),
+	#[error("database backend error")]
+	DbError(#[from] sqlx::Error),
 
 	/// We encountered an error while adding an item
-	AddItemError(AddItemError),
+	#[error("error while creating item")]
+	AddItemError(#[from] AddItemError),
 
 	/// A transaction action referenced the result of another transaction,
 	/// but that other transaction doesn't exist or hasn't been computed yet.
+	#[error("referenced an action that doesn't exist")]
 	ReferencedBadAction,
 
 	/// A transaction action referenced the result of another transaction,
 	/// but that other transaction produced a `None` result
+	#[error("referenced result with `None` return type")]
 	ReferencedNoneResult,
 
 	/// A transaction action referenced the result of another transaction,
 	/// but that other transaction produced a result with an unexpected type.
+	#[error("referenced result with unexpected type")]
 	ReferencedResultWithBadType,
-}
-
-impl Display for ApplyTransactionError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::DbError(_) => write!(f, "database backend error"),
-			Self::AddItemError(_) => write!(f, "error while creating item"),
-			Self::ReferencedResultWithBadType => {
-				write!(f, "referenced result with unexpected type")
-			}
-			Self::ReferencedBadAction => {
-				write!(f, "referenced an action that doesn't exist")
-			}
-			Self::ReferencedNoneResult => {
-				write!(f, "referenced result with `None` return type")
-			}
-		}
-	}
-}
-
-impl Error for ApplyTransactionError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::DbError(x) => Some(x),
-			Self::AddItemError(x) => Some(x),
-			_ => None,
-		}
-	}
-}
-
-impl From<AddItemError> for ApplyTransactionError {
-	fn from(value: AddItemError) -> Self {
-		Self::AddItemError(value)
-	}
-}
-
-impl From<sqlx::Error> for ApplyTransactionError {
-	fn from(value: sqlx::Error) -> Self {
-		Self::DbError(value)
-	}
 }

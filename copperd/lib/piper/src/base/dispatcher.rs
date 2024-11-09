@@ -1,5 +1,6 @@
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, error::Error, fmt::Display, marker::PhantomData};
+use std::{collections::BTreeMap, marker::PhantomData};
+use thiserror::Error;
 
 use super::{Node, NodeParameterSpec, PipelineData, PipelineJobContext, PipelineJobResult};
 
@@ -10,21 +11,12 @@ type NodeInitFnType<ResultType, DataType, ContextType> =
 pub const INPUT_NODE_TYPE: &str = "Input";
 
 /// An error we encounter when trying to register a node
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum RegisterNodeError {
 	/// We tried to register a node with a type string that is already used
+	#[error("A node with this name already exists")]
 	AlreadyExists,
 }
-
-impl Display for RegisterNodeError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::AlreadyExists => write!(f, "A node with this name already exists"),
-		}
-	}
-}
-
-impl Error for RegisterNodeError {}
 
 /// A node type we've registered inside a [`NodeDispatcher`]
 struct RegisteredNode<

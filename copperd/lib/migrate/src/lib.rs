@@ -2,11 +2,11 @@
 
 #![warn(missing_docs)]
 
-use std::{collections::BTreeMap, error::Error, fmt::Display};
-
 use serde::{Deserialize, Serialize};
 use smartstring::{LazyCompact, SmartString};
 use sqlx::{PgConnection, Row};
+use std::collections::BTreeMap;
+use thiserror::Error;
 use time::OffsetDateTime;
 use tracing::{debug, info};
 
@@ -27,42 +27,20 @@ pub trait Migration {
 }
 
 /// An error we encounter while migrating
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum MigrationError {
 	/// An sql query resulted in an error
-	DbError(sqlx::Error),
+	#[error("sql error while migrating")]
+	DbError(#[from] sqlx::Error),
 
 	/// The migrations already applied on a database did not match
 	/// those we expected.
+	#[error("bad existing migrations")]
 	BadExistingMigrations,
 
 	/// We could not deserialize a migration record
+	#[error("could not deserialize migration")]
 	MalformedMigrationRecord,
-}
-
-impl Display for MigrationError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::DbError(_) => write!(f, "sql error while migrating"),
-			Self::BadExistingMigrations => write!(f, "bad existing migrations"),
-			Self::MalformedMigrationRecord => write!(f, "could not deserialize migration"),
-		}
-	}
-}
-
-impl Error for MigrationError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::DbError(e) => Some(e),
-			_ => None,
-		}
-	}
-}
-
-impl From<sqlx::Error> for MigrationError {
-	fn from(value: sqlx::Error) -> Self {
-		Self::DbError(value)
-	}
 }
 
 /// A migration entry in the database,

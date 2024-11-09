@@ -46,3 +46,4 @@ async-trait = { workspace = true }
 rand = { workspace = true }
 time = { workspace = true }
 itertools = { workspace = true }
+thiserror = { workspace = true }

@@ -17,6 +17,7 @@ readme = { workspace = true }
 workspace = true
 
 [dependencies]
+thiserror = { workspace = true }
 tracing = { workspace = true }
 sqlx = { workspace = true }
 time = { workspace = true }

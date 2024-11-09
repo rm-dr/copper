@@ -3,50 +3,22 @@ use sqlx::{
 	postgres::{PgConnection, PgPoolOptions},
 	Connection, PgPool,
 };
-use std::{error::Error, fmt::Display};
+use thiserror::Error;
 use tracing::info;
 
 mod client;
 mod migrate;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 /// An error we may encounter when connecting to postgres
 pub enum PgDatabaseOpenError {
 	/// We encountered an internal database error
-	Database(sqlx::Error),
+	#[error("sql error")]
+	Database(#[from] sqlx::Error),
 
 	/// We encountered an error while migrating
-	Migrate(MigrationError),
-}
-
-impl Display for PgDatabaseOpenError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::Database(_) => write!(f, "sql error"),
-			Self::Migrate(_) => write!(f, "migration error"),
-		}
-	}
-}
-
-impl Error for PgDatabaseOpenError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::Database(e) => Some(e),
-			Self::Migrate(e) => Some(e),
-		}
-	}
-}
-
-impl From<sqlx::Error> for PgDatabaseOpenError {
-	fn from(value: sqlx::Error) -> Self {
-		Self::Database(value)
-	}
-}
-
-impl From<MigrationError> for PgDatabaseOpenError {
-	fn from(value: MigrationError) -> Self {
-		Self::Migrate(value)
-	}
+	#[error("migration error")]
+	Migrate(#[from] MigrationError),
 }
 
 /// A database client for Postgres

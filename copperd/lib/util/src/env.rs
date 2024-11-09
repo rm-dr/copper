@@ -1,41 +1,27 @@
 use serde::de::DeserializeOwned;
 use smartstring::{LazyCompact, SmartString};
-use std::{env::VarError, error::Error, fmt::Display, io::ErrorKind, path::PathBuf};
+use std::{env::VarError, io::ErrorKind, path::PathBuf};
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum EnvLoadError {
-	IOError(std::io::Error),
-	VarError(VarError),
+	#[error("i/o error")]
+	IOError(#[from] std::io::Error),
+
+	#[error("varerror")]
+	VarError(#[from] VarError),
+
+	#[error("line parse error: `{on_line}` at char {at_char}")]
 	LineParse { on_line: String, at_char: usize },
-	Other(dotenvy::Error),
+
+	#[error("other dotenvy error")]
+	Other(#[from] dotenvy::Error),
+
+	#[error("missing value {0}")]
 	MissingValue(SmartString<LazyCompact>),
+
+	#[error("parse error: {0}")]
 	OtherParseError(String),
-}
-
-impl Display for EnvLoadError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::IOError(_) => write!(f, "i/o error"),
-			Self::VarError(_) => write!(f, "varerror"),
-			Self::LineParse { on_line, at_char } => {
-				write!(f, "line parse error: `{on_line}` at char {at_char}")
-			}
-			Self::Other(_) => write!(f, "other dotenvy error"),
-			Self::MissingValue(v) => write!(f, "missing value {v}"),
-			Self::OtherParseError(msg) => write!(f, "parse error: {msg}"),
-		}
-	}
-}
-
-impl Error for EnvLoadError {
-	fn source(&self) -> Option<&(dyn Error + 'static)> {
-		match self {
-			Self::IOError(e) => Some(e),
-			Self::VarError(e) => Some(e),
-			Self::Other(e) => Some(e),
-			_ => None,
-		}
-	}
 }
 
 pub enum LoadedEnv<T> {

@@ -1,31 +1,21 @@
 //! Object name utilities
-
-use std::{error::Error, fmt::Display};
+use thiserror::Error;
 
 /// The ways a name may be invalid
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum NameError {
 	/// This name is empty
+	#[error("name cannot be empty")]
 	Empty,
 
 	/// This name is entirely whitespace
+	#[error("name cannot be entirely whitespace")]
 	IsWhitespace,
 
 	/// This name has leading or trailing whitespace
+	#[error("name cannot have leading or trailing whitespace")]
 	TrimWhitespace,
 }
-
-impl Display for NameError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::Empty => write!(f, "name cannot be empty"),
-			Self::IsWhitespace => write!(f, "name cannot be entirely whitespace"),
-			Self::TrimWhitespace => write!(f, "name cannot have leading or trailing whitespace"),
-		}
-	}
-}
-
-impl Error for NameError {}
 
 /// Check the given name for errors.
 pub fn check_name(name: &str) -> Result<(), NameError> {
