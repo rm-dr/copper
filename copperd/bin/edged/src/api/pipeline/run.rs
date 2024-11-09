@@ -171,13 +171,13 @@ pub(super) async fn run_pipeline<Client: DatabaseClient, Itemdb: ItemdbClient>(
 				?pipeline_id,
 				?error,
 			);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, Json("Internal server error")).into_response();
 		}
 	};
 
 	// Users can only get pipelines they own
 	if pipe.owned_by != user.id {
-		return StatusCode::UNAUTHORIZED.into_response();
+		return (StatusCode::UNAUTHORIZED, Json("Unauthorized")).into_response();
 	}
 
 	let mut converted_input: BTreeMap<SmartString<LazyCompact>, AttrData> = BTreeMap::new();
@@ -267,7 +267,7 @@ pub(super) async fn run_pipeline<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 		Err(AddJobError::DbError(error)) => {
 			error!(message = "DB error while queueing job", ?error, ?payload.job_id);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, Json("Internal server error")).into_response();
 		}
 
 		Err(AddJobError::AlreadyExists) => {

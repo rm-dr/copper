@@ -59,7 +59,11 @@ pub(super) async fn start_upload<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 		Err(NewUploadError::S3Error(error)) => {
 			error!(message = "S3 error while creating upload job", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 }

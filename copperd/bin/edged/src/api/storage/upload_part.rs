@@ -106,12 +106,16 @@ pub(super) async fn upload_part<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		Ok(()) => StatusCode::OK.into_response(),
 
 		Err(UploadFragmentError::NotMyUpload) | Err(UploadFragmentError::BadUpload) => {
-			return StatusCode::NOT_FOUND.into_response();
+			return (StatusCode::NOT_FOUND, Json("Upload not found")).into_response();
 		}
 
 		Err(UploadFragmentError::S3Error(error)) => {
 			error!(message = "S3 error while uploading part", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 }

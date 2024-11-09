@@ -3,6 +3,7 @@ use axum::{
 	extract::{Path, State},
 	http::StatusCode,
 	response::{IntoResponse, Response},
+	Json,
 };
 use axum_extra::extract::CookieJar;
 use copper_itemdb::client::base::client::ItemdbClient;
@@ -36,7 +37,7 @@ pub(super) async fn del_user<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 	// Users can only delete themselves.
 	if user.id != user_id.into() {
-		return StatusCode::UNAUTHORIZED.into_response();
+		return (StatusCode::UNAUTHORIZED, Json("Unauthorized")).into_response();
 	}
 
 	let res = state.db_client.del_user(user_id.into()).await;
@@ -49,7 +50,12 @@ pub(super) async fn del_user<Client: DatabaseClient, Itemdb: ItemdbClient>(
 				user_id,
 				?error,
 			);
-			StatusCode::INTERNAL_SERVER_ERROR.into_response()
+
+			(
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response()
 		}
 	};
 }

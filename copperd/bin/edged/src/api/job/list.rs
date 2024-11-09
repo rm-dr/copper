@@ -52,7 +52,7 @@ pub(super) async fn list_jobs<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 		Err(GetUserJobsError::DbError(error)) => {
 			error!(message = "Error while getting user jobs", ?error, ?user);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (StatusCode::INTERNAL_SERVER_ERROR, Json("Internal server error")).into_response();
 		}
 	};
 }

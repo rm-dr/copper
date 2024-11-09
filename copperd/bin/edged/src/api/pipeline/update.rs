@@ -58,13 +58,17 @@ pub(super) async fn update_pipeline<Client: DatabaseClient, Itemdb: ItemdbClient
 				?pipeline_id,
 				?error,
 			);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
 	// Users can only update pipelines they own
 	if pipe.owned_by != user.id {
-		return StatusCode::UNAUTHORIZED.into_response();
+		return (StatusCode::UNAUTHORIZED, Json("Unauthorized")).into_response();
 	}
 
 	// Update pipeline info
@@ -97,7 +101,12 @@ pub(super) async fn update_pipeline<Client: DatabaseClient, Itemdb: ItemdbClient
 				message = "Database error while renaming pipeline",
 				error = ?e
 			);
-			StatusCode::INTERNAL_SERVER_ERROR.into_response()
+
+			(
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response()
 		}
 	};
 }

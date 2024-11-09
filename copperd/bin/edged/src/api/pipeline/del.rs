@@ -6,6 +6,7 @@ use axum::{
 	extract::{Path, State},
 	http::StatusCode,
 	response::{IntoResponse, Response},
+	Json,
 };
 use axum_extra::extract::CookieJar;
 use copper_itemdb::client::base::client::ItemdbClient;
@@ -46,13 +47,17 @@ pub(super) async fn del_pipeline<Client: DatabaseClient, Itemdb: ItemdbClient>(
 				?pipeline_id,
 				?error,
 			);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
 	// Users can only delete pipelines they own
 	if pipe.owned_by != user.id {
-		return StatusCode::UNAUTHORIZED.into_response();
+		return (StatusCode::UNAUTHORIZED, Json("Unauthorized")).into_response();
 	}
 
 	let res = state.db_client.del_pipeline(pipeline_id.into()).await;
@@ -65,7 +70,11 @@ pub(super) async fn del_pipeline<Client: DatabaseClient, Itemdb: ItemdbClient>(
 				pipeline_id,
 				?error,
 			);
-			StatusCode::INTERNAL_SERVER_ERROR.into_response()
+			(
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response()
 		}
 	};
 }

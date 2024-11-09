@@ -3,6 +3,7 @@ use axum::{
 	extract::{Path, State},
 	http::StatusCode,
 	response::{IntoResponse, Response},
+	Json,
 };
 use axum_extra::extract::CookieJar;
 use copper_itemdb::client::base::{
@@ -39,15 +40,21 @@ pub(super) async fn del_dataset<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		Ok(x) => {
 			// We can only modify our own datasets
 			if x.owner != user.id {
-				return StatusCode::UNAUTHORIZED.into_response();
+				return (StatusCode::UNAUTHORIZED, Json("Unauthorized")).into_response();
 			}
 		}
 
-		Err(GetDatasetError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
+		Err(GetDatasetError::NotFound) => {
+			return (StatusCode::NOT_FOUND, Json("Dataset not found")).into_response()
+		}
 
 		Err(GetDatasetError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
@@ -58,7 +65,11 @@ pub(super) async fn del_dataset<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 		Err(DeleteDatasetError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 }

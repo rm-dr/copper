@@ -416,6 +416,21 @@ impl ItemdbClient for PgItemdbClient {
 		let mut conn = self.pool.acquire().await?;
 		let mut t = conn.begin().await?;
 
+		// If we're trying to create a notnull attribute,
+		// we need to ensure that no new null fields are created.
+		// ...in other words, we must make sure that no items exist.
+		if options.is_not_null {
+			let res = sqlx::query("SELECT COUNT(id) FROM item WHERE class_id=$1;")
+				.bind(i64::from(in_class))
+				.fetch_one(&mut *t)
+				.await?;
+			let item_count = res.get::<i64, _>("count");
+
+			if item_count != 0 {
+				return Err(AddAttributeError::CreatedNotNullWhenItemsExist);
+			}
+		}
+
 		let res = sqlx::query(
 			"INSERT INTO attribute(class_id, attr_order, pretty_name, data_type, is_unique, is_not_null)
 			SELECT $1, COALESCE(MAX(attr_order) + 1 , 0), $2, $3, $4, $5 FROM attribute WHERE class_id=$6

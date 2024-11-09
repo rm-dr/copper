@@ -76,7 +76,8 @@ pub(super) async fn try_login<Client: DatabaseClient, Itemdb: ItemdbClient>(
 				client_ip = ?connect_info.addr.ip(),
 				payload = ?payload,
 			);
-			return StatusCode::BAD_REQUEST.into_response();
+
+			return (StatusCode::BAD_REQUEST, Json("Login failed")).into_response();
 		}
 
 		Err(e) => {

@@ -43,11 +43,17 @@ pub(super) async fn get_attr<Client: DatabaseClient, Itemdb: ItemdbClient>(
 	let item = match state.itemdb_client.get_item(item_id.into()).await {
 		Ok(x) => x,
 
-		Err(GetItemError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
+		Err(GetItemError::NotFound) => {
+			return (StatusCode::NOT_FOUND, Json("Item not found")).into_response()
+		}
 
 		Err(GetItemError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
@@ -59,22 +65,32 @@ pub(super) async fn get_attr<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 		Err(GetClassError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
 	match state.itemdb_client.get_dataset(class.dataset).await {
 		Ok(x) => {
 			if x.owner != user.id {
-				return StatusCode::UNAUTHORIZED.into_response();
+				return (StatusCode::UNAUTHORIZED, Json("Unauthorized")).into_response();
 			}
 		}
 
-		Err(GetDatasetError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
+		Err(GetDatasetError::NotFound) => {
+			return (StatusCode::NOT_FOUND, Json("Dataset not found")).into_response()
+		}
 
 		Err(GetDatasetError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);
-			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
@@ -86,7 +102,11 @@ pub(super) async fn get_attr<Client: DatabaseClient, Itemdb: ItemdbClient>(
 					Ok(x) => x,
 					Err(error) => {
 						error!(message = "Error in s3 client", ?error);
-						return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+						return (
+							StatusCode::INTERNAL_SERVER_ERROR,
+							Json("Internal server error"),
+						)
+							.into_response();
 					}
 				};
 
@@ -106,6 +126,6 @@ pub(super) async fn get_attr<Client: DatabaseClient, Itemdb: ItemdbClient>(
 			}
 		}
 	} else {
-		return StatusCode::NOT_FOUND.into_response();
+		return (StatusCode::NOT_FOUND, Json("Attribute not found")).into_response();
 	}
 }
