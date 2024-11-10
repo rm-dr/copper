@@ -458,10 +458,26 @@ export function ItemTablePanel(params: {
 		let total = 0;
 		if (items.data !== undefined && items.data.pages.length !== 0) {
 			const last = items.data.pages[items.data.pages.length - 1]!;
-			total = (last as Exclude<typeof last, never[]>).total;
+			if (!Array.isArray(last)) {
+				total = (last as Exclude<typeof last, never[]>).total;
+			}
 		}
 
 		return total;
+	}, [items.data]);
+
+	const lastWasZero = useMemo(() => {
+		let last_was_zero = false;
+
+		if (items.data !== undefined && items.data.pages.length !== 0) {
+			const last = items.data.pages[items.data.pages.length - 1]!;
+			if (!Array.isArray(last)) {
+				last_was_zero =
+					(last as Exclude<typeof last, never[]>).items.length === 0;
+			}
+		}
+
+		return last_was_zero;
 	}, [items.data]);
 
 	// Called on scroll and on mount to fetch data
@@ -476,13 +492,14 @@ export function ItemTablePanel(params: {
 				if (
 					scrollHeight - scrollTop - clientHeight < 500 &&
 					!items.isFetching &&
-					totalFetched < totalItems
+					totalFetched < totalItems &&
+					!lastWasZero
 				) {
 					items.fetchNextPage();
 				}
 			}
 		},
-		[items, totalFetched, totalItems],
+		[items, totalFetched, totalItems, lastWasZero],
 	);
 
 	// check if our table is already scrolled to the bottom,
@@ -596,7 +613,7 @@ export function ItemTablePanel(params: {
 						))}
 					</div>
 				))}
-				{totalFetched >= totalItems ? null : (
+				{totalFetched >= totalItems || lastWasZero ? null : (
 					<div
 						style={{
 							display: "flex",
