@@ -1863,7 +1863,6 @@ dependencies = [
  "copper-util",
  "md5",
  "rand",
- "serde_json",
  "sha2",
  "smartstring",
  "sqlx",

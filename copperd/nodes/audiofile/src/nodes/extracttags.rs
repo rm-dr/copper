@@ -6,9 +6,9 @@ use async_trait::async_trait;
 use copper_piper::{
 	base::{Node, NodeBuilder, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
+	helpers::NodeParameters,
 	CopperContext,
 };
-use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
 use tracing::{debug, trace};
 
@@ -29,15 +29,18 @@ impl<'ctx> Node<'ctx> for ExtractTags {
 		&self,
 		ctx: &CopperContext<'ctx>,
 		this_node: ThisNodeInfo,
-		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
+		mut params: NodeParameters,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
 		//
 		// Extract parameters
 		//
-		let mut tags: BTreeMap<PortName, TagType> = BTreeMap::new();
-		if let Some(taglist) = params.remove("tags") {
-			match taglist {
+
+		let tags = {
+			let mut tags: BTreeMap<PortName, TagType> = BTreeMap::new();
+			let val = params.pop_val("tags")?;
+
+			match val {
 				NodeParameterValue::List(list) => {
 					for t in list {
 						match t {
@@ -57,18 +60,12 @@ impl<'ctx> Node<'ctx> for ExtractTags {
 						parameter: "tags".into(),
 					})
 				}
-			}
-		} else {
-			return Err(RunNodeError::MissingParameter {
-				parameter: "tags".into(),
-			});
-		}
+			};
 
-		if let Some((param, _)) = params.first_key_value() {
-			return Err(RunNodeError::UnexpectedParameter {
-				parameter: param.clone(),
-			});
-		}
+			tags
+		};
+
+		params.err_if_not_empty()?;
 
 		//
 		// Extract arguments

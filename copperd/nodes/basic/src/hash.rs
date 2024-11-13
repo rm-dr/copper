@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use copper_piper::{
-	base::{Node, NodeBuilder, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	base::{Node, NodeBuilder, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
+	helpers::NodeParameters,
 	CopperContext,
 };
 use copper_util::HashType;
 use sha2::{Digest, Sha256, Sha512};
-use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::BTreeMap,
 	io::{Cursor, Read},
@@ -89,34 +89,29 @@ impl<'ctx> Node<'ctx> for Hash {
 		&self,
 		ctx: &CopperContext<'ctx>,
 		this_node: ThisNodeInfo,
-		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
+		mut params: NodeParameters,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
 		//
 		// Extract parameters
 		//
-		let hash_type: HashType = if let Some(value) = params.remove("hash_type") {
-			match value {
-				NodeParameterValue::String(hash_type) => {
-					// TODO: this is a hack
-					serde_json::from_str(&format!("\"{hash_type}\"")).unwrap()
-				}
-				_ => {
-					return Err(RunNodeError::BadParameterType {
+		let hash_type: HashType = {
+			let s = params.pop_str("hash_type")?;
+			match s.as_str() {
+				"MD5" => HashType::MD5,
+				"SHA256" => HashType::SHA256,
+				"SHA512" => HashType::SHA512,
+
+				x => {
+					return Err(RunNodeError::BadParameterOther {
 						parameter: "hash_type".into(),
+						message: format!("Invalid hash type `{x}`"),
 					})
 				}
 			}
-		} else {
-			return Err(RunNodeError::MissingParameter {
-				parameter: "hash_type".into(),
-			});
 		};
-		if let Some((param, _)) = params.first_key_value() {
-			return Err(RunNodeError::UnexpectedParameter {
-				parameter: param.clone(),
-			});
-		}
+
+		params.err_if_not_empty()?;
 
 		//
 		// Extract inputs

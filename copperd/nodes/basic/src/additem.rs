@@ -4,11 +4,12 @@ use copper_itemdb::{
 		errors::{class::GetClassError, dataset::GetDatasetError},
 		AddItemError,
 	},
-	AttrData, AttributeInfo, ClassInfo,
+	AttrData, AttributeInfo,
 };
 use copper_piper::{
-	base::{Node, NodeBuilder, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	base::{Node, NodeBuilder, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
+	helpers::NodeParameters,
 	CopperContext,
 };
 use rand::{distributions::Alphanumeric, Rng};
@@ -44,7 +45,7 @@ impl<'ctx> Node<'ctx> for AddItem {
 		&self,
 		ctx: &CopperContext<'ctx>,
 		_this_node: ThisNodeInfo,
-		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
+		mut params: NodeParameters,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
 		let mut trans = ctx.item_db_transaction.lock().await;
@@ -52,103 +53,64 @@ impl<'ctx> Node<'ctx> for AddItem {
 		//
 		// Extract parameters
 		//
-		let class: ClassInfo = if let Some(value) = params.remove("class") {
-			match value {
-				NodeParameterValue::Integer(x) => ctx
-					.itemdb_client
-					.get_class(&mut trans, x.into())
-					.await
-					.map_err(|e| match e {
-						GetClassError::NotFound => RunNodeError::BadParameterOther {
-							parameter: "class".into(),
-							message: "this class doesn't exist".into(),
-						},
-						_ => RunNodeError::Other(Arc::new(e)),
-					})?,
 
-				_ => {
-					return Err(RunNodeError::BadParameterType {
+		let class = {
+			let id = params.pop_int("class")?;
+			ctx.itemdb_client
+				.get_class(&mut trans, id.into())
+				.await
+				.map_err(|e| match e {
+					GetClassError::NotFound => RunNodeError::BadParameterOther {
 						parameter: "class".into(),
-					})
-				}
-			}
-		} else {
-			return Err(RunNodeError::MissingParameter {
-				parameter: "class".into(),
-			});
+						message: "this class doesn't exist".into(),
+					},
+					_ => RunNodeError::Other(Arc::new(e)),
+				})?
 		};
 
-		// This is only used by UI, but make sure it's sane.
-		if let Some(value) = params.remove("dataset") {
-			match value {
-				NodeParameterValue::Integer(x) => {
-					let dataset = ctx
-						.itemdb_client
-						.get_dataset(&mut trans, x.into())
-						.await
-						.map_err(|e| match e {
-							GetDatasetError::NotFound => RunNodeError::BadParameterOther {
-								parameter: "dataset".into(),
-								message: "this dataset doesn't exist".into(),
-							},
-							_ => RunNodeError::Other(Arc::new(e)),
-						})?;
+		// The `dataset` parameter is only used by UI, but make sure it's sane.
+		{
+			let id = params.pop_int("dataset")?;
 
-					if class.dataset != dataset.id {
-						return Err(RunNodeError::BadParameterOther {
-							parameter: "dataset".into(),
-							message: "this class doesn't belong to this dataset".into(),
-						});
-					}
-
-					if ctx.run_by_user != dataset.owner {
-						return Err(RunNodeError::NotAuthorized {
-							message: "you do not have permission to modify this dataset".into(),
-						});
-					}
-				}
-
-				_ => {
-					return Err(RunNodeError::BadParameterType {
+			let dataset = ctx
+				.itemdb_client
+				.get_dataset(&mut trans, id.into())
+				.await
+				.map_err(|e| match e {
+					GetDatasetError::NotFound => RunNodeError::BadParameterOther {
 						parameter: "dataset".into(),
-					})
-				}
+						message: "this dataset doesn't exist".into(),
+					},
+					_ => RunNodeError::Other(Arc::new(e)),
+				})?;
+
+			if class.dataset != dataset.id {
+				return Err(RunNodeError::BadParameterOther {
+					parameter: "dataset".into(),
+					message: "this class doesn't belong to this dataset".into(),
+				});
 			}
-		} else {
-			return Err(RunNodeError::MissingParameter {
-				parameter: "dataset".into(),
-			});
+
+			if ctx.run_by_user != dataset.owner {
+				return Err(RunNodeError::NotAuthorized {
+					message: "you do not have permission to modify this dataset".into(),
+				});
+			};
 		};
 
-		let on_unique_violation = if let Some(value) = params.remove("on_unique_violation") {
-			match value {
-				NodeParameterValue::String(x) => {
-					match x.as_str() {
-						"fail" => OnUniqueViolation::Fail,
-						"select" => OnUniqueViolation::Select,
+		let on_unique_violation = match params.pop_str("on_unique_violation")?.as_str() {
+			"fail" => OnUniqueViolation::Fail,
+			"select" => OnUniqueViolation::Select,
 
-						// TODO: error if unknown string
-						_ => OnUniqueViolation::Fail,
-					}
-				}
-
-				_ => {
-					return Err(RunNodeError::BadParameterType {
-						parameter: "on_unique_violation".into(),
-					})
-				}
+			x => {
+				return Err(RunNodeError::BadParameterOther {
+					parameter: "on_unique_violation".into(),
+					message: format!("Invalid value `{x}`, expected one of [`fail`, `select`]"),
+				})
 			}
-		} else {
-			return Err(RunNodeError::MissingParameter {
-				parameter: "on_unique_violation".into(),
-			});
 		};
 
-		if let Some((param, _)) = params.first_key_value() {
-			return Err(RunNodeError::UnexpectedParameter {
-				parameter: param.clone(),
-			});
-		}
+		params.err_if_not_empty()?;
 
 		//
 		// Set up attribute table

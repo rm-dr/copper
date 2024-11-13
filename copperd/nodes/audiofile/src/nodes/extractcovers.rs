@@ -1,12 +1,11 @@
 use crate::flac::proc::pictures::FlacPictureReader;
 use async_trait::async_trait;
 use copper_piper::{
-	base::{Node, NodeBuilder, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	base::{Node, NodeBuilder, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
-	helpers::{processor::BytesProcessorBuilder, rawbytes::RawBytesSource},
+	helpers::{processor::BytesProcessorBuilder, rawbytes::RawBytesSource, NodeParameters},
 	CopperContext,
 };
-use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
 use tracing::{debug, trace};
 
@@ -25,17 +24,13 @@ impl<'ctx> Node<'ctx> for ExtractCovers {
 		&self,
 		ctx: &CopperContext<'ctx>,
 		this_node: ThisNodeInfo,
-		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
+		params: NodeParameters,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
 		//
 		// Extract parameters
 		//
-		if let Some((param, _)) = params.first_key_value() {
-			return Err(RunNodeError::UnexpectedParameter {
-				parameter: param.clone(),
-			});
-		}
+		params.err_if_not_empty()?;
 
 		//
 		// Extract arguments

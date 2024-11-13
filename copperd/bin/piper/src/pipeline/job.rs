@@ -426,7 +426,7 @@ impl<'ctx> PipelineJob<'ctx> {
 							idx: node_idx,
 							node_type: node.node_type.clone(),
 						},
-						node.node_params.clone(),
+						node.node_params.clone().into(),
 						node_run_input,
 					)
 					.await

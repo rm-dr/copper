@@ -3,9 +3,12 @@
 use crate::flac::proc::metastrip::FlacMetaStrip;
 use async_trait::async_trait;
 use copper_piper::{
-	base::{Node, NodeBuilder, NodeId, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	base::{Node, NodeBuilder, NodeId, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
-	helpers::processor::{StreamProcessor, StreamProcessorBuilder},
+	helpers::{
+		processor::{StreamProcessor, StreamProcessorBuilder},
+		NodeParameters,
+	},
 	CopperContext,
 };
 use copper_util::MimeType;
@@ -31,17 +34,13 @@ impl<'ctx> Node<'ctx> for StripTags {
 		&self,
 		_ctx: &CopperContext<'ctx>,
 		this_node: ThisNodeInfo,
-		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
+		params: NodeParameters,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
 		//
 		// Extract parameters
 		//
-		if let Some((param, _)) = params.first_key_value() {
-			return Err(RunNodeError::UnexpectedParameter {
-				parameter: param.clone(),
-			});
-		}
+		params.err_if_not_empty()?;
 
 		//
 		// Extract arguments

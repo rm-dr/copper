@@ -1,10 +1,10 @@
 use async_trait::async_trait;
 use copper_piper::{
-	base::{Node, NodeBuilder, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	base::{Node, NodeBuilder, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
+	helpers::NodeParameters,
 	CopperContext,
 };
-use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
 
 pub struct IfNone {}
@@ -26,17 +26,13 @@ impl<'ctx> Node<'ctx> for IfNone {
 		&self,
 		_ctx: &CopperContext<'ctx>,
 		_this_node: ThisNodeInfo,
-		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
+		params: NodeParameters,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
 	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
 		//
 		// Extract parameters
 		//
-		if let Some((param, _)) = params.first_key_value() {
-			return Err(RunNodeError::UnexpectedParameter {
-				parameter: param.clone(),
-			});
-		}
+		params.err_if_not_empty()?;
 
 		//
 		// Extract input

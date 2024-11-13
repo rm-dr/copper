@@ -29,4 +29,3 @@ async-trait = { workspace = true }
 smartstring = { workspace = true }
 sha2 = { workspace = true }
 md5 = { workspace = true }
-serde_json = { workspace = true }
