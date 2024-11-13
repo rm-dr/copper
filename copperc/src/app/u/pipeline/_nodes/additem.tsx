@@ -71,7 +71,10 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 								?.classes.find((x) => x.id === cls)
 								?.attributes.map((x) => ({
 									id: x.name,
-									type: x.data_type.type,
+									type:
+										x.data_type.type === "Reference"
+											? `Reference(${x.data_type.class})`
+											: x.data_type.type,
 									tooltip: x.name,
 								})) || undefined,
 			});
@@ -90,7 +93,7 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 						? []
 						: [
 								{
-									id: "newid",
+									id: "new_item",
 									tooltip: "Reference to new item",
 									type: `Reference(${data.class})`,
 								},
@@ -193,7 +196,7 @@ export const AddItemNode: NodeDef<AddItemNodeType> = {
 	getOutputs: (data) =>
 		data.class === null
 			? []
-			: [{ id: "newid", type: `Reference(${data.class})` }],
+			: [{ id: "new_item", type: `Reference(${data.class})` }],
 
 	serialize: (node) => {
 		if (node.data.class === null || node.data.dataset === null) {

@@ -22,7 +22,7 @@ impl NodeBuilder for AddItem {
 }
 
 // Inputs: depends on class
-// Outputs: None
+// Outputs: new_item: reference to new item
 #[async_trait]
 impl<'ctx> Node<'ctx> for AddItem {
 	async fn run(
