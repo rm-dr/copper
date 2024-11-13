@@ -1,4 +1,4 @@
-import { Select } from "@mantine/core";
+import { Select, Switch } from "@mantine/core";
 import {
 	Node,
 	NodeProps,
@@ -15,6 +15,7 @@ type AddItemNodeType = Node<
 	{
 		dataset: null | number;
 		class: null | number;
+		on_unique_violation: "fail" | "select";
 
 		inputs: {
 			type: PipelineDataType;
@@ -169,6 +170,17 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 					}}
 					value={data.class?.toString() || null}
 				/>
+
+				<Switch
+					label="Select if not unique"
+					checked={data.on_unique_violation === "select"}
+					onChange={(e) => {
+						data.on_unique_violation = e.currentTarget.checked
+							? "select"
+							: "fail";
+						updateNodeInternals(id);
+					}}
+				/>
 			</BaseNode>
 		</>
 	);
@@ -182,6 +194,7 @@ export const AddItemNode: NodeDef<AddItemNodeType> = {
 	initialData: {
 		dataset: null,
 		class: null,
+		on_unique_violation: "fail",
 		inputs: [],
 	},
 
@@ -204,6 +217,11 @@ export const AddItemNode: NodeDef<AddItemNodeType> = {
 		}
 
 		return {
+			// TODO: add ui
+			on_unique_violation: {
+				parameter_type: "String",
+				value: node.data.on_unique_violation,
+			},
 			dataset: {
 				parameter_type: "Integer",
 				value: node.data.dataset,
@@ -240,9 +258,18 @@ export const AddItemNode: NodeDef<AddItemNodeType> = {
 		const clsinfo =
 			datasetinfo?.classes.find((x) => x.id === cls.value) || null;
 
+		const ouv = serialized.params.on_unique_violation;
+		if (
+			ouv?.parameter_type !== "String" ||
+			!(ouv?.value === "fail" || ouv?.value === "select")
+		) {
+			return null;
+		}
+
 		return {
 			dataset: datasetinfo?.id || null,
 			class: clsinfo?.id || null,
+			on_unique_violation: ouv.value as "fail" | "select",
 
 			inputs:
 				clsinfo?.attributes.map((x) => ({

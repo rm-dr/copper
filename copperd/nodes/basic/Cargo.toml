@@ -22,6 +22,7 @@ copper-piper = { workspace = true }
 copper-itemdb = { workspace = true }
 
 rand = { workspace = true }
+sqlx = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }

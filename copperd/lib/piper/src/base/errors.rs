@@ -86,6 +86,12 @@ pub enum RunNodeError {
 	},
 }
 
+impl From<sqlx::Error> for RunNodeError {
+	fn from(value: sqlx::Error) -> Self {
+		Self::DbError(Arc::new(value))
+	}
+}
+
 impl From<std::io::Error> for RunNodeError {
 	fn from(value: std::io::Error) -> Self {
 		Self::IoError(Arc::new(value))

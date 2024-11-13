@@ -13,6 +13,7 @@ mod attribute;
 mod class;
 mod dataset;
 mod item;
+pub use item::*;
 
 #[derive(Debug, Error)]
 /// An error we may encounter when connecting to postgres

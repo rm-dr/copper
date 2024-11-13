@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 use copper_itemdb::{
-	client::errors::{class::GetClassError, dataset::GetDatasetError},
+	client::{
+		errors::{class::GetClassError, dataset::GetDatasetError},
+		AddItemError,
+	},
 	AttrData, AttributeInfo, ClassInfo,
 };
 use copper_piper::{
@@ -10,8 +13,20 @@ use copper_piper::{
 };
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
+use sqlx::Acquire;
 use std::{collections::BTreeMap, sync::Arc};
 use tracing::{debug, trace};
+
+/// How we should react when we try to create a node that
+/// violates a "unique" constraint
+enum OnUniqueViolation {
+	/// Throw an error & cancel the pipeline
+	Fail,
+
+	/// If there is ONE conflicting item, create nothing and return its id.
+	/// If more than one item conflicts, error.
+	Select,
+}
 
 pub struct AddItem {}
 
@@ -64,7 +79,6 @@ impl<'ctx> Node<'ctx> for AddItem {
 		};
 
 		// This is only used by UI, but make sure it's sane.
-
 		if let Some(value) = params.remove("dataset") {
 			match value {
 				NodeParameterValue::Integer(x) => {
@@ -105,6 +119,31 @@ impl<'ctx> Node<'ctx> for AddItem {
 				parameter: "dataset".into(),
 			});
 		};
+
+		let on_unique_violation = if let Some(value) = params.remove("on_unique_violation") {
+			match value {
+				NodeParameterValue::String(x) => {
+					match x.as_str() {
+						"fail" => OnUniqueViolation::Fail,
+						"select" => OnUniqueViolation::Select,
+
+						// TODO: error if unknown string
+						_ => OnUniqueViolation::Fail,
+					}
+				}
+
+				_ => {
+					return Err(RunNodeError::BadParameterType {
+						parameter: "on_unique_violation".into(),
+					})
+				}
+			}
+		} else {
+			return Err(RunNodeError::MissingParameter {
+				parameter: "on_unique_violation".into(),
+			});
+		};
+
 		if let Some((param, _)) = params.first_key_value() {
 			return Err(RunNodeError::UnexpectedParameter {
 				parameter: param.clone(),
@@ -196,10 +235,14 @@ impl<'ctx> Node<'ctx> for AddItem {
 		// Set up and send transaction
 		//
 
+		// Savepoint, in case we need to rollback `add_item`.
+		// See comments below.
+		let mut trans2 = trans.begin().await?;
+
 		let new_item = ctx
 			.itemdb_client
 			.add_item(
-				&mut trans,
+				&mut trans2,
 				class.id,
 				attributes
 					.into_iter()
@@ -207,8 +250,35 @@ impl<'ctx> Node<'ctx> for AddItem {
 					.filter_map(|(k, v)| v.map(|v| (k, v)))
 					.collect(),
 			)
-			.await
-			.map_err(|x| RunNodeError::Other(Arc::new(x)))?;
+			.await;
+
+		let new_item = match new_item {
+			Ok(x) => {
+				// We added the item successfully,
+				// commit savepoint.
+				trans2.commit().await?;
+				x
+			}
+			Err(err) => match on_unique_violation {
+				OnUniqueViolation::Fail => return Err(RunNodeError::Other(Arc::new(err))),
+				OnUniqueViolation::Select => match err {
+					AddItemError::UniqueViolated {
+						ref conflicting_ids,
+					} => {
+						if conflicting_ids.len() == 1 {
+							// We're not failing the pipeline, so `trans` will be committed.
+							// however, we shouldn't add a new item---so we need to roll back
+							// trans2.
+							trans2.rollback().await?;
+							*conflicting_ids.first().unwrap()
+						} else {
+							return Err(RunNodeError::Other(Arc::new(err)));
+						}
+					}
+					_ => return Err(RunNodeError::Other(Arc::new(err))),
+				},
+			},
+		};
 
 		let mut output = BTreeMap::new();
 		output.insert(
