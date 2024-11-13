@@ -6,14 +6,7 @@ import stylesEdit from "./edit.module.scss";
 import { components } from "@/lib/api/openapi";
 import { X } from "lucide-react";
 import { getAttrTypeInfo } from "@/lib/attributes";
-import {
-	Fragment,
-	ReactNode,
-	useCallback,
-	useEffect,
-	useMemo,
-	useState,
-} from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Text } from "@mantine/core";
 import { Wrapper } from "@/components/spinner";
 
@@ -167,136 +160,138 @@ function AttrList(params: {
 	return (
 		<div
 			key={`attrlist-${params.selectedItems.map((x) => x.id).join(",")}`}
-			className={stylesEdit.attr_container}
+			className={stylesEdit.attr_container_scroll}
 		>
-			{params.class.attributes.map((attr) => {
-				const shared =
-					params.sharedAttributes.find((x) => x.id === attr.id) !== undefined;
+			<div className={stylesEdit.attr_container}>
+				{params.class.attributes.map((attr) => {
+					const shared =
+						params.sharedAttributes.find((x) => x.id === attr.id) !== undefined;
 
-				const attrdef = getAttrTypeInfo(attr.data_type.type);
+					const attrdef = getAttrTypeInfo(attr.data_type.type);
 
-				if (shared) {
-					const value =
-						params.selectedItems[0]!.attribute_values[attr.id] || null;
+					if (shared) {
+						const value =
+							params.selectedItems[0]!.attribute_values[attr.id] || null;
 
-					if (!(value === null || value.type === attr.data_type.type)) {
-						throw new Error("Attribute type mismatch");
+						if (!(value === null || value.type === attr.data_type.type)) {
+							throw new Error("Attribute type mismatch");
+						}
+
+						return (
+							<div key={`attr-row-${attr.id}`} className={stylesEdit.attr_row}>
+								<div className={stylesEdit.row_icon}>{attrdef.icon}</div>
+								<div className={stylesEdit.row_name}>{attr.name}</div>
+								<div className={stylesEdit.row_value_old}>
+									{attrdef.editor.type === "panel" ? (
+										params.attr?.id === attr.id ? (
+											<Button fullWidth disabled>
+												Viewing in panel
+											</Button>
+										) : (
+											<Button
+												fullWidth
+												onClick={() => {
+													params.setPanelAttr(attr.id);
+												}}
+											>
+												View in panel
+											</Button>
+										)
+									) : value === null ? (
+										<div
+											style={{
+												paddingLeft: "0.5rem",
+												width: "100%",
+												overflow: "hidden",
+												textOverflow: "ellipsis",
+												whiteSpace: "nowrap",
+												color: "var(--mantine-color-dimmed)",
+												fontStyle: "italic",
+											}}
+										>
+											Unset
+										</div>
+									) : (
+										attrdef.editor.old_value(value)
+									)}
+								</div>
+								<div className={stylesEdit.row_value_new}>
+									{attrdef.editor.type === "panel" ? (
+										params.attr?.id === attr.id ? (
+											<Button fullWidth disabled>
+												Viewing in panel
+											</Button>
+										) : (
+											<Button
+												fullWidth
+												onClick={() => {
+													params.setPanelAttr(attr.id);
+												}}
+											>
+												View in panel
+											</Button>
+										)
+									) : (
+										attrdef.editor.new_value({
+											value,
+											onChange: console.log,
+										})
+									)}
+								</div>
+							</div>
+						);
+					} else {
+						return (
+							<div key={`attr-row-${attr.id}`} className={stylesEdit.attr_row}>
+								<div className={stylesEdit.row_icon}>{attrdef.icon}</div>
+								<div className={stylesEdit.row_name}>{attr.name}</div>
+								<div className={stylesEdit.row_value_old}>
+									{attrdef.editor.type === "panel" ? (
+										<Button fullWidth disabled>
+											Differs
+										</Button>
+									) : (
+										<div
+											style={{
+												paddingLeft: "0.5rem",
+												width: "100%",
+												overflow: "hidden",
+												textOverflow: "ellipsis",
+												whiteSpace: "nowrap",
+												color: "var(--mantine-color-dimmed)",
+												fontStyle: "italic",
+											}}
+										>
+											Differs
+										</div>
+									)}
+								</div>
+								<div className={stylesEdit.row_value_new}>
+									{attrdef.editor.type === "panel" ? (
+										<Button fullWidth disabled>
+											Differs
+										</Button>
+									) : (
+										<div
+											style={{
+												paddingLeft: "0.5rem",
+												width: "100%",
+												overflow: "hidden",
+												textOverflow: "ellipsis",
+												whiteSpace: "nowrap",
+												color: "var(--mantine-color-dimmed)",
+												fontStyle: "italic",
+											}}
+										>
+											Differs
+										</div>
+									)}
+								</div>
+							</div>
+						);
 					}
-
-					return (
-						<div key={`attr-row-${attr.id}`} className={stylesEdit.attr_row}>
-							<div className={stylesEdit.row_icon}>{attrdef.icon}</div>
-							<div className={stylesEdit.row_name}>{attr.name}</div>
-							<div className={stylesEdit.row_value_old}>
-								{attrdef.editor.type === "panel" ? (
-									params.attr?.id === attr.id ? (
-										<Button fullWidth disabled>
-											Viewing in panel
-										</Button>
-									) : (
-										<Button
-											fullWidth
-											onClick={() => {
-												params.setPanelAttr(attr.id);
-											}}
-										>
-											View in panel
-										</Button>
-									)
-								) : value === null ? (
-									<div
-										style={{
-											paddingLeft: "0.5rem",
-											width: "100%",
-											overflow: "hidden",
-											textOverflow: "ellipsis",
-											whiteSpace: "nowrap",
-											color: "var(--mantine-color-dimmed)",
-											fontStyle: "italic",
-										}}
-									>
-										Unset
-									</div>
-								) : (
-									attrdef.editor.old_value(value)
-								)}
-							</div>
-							<div className={stylesEdit.row_value_new}>
-								{attrdef.editor.type === "panel" ? (
-									params.attr?.id === attr.id ? (
-										<Button fullWidth disabled>
-											Viewing in panel
-										</Button>
-									) : (
-										<Button
-											fullWidth
-											onClick={() => {
-												params.setPanelAttr(attr.id);
-											}}
-										>
-											View in panel
-										</Button>
-									)
-								) : (
-									attrdef.editor.new_value({
-										value,
-										onChange: console.log,
-									})
-								)}
-							</div>
-						</div>
-					);
-				} else {
-					return (
-						<div key={`attr-row-${attr.id}`} className={stylesEdit.attr_row}>
-							<div className={stylesEdit.row_icon}>{attrdef.icon}</div>
-							<div className={stylesEdit.row_name}>{attr.name}</div>
-							<div className={stylesEdit.row_value_old}>
-								{attrdef.editor.type === "panel" ? (
-									<Button fullWidth disabled>
-										Differs
-									</Button>
-								) : (
-									<div
-										style={{
-											paddingLeft: "0.5rem",
-											width: "100%",
-											overflow: "hidden",
-											textOverflow: "ellipsis",
-											whiteSpace: "nowrap",
-											color: "var(--mantine-color-dimmed)",
-											fontStyle: "italic",
-										}}
-									>
-										Differs
-									</div>
-								)}
-							</div>
-							<div className={stylesEdit.row_value_new}>
-								{attrdef.editor.type === "panel" ? (
-									<Button fullWidth disabled>
-										Differs
-									</Button>
-								) : (
-									<div
-										style={{
-											paddingLeft: "0.5rem",
-											width: "100%",
-											overflow: "hidden",
-											textOverflow: "ellipsis",
-											whiteSpace: "nowrap",
-											color: "var(--mantine-color-dimmed)",
-											fontStyle: "italic",
-										}}
-									>
-										Differs
-									</div>
-								)}
-							</div>
-						</div>
-					);
-				}
-			})}
+				})}
+			</div>
 		</div>
 	);
 }
@@ -352,16 +347,15 @@ function Panel(params: {
 
 	// Key here is important, it makes sure we get a new panel each time we select an item
 	return (
-		<Fragment
+		<div
 			key={`panel-${params.attr?.id}-${params.selectedItems.map((x) => x.id).join(",")}`}
+			className={stylesEdit.panel_container}
 		>
-			<div className={stylesEdit.panel_container}>
-				<div className={stylesEdit.panel_title}>
-					<div className={stylesEdit.panel_title_icon}>{icon}</div>
-					<div className={stylesEdit.panel_title_name}>{title}</div>
-				</div>
-				<div className={stylesEdit.panel_body}>{body}</div>
+			<div className={stylesEdit.panel_title}>
+				<div className={stylesEdit.panel_title_icon}>{icon}</div>
+				<div className={stylesEdit.panel_title_name}>{title}</div>
 			</div>
-		</Fragment>
+			<div className={stylesEdit.panel_body}>{body}</div>
+		</div>
 	);
 }

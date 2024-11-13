@@ -16,8 +16,13 @@ export function ControlPanel(params: {
 	// outside of this component, or if `selectedClass` doesn't
 	// initialize as `null`.
 	selectedClass: components["schemas"]["ClassInfo"] | null;
+
 	setSelectedClass: (
 		new_class: components["schemas"]["ClassInfo"] | null,
+	) => void;
+
+	setSelectedDataset: (
+		new_dataset: components["schemas"]["DatasetInfo"] | null,
 	) => void;
 }) {
 	const [selectedDataset, setSelectedDataset] = useState<number | null>(null);
@@ -95,64 +100,76 @@ export function ControlPanel(params: {
 	return (
 		<div className={styles.panel} style={{ width: "20rem" }}>
 			<TitleBar text="Control panel" />
-			<div className={styles.panel_content}>
-				<Select
-					label="Select dataset"
-					style={{ width: "100%" }}
-					disabled={datasets.data === undefined}
-					placeholder={
-						datasets.data === undefined ? "Loading..." : "Select a dataset"
-					}
-					data={dataset_data}
-					value={selectedDataset === null ? null : selectedDataset.toString()}
-					onChange={(value) => {
-						const int = value === null ? null : parseInt(value);
-						if (int === selectedDataset) {
-							return;
-						}
 
-						if (int === null || datasets.data === undefined) {
-							setSelectedDataset(null);
+			<div
+				style={{
+					overflowY: "scroll",
+					marginTop: "1rem",
+				}}
+			>
+				{/* TODO: clean up, `style` shouldn't be necessary here */}
+				<div className={styles.panel_content} style={{ padding: 0 }}>
+					<Select
+						label="Select dataset"
+						style={{ width: "100%" }}
+						disabled={datasets.data === undefined}
+						placeholder={
+							datasets.data === undefined ? "Loading..." : "Select a dataset"
+						}
+						data={dataset_data}
+						value={selectedDataset === null ? null : selectedDataset.toString()}
+						onChange={(value) => {
+							const int = value === null ? null : parseInt(value);
+							if (int === selectedDataset) {
+								return;
+							}
+
+							if (int === null || datasets.data === undefined) {
+								setSelectedDataset(null);
+								params.setSelectedClass(null);
+								params.setSelectedDataset(null);
+								return;
+							}
+
+							setSelectedDataset(int);
 							params.setSelectedClass(null);
-							return;
+							params.setSelectedDataset(null);
+						}}
+					/>
+
+					<Select
+						label="Select class"
+						style={{ width: "100%" }}
+						disabled={datasets.data === undefined}
+						placeholder={
+							datasets.data === undefined ? "Loading..." : "Select a class"
 						}
-
-						setSelectedDataset(int);
-						params.setSelectedClass(null);
-					}}
-				/>
-
-				<Select
-					label="Select class"
-					style={{ width: "100%" }}
-					disabled={datasets.data === undefined}
-					placeholder={
-						datasets.data === undefined ? "Loading..." : "Select a class"
-					}
-					data={class_data}
-					value={
-						params.selectedClass === null
-							? null
-							: params.selectedClass.id.toString()
-					}
-					onChange={(value) => {
-						const int = value === null ? null : parseInt(value);
-						if (int === params.selectedClass) {
-							return;
+						data={class_data}
+						value={
+							params.selectedClass === null
+								? null
+								: params.selectedClass.id.toString()
 						}
+						onChange={(value) => {
+							const int = value === null ? null : parseInt(value);
+							if (int === params.selectedClass) {
+								return;
+							}
 
-						if (int === null || datasets.data === undefined) {
-							params.setSelectedClass(null);
-							return;
-						}
+							if (int === null || datasets.data === undefined) {
+								params.setSelectedClass(null);
+								params.setSelectedDataset(null);
+								return;
+							}
 
-						const c = datasets.data
-							.find((x) => x.id === selectedDataset)!
-							.classes.find((x) => x.id === int)!;
+							const d = datasets.data.find((x) => x.id === selectedDataset)!;
+							const c = d.classes.find((x) => x.id === int)!;
 
-						params.setSelectedClass(c);
-					}}
-				/>
+							params.setSelectedClass(c);
+							params.setSelectedDataset(d);
+						}}
+					/>
+				</div>
 			</div>
 		</div>
 	);

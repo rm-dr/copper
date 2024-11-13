@@ -34,6 +34,7 @@ const fetchSize = 50;
  * Generate a react-table column for the given attribute
  */
 function gen_attr_col(
+	dataset: components["schemas"]["DatasetInfo"],
 	attr: components["schemas"]["AttributeInfo"],
 ): ColumnDef<components["schemas"]["ItemlistItemInfo"]> {
 	return {
@@ -80,7 +81,7 @@ function gen_attr_col(
 					</div>
 				);
 			} else {
-				jsx = attrdef.table_cell(value);
+				jsx = attrdef.table_cell({ value, dataset });
 			}
 
 			if (jsx === null) {
@@ -93,7 +94,10 @@ function gen_attr_col(
 	};
 }
 
-function initialize_columns(item_class: components["schemas"]["ClassInfo"]) {
+function initialize_columns(
+	dataset: components["schemas"]["DatasetInfo"],
+	item_class: components["schemas"]["ClassInfo"],
+) {
 	const init: ColumnDef<components["schemas"]["ItemlistItemInfo"]>[] = [
 		// Selection column
 		{
@@ -183,7 +187,7 @@ function initialize_columns(item_class: components["schemas"]["ClassInfo"]) {
 		if (max_cols === 0) break;
 		max_cols -= 1;
 
-		init.push(gen_attr_col(attr));
+		init.push(gen_attr_col(dataset, attr));
 	}
 
 	return init;
@@ -227,6 +231,7 @@ function useItemQuery(item_class: components["schemas"]["ClassInfo"] | null) {
 }
 
 function TableHeader(params: {
+	dataset: components["schemas"]["DatasetInfo"];
 	item_class: components["schemas"]["ClassInfo"];
 
 	header: Header<
@@ -263,6 +268,15 @@ function TableHeader(params: {
 	const [selectedAttr, setSelectedAttr] = useState<number | null>(null);
 	const [opened, setOpened] = useState(false);
 
+	const available_attrs = params.item_class.attributes
+		.map((a) => ({
+			label: a.name,
+			value: a.id.toString(),
+			disabled:
+				params.columns.find((c) => c.id === `attr-${a.id}`) !== undefined,
+		}))
+		.filter((v) => !v.disabled);
+
 	return (
 		<div
 			className={tableStyle.th}
@@ -282,6 +296,8 @@ function TableHeader(params: {
 						flexGrow: 1,
 						overflow: "hidden",
 						textOverflow: "ellipsis",
+						textWrap: "nowrap",
+						whiteSpace: "nowrap",
 					}}
 				>
 					{params.header.isPlaceholder
@@ -328,7 +344,12 @@ function TableHeader(params: {
 									<Select
 										comboboxProps={{ withinPortal: false }}
 										style={{ width: "100%" }}
-										placeholder={"Select an attribute"}
+										placeholder={
+											available_attrs.length === 0
+												? "No more attributes"
+												: "Select an attribute"
+										}
+										disabled={available_attrs.length === 0}
 										value={selectedAttr?.toString()}
 										onChange={(value) => {
 											if (value === null) {
@@ -342,21 +363,15 @@ function TableHeader(params: {
 												setSelectedAttr(null);
 											}
 										}}
-										data={params.item_class.attributes
-											.map((a) => ({
-												label: a.name,
-												value: a.id.toString(),
-												disabled:
-													params.columns.find(
-														(c) => c.id === `attr-${a.id}`,
-													) !== undefined,
-											}))
-											.filter((v) => !v.disabled)}
+										data={available_attrs}
 									/>
 									<Button
 										style={{ marginTop: "0.5rem" }}
 										size="xs"
 										fullWidth
+										disabled={
+											available_attrs.length === 0 || selectedAttr === null
+										}
 										onClick={() => {
 											const attr = params.item_class.attributes.find(
 												(a) => a.id === selectedAttr,
@@ -365,14 +380,16 @@ function TableHeader(params: {
 											if (attr !== undefined) {
 												params.setColumns((cols) => [
 													...cols,
-													gen_attr_col(attr),
+													gen_attr_col(params.dataset, attr),
 												]);
 											}
 
 											setOpened(false);
 										}}
 									>
-										Add column
+										{available_attrs.length === 0
+											? "All attributes shown"
+											: "Add attribute"}
 									</Button>
 
 									<Button
@@ -431,6 +448,7 @@ function TableHeader(params: {
 }
 
 export function ItemTablePanel(params: {
+	dataset: components["schemas"]["DatasetInfo"] | null;
 	class: components["schemas"]["ClassInfo"] | null;
 	setSelectedItems: (
 		items: components["schemas"]["ItemlistItemInfo"][],
@@ -509,7 +527,9 @@ export function ItemTablePanel(params: {
 	}, [fetchMoreOnBottomReached]);
 
 	const [columns, setColumns] = useState(
-		params.class === null ? [] : initialize_columns(params.class),
+		params.class === null || params.dataset === null
+			? []
+			: initialize_columns(params.dataset, params.class),
 	);
 
 	const table = useReactTable({
@@ -540,7 +560,11 @@ export function ItemTablePanel(params: {
 				</Wrapper>
 			</div>
 		</div>;
-	} else if (flatData === undefined || params.class === null) {
+	} else if (
+		flatData === undefined ||
+		params.class === null ||
+		params.dataset === null
+	) {
 		return (
 			<div className={mainStyle.panel}>
 				<TitleBar text="Items" />
@@ -569,6 +593,7 @@ export function ItemTablePanel(params: {
 					<div key={headerGroup.id} className={tableStyle.tr}>
 						{headerGroup.headers.map((header) => (
 							<TableHeader
+								dataset={params.dataset!}
 								key={header.id}
 								item_class={params.class!}
 								header={header}

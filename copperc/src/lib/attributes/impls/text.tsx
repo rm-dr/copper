@@ -11,7 +11,7 @@ export const _textAttrType: attrTypeInfo<"Text"> = {
 		form: (params) => BasicForm({ attr_type: { type: "Text" }, ...params }),
 	},
 
-	table_cell: (value) => {
+	table_cell: ({ value }) => {
 		return (
 			<div
 				style={{
@@ -37,9 +37,8 @@ export const _textAttrType: attrTypeInfo<"Text"> = {
 					style={{
 						paddingLeft: "0.5rem",
 						width: "100%",
-						overflow: "hidden",
+						overflow: "scroll",
 						textOverflow: "ellipsis",
-						whiteSpace: "nowrap",
 						color: "var(--mantine-color-white)",
 					}}
 				>
@@ -51,6 +50,7 @@ export const _textAttrType: attrTypeInfo<"Text"> = {
 		new_value: (params) => {
 			return (
 				<Textarea
+					disabled
 					radius="0px"
 					placeholder="no value"
 					autosize

@@ -20,8 +20,27 @@ export const _hashAttrType: attrTypeInfo<"Hash"> = {
 		form: (params) => Form(params),
 	},
 
-	table_cell: (value) => {
-		return value.value;
+	table_cell: ({ value }) => {
+		let v = value.value;
+		if (v.length > 10) {
+			v = v.slice(0, 10) + "…";
+		}
+
+		return (
+			<div
+				style={{
+					paddingLeft: "0.5rem",
+					width: "100%",
+					overflow: "hidden",
+					textOverflow: "ellipsis",
+					whiteSpace: "nowrap",
+					color: "var(--mantine-color-white)",
+					fontFamily: "monospace",
+				}}
+			>
+				{v}
+			</div>
+		);
 	},
 
 	editor: {
@@ -34,6 +53,7 @@ export const _hashAttrType: attrTypeInfo<"Hash"> = {
 		new_value: (params) => {
 			return (
 				<Textarea
+					disabled
 					radius="0px"
 					placeholder="no value"
 					autosize

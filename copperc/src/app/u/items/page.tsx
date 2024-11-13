@@ -13,6 +13,10 @@ export default function Page() {
 		components["schemas"]["ItemlistItemInfo"][]
 	>([]);
 
+	const [selectedDataset, setSelectedDataset] = useState<
+		components["schemas"]["DatasetInfo"] | null
+	>(null);
+
 	const [selectedClass, setSelectedClass] = useState<
 		components["schemas"]["ClassInfo"] | null
 	>(null);
@@ -23,6 +27,7 @@ export default function Page() {
 				<ControlPanel
 					selectedClass={selectedClass}
 					setSelectedClass={setSelectedClass}
+					setSelectedDataset={setSelectedDataset}
 				/>
 
 				<ItemTablePanel
@@ -30,6 +35,7 @@ export default function Page() {
 					// when we select a new class
 					key={`${selectedClass?.id}`}
 					class={selectedClass}
+					dataset={selectedDataset}
 					setSelectedItems={setSelectedItems}
 				/>
 			</div>

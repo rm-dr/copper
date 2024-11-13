@@ -9,7 +9,7 @@ import { components } from "@/lib/api/openapi";
 import { edgeclient } from "@/lib/api/client";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ReactElement } from "react";
-import { Select, Text } from "@mantine/core";
+import { Select } from "@mantine/core";
 import { useForm, UseFormReturnType } from "@mantine/form";
 
 export const _referenceAttrType: attrTypeInfo<"Reference"> = {
@@ -20,15 +20,23 @@ export const _referenceAttrType: attrTypeInfo<"Reference"> = {
 		form: (params) => Form(params),
 	},
 
-	table_cell: (value) => {
+	table_cell: ({ dataset, value }) => {
+		const c = dataset.classes.find((x) => x.id === value.class)!;
+
 		return (
-			<Text c="dimmed">
-				Reference to
-				{` #${value.item} of class`}
-				<Text c="dimmed" fs="italic" span>
-					{`#${value.class}`}
-				</Text>
-			</Text>
+			<div
+				style={{
+					paddingLeft: "0.5rem",
+					width: "100%",
+					overflow: "hidden",
+					textOverflow: "ellipsis",
+					whiteSpace: "nowrap",
+					color: "var(--mantine-color-dimmed)",
+					fontStyle: "italic",
+				}}
+			>
+				{`${c.name} #${value.item}`}
+			</div>
 		);
 	},
 

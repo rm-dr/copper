@@ -50,12 +50,14 @@ export type attrTypeInfo<SerializeAs extends AttrDataType = AttrDataType> = {
 
 	// TODO: what does null mean?
 	// TODO: stricter types
-	table_cell: (
+	table_cell: (params: {
 		value: Extract<
 			components["schemas"]["ItemAttrData"],
 			{ type: SerializeAs }
-		>,
-	) => null | ReactNode;
+		>;
+
+		dataset: components["schemas"]["DatasetInfo"];
+	}) => null | ReactNode;
 
 	editor:
 		| {

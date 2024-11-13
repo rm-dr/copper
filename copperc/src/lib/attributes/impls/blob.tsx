@@ -18,7 +18,7 @@ export const _blobAttrType: attrTypeInfo<"Blob"> = {
 		form: (params) => BlobForm({ attr_type: { type: "Blob" }, ...params }),
 	},
 
-	table_cell: (value) => {
+	table_cell: ({ value }) => {
 		return (
 			<div
 				style={{

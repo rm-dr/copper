@@ -11,7 +11,7 @@ export const _booleanAttrType: attrTypeInfo<"Boolean"> = {
 		form: (params) => BasicForm({ attr_type: { type: "Boolean" }, ...params }),
 	},
 
-	table_cell: (value) => {
+	table_cell: ({ value }) => {
 		return (
 			<div
 				style={{
