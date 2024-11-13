@@ -1,31 +1,33 @@
 use crate::flac::proc::pictures::FlacPictureReader;
 use async_trait::async_trait;
-use copper_itemdb::client::base::client::ItemdbClient;
 use copper_piper::{
-	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
-	data::{BytesSource, PipeData},
-	helpers::BytesSourceReader,
-	CopperContext, JobRunResult,
+	base::{Node, NodeBuilder, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	data::PipeData,
+	helpers::{processor::BytesProcessorBuilder, rawbytes::RawBytesSource},
+	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::mpsc;
 use tracing::{debug, trace};
 
 pub struct ExtractCovers {}
 
+impl NodeBuilder for ExtractCovers {
+	fn build<'ctx>(&self) -> Box<dyn Node<'ctx>> {
+		Box::new(Self {})
+	}
+}
+
 // Inputs: "data" - Bytes
-// Outputs: variable, depends on tags
 #[async_trait]
-impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for ExtractCovers {
+impl<'ctx> Node<'ctx> for ExtractCovers {
 	async fn run(
 		&self,
-		ctx: &CopperContext<Itemdb>,
+		ctx: &CopperContext<'ctx>,
 		this_node: ThisNodeInfo,
 		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
-		output: mpsc::Sender<NodeOutput<PipeData>>,
-	) -> Result<(), RunNodeError<PipeData>> {
+	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
 		//
 		// Extract parameters
 		//
@@ -60,7 +62,7 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 				})
 			}
 
-			Some(PipeData::Blob { source, .. }) => BytesSourceReader::open(ctx, source).await?,
+			Some(PipeData::Blob { source, .. }) => source.build(ctx).await?,
 
 			_ => {
 				return Err(RunNodeError::BadInputType {
@@ -78,7 +80,7 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 		);
 		let mut picreader = FlacPictureReader::new();
 
-		while let Some(data) = reader.next_fragment(ctx.blob_fragment_size).await? {
+		while let Some(data) = reader.next_fragment().await? {
 			picreader
 				.push_data(&data)
 				.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
@@ -91,6 +93,9 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 		//
 		// Send the first cover we find
 		//
+
+		let mut output = BTreeMap::new();
+
 		if let Some(picture) = picreader.pop_picture() {
 			debug!(
 				message = "Found a cover, sending",
@@ -98,33 +103,22 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 				picture = ?picture
 			);
 
-			output
-				.send(NodeOutput {
-					node: this_node,
-					port: PortName::new("cover_data"),
-					data: Some(PipeData::Blob {
-						source: BytesSource::Array {
-							mime: picture.mime.clone(),
-							data: Arc::new(picture.img_data),
-						},
+			output.insert(
+				PortName::new("cover_data"),
+				PipeData::Blob {
+					source: BytesProcessorBuilder::new(RawBytesSource::Array {
+						mime: picture.mime.clone(),
+						data: Arc::new(picture.img_data),
 					}),
-				})
-				.await?;
+				},
+			);
 		} else {
 			debug!(
 				message = "Did not find a cover, sending None",
 				node_id = ?this_node.id
 			);
-
-			output
-				.send(NodeOutput {
-					node: this_node,
-					port: PortName::new("cover_data"),
-					data: None,
-				})
-				.await?;
 		}
 
-		return Ok(());
+		return Ok(output);
 	}
 }

@@ -5,7 +5,7 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_itemdb::{client::base::client::ItemdbClient, AttrData, ClassId, ItemId};
+use copper_itemdb::{AttrData, ClassId, ItemId};
 use copper_jobqueue::base::errors::AddJobError;
 use copper_util::HashType;
 use serde::Deserialize;
@@ -151,9 +151,9 @@ pub(super) struct RunPipelineRequest {
 		("bearer" = []),
 	)
 )]
-pub(super) async fn run_pipeline<Client: DatabaseClient, Itemdb: ItemdbClient>(
+pub(super) async fn run_pipeline<Client: DatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, Itemdb>>,
+	State(state): State<RouterState<Client>>,
 	Path(pipeline_id): Path<i64>,
 	Json(payload): Json<RunPipelineRequest>,
 ) -> Response {
@@ -171,7 +171,11 @@ pub(super) async fn run_pipeline<Client: DatabaseClient, Itemdb: ItemdbClient>(
 				?pipeline_id,
 				?error,
 			);
-			return (StatusCode::INTERNAL_SERVER_ERROR, Json("Internal server error")).into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 
@@ -267,7 +271,11 @@ pub(super) async fn run_pipeline<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 		Err(AddJobError::DbError(error)) => {
 			error!(message = "DB error while queueing job", ?error, ?payload.job_id);
-			return (StatusCode::INTERNAL_SERVER_ERROR, Json("Internal server error")).into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 
 		Err(AddJobError::AlreadyExists) => {

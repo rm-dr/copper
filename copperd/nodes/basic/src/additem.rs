@@ -1,38 +1,39 @@
 use async_trait::async_trait;
 use copper_itemdb::{
-	client::base::{
-		client::ItemdbClient,
-		errors::{class::GetClassError, dataset::GetDatasetError},
-	},
-	transaction::{OnUniqueConflictAction, ResultOrDirect, TransactionAction},
+	client::errors::{class::GetClassError, dataset::GetDatasetError},
 	AttrData, AttributeInfo, ClassInfo,
 };
 use copper_piper::{
-	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	base::{Node, NodeBuilder, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
-	helpers::BytesSourceReader,
-	CopperContext, JobRunResult,
+	CopperContext,
 };
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::mpsc;
 use tracing::{debug, trace};
 
 pub struct AddItem {}
 
+impl NodeBuilder for AddItem {
+	fn build<'ctx>(&self) -> Box<dyn Node<'ctx>> {
+		Box::new(Self {})
+	}
+}
+
 // Inputs: depends on class
 // Outputs: None
 #[async_trait]
-impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for AddItem {
+impl<'ctx> Node<'ctx> for AddItem {
 	async fn run(
 		&self,
-		ctx: &CopperContext<Itemdb>,
-		this_node: ThisNodeInfo,
+		ctx: &CopperContext<'ctx>,
+		_this_node: ThisNodeInfo,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
-		output: mpsc::Sender<NodeOutput<PipeData>>,
-	) -> Result<(), RunNodeError<PipeData>> {
+	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
+		let mut trans = ctx.item_db_transaction.lock().await;
+
 		//
 		// Extract parameters
 		//
@@ -40,7 +41,7 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 			match value {
 				NodeParameterValue::Integer(x) => ctx
 					.itemdb_client
-					.get_class(x.into())
+					.get_class(&mut trans, x.into())
 					.await
 					.map_err(|e| match e {
 						GetClassError::NotFound => RunNodeError::BadParameterOther {
@@ -67,17 +68,17 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 		if let Some(value) = params.remove("dataset") {
 			match value {
 				NodeParameterValue::Integer(x) => {
-					let dataset =
-						ctx.itemdb_client
-							.get_dataset(x.into())
-							.await
-							.map_err(|e| match e {
-								GetDatasetError::NotFound => RunNodeError::BadParameterOther {
-									parameter: "dataset".into(),
-									message: "this dataset doesn't exist".into(),
-								},
-								_ => RunNodeError::Other(Arc::new(e)),
-							})?;
+					let dataset = ctx
+						.itemdb_client
+						.get_dataset(&mut trans, x.into())
+						.await
+						.map_err(|e| match e {
+							GetDatasetError::NotFound => RunNodeError::BadParameterOther {
+								parameter: "dataset".into(),
+								message: "this dataset doesn't exist".into(),
+							},
+							_ => RunNodeError::Other(Arc::new(e)),
+						})?;
 
 					if class.dataset != dataset.id {
 						return Err(RunNodeError::BadParameterOther {
@@ -116,12 +117,11 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 		//
 
 		debug!(message = "Getting attributes");
-		let mut attributes: BTreeMap<PortName, (AttributeInfo, Option<ResultOrDirect<AttrData>>)> =
-			class
-				.attributes
-				.into_iter()
-				.map(|x| (PortName::new(x.name.as_str()), (x, None)))
-				.collect();
+		let mut attributes: BTreeMap<PortName, (AttributeInfo, Option<AttrData>)> = class
+			.attributes
+			.into_iter()
+			.map(|x| (PortName::new(x.name.as_str()), (x, None)))
+			.collect();
 
 		// Fill attribute table
 		while let Some((port, data)) = input.pop_first() {
@@ -141,8 +141,7 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 						.collect();
 
 					let mut part_counter = 1;
-
-					let mut reader = BytesSourceReader::open(ctx, source).await?;
+					let mut reader = source.build(ctx).await?;
 
 					let mut upload = ctx
 						.objectstore_client
@@ -154,7 +153,7 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 						.await
 						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
-					while let Some(data) = reader.next_fragment(ctx.blob_fragment_size).await? {
+					while let Some(data) = reader.next_fragment().await? {
 						upload
 							.upload_part(&data, part_counter)
 							.await
@@ -169,29 +168,10 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 
 					let attr = attributes.get_mut(&port).unwrap();
 
-					attr.1 = Some(
-						AttrData::Blob {
-							bucket: ctx.objectstore_blob_bucket.clone(),
-							key: new_obj_key,
-						}
-						.into(),
-					)
-				}
-
-				Some(PipeData::TransactionActionResult {
-					action_idx,
-					result_type,
-				}) => {
-					let attr = attributes.get_mut(&port).unwrap();
-
-					if result_type != attr.0.data_type {
-						return Err(RunNodeError::BadInputType { port });
-					}
-
-					attr.1 = Some(ResultOrDirect::Result {
-						action_idx,
-						expected_type: result_type,
-					});
+					attr.1 = Some(AttrData::Blob {
+						bucket: ctx.objectstore_blob_bucket.clone(),
+						key: new_obj_key,
+					})
 				}
 
 				Some(x) => {
@@ -205,7 +185,7 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 						return Err(RunNodeError::BadInputType { port });
 					}
 
-					attr.1 = Some(as_attr.into());
+					attr.1 = Some(as_attr);
 				}
 
 				None => {}
@@ -216,38 +196,29 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 		// Set up and send transaction
 		//
 
-		let action = TransactionAction::AddItem {
-			to_class: class.id,
+		let new_item = ctx
+			.itemdb_client
+			.add_item(
+				&mut trans,
+				class.id,
+				attributes
+					.into_iter()
+					.map(|(_, (k, d))| (k.id, d))
+					.filter_map(|(k, v)| v.map(|v| (k, v)))
+					.collect(),
+			)
+			.await
+			.map_err(|x| RunNodeError::Other(Arc::new(x)))?;
 
-			attributes: attributes
-				.into_iter()
-				.map(|(_, (k, d))| (k.id, d))
-				.filter_map(|(k, v)| v.map(|v| (k, v)))
-				.collect(),
-
-			on_unique_conflict: OnUniqueConflictAction::Fail,
-		};
-
-		let mut trans = ctx.transaction.lock().await;
-		let result_type = action.result_type().unwrap();
-		debug!(
-			message = "Registering action",
-			?action,
-			action_idx = trans.len()
+		let mut output = BTreeMap::new();
+		output.insert(
+			PortName::new("new_item"),
+			PipeData::Reference {
+				class: class.id,
+				item: new_item,
+			},
 		);
-		let action_idx = trans.add_action(action);
 
-		output
-			.send(NodeOutput {
-				node: this_node,
-				port: PortName::new("new_item"),
-				data: Some(PipeData::TransactionActionResult {
-					action_idx,
-					result_type,
-				}),
-			})
-			.await?;
-
-		return Ok(());
+		return Ok(output);
 	}
 }

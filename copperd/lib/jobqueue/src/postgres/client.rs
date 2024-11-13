@@ -159,8 +159,7 @@ impl JobQueueClient for PgJobQueueClient {
 		.await?;
 
 		for row in res {
-			let state: QueuedJobState =
-				serde_json::from_str(row.get::<&str, _>("state")).unwrap();
+			let state: QueuedJobState = serde_json::from_str(row.get::<&str, _>("state")).unwrap();
 			let n: i64 = row.get("count");
 
 			match state {
@@ -168,7 +167,6 @@ impl JobQueueClient for PgJobQueueClient {
 				QueuedJobState::Running => counts.running_jobs += n,
 				QueuedJobState::Success { .. } => counts.successful_jobs += n,
 				QueuedJobState::FailedRunning { .. } => counts.failed_jobs += n,
-				QueuedJobState::FailedTransaction { .. } => counts.failed_jobs += n,
 				QueuedJobState::BuildError { .. } => counts.build_errors += n,
 			}
 		}
@@ -278,41 +276,6 @@ impl JobQueueClient for PgJobQueueClient {
 		)
 		.bind(
 			serde_json::to_string(&QueuedJobState::FailedRunning {
-				message: message.into(),
-			})
-			.unwrap(),
-		)
-		.bind(OffsetDateTime::now_utc())
-		.bind(job_id.as_str())
-		.bind(serde_json::to_string(&QueuedJobState::Running).unwrap())
-		.fetch_one(&mut *conn)
-		.await;
-
-		return match res {
-			Err(sqlx::Error::RowNotFound) => Err(FailJobError::NotRunning),
-			Err(e) => Err(e.into()),
-			Ok(_) => Ok(()),
-		};
-	}
-
-	async fn fail_job_transaction(
-		&self,
-		job_id: &QueuedJobId,
-		message: &str,
-	) -> Result<(), FailJobError> {
-		let mut conn = self.pool.acquire().await?;
-		// RETURNING id is required, RowNotFound is always thrown if it is removed.
-		let res = sqlx::query(
-			"
-			UPDATE jobs
-			SET state = $1, finished_at = $2
-			WHERE id = $3
-			AND state = $4
-			RETURNING id;
-			",
-		)
-		.bind(
-			serde_json::to_string(&QueuedJobState::FailedTransaction {
 				message: message.into(),
 			})
 			.unwrap(),

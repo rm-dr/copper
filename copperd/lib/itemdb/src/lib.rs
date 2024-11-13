@@ -8,4 +8,3 @@ mod id;
 pub use id::*;
 
 pub mod client;
-pub mod transaction;

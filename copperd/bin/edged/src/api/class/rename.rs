@@ -6,14 +6,12 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_itemdb::client::base::{
-	client::ItemdbClient,
-	errors::{
-		class::{GetClassError, RenameClassError},
-		dataset::GetDatasetError,
-	},
+use copper_itemdb::client::errors::{
+	class::{GetClassError, RenameClassError},
+	dataset::GetDatasetError,
 };
 use serde::Deserialize;
+use sqlx::Acquire;
 use tracing::error;
 use utoipa::ToSchema;
 
@@ -38,9 +36,9 @@ pub(super) struct RenameClassRequest {
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn rename_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
+pub(super) async fn rename_class<Client: DatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, Itemdb>>,
+	State(state): State<RouterState<Client>>,
 	Path(class_id): Path<i64>,
 	Json(payload): Json<RenameClassRequest>,
 ) -> Response {
@@ -49,7 +47,35 @@ pub(super) async fn rename_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		Ok(user) => user,
 	};
 
-	let class = match state.itemdb_client.get_class(class_id.into()).await {
+	let mut conn = match state.itemdb_client.new_connection().await {
+		Ok(x) => x,
+		Err(error) => {
+			error!(message = "Error in itemdb client", ?error);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
+		}
+	};
+
+	let mut trans = match conn.begin().await {
+		Ok(y) => y,
+		Err(error) => {
+			error!(message = "Error in itemdb client", ?error);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
+		}
+	};
+
+	let class = match state
+		.itemdb_client
+		.get_class(&mut trans, class_id.into())
+		.await
+	{
 		Ok(x) => x,
 
 		Err(GetClassError::NotFound) => {
@@ -66,7 +92,11 @@ pub(super) async fn rename_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		}
 	};
 
-	match state.itemdb_client.get_dataset(class.dataset).await {
+	match state
+		.itemdb_client
+		.get_dataset(&mut trans, class.dataset)
+		.await
+	{
 		Ok(x) => {
 			// We can only modify our own datasets
 			if x.owner != user.id {
@@ -91,11 +121,21 @@ pub(super) async fn rename_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 	let res = state
 		.itemdb_client
-		.rename_class(class_id.into(), &payload.new_name)
+		.rename_class(&mut trans, class_id.into(), &payload.new_name)
 		.await;
 
 	return match res {
-		Ok(()) => StatusCode::OK.into_response(),
+		Ok(()) => match trans.commit().await {
+			Ok(()) => StatusCode::OK.into_response(),
+			Err(error) => {
+				error!(message = "Error while committing transaction", ?error);
+				return (
+					StatusCode::INTERNAL_SERVER_ERROR,
+					Json("Internal server error"),
+				)
+					.into_response();
+			}
+		},
 
 		Err(RenameClassError::UniqueViolation) => {
 			return (

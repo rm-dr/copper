@@ -1,18 +1,21 @@
 use smartstring::{LazyCompact, SmartString};
 use std::{error::Error, sync::Arc};
 use thiserror::Error;
-use tokio::{sync::mpsc, task::JoinError};
+use tokio::task::JoinError;
 
-use super::{NodeId, NodeOutput, PipelineData, PortName};
+use super::{NodeId, PortName};
 
 /// An error we encounter while running a node
 #[derive(Debug, Clone, Error)]
-pub enum RunNodeError<DataType: PipelineData> {
+pub enum RunNodeError {
 	//
 	// MARK: Errors in pipeline definition
 	//
 	//
 	//
+	#[error("database error")]
+	DbError(#[from] Arc<sqlx::Error>),
+
 	/// We expected a parameter, but it wasn't there
 	#[error("Unexpected parameter `{parameter}`")]
 	UnexpectedParameter { parameter: SmartString<LazyCompact> },
@@ -66,25 +69,9 @@ pub enum RunNodeError<DataType: PipelineData> {
 	#[error("i/o error")]
 	IoError(#[from] Arc<std::io::Error>),
 
-	/// We tried to read from a byte stream, but that stream overflowed
-	/// and we missed data. If this happens, either a node isn't reading
-	/// stream data fast enough, or our max buffer size is too small.
-	#[error("stream receiver lagged")]
-	StreamReceiverOverflowed,
-
 	/// An arbitrary error
 	#[error("generic error")]
 	Other(#[from] Arc<dyn Error + Sync + Send + 'static>),
-
-	//
-	// MARK: Critical errors
-	// (If we encounter these, our code is wrong)
-	//
-	//
-	//
-	/// We encountered a SendError while sending node output
-	#[error("error while sending output")]
-	OutputSendError(#[from] mpsc::error::SendError<NodeOutput<DataType>>),
 
 	/// A node task threw a JoinError
 	#[error("error while joining task")]
@@ -99,13 +86,13 @@ pub enum RunNodeError<DataType: PipelineData> {
 	},
 }
 
-impl<DataType: PipelineData> From<std::io::Error> for RunNodeError<DataType> {
+impl From<std::io::Error> for RunNodeError {
 	fn from(value: std::io::Error) -> Self {
 		Self::IoError(Arc::new(value))
 	}
 }
 
-impl<DataType: PipelineData> From<JoinError> for RunNodeError<DataType> {
+impl From<JoinError> for RunNodeError {
 	fn from(value: JoinError) -> Self {
 		Self::NodeTaskJoinError(Arc::new(value))
 	}

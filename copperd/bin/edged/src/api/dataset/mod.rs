@@ -4,7 +4,6 @@ use axum::{
 	routing::{delete, get, patch, post},
 	Router,
 };
-use copper_itemdb::client::base::client::ItemdbClient;
 use utoipa::OpenApi;
 
 mod add;
@@ -36,8 +35,7 @@ use rename::*;
 )]
 pub(super) struct DatasetApi;
 
-pub(super) fn router<Client: DatabaseClient + 'static, Itemdb: ItemdbClient + 'static>(
-) -> Router<RouterState<Client, Itemdb>> {
+pub(super) fn router<Client: DatabaseClient + 'static>() -> Router<RouterState<Client>> {
 	Router::new()
 		.route("/", post(add_dataset))
 		.route("/:dataset_id", get(get_dataset))

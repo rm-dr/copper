@@ -3,7 +3,7 @@ use axum::routing::post;
 use axum::serve::IncomingStream;
 use axum::{extract::DefaultBodyLimit, Router};
 use copper_edged::UserInfo;
-use copper_itemdb::client::base::client::ItemdbClient;
+use copper_itemdb::client::ItemdbClient;
 use copper_itemdb::{AttrDataStub, AttributeInfo, AttributeOptions, ClassInfo, DatasetInfo};
 use copper_jobqueue::base::client::JobQueueClient;
 use copper_jobqueue::info::QueuedJobCounts;
@@ -49,10 +49,10 @@ impl Connected<IncomingStream<'_>> for CopperConnectInfo {
 	}
 }
 
-pub struct RouterState<Client: DatabaseClient, Itemdb: ItemdbClient> {
+pub struct RouterState<Client: DatabaseClient> {
 	pub config: Arc<EdgedConfig>,
 	pub db_client: Arc<Client>,
-	pub itemdb_client: Arc<Itemdb>,
+	pub itemdb_client: Arc<ItemdbClient>,
 	pub jobqueue_client: Arc<dyn JobQueueClient>,
 	pub auth: Arc<AuthHelper<Client>>,
 	pub s3_client: Arc<S3Client>,
@@ -61,7 +61,7 @@ pub struct RouterState<Client: DatabaseClient, Itemdb: ItemdbClient> {
 
 // We need to impl this manually, since `DatabaseClient`
 // doesn't implement `Clone`
-impl<Client: DatabaseClient, Itemdb: ItemdbClient> Clone for RouterState<Client, Itemdb> {
+impl<Client: DatabaseClient> Clone for RouterState<Client> {
 	fn clone(&self) -> Self {
 		Self {
 			config: self.config.clone(),
@@ -96,9 +96,7 @@ impl<Client: DatabaseClient, Itemdb: ItemdbClient> Clone for RouterState<Client,
 )]
 struct ApiDoc;
 
-pub(super) fn router<Client: DatabaseClient + 'static, Itemdb: ItemdbClient + 'static>(
-	state: RouterState<Client, Itemdb>,
-) -> Router {
+pub(super) fn router<Client: DatabaseClient + 'static>(state: RouterState<Client>) -> Router {
 	Router::new()
 		.merge(SwaggerUi::new("/docs").url("/docs/openapi.json", ApiDoc::openapi()))
 		//

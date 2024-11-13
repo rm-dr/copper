@@ -10,18 +10,16 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use copper_itemdb::{
-	client::base::{
-		client::ItemdbClient,
-		errors::{
-			class::GetClassError,
-			dataset::GetDatasetError,
-			item::{CountItemsError, ListItemsError},
-		},
+	client::errors::{
+		class::GetClassError,
+		dataset::GetDatasetError,
+		item::{CountItemsError, ListItemsError},
 	},
 	AttrData, AttributeId, ClassId, ItemId,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use sqlx::Acquire;
 use tracing::error;
 use utoipa::{IntoParams, ToSchema};
 
@@ -64,8 +62,8 @@ pub(super) enum ItemAttrData {
 }
 
 impl ItemAttrData {
-	async fn from_attr_data<Client: DatabaseClient, Itemdb: ItemdbClient>(
-		state: &RouterState<Client, Itemdb>,
+	async fn from_attr_data<Client: DatabaseClient>(
+		state: &RouterState<Client>,
 		value: AttrData,
 	) -> Result<Self, Response> {
 		Ok(match value {
@@ -135,7 +133,7 @@ pub(super) struct PaginateParams {
 	count: usize,
 }
 
-/// Get class info
+/// List items in this class
 #[utoipa::path(
 	get,
 	path = "/{class_id}/items",
@@ -150,9 +148,9 @@ pub(super) struct PaginateParams {
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn list_items<Client: DatabaseClient, Itemdb: ItemdbClient>(
+pub(super) async fn list_items<Client: DatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, Itemdb>>,
+	State(state): State<RouterState<Client>>,
 	Query(paginate): Query<PaginateParams>,
 	Path(class_id): Path<i64>,
 ) -> Response {
@@ -161,7 +159,35 @@ pub(super) async fn list_items<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		Ok(user) => user,
 	};
 
-	let class = match state.itemdb_client.get_class(class_id.into()).await {
+	let mut conn = match state.itemdb_client.new_connection().await {
+		Ok(x) => x,
+		Err(error) => {
+			error!(message = "Error in itemdb client", ?error);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
+		}
+	};
+
+	let mut trans = match conn.begin().await {
+		Ok(y) => y,
+		Err(error) => {
+			error!(message = "Error in itemdb client", ?error);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
+		}
+	};
+
+	let class = match state
+		.itemdb_client
+		.get_class(&mut trans, class_id.into())
+		.await
+	{
 		Ok(x) => x,
 
 		Err(GetClassError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
@@ -176,7 +202,11 @@ pub(super) async fn list_items<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		}
 	};
 
-	match state.itemdb_client.get_dataset(class.dataset).await {
+	match state
+		.itemdb_client
+		.get_dataset(&mut trans, class.dataset)
+		.await
+	{
 		Ok(x) => {
 			// We can only modify our own class
 			if x.owner != user.id {
@@ -199,7 +229,7 @@ pub(super) async fn list_items<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		}
 	};
 
-	let total = match state.itemdb_client.count_items(class.id).await {
+	let total = match state.itemdb_client.count_items(&mut trans, class.id).await {
 		Ok(x) => x,
 
 		// In theory unreachable, but possible with unlucky timing
@@ -219,7 +249,7 @@ pub(super) async fn list_items<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 	match state
 		.itemdb_client
-		.list_items(class.id, paginate.skip, paginate.count)
+		.list_items(&mut trans, class.id, paginate.skip, paginate.count)
 		.await
 	{
 		Ok(x) => {

@@ -1,24 +1,19 @@
 use copper_piper::{
 	base::{
-		Node, NodeDispatcher, NodeId, NodeOutput, NodeParameterValue, PipelineData,
-		PipelineJobContext, PipelineJobResult, PortName, RunNodeError, ThisNodeInfo,
+		Node, NodeDispatcher, NodeId, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo,
 		INPUT_NODE_TYPE,
 	},
+	data::PipeData,
 	json::PipelineJson,
+	CopperContext,
 };
 use copper_util::graph::{finalized::FinalizedGraph, graph::Graph, util::GraphNodeIdx};
 use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::{BTreeMap, HashMap},
 	fmt::Debug,
-	marker::PhantomData,
-	sync::Arc,
 };
 use thiserror::Error;
-use tokio::{
-	sync::mpsc::{self, error::TryRecvError},
-	task::{JoinError, JoinSet},
-};
 use tracing::{debug, trace};
 
 use crate::config::ASYNC_POLL_AWAIT_MS;
@@ -61,32 +56,15 @@ pub enum PipelineBuildError {
 // MARK: Helper structs
 //
 
-struct NodeResult<DataType: PipelineData> {
-	result: Result<(), RunNodeError<DataType>>,
-	node_id: NodeId,
-	node_idx: GraphNodeIdx,
-}
-
-enum NodeState<
-	ResultType: PipelineJobResult,
-	DataType: PipelineData,
-	ContextType: PipelineJobContext<DataType, ResultType>,
-> {
+enum NodeState<'ctx> {
 	// Store this node's instance here, so we can take ownership
 	// of it when we run.
-	NotStarted {
-		instance: Box<dyn Node<ResultType, DataType, ContextType>>,
-	},
+	NotStarted { instance: Box<dyn Node<'ctx>> },
 	Running,
 	Done,
 }
 
-impl<
-		ResultType: PipelineJobResult,
-		DataType: PipelineData,
-		ContextType: PipelineJobContext<DataType, ResultType>,
-	> Debug for NodeState<ResultType, DataType, ContextType>
-{
+impl Debug for NodeState<'_> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::NotStarted { .. } => write!(f, "NotStarted"),
@@ -96,12 +74,7 @@ impl<
 	}
 }
 
-impl<
-		ResultType: PipelineJobResult,
-		DataType: PipelineData,
-		ContextType: PipelineJobContext<DataType, ResultType>,
-	> NodeState<ResultType, DataType, ContextType>
-{
+impl<'ctx> NodeState<'ctx> {
 	fn has_been_started(&self) -> bool {
 		return matches!(self, Self::Running | Self::Done);
 	}
@@ -116,7 +89,7 @@ impl<
 
 	/// Turn `Self::NotStarted` into `Self::Running` and return `instance`.
 	/// Returns `None` otherwise.
-	fn start(&mut self) -> Option<Box<dyn Node<ResultType, DataType, ContextType>>> {
+	fn start(&mut self) -> Option<Box<dyn Node<'ctx>>> {
 		match self {
 			Self::NotStarted { .. } => {
 				let x = std::mem::replace(self, Self::Running);
@@ -130,11 +103,7 @@ impl<
 	}
 }
 
-struct NodeSpec<
-	ResultType: PipelineJobResult,
-	DataType: PipelineData,
-	ContextType: PipelineJobContext<DataType, ResultType>,
-> {
+struct NodeSpec<'ctx> {
 	/// The node's id
 	pub id: NodeId,
 
@@ -145,17 +114,12 @@ struct NodeSpec<
 	pub node_params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 
 	/// This node's state
-	pub state: NodeState<ResultType, DataType, ContextType>,
+	pub state: NodeState<'ctx>,
 }
 
 // We need to do this ourselves, since the ContextType generic
 // confuses #[derive(Debug)].
-impl<
-		ResultType: PipelineJobResult,
-		DataType: PipelineData,
-		ContextType: PipelineJobContext<DataType, ResultType>,
-	> Debug for NodeSpec<ResultType, DataType, ContextType>
-{
+impl Debug for NodeSpec<'_> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("NodeSpec")
 			.field("id", &self.id)
@@ -167,16 +131,16 @@ impl<
 }
 
 #[derive(Debug)]
-enum EdgeDataContainer<DataType: PipelineData> {
+enum EdgeDataContainer {
 	Unset,
-	Some(Option<DataType>),
+	Some(Option<PipeData>),
 	Consumed,
 }
 
-impl<DataType: PipelineData> EdgeDataContainer<DataType> {
+impl EdgeDataContainer {
 	/// Takes the value out of this container, leaving [`EdgeDataContainer::Consumed`] in its place.
 	/// Does nothing and returns None if this isn't [`EdgeDataContainer::Some`].
-	pub fn take(&mut self) -> Option<Option<DataType>> {
+	pub fn take(&mut self) -> Option<Option<PipeData>> {
 		match self {
 			Self::Some(_) => {
 				let x = std::mem::replace(self, Self::Consumed);
@@ -192,10 +156,10 @@ impl<DataType: PipelineData> EdgeDataContainer<DataType> {
 }
 
 #[derive(Debug)]
-struct EdgeSpec<DataType: PipelineData> {
+struct EdgeSpec {
 	source_port: PortName,
 	target_port: PortName,
-	data: EdgeDataContainer<DataType>,
+	data: EdgeDataContainer,
 }
 
 //
@@ -208,33 +172,20 @@ struct EdgeSpec<DataType: PipelineData> {
 /// Any [`PipelineJson`] that builds into a PipelineSpec successfully
 /// should be runnable (but may encounter run-time errors)
 #[derive(Debug)]
-pub struct PipelineJob<
-	ResultType: PipelineJobResult,
-	DataType: PipelineData,
-	ContextType: PipelineJobContext<DataType, ResultType>,
-> {
-	_pa: PhantomData<DataType>,
-	_pb: PhantomData<ContextType>,
+pub struct PipelineJob<'ctx> {
 	pub job_id: SmartString<LazyCompact>,
 
-	graph: FinalizedGraph<NodeSpec<ResultType, DataType, ContextType>, EdgeSpec<DataType>>,
+	graph: FinalizedGraph<NodeSpec<'ctx>, EdgeSpec>,
 }
 
-impl<
-		ResultType: PipelineJobResult,
-		DataType: PipelineData,
-		ContextType: PipelineJobContext<DataType, ResultType>,
-	> PipelineJob<ResultType, DataType, ContextType>
-{
+impl<'ctx> PipelineJob<'ctx> {
 	pub fn new(
-		dispatcher: &NodeDispatcher<ResultType, DataType, ContextType>,
+		dispatcher: &NodeDispatcher,
 		job_id: &str,
-		input: BTreeMap<SmartString<LazyCompact>, DataType>,
+		input: BTreeMap<SmartString<LazyCompact>, PipeData>,
 		json: &PipelineJson,
 	) -> Result<Self, PipelineBuildError> {
 		return Ok(Self {
-			_pa: PhantomData {},
-			_pb: PhantomData {},
 			job_id: job_id.into(),
 			graph: Self::build(dispatcher, job_id, json, input)?,
 		});
@@ -245,16 +196,12 @@ impl<
 	//
 
 	/// Build a pipeline from its deserialized form
-	#[allow(clippy::type_complexity)]
 	fn build(
-		dispatcher: &NodeDispatcher<ResultType, DataType, ContextType>,
+		dispatcher: &NodeDispatcher,
 		job_id: &str,
 		json: &PipelineJson,
-		input: BTreeMap<SmartString<LazyCompact>, DataType>,
-	) -> Result<
-		FinalizedGraph<NodeSpec<ResultType, DataType, ContextType>, EdgeSpec<DataType>>,
-		PipelineBuildError,
-	> {
+		input: BTreeMap<SmartString<LazyCompact>, PipeData>,
+	) -> Result<FinalizedGraph<NodeSpec<'ctx>, EdgeSpec>, PipelineBuildError> {
 		trace!(message = "Building pipeline graph", job_id);
 
 		// The graph that stores this pipeline
@@ -392,9 +339,7 @@ impl<
 	// MARK: Run
 	//
 
-	pub async fn run(mut self, context: ContextType) -> Result<ResultType, RunNodeError<DataType>> {
-		let context = Arc::new(context);
-
+	pub async fn run(mut self, context: &CopperContext<'ctx>) -> Result<(), RunNodeError> {
 		trace!(
 			message = "Running job",
 			job_id = ?self.job_id,
@@ -404,18 +349,10 @@ impl<
 		let all_nodes: Vec<GraphNodeIdx> =
 			self.graph.iter_nodes_idx().map(|(idx, _)| idx).collect();
 
-		let mut tasks = JoinSet::new();
-		// TODO: configure channel size
-		let (tx, mut rx) = mpsc::channel::<NodeOutput<DataType>>(30);
-
-		// The below loop hits no awaits until something interesting happens
-		// (node finished, input received, etc)
-		//
-		// This is a problem, because this loop will block the async runtime,
-		// which prevents interesting things from happening.
-		//
-		// We've thus added `yield_now` to this loop.
-		loop {
+		while all_nodes
+			.iter()
+			.any(|x| !self.graph.get_node(*x).unwrap().state.is_done())
+		{
 			//
 			// Start nodes
 			//
@@ -433,6 +370,10 @@ impl<
 					continue;
 				}
 
+				// Only run nodes that can be run.
+				// A node can be run if...
+				// - it hasn't already been run
+				// - all its inputs are ready
 				let can_be_run =
 					self.graph
 						.edges_ending_at(node_idx)
@@ -452,7 +393,7 @@ impl<
 				}
 
 				// Take all inputs
-				let node_run_input: BTreeMap<PortName, Option<DataType>> = {
+				let node_run_input: BTreeMap<PortName, Option<PipeData>> = {
 					let input_edges = Vec::from(self.graph.edges_ending_at(node_idx).unwrap());
 					input_edges
 						.into_iter()
@@ -463,180 +404,105 @@ impl<
 						.collect()
 				};
 
-				// Borrow again as mutable
 				let node = self.graph.get_node_mut(node_idx).unwrap();
-				let ctx = context.clone();
-				let params = node.node_params.clone();
-				let node_id = node.id.clone();
-				let node_type = node.node_type.clone();
-				let tx = tx.clone();
 				let node_inst = node.state.start().unwrap();
-				let job_id = self.job_id.clone();
 
 				debug!(
 					message = "Starting node",
-					node_type = ?node_type,
-					node_id = ?node_id,
-					job_id = ?job_id,
-					tasks = tasks.len(),
+					node_type = ?node.node_type,
+					node_id = ?node.id,
+					job_id = ?self.job_id,
 				);
 
-				tasks.spawn(async move {
-					// This log helps detect a blocked async runtime
-					// (i.e, tokio is stuck if you see "Starting node" and not "Started node")
-					trace!(
-						message = "Started node",
-						node_type = ?node_type,
-						node_id = ?node_id,
-						job_id = ?job_id,
-					);
+				//
+				// MARK: Run node
+				//
 
-					let result = node_inst
-						.run(
-							&ctx,
-							ThisNodeInfo {
-								id: node_id.clone(),
-								idx: node_idx,
-								node_type: node_type.clone(),
-							},
-							params,
-							node_run_input,
-							tx,
-						)
-						.await;
-
-					NodeResult {
-						result,
-						node_id,
-						node_idx,
+				let result = match node_inst
+					.run(
+						context,
+						ThisNodeInfo {
+							id: node.id.clone(),
+							idx: node_idx,
+							node_type: node.node_type.clone(),
+						},
+						node.node_params.clone(),
+						node_run_input,
+					)
+					.await
+				{
+					Ok(x) => x,
+					Err(error) => {
+						debug!(
+							message = "Node finished with error",
+							node_id = ?node.id,
+							job_id = ?self.job_id,
+							?error
+						);
+						return Err(error);
 					}
-				});
-			}
+				};
 
-			tokio::task::yield_now().await;
+				trace!(
+					message = "Node done, processing output",
+					node_type = ?node.node_type,
+					node_id = ?node.id,
+					job_id = ?self.job_id,
+				);
 
-			//
-			// Process node output
-			//
-			loop {
-				match rx.try_recv() {
-					Err(TryRecvError::Empty) => {
-						break;
+				//
+				// MARK: Process output
+				//
+
+				// Send output to edges
+				let node_id = node.id.clone();
+				let node_type = node.node_type.clone();
+
+				for (from_node, _to_node, edge) in self.graph.iter_edges_mut() {
+					if from_node != node_idx {
+						continue;
 					}
 
-					Err(TryRecvError::Disconnected) => {
-						panic!()
+					if !matches!(edge.data, EdgeDataContainer::Unset) {
+						return Err(RunNodeError::OutputPortSetTwice {
+							node_id,
+							node_type,
+							port: edge.source_port.clone(),
+						});
 					}
 
-					Ok(x) => self.process_node_output(x)?,
+					edge.data = EdgeDataContainer::Some(result.get(&edge.source_port).cloned());
+				}
+
+				//
+				// MARK: finish node
+				//
+
+				// re-borrow again, we needed a &mut graph above
+				let node = self.graph.get_node_mut(node_idx).unwrap();
+
+				assert!(
+					node.state.is_running(),
+					"Expected node to be running. node: {node:?}"
+				);
+
+				node.state = NodeState::Done;
+
+				// Make sure all edges starting at this node got output
+				for (from_node, _to_node, edge) in self.graph.iter_edges_mut() {
+					if from_node != node_idx {
+						continue;
+					}
+
+					if matches!(edge.data, EdgeDataContainer::Unset) {
+						return Err(RunNodeError::UnrecognizedOutput {
+							port: edge.source_port.clone(),
+						});
+					}
 				}
 			}
 
-			tokio::task::yield_now().await;
-
-			//
-			// Process finished tasks
-			//
-			while let Some(res) = tasks.try_join_next() {
-				self.process_finished_node(res)?
-			}
-
-			//
-			// Exit if we have no more tasks to run
-			// (i.e, if there are no pending tasks AND all nodes are done)
-			//
-			if tasks.is_empty()
-				&& all_nodes
-					.iter()
-					.all(|x| self.graph.get_node(*x).unwrap().state.is_done())
-			{
-				break;
-			}
-
 			tokio::time::sleep(std::time::Duration::from_millis(ASYNC_POLL_AWAIT_MS)).await;
-		}
-
-		return match Arc::into_inner(context) {
-			Some(x) => Ok(x.to_result()?),
-			None => unreachable!(),
-		};
-	}
-
-	//
-	// MARK: Process task results
-	//
-	fn process_node_output(
-		&mut self,
-		out: NodeOutput<DataType>,
-	) -> Result<(), RunNodeError<DataType>> {
-		trace!(
-			message = "Processing node output",
-			node_type= ?out.node.node_type,
-			node_id = ?out.node.id,
-			job_id = ?self.job_id,
-		);
-
-		// Send output to edges
-		for (from_node, _to_node, edge) in self.graph.iter_edges_mut() {
-			if from_node != out.node.idx || edge.source_port != out.port {
-				continue;
-			}
-
-			if !matches!(edge.data, EdgeDataContainer::Unset) {
-				return Err(RunNodeError::OutputPortSetTwice {
-					node_id: out.node.id,
-					node_type: out.node.node_type,
-					port: edge.source_port.clone(),
-				});
-			}
-
-			edge.data = EdgeDataContainer::Some(out.data.clone());
-		}
-
-		return Ok(());
-	}
-
-	fn process_finished_node(
-		&mut self,
-		res: Result<NodeResult<DataType>, JoinError>,
-	) -> Result<(), RunNodeError<DataType>> {
-		let res = res?;
-		let node = self.graph.get_node_mut(res.node_idx).unwrap();
-
-		assert!(
-			node.state.is_running(),
-			"Expected node to be running. node: {node:?}"
-		);
-
-		node.state = NodeState::Done;
-
-		if let Err(err) = res.result {
-			debug!(
-				message = "Node run failed",
-				node_id = ?res.node_id,
-				job_id = ?self.job_id,
-				error = format!("{err:?}")
-			);
-			return Err(err);
-		} else {
-			debug!(
-				message = "Node finished without error",
-				node_id = ?res.node_id,
-				job_id = ?self.job_id,
-			);
-		}
-
-		// Make sure all edges starting at this node got output
-		for (from_node, _to_node, edge) in self.graph.iter_edges_mut() {
-			if from_node != res.node_idx {
-				continue;
-			}
-
-			if matches!(edge.data, EdgeDataContainer::Unset) {
-				return Err(RunNodeError::UnrecognizedOutput {
-					port: edge.source_port.clone(),
-				});
-			}
 		}
 
 		return Ok(());

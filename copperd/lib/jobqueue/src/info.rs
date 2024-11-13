@@ -18,7 +18,6 @@ pub enum QueuedJobState {
 	Queued,
 	Running,
 	FailedRunning { message: String },
-	FailedTransaction { message: String },
 	Success,
 }
 

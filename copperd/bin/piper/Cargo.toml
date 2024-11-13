@@ -29,6 +29,7 @@ copper-itemdb = { workspace = true }
 nodes-audiofile = { workspace = true }
 nodes-basic = { workspace = true }
 
+sqlx = { workspace = true }
 thiserror = { workspace = true }
 aws-sdk-s3 = { workspace = true }
 aws-config = { workspace = true }

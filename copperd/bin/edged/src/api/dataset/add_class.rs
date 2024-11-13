@@ -6,11 +6,9 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_itemdb::client::base::{
-	client::ItemdbClient,
-	errors::{class::AddClassError, dataset::GetDatasetError},
-};
+use copper_itemdb::client::errors::{class::AddClassError, dataset::GetDatasetError};
 use serde::{Deserialize, Serialize};
+use sqlx::Acquire;
 use tracing::error;
 use utoipa::ToSchema;
 
@@ -35,9 +33,9 @@ pub(super) struct NewClassRequest {
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn add_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
+pub(super) async fn add_class<Client: DatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, Itemdb>>,
+	State(state): State<RouterState<Client>>,
 	Path(dataset_id): Path<i64>,
 	Json(payload): Json<NewClassRequest>,
 ) -> Response {
@@ -46,7 +44,35 @@ pub(super) async fn add_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		Ok(user) => user,
 	};
 
-	match state.itemdb_client.get_dataset(dataset_id.into()).await {
+	let mut conn = match state.itemdb_client.new_connection().await {
+		Ok(x) => x,
+		Err(error) => {
+			error!(message = "Error in itemdb client", ?error);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
+		}
+	};
+
+	let mut trans = match conn.begin().await {
+		Ok(y) => y,
+		Err(error) => {
+			error!(message = "Error in itemdb client", ?error);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
+		}
+	};
+
+	match state
+		.itemdb_client
+		.get_dataset(&mut trans, dataset_id.into())
+		.await
+	{
 		Ok(x) => {
 			// We can only modify our own datasets
 			if x.owner != user.id {
@@ -70,11 +96,25 @@ pub(super) async fn add_class<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 	let res = state
 		.itemdb_client
-		.add_class(dataset_id.into(), &payload.name)
+		.add_class(&mut trans, dataset_id.into(), &payload.name)
 		.await;
 
 	return match res {
-		Ok(x) => (StatusCode::OK, Json(x)).into_response(),
+		Ok(x) => {
+			match trans.commit().await {
+				Ok(()) => {}
+				Err(error) => {
+					error!(message = "Error while committing transaction", ?error);
+					return (
+						StatusCode::INTERNAL_SERVER_ERROR,
+						Json("Internal server error"),
+					)
+						.into_response();
+				}
+			};
+
+			(StatusCode::OK, Json(x)).into_response()
+		}
 
 		Err(AddClassError::UniqueViolation) => {
 			return (

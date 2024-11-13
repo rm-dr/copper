@@ -8,7 +8,7 @@ use axum_extra::extract::{
 	CookieJar,
 };
 use copper_edged::UserInfo;
-use copper_itemdb::{client::base::client::ItemdbClient, UserId};
+use copper_itemdb::UserId;
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
 use std::marker::PhantomData;
@@ -93,9 +93,9 @@ impl<Client: DatabaseClient> AuthHelper<Client> {
 		}
 	}
 
-	pub async fn try_login<Itemdb: ItemdbClient>(
+	pub async fn try_login(
 		&self,
-		state: &RouterState<Client, Itemdb>,
+		state: &RouterState<Client>,
 		email: &str,
 		password: &str,
 	) -> Result<Option<AuthToken>, LoginError> {
@@ -119,9 +119,9 @@ impl<Client: DatabaseClient> AuthHelper<Client> {
 	/// Look for an authentication cookie in `jar`.
 	/// If it is there, return the logged in user's info.
 	/// If it isn't (or is invalid), return None.
-	pub async fn check_cookies<Itemdb: ItemdbClient>(
+	pub async fn check_cookies(
 		&self,
-		state: &RouterState<Client, Itemdb>,
+		state: &RouterState<Client>,
 		jar: &CookieJar,
 	) -> Result<Option<UserInfo>, GetUserError> {
 		let token = if let Some(h) = jar.get(AUTH_COOKIE_NAME) {
@@ -181,9 +181,9 @@ impl<Client: DatabaseClient> AuthHelper<Client> {
 
 	/// Match a user to an authentication token or log out.
 	/// This is a convenient wrapper around `self.check_cookies`
-	pub async fn auth_or_logout<ItemDb: ItemdbClient>(
+	pub async fn auth_or_logout(
 		&self,
-		state: &RouterState<Client, ItemDb>,
+		state: &RouterState<Client>,
 		jar: &CookieJar,
 	) -> Result<UserInfo, Response> {
 		match self.check_cookies(state, jar).await {

@@ -1,15 +1,19 @@
 use async_trait::async_trait;
-use copper_itemdb::client::base::client::ItemdbClient;
 use copper_piper::{
-	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	base::{Node, NodeBuilder, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
-	CopperContext, JobRunResult,
+	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
-use tokio::sync::mpsc;
 
 pub struct IfNone {}
+
+impl NodeBuilder for IfNone {
+	fn build<'ctx>(&self) -> Box<dyn Node<'ctx>> {
+		Box::new(Self {})
+	}
+}
 
 // Inputs:
 // - "data", <T>
@@ -17,15 +21,14 @@ pub struct IfNone {}
 // Outputs:
 // - "out", <T>
 #[async_trait]
-impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for IfNone {
+impl<'ctx> Node<'ctx> for IfNone {
 	async fn run(
 		&self,
-		_ctx: &CopperContext<Itemdb>,
-		this_node: ThisNodeInfo,
+		_ctx: &CopperContext<'ctx>,
+		_this_node: ThisNodeInfo,
 		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
-		output: mpsc::Sender<NodeOutput<PipeData>>,
-	) -> Result<(), RunNodeError<PipeData>> {
+	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
 		//
 		// Extract parameters
 		//
@@ -71,24 +74,14 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 			return Err(RunNodeError::UnrecognizedInput { port });
 		}
 
+		let mut output = BTreeMap::new();
+
 		if let Some(data) = data {
-			output
-				.send(NodeOutput {
-					node: this_node,
-					port: PortName::new("out"),
-					data: Some(data),
-				})
-				.await?;
-			return Ok(());
+			output.insert(PortName::new("out"), data);
+		} else if let Some(ifnone) = ifnone {
+			output.insert(PortName::new("out"), ifnone);
 		};
 
-		output
-			.send(NodeOutput {
-				node: this_node,
-				port: PortName::new("out"),
-				data: ifnone,
-			})
-			.await?;
-		return Ok(());
+		return Ok(output);
 	}
 }

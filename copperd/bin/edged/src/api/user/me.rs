@@ -7,7 +7,6 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_itemdb::client::base::client::ItemdbClient;
 
 /// Get logged in user info
 #[utoipa::path(
@@ -19,9 +18,9 @@ use copper_itemdb::client::base::client::ItemdbClient;
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn get_me<Client: DatabaseClient, Itemdb: ItemdbClient>(
+pub(super) async fn get_me<Client: DatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, Itemdb>>,
+	State(state): State<RouterState<Client>>,
 ) -> Response {
 	match state.auth.auth_or_logout(&state, &jar).await {
 		Err(response) => response,

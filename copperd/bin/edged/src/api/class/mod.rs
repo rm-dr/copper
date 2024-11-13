@@ -4,7 +4,6 @@ use axum::{
 	routing::{delete, get, patch, post},
 	Router,
 };
-use copper_itemdb::client::base::client::ItemdbClient;
 use utoipa::OpenApi;
 
 mod add_attribute;
@@ -33,8 +32,7 @@ use rename::*;
 )]
 pub(super) struct ClassApi;
 
-pub(super) fn router<Client: DatabaseClient + 'static, Itemdb: ItemdbClient + 'static>(
-) -> Router<RouterState<Client, Itemdb>> {
+pub(super) fn router<Client: DatabaseClient + 'static>() -> Router<RouterState<Client>> {
 	Router::new()
 		.route("/:class_id", get(get_class))
 		.route("/:class_id/items", get(list_items))

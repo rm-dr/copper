@@ -1,26 +1,29 @@
 use async_trait::async_trait;
-use copper_itemdb::client::base::client::ItemdbClient;
 use copper_piper::{
-	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	base::{Node, NodeBuilder, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
-	CopperContext, JobRunResult,
+	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::collections::BTreeMap;
-use tokio::sync::mpsc;
 
 pub struct Constant {}
 
+impl NodeBuilder for Constant {
+	fn build<'ctx>(&self) -> Box<dyn Node<'ctx>> {
+		Box::new(Self {})
+	}
+}
+
 #[async_trait]
-impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for Constant {
+impl<'ctx> Node<'ctx> for Constant {
 	async fn run(
 		&self,
-		_ctx: &CopperContext<Itemdb>,
-		this_node: ThisNodeInfo,
+		_ctx: &CopperContext<'ctx>,
+		_this_node: ThisNodeInfo,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
-		output: mpsc::Sender<NodeOutput<PipeData>>,
-	) -> Result<(), RunNodeError<PipeData>> {
+	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
 		//
 		// Extract parameters
 		//
@@ -60,14 +63,9 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 		//
 		// Return the value we were given
 		//
-		output
-			.send(NodeOutput {
-				node: this_node,
-				port: PortName::new("out"),
-				data: Some(value),
-			})
-			.await?;
 
-		return Ok(());
+		let mut output = BTreeMap::new();
+		output.insert(PortName::new("out"), value);
+		return Ok(output);
 	}
 }

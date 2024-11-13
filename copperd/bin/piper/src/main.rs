@@ -2,11 +2,7 @@ use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::config::Credentials;
 use config::{PiperConfig, ASYNC_POLL_AWAIT_MS};
 use copper_itemdb::{
-	client::{
-		base::{client::ItemdbClient, errors::transaction::ApplyTransactionError},
-		postgres::{PgItemdbClient, PgItemdbOpenError},
-	},
-	transaction::Transaction,
+	client::{ItemdbClient, ItemdbOpenError},
 	AttrData,
 };
 use copper_jobqueue::{
@@ -14,14 +10,18 @@ use copper_jobqueue::{
 		client::JobQueueClient,
 		errors::{BuildErrorJobError, FailJobError, GetQueuedJobError, SuccessJobError},
 	},
+	id::QueuedJobId,
 	postgres::{PgJobQueueClient, PgJobQueueOpenError},
 };
 use copper_piper::{
-	data::{BytesSource, PipeData},
-	CopperContext, JobRunResult,
+	base::RunNodeError,
+	data::PipeData,
+	helpers::{processor::BytesProcessorBuilder, rawbytes::RawBytesSource},
+	CopperContext,
 };
 use copper_util::{load_env, s3client::S3Client, LoadedEnv};
-use pipeline::runner::{DoneJobState, PipelineRunner, StartJobError};
+use pipeline::runner::{PipelineRunner, StartJobError};
+use sqlx::Acquire;
 use std::{collections::BTreeMap, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{error, info, trace};
@@ -127,17 +127,17 @@ async fn main() {
 	trace!(message = "Connecting to itemdb");
 	// Connect to database
 	let itemdb_client = loop {
-		match PgItemdbClient::open(&config.piper_itemdb_addr, false).await {
+		match ItemdbClient::open(&config.piper_itemdb_addr, false).await {
 			Ok(db) => break Arc::new(db),
-			Err(PgItemdbOpenError::Database(e)) => {
+			Err(ItemdbOpenError::Database(e)) => {
 				error!(message = "SQL error while opening item database", err = ?e);
 				std::process::exit(1);
 			}
-			Err(PgItemdbOpenError::Migrate(e)) => {
+			Err(ItemdbOpenError::Migrate(e)) => {
 				error!(message = "Migration error while opening item database", err = ?e);
 				std::process::exit(1);
 			}
-			Err(PgItemdbOpenError::NotMigrated) => {
+			Err(ItemdbOpenError::NotMigrated) => {
 				error!(message = "Database not migrated, waiting");
 				tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 			}
@@ -148,8 +148,7 @@ async fn main() {
 	//
 	// MARK: Prep runner
 	//
-	let mut runner: PipelineRunner<JobRunResult, PipeData, CopperContext<PgItemdbClient>> =
-		PipelineRunner::new();
+	let mut runner: PipelineRunner = PipelineRunner::new();
 
 	{
 		// Base nodes
@@ -184,202 +183,148 @@ async fn main() {
 	}
 
 	loop {
-		match runner.check_done_jobs().await {
-			Ok(None) => {}
-
-			Ok(Some(DoneJobState::Success { job_id, result })) => {
-				info!(
-					message = "Job finished successfully, processing transaction",
-					job_id = ?job_id
-				);
-
-				match itemdb_client.apply_transaction(result.transaction).await {
-					Ok(()) => {
-						info!(
-							message = "Transaction processed successfully",
-							job_id = ?job_id
-						);
-
-						match jobqueue_client.success_job(&job_id).await {
-							Ok(()) => {}
-
-							Err(SuccessJobError::DbError(error)) => {
-								error!(
-									message = "DB error while marking job `Success`",
-									?job_id,
-									?error
-								);
-							}
-
-							Err(SuccessJobError::NotRunning) => {
-								error!(
-									message = "Tried to mark a job that isn't running as `Success`",
-									?job_id
-								);
-							}
-						};
-					}
-
-					Err(err) => {
-						match &err {
-							ApplyTransactionError::DbError(error) => {
-								error!(
-									message = "DB error while processing transaction",
-									?job_id,
-									?error
-								);
-							}
-
-							ApplyTransactionError::AddItemError(error) => {
-								info!(
-									message = "Failed applying pipeline transaction",
-									?job_id,
-									?error
-								)
-							}
-
-							error => {
-								info!(
-									message = "Failed applying pipeline transaction",
-									?job_id,
-									?error
-								)
-							}
-						};
-
-						match jobqueue_client
-							.fail_job_transaction(&job_id, &format!("{}", err))
-							.await
-						{
-							Ok(()) => {}
-
-							Err(FailJobError::DbError(error)) => {
-								error!(
-									message = "DB error while marking job `Failed`",
-									?job_id,
-									?error
-								);
-							}
-
-							Err(FailJobError::NotRunning) => {
-								error!(
-									message = "Tried to mark a job that isn't running as `Failed`",
-									?job_id
-								);
-							}
-						};
-					}
-				};
+		// Run the oldest job off the queue
+		let job = match jobqueue_client.get_queued_job().await {
+			Ok(x) => x,
+			Err(GetQueuedJobError::DbError(error)) => {
+				error!(message = "DB error while getting job", ?error);
+				tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+				continue;
 			}
+		};
 
-			Ok(Some(DoneJobState::Failed { job_id, error })) => {
-				info!(message = "Job failed", ?job_id, ?error);
+		let job = if let Some(job) = job {
+			job
+		} else {
+			// No job ready, wait a bit...
+			tokio::time::sleep(std::time::Duration::from_millis(ASYNC_POLL_AWAIT_MS)).await;
+			continue;
+		};
 
-				match jobqueue_client
-					.fail_job_run(&job_id, &format!("{}", error))
-					.await
-				{
-					Ok(()) => {}
-
-					Err(FailJobError::DbError(error)) => {
-						error!(
-							message = "DB error while marking job `Failed`",
-							?job_id,
-							?error
-						);
-					}
-
-					Err(FailJobError::NotRunning) => {
-						error!(
-							message = "Tried to mark a job that isn't running as `Failed`",
-							?job_id
-						);
-					}
-				}
-			}
-
-			Err(error) => {
-				error!(message = "Join error!", ?error);
-				panic!("Join error! {error:?}");
-			}
-		}
-
-		if runner.n_running_jobs() < config.piper_max_running_jobs {
-			// Run the oldest job off the queue
-			let next = match jobqueue_client.get_queued_job().await {
-				Ok(x) => x,
-				Err(GetQueuedJobError::DbError(error)) => {
-					error!(message = "DB error while getting job", ?error);
-					tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-					continue;
-				}
-			};
-
-			if let Some(job) = next {
-				let mut input = BTreeMap::new();
-				for (name, value) in job.input {
-					match value {
-						AttrData::Blob { bucket, key } => input.insert(
-							name,
-							PipeData::Blob {
-								source: BytesSource::S3 { bucket, key },
-							},
-						),
-
-						// This should never fail, we handle all special cases above
-						_ => input.insert(name, PipeData::try_from(value).unwrap()),
-					};
-				}
-
-				let res = runner.start_job(
-					CopperContext {
-						blob_fragment_size: config.piper_blob_fragment_size,
-						stream_channel_capacity: config.piper_stream_channel_size,
-						job_id: job.job_id.as_str().into(),
-						run_by_user: job.owned_by,
-						itemdb_client: itemdb_client.clone(),
-						objectstore_blob_bucket: config
-							.piper_objectstore_storage_bucket
-							.as_str()
-							.into(),
-						objectstore_client: client.clone(),
-						transaction: Mutex::new(Transaction::new()),
+		// Prepare input
+		let mut input = BTreeMap::new();
+		for (name, value) in job.input {
+			match value {
+				AttrData::Blob { bucket, key } => input.insert(
+					name,
+					PipeData::Blob {
+						source: BytesProcessorBuilder::new(RawBytesSource::S3 { bucket, key }),
 					},
-					job.pipeline,
-					&job.job_id,
-					input,
-				);
+				),
 
-				match res {
-					Ok(()) => {}
-					Err(StartJobError::BuildError(err)) => {
-						match jobqueue_client
-							.builderror_job(&job.job_id, &format!("{:?}", err))
-							.await
-						{
-							Ok(()) => {}
+				// This should never fail, we handle all special cases above
+				_ => input.insert(name, PipeData::try_from(value).unwrap()),
+			};
+		}
 
-							Err(BuildErrorJobError::DbError(error)) => {
-								error!(
-									message = "DB error while marking job `BuildError`",
-									job_id = ?job.job_id,
-									?error
-								);
-							}
+		// Set up context
+		let mut conn = itemdb_client.new_connection().await.unwrap();
+		let trans = conn.begin().await.unwrap();
+		let context = CopperContext {
+			stream_fragment_size: config.piper_stream_fragment_size,
+			stream_channel_size: config.piper_stream_channel_size,
+			job_id: job.job_id.as_str().into(),
+			run_by_user: job.owned_by,
+			itemdb_client: itemdb_client.clone(),
+			objectstore_blob_bucket: config.piper_objectstore_storage_bucket.as_str().into(),
+			objectstore_client: client.clone(),
+			item_db_transaction: Mutex::new(trans),
+		};
 
-							Err(BuildErrorJobError::NotRunning) => {
-								error!(
-									message = "Tried to mark a job that isn't running as `BuildError`",
-									job_id = ?job.job_id
-								);
-							}
-						}
-					}
+		// Run job
+		let res = runner
+			.run_job(context, job.pipeline, &job.job_id, input)
+			.await;
+
+		match res {
+			Err(err) => handle_start_job_error(err, &job.job_id, &jobqueue_client).await,
+			Ok(Err(error)) => handle_run_job_error(error, &job.job_id, &jobqueue_client).await,
+			Ok(Ok(())) => handle_run_job_success(&job.job_id, &jobqueue_client).await,
+		}
+	}
+}
+
+async fn handle_start_job_error(
+	err: StartJobError,
+	job_id: &QueuedJobId,
+	jobqueue_client: &PgJobQueueClient,
+) {
+	match err {
+		StartJobError::BuildError(err) => {
+			match jobqueue_client
+				.builderror_job(job_id, &format!("{:?}", err))
+				.await
+			{
+				Ok(()) => {}
+
+				Err(BuildErrorJobError::DbError(error)) => {
+					error!(
+						message = "DB error while marking job `BuildError`",
+						?job_id,
+						?error
+					);
+				}
+
+				Err(BuildErrorJobError::NotRunning) => {
+					error!(
+						message = "Tried to mark a job that isn't running as `BuildError`",
+						?job_id
+					);
 				}
 			}
 		}
+	}
+}
 
-		// Sleep a little bit so we don't waste cpu cycles.
-		tokio::time::sleep(std::time::Duration::from_millis(ASYNC_POLL_AWAIT_MS)).await;
+async fn handle_run_job_error(
+	error: RunNodeError,
+	job_id: &QueuedJobId,
+	jobqueue_client: &PgJobQueueClient,
+) {
+	info!(message = "Job failed", ?job_id, ?error);
+
+	match jobqueue_client
+		.fail_job_run(job_id, &format!("{}", error))
+		.await
+	{
+		Ok(()) => {}
+
+		Err(FailJobError::DbError(error)) => {
+			error!(
+				message = "DB error while marking job `Failed`",
+				?job_id,
+				?error
+			);
+		}
+
+		Err(FailJobError::NotRunning) => {
+			error!(
+				message = "Tried to mark a job that isn't running as `Failed`",
+				?job_id
+			);
+		}
+	}
+}
+
+async fn handle_run_job_success(job_id: &QueuedJobId, jobqueue_client: &PgJobQueueClient) {
+	info!(message = "Job finished successfully", ?job_id);
+
+	match jobqueue_client.success_job(job_id).await {
+		Ok(()) => {}
+
+		Err(SuccessJobError::DbError(error)) => {
+			error!(
+				message = "DB error while marking job `Failed`",
+				?job_id,
+				?error
+			);
+		}
+
+		Err(SuccessJobError::NotRunning) => {
+			error!(
+				message = "Tried to mark a job that isn't running as `Failed`",
+				?job_id
+			);
+		}
 	}
 }

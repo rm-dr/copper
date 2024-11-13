@@ -6,10 +6,8 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_itemdb::client::base::{
-	client::ItemdbClient,
-	errors::dataset::{DeleteDatasetError, GetDatasetError},
-};
+use copper_itemdb::client::errors::dataset::{DeleteDatasetError, GetDatasetError};
+use sqlx::Acquire;
 use tracing::error;
 
 use crate::api::RouterState;
@@ -26,9 +24,9 @@ use crate::api::RouterState;
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn del_dataset<Client: DatabaseClient, Itemdb: ItemdbClient>(
+pub(super) async fn del_dataset<Client: DatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, Itemdb>>,
+	State(state): State<RouterState<Client>>,
 	Path(dataset_id): Path<i64>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {
@@ -36,7 +34,35 @@ pub(super) async fn del_dataset<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		Ok(user) => user,
 	};
 
-	match state.itemdb_client.get_dataset(dataset_id.into()).await {
+	let mut conn = match state.itemdb_client.new_connection().await {
+		Ok(x) => x,
+		Err(error) => {
+			error!(message = "Error in itemdb client", ?error);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
+		}
+	};
+
+	let mut trans = match conn.begin().await {
+		Ok(y) => y,
+		Err(error) => {
+			error!(message = "Error in itemdb client", ?error);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
+		}
+	};
+
+	match state
+		.itemdb_client
+		.get_dataset(&mut trans, dataset_id.into())
+		.await
+	{
 		Ok(x) => {
 			// We can only modify our own datasets
 			if x.owner != user.id {
@@ -58,10 +84,23 @@ pub(super) async fn del_dataset<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		}
 	};
 
-	let res = state.itemdb_client.del_dataset(dataset_id.into()).await;
+	let res = state
+		.itemdb_client
+		.del_dataset(&mut trans, dataset_id.into())
+		.await;
 
 	return match res {
-		Ok(()) => StatusCode::OK.into_response(),
+		Ok(()) => match trans.commit().await {
+			Ok(()) => StatusCode::OK.into_response(),
+			Err(error) => {
+				error!(message = "Error while committing transaction", ?error);
+				return (
+					StatusCode::INTERNAL_SERVER_ERROR,
+					Json("Internal server error"),
+				)
+					.into_response();
+			}
+		},
 
 		Err(DeleteDatasetError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);

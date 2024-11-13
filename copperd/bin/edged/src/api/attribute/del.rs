@@ -6,14 +6,12 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_itemdb::client::base::{
-	client::ItemdbClient,
-	errors::{
-		attribute::{DeleteAttributeError, GetAttributeError},
-		class::GetClassError,
-		dataset::GetDatasetError,
-	},
+use copper_itemdb::client::errors::{
+	attribute::{DeleteAttributeError, GetAttributeError},
+	class::GetClassError,
+	dataset::GetDatasetError,
 };
+use sqlx::Acquire;
 use tracing::error;
 
 use crate::api::RouterState;
@@ -30,9 +28,9 @@ use crate::api::RouterState;
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn del_attribute<Client: DatabaseClient, Itemdb: ItemdbClient>(
+pub(super) async fn del_attribute<Client: DatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, Itemdb>>,
+	State(state): State<RouterState<Client>>,
 	Path(attribute_id): Path<i64>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {
@@ -40,7 +38,35 @@ pub(super) async fn del_attribute<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		Ok(user) => user,
 	};
 
-	let attr = match state.itemdb_client.get_attribute(attribute_id.into()).await {
+	let mut conn = match state.itemdb_client.new_connection().await {
+		Ok(x) => x,
+		Err(error) => {
+			error!(message = "Error in itemdb client", ?error);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
+		}
+	};
+
+	let mut trans = match conn.begin().await {
+		Ok(y) => y,
+		Err(error) => {
+			error!(message = "Error in itemdb client", ?error);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
+		}
+	};
+
+	let attr = match state
+		.itemdb_client
+		.get_attribute(&mut trans, attribute_id.into())
+		.await
+	{
 		Ok(x) => x,
 
 		Err(GetAttributeError::NotFound) => {
@@ -57,7 +83,7 @@ pub(super) async fn del_attribute<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		}
 	};
 
-	let class = match state.itemdb_client.get_class(attr.class).await {
+	let class = match state.itemdb_client.get_class(&mut trans, attr.class).await {
 		Ok(x) => x,
 
 		// In theory unreachable, but possible with unlucky timing
@@ -75,7 +101,11 @@ pub(super) async fn del_attribute<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		}
 	};
 
-	match state.itemdb_client.get_dataset(class.dataset).await {
+	match state
+		.itemdb_client
+		.get_dataset(&mut trans, class.dataset)
+		.await
+	{
 		Ok(x) => {
 			// We can only modify our own datasets
 			if x.owner != user.id {
@@ -98,10 +128,23 @@ pub(super) async fn del_attribute<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		}
 	};
 
-	let res = state.itemdb_client.del_attribute(attribute_id.into()).await;
+	let res = state
+		.itemdb_client
+		.del_attribute(&mut trans, attribute_id.into())
+		.await;
 
 	return match res {
-		Ok(()) => StatusCode::OK.into_response(),
+		Ok(()) => match trans.commit().await {
+			Ok(()) => StatusCode::OK.into_response(),
+			Err(error) => {
+				error!(message = "Error while committing transaction", ?error);
+				return (
+					StatusCode::INTERNAL_SERVER_ERROR,
+					Json("Internal server error"),
+				)
+					.into_response();
+			}
+		},
 
 		Err(DeleteAttributeError::DbError(error)) => {
 			error!(message = "Error in itemdb client", ?error);

@@ -1,12 +1,13 @@
 use copper_jobqueue::id::QueuedJobId;
 use copper_piper::{
-	base::{NodeDispatcher, PipelineData, PipelineJobContext, PipelineJobResult, RunNodeError},
+	base::{NodeDispatcher, RunNodeError},
+	data::PipeData,
 	json::PipelineJson,
+	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 use thiserror::Error;
-use tokio::task::{JoinError, JoinSet};
 use tracing::debug;
 
 use super::job::PipelineBuildError;
@@ -23,119 +24,50 @@ pub enum StartJobError {
 }
 
 //
-// MARK: helpers
-//
-
-pub enum DoneJobState<ResultType: PipelineJobResult, DataType: PipelineData> {
-	Failed {
-		job_id: QueuedJobId,
-		error: RunNodeError<DataType>,
-	},
-	Success {
-		job_id: QueuedJobId,
-		result: ResultType,
-	},
-}
-
-//
 // MARK: Runner
 //
 
-pub struct PipelineRunner<
-	ResultType: PipelineJobResult,
-	DataType: PipelineData,
-	ContextType: PipelineJobContext<DataType, ResultType>,
-> {
-	dispatcher: NodeDispatcher<ResultType, DataType, ContextType>,
-
-	/// Jobs that are running right now
-	#[allow(clippy::type_complexity)]
-	tasks: JoinSet<(QueuedJobId, Result<ResultType, RunNodeError<DataType>>)>,
+pub struct PipelineRunner {
+	dispatcher: NodeDispatcher,
 }
 
-impl<
-		ResultType: PipelineJobResult,
-		DataType: PipelineData,
-		ContextType: PipelineJobContext<DataType, ResultType>,
-	> PipelineRunner<ResultType, DataType, ContextType>
-{
+impl PipelineRunner {
 	/// Initialize a new runner
 	pub fn new() -> Self {
 		Self {
 			dispatcher: NodeDispatcher::new(),
-			tasks: JoinSet::new(),
 		}
 	}
 
 	/// Start a job in this runner
-	pub fn start_job(
+	pub async fn run_job(
 		&mut self,
-		context: ContextType,
+		context: CopperContext<'_>,
 		pipeline: PipelineJson,
 		job_id: &QueuedJobId,
-		inputs: BTreeMap<SmartString<LazyCompact>, DataType>,
-	) -> Result<(), StartJobError> {
-		debug!(
-			message = "Starting job",
-			?job_id,
-			running_jobs = self.tasks.len(),
-		);
+		inputs: BTreeMap<SmartString<LazyCompact>, PipeData>,
+	) -> Result<Result<(), RunNodeError>, StartJobError> {
+		debug!(message = "Starting job", ?job_id,);
 
-		let job = PipelineJob::<ResultType, DataType, ContextType>::new(
-			&self.dispatcher,
-			job_id.as_str(),
-			inputs.clone(),
-			&pipeline,
-		)?;
+		let job = PipelineJob::new(&self.dispatcher, job_id.as_str(), inputs.clone(), &pipeline)?;
+		let x = job.run(&context).await;
 
-		let job_id_cloned = job_id.clone();
-		self.tasks.spawn(async {
-			// TODO: handle error
-			let x = job.run(context).await;
-			(job_id_cloned, x)
-		});
-
-		return Ok(());
-	}
-
-	/// If any job is done, return its state.
-	/// otherwise, return [`None`].
-	pub async fn check_done_jobs(
-		&mut self,
-	) -> Result<Option<DoneJobState<ResultType, DataType>>, JoinError> {
-		if let Some(res) = self.tasks.try_join_next() {
-			let res = res?;
-
-			if let Err(error) = res.1 {
-				return Ok(Some(DoneJobState::Failed {
-					job_id: res.0.clone(),
-					error,
-				}));
-			} else {
-				return Ok(Some(DoneJobState::Success {
-					job_id: res.0.clone(),
-					result: res.1.unwrap(),
-				}));
+		if x.is_ok() {
+			// Commit only if job ran successfully
+			let trans = context.item_db_transaction.into_inner();
+			match trans.commit().await {
+				Ok(()) => {}
+				Err(e) => return Ok(Err(Arc::new(e).into())),
 			}
 		}
 
-		return Ok(None);
+		return Ok(x);
 	}
 }
 
-impl<
-		ResultType: PipelineJobResult,
-		DataType: PipelineData,
-		ContextType: PipelineJobContext<DataType, ResultType>,
-	> PipelineRunner<ResultType, DataType, ContextType>
-{
+impl PipelineRunner {
 	/// Get this runner's node dispatcher
-	pub fn mut_dispatcher(&mut self) -> &mut NodeDispatcher<ResultType, DataType, ContextType> {
+	pub fn mut_dispatcher(&mut self) -> &mut NodeDispatcher {
 		&mut self.dispatcher
-	}
-
-	/// Return the number of jobs that are currently running
-	pub fn n_running_jobs(&self) -> usize {
-		self.tasks.len()
 	}
 }

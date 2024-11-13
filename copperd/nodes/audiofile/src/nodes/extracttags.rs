@@ -3,33 +3,35 @@ use crate::{
 	flac::blockread::{FlacBlock, FlacBlockReader, FlacBlockSelector},
 };
 use async_trait::async_trait;
-use copper_itemdb::client::base::client::ItemdbClient;
 use copper_piper::{
-	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	base::{Node, NodeBuilder, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
-	helpers::BytesSourceReader,
-	CopperContext, JobRunResult,
+	CopperContext,
 };
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::mpsc;
 use tracing::{debug, trace};
 
 /// Extract tags from audio metadata
 pub struct ExtractTags {}
 
+impl NodeBuilder for ExtractTags {
+	fn build<'ctx>(&self) -> Box<dyn Node<'ctx>> {
+		Box::new(Self {})
+	}
+}
+
 // Inputs: "data" - Bytes
 // Outputs: variable, depends on tags
 #[async_trait]
-impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for ExtractTags {
+impl<'ctx> Node<'ctx> for ExtractTags {
 	async fn run(
 		&self,
-		ctx: &CopperContext<Itemdb>,
+		ctx: &CopperContext<'ctx>,
 		this_node: ThisNodeInfo,
 		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
-		output: mpsc::Sender<NodeOutput<PipeData>>,
-	) -> Result<(), RunNodeError<PipeData>> {
+	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
 		//
 		// Extract parameters
 		//
@@ -93,7 +95,7 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 				})
 			}
 
-			Some(PipeData::Blob { source, .. }) => BytesSourceReader::open(ctx, source).await?,
+			Some(PipeData::Blob { source, .. }) => source.build(ctx).await?,
 
 			_ => {
 				return Err(RunNodeError::BadInputType {
@@ -115,7 +117,7 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 			..Default::default()
 		});
 
-		while let Some(data) = reader.next_fragment(ctx.blob_fragment_size).await? {
+		while let Some(data) = reader.next_fragment().await? {
 			block_reader
 				.push_data(&data)
 				.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
@@ -128,6 +130,9 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 		//
 		// Return tags
 		//
+
+		let mut output = BTreeMap::new();
+
 		while block_reader.has_block() {
 			let b = block_reader.pop_block().unwrap();
 			match b {
@@ -136,23 +141,15 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 						if let Some((_, tag_value)) =
 							comment.comment.comments.iter().find(|(t, _)| t == tag_type)
 						{
-							output
-								.send(NodeOutput {
-									node: this_node.clone(),
-									port: port.clone(),
-									data: Some(PipeData::Text {
-										value: tag_value.clone(),
-									}),
-								})
-								.await?;
-						} else {
-							output
-								.send(NodeOutput {
-									node: this_node.clone(),
-									port: port.clone(),
-									data: None,
-								})
-								.await?;
+							let x = output.insert(
+								port.clone(),
+								PipeData::Text {
+									value: tag_value.clone(),
+								},
+							);
+
+							// Each insertion should be new
+							assert!(x.is_none());
 						}
 					}
 				}
@@ -165,6 +162,6 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 			assert!(!block_reader.has_block());
 		}
 
-		return Ok(());
+		return Ok(output);
 	}
 }
