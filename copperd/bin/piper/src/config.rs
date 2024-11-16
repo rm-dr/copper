@@ -44,6 +44,10 @@ pub struct PiperConfig {
 	/// Stream channels hold stream fragments, which contain at most `stream_fragment_size` bytes.
 	#[serde(default = "PiperConfig::default_chan_size")]
 	pub piper_stream_channel_size: usize,
+
+	/// The number of pipeline jobs to run in parallel
+	#[serde(default = "PiperConfig::default_parallel_jobs")]
+	pub piper_parallel_jobs: usize,
 }
 
 impl PiperConfig {
@@ -53,5 +57,11 @@ impl PiperConfig {
 
 	fn default_chan_size() -> usize {
 		10
+	}
+
+	fn default_parallel_jobs() -> usize {
+		std::thread::available_parallelism()
+			.map(|x| x.into())
+			.unwrap_or(4)
 	}
 }

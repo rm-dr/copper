@@ -39,7 +39,8 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client: Arc<S3Client>) -> Router 
 
 	trace!(message = "Connecting to itemdb");
 	// Connect to database
-	let itemdb_client = match ItemdbClient::open(&config.edged_itemdb_addr, true).await {
+	// TODO: configure max connections
+	let itemdb_client = match ItemdbClient::open(32, &config.edged_itemdb_addr, true).await {
 		Ok(db) => Arc::new(db),
 		Err(ItemdbOpenError::Database(e)) => {
 			error!(message = "SQL error while opening item database", err = ?e);

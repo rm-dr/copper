@@ -11,6 +11,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub struct CopperContext<'a> {
+	/// The index of the runner running this job
+	pub runner_idx: usize,
+
 	/// The fragment size, in bytes, in which we should read large blobs.
 	///
 	/// A larger value uses more memory, but increases performance

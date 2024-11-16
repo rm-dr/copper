@@ -5,7 +5,7 @@ use sqlx::{
 	pool::PoolConnection, postgres::PgPoolOptions, Connection, PgConnection, PgPool, Postgres,
 };
 use thiserror::Error;
-use tracing::info;
+use tracing::{info, trace};
 
 use crate::client::migrate;
 
@@ -39,7 +39,11 @@ pub struct ItemdbClient {
 
 impl ItemdbClient {
 	/// Create a new [`LocalDataset`].
-	pub async fn open(db_addr: &str, migrate: bool) -> Result<Self, ItemdbOpenError> {
+	pub async fn open(
+		max_connections: u32,
+		db_addr: &str,
+		migrate: bool,
+	) -> Result<Self, ItemdbOpenError> {
 		info!(message = "Opening dataset", ds_type = "postgres", ?db_addr);
 
 		// Apply migrations
@@ -56,8 +60,7 @@ impl ItemdbClient {
 		drop(conn);
 
 		let pool = PgPoolOptions::new()
-			// TODO: configure
-			.max_connections(5)
+			.max_connections(max_connections)
 			.connect(db_addr)
 			.await?;
 
@@ -65,6 +68,15 @@ impl ItemdbClient {
 	}
 
 	pub async fn new_connection(&self) -> Result<PoolConnection<Postgres>, sqlx::Error> {
+		let size = self.pool.size();
+		let idle_connections = self.pool.num_idle();
+		let active_connections = size - u32::try_from(idle_connections).unwrap();
+		trace!(
+			message = "Trying to open itemdb connection",
+			idle_connections,
+			active_connections
+		);
+
 		let conn = self.pool.acquire().await?;
 		return Ok(conn);
 	}

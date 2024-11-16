@@ -23,7 +23,7 @@ use copper_util::{load_env, s3client::S3Client, LoadedEnv};
 use pipeline::runner::{PipelineRunner, StartJobError};
 use sqlx::Acquire;
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::Mutex;
+use tokio::{sync::Mutex, task::JoinSet};
 use tracing::{error, info, trace};
 
 mod config;
@@ -81,10 +81,10 @@ async fn main() {
 		.force_path_style(true)
 		.build();
 
-	let client = Arc::new(S3Client::new(aws_sdk_s3::Client::from_conf(s3_config)).await);
+	let s3client = Arc::new(S3Client::new(aws_sdk_s3::Client::from_conf(s3_config)).await);
 
 	// Create blobstore bucket if it doesn't exist
-	match client
+	match s3client
 		.create_bucket(&config.piper_objectstore_storage_bucket)
 		.await
 	{
@@ -127,7 +127,20 @@ async fn main() {
 	trace!(message = "Connecting to itemdb");
 	// Connect to database
 	let itemdb_client = loop {
-		match ItemdbClient::open(&config.piper_itemdb_addr, false).await {
+		match ItemdbClient::open(
+			// We need at least one connection per job.
+			// If we use any fewer, requests to acquire new connections will time out!
+			// ...and add 4 extra connections, just to be safe.
+			//
+			// If piper exits with a "connection timed out" error, we need to raise this limit.
+			// Be careful with this, though---understand *why* you need so many connections!
+			// We really shouldn't need more than one per job.
+			u32::try_from(config.piper_parallel_jobs).unwrap() + 4,
+			&config.piper_itemdb_addr,
+			false,
+		)
+		.await
+		{
 			Ok(db) => break Arc::new(db),
 			Err(ItemdbOpenError::Database(e)) => {
 				error!(message = "SQL error while opening item database", err = ?e);
@@ -145,9 +158,51 @@ async fn main() {
 	};
 	trace!(message = "Successfully connected to itemdb");
 
-	//
-	// MARK: Prep runner
-	//
+	let mut tasks = JoinSet::new();
+	(0..config.piper_parallel_jobs).for_each(|runner_idx| {
+		let c = config.clone();
+		let i = itemdb_client.clone();
+		let j = jobqueue_client.clone();
+		let s = s3client.clone();
+		tasks.spawn(async move { one_runner(runner_idx, &c, i, j, s).await });
+	});
+
+	while let Some(res) = tasks.join_next().await {
+		match res {
+			Ok(Ok(runner_idx)) => {
+				info!(message = "Runner finished successfully", runner_idx);
+			}
+
+			Ok(Err((runner_idx, error))) => {
+				error!(
+					message = "Runner finished with error, aborting all",
+					runner_idx,
+					?error
+				);
+				tasks.abort_all();
+			}
+
+			Err(error) => {
+				if error.is_cancelled() {
+					info!(message = "Runner cancelled")
+				} else if error.is_panic() {
+					error!(message = "Runner panicked", ?error)
+				} else {
+					error!(message = "Error while joining runner", ?error)
+				}
+			}
+		}
+	}
+}
+
+/// Starts a `loop` that runs one pipeline job at a time.
+async fn one_runner(
+	runner_idx: usize,
+	config: &PiperConfig,
+	itemdb_client: Arc<ItemdbClient>,
+	jobqueue_client: Arc<PgJobQueueClient>,
+	s3client: Arc<S3Client>,
+) -> Result<usize, (usize, sqlx::Error)> {
 	let mut runner: PipelineRunner = PipelineRunner::new();
 
 	{
@@ -218,16 +273,21 @@ async fn main() {
 		}
 
 		// Set up context
-		let mut conn = itemdb_client.new_connection().await.unwrap();
-		let trans = conn.begin().await.unwrap();
+		let mut conn = itemdb_client
+			.new_connection()
+			.await
+			.map_err(|e| (runner_idx, e))?;
+		let trans = conn.begin().await.map_err(|e| (runner_idx, e))?;
+
 		let context = CopperContext {
+			runner_idx,
 			stream_fragment_size: config.piper_stream_fragment_size,
 			stream_channel_size: config.piper_stream_channel_size,
 			job_id: job.job_id.as_str().into(),
 			run_by_user: job.owned_by,
 			itemdb_client: itemdb_client.clone(),
 			objectstore_blob_bucket: config.piper_objectstore_storage_bucket.as_str().into(),
-			objectstore_client: client.clone(),
+			objectstore_client: s3client.clone(),
 			item_db_transaction: Mutex::new(trans),
 		};
 
