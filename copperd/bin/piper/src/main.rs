@@ -127,7 +127,20 @@ async fn main() {
 	trace!(message = "Connecting to itemdb");
 	// Connect to database
 	let itemdb_client = loop {
-		match ItemdbClient::open(&config.piper_itemdb_addr, false).await {
+		match ItemdbClient::open(
+			// We need at least one connection per job.
+			// If we use any fewer, requests to acquire new connections will time out!
+			// ...and add 4 extra connections, just to be safe.
+			//
+			// If piper exits with a "connection timed out" error, we need to raise this limit.
+			// Be careful with this, though---understand *why* you need so many connections!
+			// We really shouldn't need more than one per job.
+			u32::try_from(config.piper_parallel_jobs).unwrap() + 4,
+			&config.piper_itemdb_addr,
+			false,
+		)
+		.await
+		{
 			Ok(db) => break Arc::new(db),
 			Err(ItemdbOpenError::Database(e)) => {
 				error!(message = "SQL error while opening item database", err = ?e);

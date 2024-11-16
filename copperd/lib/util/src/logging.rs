@@ -51,6 +51,7 @@ impl LoggingPreset {
 				other: LogLevel::Warn,
 				http: LogLevel::Warn,
 				s3: LogLevel::Warn,
+				sqlx: LogLevel::Error,
 
 				piper: LogLevel::Info,
 				runner: LogLevel::Info,
@@ -64,6 +65,7 @@ impl LoggingPreset {
 				other: LogLevel::Warn,
 				http: LogLevel::Warn,
 				s3: LogLevel::Warn,
+				sqlx: LogLevel::Error,
 
 				piper: LogLevel::Debug,
 				runner: LogLevel::Debug,
@@ -77,6 +79,7 @@ impl LoggingPreset {
 				other: LogLevel::Debug,
 				http: LogLevel::Warn,
 				s3: LogLevel::Warn,
+				sqlx: LogLevel::Warn,
 
 				piper: LogLevel::Trace,
 				runner: LogLevel::Trace,
@@ -90,6 +93,7 @@ impl LoggingPreset {
 				other: LogLevel::Trace,
 				http: LogLevel::Warn,
 				s3: LogLevel::Warn,
+				sqlx: LogLevel::Warn,
 
 				piper: LogLevel::Trace,
 				runner: LogLevel::Trace,
@@ -106,6 +110,7 @@ pub struct LoggingConfig {
 	other: LogLevel,
 	http: LogLevel,
 	s3: LogLevel,
+	sqlx: LogLevel,
 
 	piper: LogLevel,
 	runner: LogLevel,
@@ -122,7 +127,6 @@ impl From<LoggingConfig> for EnvFilter {
 				//
 				// Non-configurable sources
 				//
-				format!("sqlx={}", LogLevel::Warn),
 				format!("aws_sdk_s3={}", LogLevel::Warn),
 				format!("aws_smithy_runtime={}", LogLevel::Warn),
 				format!("aws_smithy_runtime_api={}", LogLevel::Warn),
@@ -133,6 +137,7 @@ impl From<LoggingConfig> for EnvFilter {
 				//
 				format!("tower_http={}", conf.http),
 				format!("s3={}", conf.s3),
+				format!("sqlx={}", conf.sqlx),
 				// // Piper
 				format!("piper::pipeline::runner={}", conf.runner),
 				format!("piper::pipeline::job={}", conf.job),
