@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use super::{Node, NodeParameterSpec};
 
-pub trait NodeBuilder {
+pub trait NodeBuilder: Send + Sync {
 	fn build<'ctx>(&self) -> Box<dyn Node<'ctx>>;
 }
 

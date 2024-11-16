@@ -47,7 +47,11 @@ impl PipelineRunner {
 		job_id: &QueuedJobId,
 		inputs: BTreeMap<SmartString<LazyCompact>, PipeData>,
 	) -> Result<Result<(), RunNodeError>, StartJobError> {
-		debug!(message = "Starting job", ?job_id,);
+		debug!(
+			message = "Starting job",
+			?job_id,
+			runner_idx = context.runner_idx
+		);
 
 		let job = PipelineJob::new(&self.dispatcher, job_id.as_str(), inputs.clone(), &pipeline)?;
 		let x = job.run(&context).await;

@@ -342,6 +342,7 @@ impl<'ctx> PipelineJob<'ctx> {
 	pub async fn run(mut self, context: &CopperContext<'ctx>) -> Result<(), RunNodeError> {
 		trace!(
 			message = "Running job",
+			runner_idx = context.runner_idx,
 			job_id = ?self.job_id,
 			graph = ?self.graph
 		);
@@ -409,6 +410,7 @@ impl<'ctx> PipelineJob<'ctx> {
 
 				debug!(
 					message = "Starting node",
+					runner_idx = context.runner_idx,
 					node_type = ?node.node_type,
 					node_id = ?node.id,
 					job_id = ?self.job_id,
@@ -435,6 +437,7 @@ impl<'ctx> PipelineJob<'ctx> {
 					Err(error) => {
 						debug!(
 							message = "Node finished with error",
+							runner_idx = context.runner_idx,
 							node_id = ?node.id,
 							job_id = ?self.job_id,
 							?error
@@ -445,6 +448,7 @@ impl<'ctx> PipelineJob<'ctx> {
 
 				trace!(
 					message = "Node done, processing output",
+					runner_idx = context.runner_idx,
 					node_type = ?node.node_type,
 					node_id = ?node.id,
 					job_id = ?self.job_id,
