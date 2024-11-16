@@ -11,17 +11,21 @@ use axum::{
 use axum_extra::extract::CookieJar;
 use copper_itemdb::{
 	client::errors::{
-		class::GetClassError,
+		class::{ClassPrimaryAttributeError, GetClassError},
 		dataset::GetDatasetError,
-		item::{CountItemsError, ListItemsError},
+		item::{CountItemsError, GetItemError, ListItemsError},
 	},
 	AttrData, AttributeId, ClassId, ItemId,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use sqlx::Acquire;
+use sqlx::{Acquire, Transaction};
 use tracing::error;
 use utoipa::{IntoParams, ToSchema};
+
+//
+// MARK: itemattrdata
+//
 
 /// Attribute data returned to the user
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -58,6 +62,8 @@ pub(super) enum ItemAttrData {
 
 		#[schema(value_type = i64)]
 		item: ItemId,
+
+		primary_attr: PrimaryAttrData,
 	},
 }
 
@@ -65,8 +71,27 @@ impl ItemAttrData {
 	async fn from_attr_data<Client: DatabaseClient>(
 		state: &RouterState<Client>,
 		value: AttrData,
+		trans: &mut Transaction<'_, sqlx::Postgres>,
 	) -> Result<Self, Response> {
 		Ok(match value {
+			//
+			// Easy
+			//
+			AttrData::Integer { value, .. } => Self::Integer { value },
+			AttrData::Float { value, .. } => Self::Float { value },
+			AttrData::Boolean { value } => Self::Boolean { value },
+
+			AttrData::Text { value } => Self::Text {
+				value: value.into(),
+			},
+
+			AttrData::Hash { data, .. } => Self::Hash {
+				value: data.into_iter().map(|x| format!("{x:02X?}")).join(""),
+			},
+
+			//
+			// MARK: blob
+			//
 			AttrData::Blob { bucket, key } => {
 				let meta = match state
 					.s3_client
@@ -89,18 +114,176 @@ impl ItemAttrData {
 					size: meta.size,
 				}
 			}
-			AttrData::Integer { value, .. } => ItemAttrData::Integer { value },
-			AttrData::Float { value, .. } => ItemAttrData::Float { value },
-			AttrData::Boolean { value } => ItemAttrData::Boolean { value },
-			AttrData::Reference { class, item } => ItemAttrData::Reference { class, item },
 
-			AttrData::Text { value } => ItemAttrData::Text {
+			//
+			// MARK: reference
+			//
+			AttrData::Reference { class, item } => Self::Reference {
+				class,
+				item,
+				primary_attr: match state.itemdb_client.class_primary_attr(trans, class).await {
+					Ok(primary_attr) => {
+						if let Some(primary_attr) = primary_attr {
+							let value = state.itemdb_client.get_item(trans, item).await;
+
+							match value {
+								Ok(value) => {
+									PrimaryAttrData::from_attr_data(
+										state,
+										primary_attr.id,
+										value
+											.attribute_values
+											.get(&primary_attr.id)
+											.unwrap()
+											.clone(),
+									)
+									.await?
+								}
+
+								Err(GetItemError::NotFound) => {
+									return Err(StatusCode::NOT_FOUND.into_response())
+								}
+
+								Err(GetItemError::DbError(error)) => {
+									error!(message = "Error in itemdb client", ?error);
+									return Err((
+										StatusCode::INTERNAL_SERVER_ERROR,
+										Json("Internal server error"),
+									)
+										.into_response());
+								}
+							}
+						} else {
+							PrimaryAttrData::NotAvailable
+						}
+					}
+
+					Err(ClassPrimaryAttributeError::NotFound) => {
+						return Err(StatusCode::NOT_FOUND.into_response());
+					}
+
+					Err(ClassPrimaryAttributeError::DbError(error)) => {
+						error!(message = "Error in itemdb client", ?error);
+						return Err((
+							StatusCode::INTERNAL_SERVER_ERROR,
+							Json("Internal server error"),
+						)
+							.into_response());
+					}
+				},
+			},
+		})
+	}
+}
+
+//
+// MARK: primaryattrdata
+//
+
+// Almost identical to [`ItemAttrData`], but excluding references.
+// Used inside the reference variant of [`ItemAttrData`].
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(tag = "type")]
+pub(super) enum PrimaryAttrData {
+	NotAvailable,
+	Text {
+		#[schema(value_type = i64)]
+		attr: AttributeId,
+		value: String,
+	},
+
+	Integer {
+		#[schema(value_type = i64)]
+		attr: AttributeId,
+		value: i64,
+	},
+
+	Float {
+		#[schema(value_type = i64)]
+		attr: AttributeId,
+		value: f64,
+	},
+
+	Boolean {
+		#[schema(value_type = i64)]
+		attr: AttributeId,
+		value: bool,
+	},
+
+	Hash {
+		#[schema(value_type = i64)]
+		attr: AttributeId,
+		value: String,
+	},
+
+	Blob {
+		#[schema(value_type = i64)]
+		attr: AttributeId,
+
+		mime: String,
+		size: Option<i64>,
+	},
+}
+
+impl PrimaryAttrData {
+	async fn from_attr_data<Client: DatabaseClient>(
+		state: &RouterState<Client>,
+		attr: AttributeId,
+		value: AttrData,
+	) -> Result<Self, Response> {
+		Ok(match value {
+			//
+			// Easy
+			//
+			AttrData::Integer { value, .. } => Self::Integer { value, attr },
+			AttrData::Float { value, .. } => Self::Float { value, attr },
+			AttrData::Boolean { value } => Self::Boolean { value, attr },
+
+			AttrData::Text { value } => Self::Text {
 				value: value.into(),
+				attr,
 			},
 
-			AttrData::Hash { data, .. } => ItemAttrData::Hash {
+			AttrData::Hash { data, .. } => Self::Hash {
 				value: data.into_iter().map(|x| format!("{x:02X?}")).join(""),
+				attr,
 			},
+
+			//
+			// MARK: blob
+			//
+			AttrData::Blob { bucket, key } => {
+				let meta = match state
+					.s3_client
+					.get_object_metadata(bucket.as_str(), key.as_str())
+					.await
+				{
+					Ok(x) => x,
+					Err(error) => {
+						error!(message = "Error in itemdb client", ?error);
+						return Err((
+							StatusCode::INTERNAL_SERVER_ERROR,
+							Json("Internal server error"),
+						)
+							.into_response());
+					}
+				};
+
+				Self::Blob {
+					mime: meta.mime.to_string(),
+					size: meta.size,
+					attr,
+				}
+			}
+
+			AttrData::Reference { .. } => {
+				error!(message = "Tried to put a reference in a reference");
+				return Err((
+					StatusCode::INTERNAL_SERVER_ERROR,
+					Json("Internal server error"),
+				)
+					.into_response());
+			}
 		})
 	}
 }
@@ -132,6 +315,10 @@ pub(super) struct PaginateParams {
 	skip: i64,
 	count: usize,
 }
+
+//
+// MARK: route
+//
 
 /// List items in this class
 #[utoipa::path(
@@ -258,7 +445,7 @@ pub(super) async fn list_items<Client: DatabaseClient>(
 			for i in x {
 				let mut attribute_values = BTreeMap::new();
 				for (attr_id, data) in i.attribute_values {
-					match ItemAttrData::from_attr_data(&state, data).await {
+					match ItemAttrData::from_attr_data(&state, data, &mut trans).await {
 						Ok(x) => {
 							attribute_values.insert(attr_id, x);
 						}

@@ -56,6 +56,10 @@ pub enum AddItemError {
 }
 
 impl ItemdbClient {
+	//
+	// MARK: crud
+	//
+
 	pub async fn get_item(
 		&self,
 		t: &mut sqlx::Transaction<'_, sqlx::Postgres>,
@@ -152,23 +156,6 @@ impl ItemdbClient {
 
 				Ok(out.into_values().collect())
 			}
-		};
-	}
-
-	pub async fn count_items(
-		&self,
-		t: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-		class: ClassId,
-	) -> Result<i64, CountItemsError> {
-		let res = sqlx::query("SELECT COUNT(*) FROM item WHERE class_id=$1;")
-			.bind(i64::from(class))
-			.fetch_one(&mut **t)
-			.await;
-
-		return match res {
-			Err(sqlx::Error::RowNotFound) => Err(CountItemsError::ClassNotFound),
-			Err(e) => Err(e.into()),
-			Ok(res) => Ok(res.get("count")),
 		};
 	}
 
@@ -317,5 +304,26 @@ impl ItemdbClient {
 		}
 
 		return Ok(new_item);
+	}
+
+	//
+	// MARK: misc
+	//
+
+	pub async fn count_items(
+		&self,
+		t: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+		class: ClassId,
+	) -> Result<i64, CountItemsError> {
+		let res = sqlx::query("SELECT COUNT(*) FROM item WHERE class_id=$1;")
+			.bind(i64::from(class))
+			.fetch_one(&mut **t)
+			.await;
+
+		return match res {
+			Err(sqlx::Error::RowNotFound) => Err(CountItemsError::ClassNotFound),
+			Err(e) => Err(e.into()),
+			Ok(res) => Ok(res.get("count")),
+		};
 	}
 }

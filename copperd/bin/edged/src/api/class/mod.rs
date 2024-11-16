@@ -27,6 +27,7 @@ use rename::*;
 		NewAttributeRequest,
 		ItemlistItemInfo,
 		ItemAttrData,
+		PrimaryAttrData,
 		ItemListResponse
 	))
 )]

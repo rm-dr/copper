@@ -66,7 +66,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		/** Get class info */
+		/** List items in this class */
 		get: operations["list_items"];
 		put?: never;
 		post?: never;
@@ -625,6 +625,7 @@ export interface components {
 					class: number;
 					/** Format: int64 */
 					item: number;
+					primary_attr: components["schemas"]["PrimaryAttrData"];
 					/** @enum {string} */
 					type: "Reference";
 			  };
@@ -762,6 +763,57 @@ export interface components {
 				[key: string]: components["schemas"]["NodeJson"];
 			};
 		};
+		PrimaryAttrData:
+			| {
+					/** @enum {string} */
+					type: "NotAvailable";
+			  }
+			| {
+					/** Format: int64 */
+					attr: number;
+					/** @enum {string} */
+					type: "Text";
+					value: string;
+			  }
+			| {
+					/** Format: int64 */
+					attr: number;
+					/** @enum {string} */
+					type: "Integer";
+					/** Format: int64 */
+					value: number;
+			  }
+			| {
+					/** Format: int64 */
+					attr: number;
+					/** @enum {string} */
+					type: "Float";
+					/** Format: double */
+					value: number;
+			  }
+			| {
+					/** Format: int64 */
+					attr: number;
+					/** @enum {string} */
+					type: "Boolean";
+					value: boolean;
+			  }
+			| {
+					/** Format: int64 */
+					attr: number;
+					/** @enum {string} */
+					type: "Hash";
+					value: string;
+			  }
+			| {
+					/** Format: int64 */
+					attr: number;
+					mime: string;
+					/** Format: int64 */
+					size?: number | null;
+					/** @enum {string} */
+					type: "Blob";
+			  };
 		QueuedJobCounts: {
 			/** Format: int64 */
 			build_errors: number;
@@ -818,11 +870,6 @@ export interface components {
 					message: string;
 					/** @enum {string} */
 					state: "FailedRunning";
-			  }
-			| {
-					message: string;
-					/** @enum {string} */
-					state: "FailedTransaction";
 			  }
 			| {
 					/** @enum {string} */

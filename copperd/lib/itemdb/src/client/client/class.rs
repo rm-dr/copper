@@ -4,13 +4,20 @@ use copper_util::names::check_name;
 use sqlx::Row;
 
 use crate::{
-	client::errors::class::{AddClassError, DeleteClassError, GetClassError, RenameClassError},
-	AttributeInfo, AttributeOptions, ClassId, ClassInfo, DatasetId,
+	client::errors::class::{
+		AddClassError, ClassPrimaryAttributeError, DeleteClassError, GetClassError,
+		RenameClassError,
+	},
+	AttrDataStub, AttributeInfo, AttributeOptions, ClassId, ClassInfo, DatasetId,
 };
 
 use super::ItemdbClient;
 
 impl ItemdbClient {
+	//
+	// MARK: crud
+	//
+
 	pub async fn add_class(
 		&self,
 		t: &mut sqlx::Transaction<'_, sqlx::Postgres>,
@@ -141,5 +148,43 @@ impl ItemdbClient {
 			.await?;
 
 		return Ok(());
+	}
+
+	//
+	// MARK: misc
+	//
+
+	/// Get the attribute we should use to represent this class.
+	/// This is used as an item preview in the `Reference` ui panel.
+	///
+	/// If this returns `None`, the class has no valid attributes
+	pub async fn class_primary_attr(
+		&self,
+		t: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+		class: ClassId,
+	) -> Result<Option<AttributeInfo>, ClassPrimaryAttributeError> {
+		let class = self.get_class(t, class).await.map_err(|e| match e {
+			GetClassError::NotFound => ClassPrimaryAttributeError::NotFound,
+			GetClassError::DbError(err) => ClassPrimaryAttributeError::DbError(err),
+		})?;
+
+		// If we have blobs, return the first one
+		for attr in &class.attributes {
+			match attr.data_type {
+				AttrDataStub::Blob => return Ok(Some(attr.clone())),
+				_ => continue,
+			}
+		}
+
+		// Otherwise, return the first non-reference attribute
+		// This prevents infinite loops that might occur we have a ref cycle.
+		for attr in &class.attributes {
+			match attr.data_type {
+				AttrDataStub::Reference { .. } => continue,
+				_ => return Ok(Some(attr.clone())),
+			}
+		}
+
+		return Ok(None);
 	}
 }

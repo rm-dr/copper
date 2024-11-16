@@ -45,59 +45,68 @@ export const _blobAttrType: attrTypeInfo<"Blob"> = {
 		type: "panel",
 
 		panel_body: (params) => {
-			const data_url = `/api/item/${params.item_id}/attr/${params.attr_id}`;
-
-			let inner: ReactNode | null = (
-				<_PanelBodyUnknown
-					src={data_url}
-					icon={<X />}
-					attr_value={params.value}
-				/>
-			);
-
-			if (params.value.mime != null && params.value.mime.startsWith("image/")) {
-				inner = <_PanelBodyImage src={data_url} attr_value={params.value} />;
-			} else if (
-				params.value.mime != null &&
-				params.value.mime.startsWith("audio/")
-			) {
-				inner = <_PanelBodyAudio src={data_url} attr_value={params.value} />;
-			}
-
-			return (
-				<div
-					style={{
-						height: "100%",
-						width: "100%",
-						display: "flex",
-						flexDirection: "column",
-					}}
-				>
-					<div
-						style={{
-							width: "100%",
-							flexGrow: 1,
-							padding: params.inner !== true ? "0.5rem" : undefined,
-							cursor: "zoom-in",
-						}}
-					>
-						<a
-							target="_blank"
-							href={data_url}
-							rel="noopener noreferrer"
-							style={{ width: "100%", height: "100%", cursor: "inherit" }}
-						>
-							{inner}
-						</a>
-					</div>
-					{params.inner !== true ? (
-						<_PanelBottom attr_value={params.value} />
-					) : null}
-				</div>
-			);
+			return <BlobPanel {...params} />;
 		},
 	},
 };
+
+export function BlobPanel(params: {
+	item_id: number;
+	attr_id: number;
+	value: {
+		mime: string;
+		size?: number | null;
+		type: "Blob";
+	};
+	inner?: boolean;
+}) {
+	const data_url = `/api/item/${params.item_id}/attr/${params.attr_id}`;
+
+	let inner: ReactNode | null = (
+		<_PanelBodyUnknown src={data_url} icon={<X />} attr_value={params.value} />
+	);
+
+	if (params.value.mime != null && params.value.mime.startsWith("image/")) {
+		inner = <_PanelBodyImage src={data_url} attr_value={params.value} />;
+	} else if (
+		params.value.mime != null &&
+		params.value.mime.startsWith("audio/")
+	) {
+		inner = <_PanelBodyAudio src={data_url} attr_value={params.value} />;
+	}
+
+	return (
+		<div
+			style={{
+				height: "100%",
+				width: "100%",
+				display: "flex",
+				flexDirection: "column",
+			}}
+		>
+			<div
+				style={{
+					width: "100%",
+					flexGrow: 1,
+					padding: params.inner !== true ? "0.5rem" : undefined,
+					cursor: "zoom-in",
+				}}
+			>
+				<a
+					target="_blank"
+					href={data_url}
+					rel="noopener noreferrer"
+					style={{ width: "100%", height: "100%", cursor: "inherit" }}
+				>
+					{inner}
+				</a>
+			</div>
+			{params.inner !== true ? (
+				<_PanelBottom attr_value={params.value} />
+			) : null}
+		</div>
+	);
+}
 
 // Same as basicform, but with the "unique" switch hidden.
 // It has no effect on blobs.

@@ -11,6 +11,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { ReactElement } from "react";
 import { Select } from "@mantine/core";
 import { useForm, UseFormReturnType } from "@mantine/form";
+import { BlobPanel } from "./blob";
 
 export const _referenceAttrType: attrTypeInfo<"Reference"> = {
 	pretty_name: "Reference",
@@ -43,8 +44,83 @@ export const _referenceAttrType: attrTypeInfo<"Reference"> = {
 	editor: {
 		type: "panel",
 
-		panel_body: () => {
-			return "todo-ref";
+		panel_body: (params) => {
+			const pa = params.value.primary_attr;
+
+			if (pa.type === "NotAvailable") {
+				return (
+					<div
+						style={{
+							display: "flex",
+							flexDirection: "column",
+							justifyContent: "center",
+							alignItems: "center",
+
+							paddingLeft: "0.5rem",
+							width: "100%",
+							height: "100%",
+
+							color: "var(--mantine-color-dimmed)",
+							fontStyle: "italic",
+							fontWeight: 500,
+							fontSize: "1.2rem",
+							userSelect: "none",
+						}}
+					>
+						No attribute available
+					</div>
+				);
+			}
+
+			if (pa.type === "Blob") {
+				return (
+					<BlobPanel
+						item_id={params.value.item}
+						attr_id={pa.attr}
+						value={pa}
+						inner={true}
+					/>
+				);
+			}
+
+			let v = <div>UNSET!</div>;
+			if (pa.type === "Boolean") {
+				v = pa.value ? (
+					<span style={{ color: "var(--mantine-color-green-5)" }}>true</span>
+				) : (
+					<span style={{ color: "var(--mantine-color-red-5)" }}>false</span>
+				);
+			} else if (pa.type === "Float" || pa.type === "Integer") {
+				v = <span>{pa.value}</span>;
+			} else if (pa.type === "Hash") {
+				v = <span style={{ fontFamily: "monospace" }}>{pa.value}</span>;
+			} else if (pa.type === "Text") {
+				v = <span>{pa.value}</span>;
+			}
+
+			return (
+				<div
+					style={{
+						display: "flex",
+						flexDirection: "column",
+						justifyContent: "center",
+						alignItems: "center",
+
+						paddingLeft: "0.5rem",
+						width: "100%",
+						height: "100%",
+
+						color: "var(--mantine-color-dimmed)",
+						fontStyle: "italic",
+						fontWeight: 500,
+						fontSize: "1.2rem",
+						userSelect: "none",
+					}}
+				>
+					<div>{pa.type}</div>
+					{v}
+				</div>
+			);
 		},
 	},
 };
