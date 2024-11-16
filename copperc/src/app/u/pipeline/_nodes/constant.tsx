@@ -2,8 +2,8 @@ import { NumberInput, Select, TextInput } from "@mantine/core";
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { BaseNode } from "./base";
 import { NodeDef } from ".";
+import { stringUnionToArray } from "@/lib/util";
 
-const types = ["Text", "Integer", "Float"] as const;
 type ValueType =
 	| {
 			type: "Text";
@@ -12,7 +12,24 @@ type ValueType =
 	| {
 			type: "Integer";
 			value: number;
+	  }
+	| {
+			type: "Float";
+			value: number;
+	  }
+	| {
+			type: "Boolean";
+			value: boolean;
 	  };
+
+type ConstType = ValueType["type"];
+
+export const constTypes = stringUnionToArray<ConstType>()(
+	"Text",
+	"Integer",
+	"Float",
+	"Boolean",
+);
 
 type ConstantNodeType = Node<
 	{
@@ -45,9 +62,9 @@ function ConstantNodeElement({ data, id }: NodeProps<ConstantNodeType>) {
 		input = (
 			<NumberInput
 				label="Value"
-				placeholder="enter constant number"
+				placeholder="enter constant integer"
 				onChange={(value) => {
-					if (typeof value === "string") {
+					if (typeof value !== "number") {
 						return;
 					}
 
@@ -60,6 +77,44 @@ function ConstantNodeElement({ data, id }: NodeProps<ConstantNodeType>) {
 				}}
 				value={data.value.value}
 				allowDecimal={false}
+			/>
+		);
+	} else if (data.value.type === "Float") {
+		input = (
+			<NumberInput
+				label="Value"
+				placeholder="enter constant float"
+				onChange={(value) => {
+					if (typeof value !== "number") {
+						return;
+					}
+
+					updateNodeData(id, {
+						value: {
+							type: "Float",
+							value,
+						},
+					});
+				}}
+				value={data.value.value}
+				allowDecimal={true}
+			/>
+		);
+	} else if (data.value.type === "Boolean") {
+		input = (
+			<Select
+				label="Value"
+				placeholder="enter constant boolean"
+				data={["true", "false"]}
+				value={data.value.value ? "true" : "false"}
+				onChange={(value) => {
+					updateNodeData(id, {
+						value: {
+							type: "Boolean",
+							value: value === "true",
+						},
+					});
+				}}
 			/>
 		);
 	}
@@ -76,8 +131,10 @@ function ConstantNodeElement({ data, id }: NodeProps<ConstantNodeType>) {
 				<Select
 					label="Data type"
 					placeholder="Pick value"
-					data={types}
-					onChange={(value) => {
+					data={constTypes}
+					onChange={(v) => {
+						const value = v as ConstType | null;
+
 						if (value === null || value == data.value.type) {
 							return;
 						}
@@ -100,6 +157,20 @@ function ConstantNodeElement({ data, id }: NodeProps<ConstantNodeType>) {
 								value: {
 									type: "Integer",
 									value: 0,
+								},
+							});
+						} else if (value === "Float") {
+							updateNodeData(id, {
+								value: {
+									type: "Float",
+									value: 0,
+								},
+							});
+						} else if (value === "Boolean") {
+							updateNodeData(id, {
+								value: {
+									type: "Boolean",
+									value: false,
 								},
 							});
 						}

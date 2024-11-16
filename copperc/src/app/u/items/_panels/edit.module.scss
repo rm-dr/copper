@@ -2,32 +2,42 @@
 	display: flex;
 	flex-direction: row;
 	align-items: first baseline;
+	align-items: stretch;
 	justify-self: start;
-	gap: 4rem;
+	justify-content: space-between;
+	gap: 2rem;
 
 	width: 100%;
 	height: 100%;
+	padding-bottom: 2rem;
+}
+
+.attr_container_scroll {
+	flex-grow: 1;
+	max-width: 80rem;
+
+	max-height: 100%;
+	overflow-y: scroll;
+	padding-left: 0.5rem;
+	padding-right: 1rem;
+	padding-top: 0.5rem;
+	padding-bottom: 2rem;
 }
 
 .attr_container {
 	display: flex;
 	flex-direction: column;
-	flex-grow: 1;
-
-	max-height: 100%;
-	overflow: scroll;
 
 	.attr_row {
 		display: flex;
 		flex-direction: row;
 		overflow: hidden;
 		background-color: var(--mantine-color-dark-9);
-		min-height: 3rem;
+		min-height: min-content;
 		max-height: 10rem;
 
 		.row_icon {
 			width: 2rem;
-			min-height: 100%;
 			background-color: var(--mantine-primary-color-8);
 			display: flex;
 			align-items: center;
@@ -41,7 +51,6 @@
 			justify-content: center;
 
 			width: 10rem;
-			min-height: 100%;
 			padding: 0.25rem;
 			background-color: var(--mantine-color-dark-8);
 			user-select: none;
@@ -67,7 +76,12 @@
 		.row_value_new {
 			display: flex;
 			flex-direction: column;
-			justify-content: center;
+
+			// hmm, justify-content is weird.
+			// we have it in value_old but not here
+			// because this column is usually taller.
+			//
+			// That's a hack, though.
 
 			padding: 0.25rem;
 			overflow-x: scroll;
@@ -84,7 +98,10 @@
 	vertical-align: top;
 	flex-direction: column;
 
-	width: 30%;
+	// min-width so that `attr_container` doesn't steal
+	// width from the panel. Could also set `flex-shrink: 0`.
+	min-width: 30%;
+
 	height: 100%;
 
 	border-style: solid;

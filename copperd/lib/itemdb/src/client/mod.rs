@@ -1,4 +1,9 @@
 //! This modules contains Copper's itemdb client
 
-pub mod base;
-pub mod postgres;
+#[allow(clippy::module_inception)]
+mod client;
+pub use client::*;
+
+pub mod errors;
+
+pub(crate) mod migrate;

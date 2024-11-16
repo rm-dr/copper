@@ -1,9 +1,9 @@
-use copper_itemdb::{AttrData, AttrDataStub};
-use copper_util::{HashType, MimeType};
+use copper_itemdb::{AttrData, ClassId, ItemId};
+use copper_util::HashType;
 use smartstring::{LazyCompact, SmartString};
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
-use crate::base::PipelineData;
+use crate::helpers::processor::BytesProcessorBuilder;
 
 /// Immutable bits of data inside a pipeline.
 ///
@@ -41,29 +41,17 @@ pub enum PipeData {
 	/// Arbitrary binary data.
 	/// This will be stored in the metadata db.
 	Blob {
-		/// The data
-		source: BytesSource,
+		/// The data source
+		source: BytesProcessorBuilder,
 	},
 
-	TransactionActionResult {
-		action_idx: usize,
-		result_type: AttrDataStub,
-	},
-}
+	/// A reference to an item in another class
+	Reference {
+		/// The item class this reference points to
+		class: ClassId,
 
-#[derive(Debug, Clone)]
-pub enum BytesSource {
-	Array {
-		mime: MimeType,
-		data: Arc<Vec<u8>>,
-	},
-	Stream {
-		mime: MimeType,
-		receiver: async_broadcast::Receiver<Arc<Vec<u8>>>,
-	},
-	S3 {
-		key: SmartString<LazyCompact>,
-		bucket: SmartString<LazyCompact>,
+		/// The item
+		item: ItemId,
 	},
 }
 
@@ -104,8 +92,8 @@ impl TryInto<AttrData> for PipeData {
 	fn try_into(self) -> Result<AttrData, Self::Error> {
 		return Ok(match self {
 			Self::Blob { .. } => return Err(()),
-			Self::TransactionActionResult { .. } => return Err(()),
 
+			Self::Reference { item, class } => AttrData::Reference { class, item },
 			Self::Text { value } => AttrData::Text { value },
 			Self::Boolean { value } => AttrData::Boolean { value },
 			Self::Hash { hash_type, data } => AttrData::Hash { hash_type, data },
@@ -128,5 +116,3 @@ impl TryInto<AttrData> for PipeData {
 		});
 	}
 }
-
-impl PipelineData for PipeData {}

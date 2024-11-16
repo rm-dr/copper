@@ -8,12 +8,10 @@ use axum::{
 };
 use axum_extra::{body::AsyncReadBody, extract::CookieJar};
 use copper_itemdb::{
-	client::base::{
-		client::ItemdbClient,
-		errors::{class::GetClassError, dataset::GetDatasetError, item::GetItemError},
-	},
+	client::errors::{class::GetClassError, dataset::GetDatasetError, item::GetItemError},
 	AttrData, AttributeId,
 };
+use sqlx::Acquire;
 use tracing::error;
 
 /// Get the value of an item's attribute
@@ -29,9 +27,9 @@ use tracing::error;
 		(status = 500, description = "Internal server error"),
 	),
 )]
-pub(super) async fn get_attr<Client: DatabaseClient, Itemdb: ItemdbClient>(
+pub(super) async fn get_attr<Client: DatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, Itemdb>>,
+	State(state): State<RouterState<Client>>,
 	Path((item_id, attr_id)): Path<(i64, i64)>,
 ) -> Response {
 	let attr_id: AttributeId = attr_id.into();
@@ -40,7 +38,35 @@ pub(super) async fn get_attr<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		Ok(user) => user,
 	};
 
-	let item = match state.itemdb_client.get_item(item_id.into()).await {
+	let mut conn = match state.itemdb_client.new_connection().await {
+		Ok(x) => x,
+		Err(error) => {
+			error!(message = "Error in itemdb client", ?error);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
+		}
+	};
+
+	let mut trans = match conn.begin().await {
+		Ok(y) => y,
+		Err(error) => {
+			error!(message = "Error in itemdb client", ?error);
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
+		}
+	};
+
+	let item = match state
+		.itemdb_client
+		.get_item(&mut trans, item_id.into())
+		.await
+	{
 		Ok(x) => x,
 
 		Err(GetItemError::NotFound) => {
@@ -58,7 +84,7 @@ pub(super) async fn get_attr<Client: DatabaseClient, Itemdb: ItemdbClient>(
 	};
 
 	// TODO: do permission checks in one query
-	let class = match state.itemdb_client.get_class(item.class).await {
+	let class = match state.itemdb_client.get_class(&mut trans, item.class).await {
 		Ok(x) => x,
 
 		Err(GetClassError::NotFound) => return StatusCode::NOT_FOUND.into_response(),
@@ -73,7 +99,11 @@ pub(super) async fn get_attr<Client: DatabaseClient, Itemdb: ItemdbClient>(
 		}
 	};
 
-	match state.itemdb_client.get_dataset(class.dataset).await {
+	match state
+		.itemdb_client
+		.get_dataset(&mut trans, class.dataset)
+		.await
+	{
 		Ok(x) => {
 			if x.owner != user.id {
 				return (StatusCode::UNAUTHORIZED, Json("Unauthorized")).into_response();

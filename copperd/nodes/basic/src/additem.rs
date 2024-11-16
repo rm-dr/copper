@@ -1,114 +1,116 @@
 use async_trait::async_trait;
 use copper_itemdb::{
-	client::base::{
-		client::ItemdbClient,
+	client::{
 		errors::{class::GetClassError, dataset::GetDatasetError},
+		AddItemError,
 	},
-	transaction::{ResultOrDirect, TransactionAction},
-	AttrData, AttributeInfo, ClassInfo,
+	AttrData, AttributeInfo,
 };
 use copper_piper::{
-	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	base::{Node, NodeBuilder, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
-	helpers::BytesSourceReader,
-	CopperContext, JobRunResult,
+	helpers::NodeParameters,
+	CopperContext,
 };
 use rand::{distributions::Alphanumeric, Rng};
 use smartstring::{LazyCompact, SmartString};
+use sqlx::Acquire;
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::mpsc;
 use tracing::{debug, trace};
+
+/// How we should react when we try to create a node that
+/// violates a "unique" constraint
+enum OnUniqueViolation {
+	/// Throw an error & cancel the pipeline
+	Fail,
+
+	/// If there is ONE conflicting item, create nothing and return its id.
+	/// If more than one item conflicts, error.
+	Select,
+}
 
 pub struct AddItem {}
 
+impl NodeBuilder for AddItem {
+	fn build<'ctx>(&self) -> Box<dyn Node<'ctx>> {
+		Box::new(Self {})
+	}
+}
+
 // Inputs: depends on class
-// Outputs: None
+// Outputs: new_item: reference to new item
 #[async_trait]
-impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for AddItem {
+impl<'ctx> Node<'ctx> for AddItem {
 	async fn run(
 		&self,
-		ctx: &CopperContext<Itemdb>,
-		this_node: ThisNodeInfo,
-		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
+		ctx: &CopperContext<'ctx>,
+		_this_node: ThisNodeInfo,
+		mut params: NodeParameters,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
-		output: mpsc::Sender<NodeOutput<PipeData>>,
-	) -> Result<(), RunNodeError<PipeData>> {
+	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
+		let mut trans = ctx.item_db_transaction.lock().await;
+
 		//
 		// Extract parameters
 		//
-		let class: ClassInfo = if let Some(value) = params.remove("class") {
-			match value {
-				NodeParameterValue::Integer(x) => ctx
-					.itemdb_client
-					.get_class(x.into())
-					.await
-					.map_err(|e| match e {
-						GetClassError::NotFound => RunNodeError::BadParameterOther {
-							parameter: "class".into(),
-							message: "this class doesn't exist".into(),
-						},
-						_ => RunNodeError::Other(Arc::new(e)),
-					})?,
 
-				_ => {
-					return Err(RunNodeError::BadParameterType {
+		let class = {
+			let id = params.pop_int("class")?;
+			ctx.itemdb_client
+				.get_class(&mut trans, id.into())
+				.await
+				.map_err(|e| match e {
+					GetClassError::NotFound => RunNodeError::BadParameterOther {
 						parameter: "class".into(),
-					})
-				}
-			}
-		} else {
-			return Err(RunNodeError::MissingParameter {
-				parameter: "class".into(),
-			});
+						message: "this class doesn't exist".into(),
+					},
+					_ => RunNodeError::Other(Arc::new(e)),
+				})?
 		};
 
-		// This is only used by UI, but make sure it's sane.
+		// The `dataset` parameter is only used by UI, but make sure it's sane.
+		{
+			let id = params.pop_int("dataset")?;
 
-		if let Some(value) = params.remove("dataset") {
-			match value {
-				NodeParameterValue::Integer(x) => {
-					let dataset =
-						ctx.itemdb_client
-							.get_dataset(x.into())
-							.await
-							.map_err(|e| match e {
-								GetDatasetError::NotFound => RunNodeError::BadParameterOther {
-									parameter: "dataset".into(),
-									message: "this dataset doesn't exist".into(),
-								},
-								_ => RunNodeError::Other(Arc::new(e)),
-							})?;
-
-					if class.dataset != dataset.id {
-						return Err(RunNodeError::BadParameterOther {
-							parameter: "dataset".into(),
-							message: "this class doesn't belong to this dataset".into(),
-						});
-					}
-
-					if ctx.run_by_user != dataset.owner {
-						return Err(RunNodeError::NotAuthorized {
-							message: "you do not have permission to modify this dataset".into(),
-						});
-					}
-				}
-
-				_ => {
-					return Err(RunNodeError::BadParameterType {
+			let dataset = ctx
+				.itemdb_client
+				.get_dataset(&mut trans, id.into())
+				.await
+				.map_err(|e| match e {
+					GetDatasetError::NotFound => RunNodeError::BadParameterOther {
 						parameter: "dataset".into(),
-					})
-				}
+						message: "this dataset doesn't exist".into(),
+					},
+					_ => RunNodeError::Other(Arc::new(e)),
+				})?;
+
+			if class.dataset != dataset.id {
+				return Err(RunNodeError::BadParameterOther {
+					parameter: "dataset".into(),
+					message: "this class doesn't belong to this dataset".into(),
+				});
 			}
-		} else {
-			return Err(RunNodeError::MissingParameter {
-				parameter: "dataset".into(),
-			});
+
+			if ctx.run_by_user != dataset.owner {
+				return Err(RunNodeError::NotAuthorized {
+					message: "you do not have permission to modify this dataset".into(),
+				});
+			};
 		};
-		if let Some((param, _)) = params.first_key_value() {
-			return Err(RunNodeError::UnexpectedParameter {
-				parameter: param.clone(),
-			});
-		}
+
+		let on_unique_violation = match params.pop_str("on_unique_violation")?.as_str() {
+			"fail" => OnUniqueViolation::Fail,
+			"select" => OnUniqueViolation::Select,
+
+			x => {
+				return Err(RunNodeError::BadParameterOther {
+					parameter: "on_unique_violation".into(),
+					message: format!("Invalid value `{x}`, expected one of [`fail`, `select`]"),
+				})
+			}
+		};
+
+		params.err_if_not_empty()?;
 
 		//
 		// Set up attribute table
@@ -116,12 +118,11 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 		//
 
 		debug!(message = "Getting attributes");
-		let mut attributes: BTreeMap<PortName, (AttributeInfo, Option<ResultOrDirect<AttrData>>)> =
-			class
-				.attributes
-				.into_iter()
-				.map(|x| (PortName::new(x.name.as_str()), (x, None)))
-				.collect();
+		let mut attributes: BTreeMap<PortName, (AttributeInfo, Option<AttrData>)> = class
+			.attributes
+			.into_iter()
+			.map(|x| (PortName::new(x.name.as_str()), (x, None)))
+			.collect();
 
 		// Fill attribute table
 		while let Some((port, data)) = input.pop_first() {
@@ -141,8 +142,7 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 						.collect();
 
 					let mut part_counter = 1;
-
-					let mut reader = BytesSourceReader::open(ctx, source).await?;
+					let mut reader = source.build(ctx).await?;
 
 					let mut upload = ctx
 						.objectstore_client
@@ -154,7 +154,7 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 						.await
 						.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
-					while let Some(data) = reader.next_fragment(ctx.blob_fragment_size).await? {
+					while let Some(data) = reader.next_fragment().await? {
 						upload
 							.upload_part(&data, part_counter)
 							.await
@@ -169,29 +169,10 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 
 					let attr = attributes.get_mut(&port).unwrap();
 
-					attr.1 = Some(
-						AttrData::Blob {
-							bucket: ctx.objectstore_blob_bucket.clone(),
-							key: new_obj_key,
-						}
-						.into(),
-					)
-				}
-
-				Some(PipeData::TransactionActionResult {
-					action_idx,
-					result_type,
-				}) => {
-					let attr = attributes.get_mut(&port).unwrap();
-
-					if result_type != attr.0.data_type {
-						return Err(RunNodeError::BadInputType { port });
-					}
-
-					attr.1 = Some(ResultOrDirect::Result {
-						action_idx,
-						expected_type: result_type,
-					});
+					attr.1 = Some(AttrData::Blob {
+						bucket: ctx.objectstore_blob_bucket.clone(),
+						key: new_obj_key,
+					})
 				}
 
 				Some(x) => {
@@ -205,7 +186,7 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 						return Err(RunNodeError::BadInputType { port });
 					}
 
-					attr.1 = Some(as_attr.into());
+					attr.1 = Some(as_attr);
 				}
 
 				None => {}
@@ -216,35 +197,60 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 		// Set up and send transaction
 		//
 
-		let action = TransactionAction::AddItem {
-			to_class: class.id,
-			attributes: attributes
-				.into_iter()
-				.map(|(_, (k, d))| (k.id, d))
-				.filter_map(|(k, v)| v.map(|v| (k, v)))
-				.collect(),
+		// Savepoint, in case we need to rollback `add_item`.
+		// See comments below.
+		let mut trans2 = trans.begin().await?;
+
+		let new_item = ctx
+			.itemdb_client
+			.add_item(
+				&mut trans2,
+				class.id,
+				attributes
+					.into_iter()
+					.map(|(_, (k, d))| (k.id, d))
+					.filter_map(|(k, v)| v.map(|v| (k, v)))
+					.collect(),
+			)
+			.await;
+
+		let new_item = match new_item {
+			Ok(x) => {
+				// We added the item successfully,
+				// commit savepoint.
+				trans2.commit().await?;
+				x
+			}
+			Err(err) => match on_unique_violation {
+				OnUniqueViolation::Fail => return Err(RunNodeError::Other(Arc::new(err))),
+				OnUniqueViolation::Select => match err {
+					AddItemError::UniqueViolated {
+						ref conflicting_ids,
+					} => {
+						if conflicting_ids.len() == 1 {
+							// We're not failing the pipeline, so `trans` will be committed.
+							// however, we shouldn't add a new item---so we need to roll back
+							// trans2.
+							trans2.rollback().await?;
+							*conflicting_ids.first().unwrap()
+						} else {
+							return Err(RunNodeError::Other(Arc::new(err)));
+						}
+					}
+					_ => return Err(RunNodeError::Other(Arc::new(err))),
+				},
+			},
 		};
 
-		let mut trans = ctx.transaction.lock().await;
-		let result_type = action.result_type().unwrap();
-		debug!(
-			message = "Registering action",
-			?action,
-			action_idx = trans.len()
+		let mut output = BTreeMap::new();
+		output.insert(
+			PortName::new("new_item"),
+			PipeData::Reference {
+				class: class.id,
+				item: new_item,
+			},
 		);
-		let action_idx = trans.add_action(action);
 
-		output
-			.send(NodeOutput {
-				node: this_node,
-				port: PortName::new("new_item"),
-				data: Some(PipeData::TransactionActionResult {
-					action_idx,
-					result_type,
-				}),
-			})
-			.await?;
-
-		return Ok(());
+		return Ok(output);
 	}
 }

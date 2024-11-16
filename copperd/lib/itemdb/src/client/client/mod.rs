@@ -1,15 +1,23 @@
+//! This modules contains Copper's itemdb client
+
 use copper_migrate::{MigrationError, Migrator};
-use sqlx::{postgres::PgPoolOptions, Connection, PgConnection, PgPool};
+use sqlx::{
+	pool::PoolConnection, postgres::PgPoolOptions, Connection, PgConnection, PgPool, Postgres,
+};
 use thiserror::Error;
 use tracing::info;
 
-mod client;
-mod helpers;
-mod migrate;
+use crate::client::migrate;
+
+mod attribute;
+mod class;
+mod dataset;
+mod item;
+pub use item::*;
 
 #[derive(Debug, Error)]
 /// An error we may encounter when connecting to postgres
-pub enum PgItemdbOpenError {
+pub enum ItemdbOpenError {
 	/// We encountered an internal database error
 	#[error("sql error")]
 	Database(#[from] sqlx::Error),
@@ -25,13 +33,13 @@ pub enum PgItemdbOpenError {
 }
 
 /// A database client for postgres
-pub struct PgItemdbClient {
+pub struct ItemdbClient {
 	pool: PgPool,
 }
 
-impl PgItemdbClient {
+impl ItemdbClient {
 	/// Create a new [`LocalDataset`].
-	pub async fn open(db_addr: &str, migrate: bool) -> Result<Self, PgItemdbOpenError> {
+	pub async fn open(db_addr: &str, migrate: bool) -> Result<Self, ItemdbOpenError> {
 		info!(message = "Opening dataset", ds_type = "postgres", ?db_addr);
 
 		// Apply migrations
@@ -39,9 +47,9 @@ impl PgItemdbClient {
 		let mut mig = Migrator::new(&mut conn, db_addr, migrate::MIGRATE_STEPS).await?;
 
 		if migrate {
-			mig.up().await.map_err(PgItemdbOpenError::Migrate)?;
+			mig.up().await.map_err(ItemdbOpenError::Migrate)?;
 		} else if !mig.is_up()? {
-			return Err(PgItemdbOpenError::NotMigrated);
+			return Err(ItemdbOpenError::NotMigrated);
 		}
 
 		drop(mig);
@@ -54,5 +62,10 @@ impl PgItemdbClient {
 			.await?;
 
 		Ok(Self { pool })
+	}
+
+	pub async fn new_connection(&self) -> Result<PoolConnection<Postgres>, sqlx::Error> {
+		let conn = self.pool.acquire().await?;
+		return Ok(conn);
 	}
 }

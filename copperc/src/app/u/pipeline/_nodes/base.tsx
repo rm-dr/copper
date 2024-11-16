@@ -3,7 +3,8 @@ import { Handle, Node, Position, useReactFlow } from "@xyflow/react";
 import style from "./nodes.module.scss";
 import { ActionIcon } from "@mantine/core";
 import { Trash2 } from "lucide-react";
-import { DataType, getAttrTypeInfo } from "@/lib/attributes";
+import { PipelineDataType } from ".";
+import { AttrDataType, getAttrTypeInfo } from "@/lib/attributes";
 
 function EmptyMarker() {
 	return (
@@ -27,13 +28,13 @@ export function BaseNode(params: {
 	top_color?: string;
 
 	outputs?: {
-		type: DataType;
+		type: PipelineDataType;
 		id: string;
 		tooltip: string;
 	}[];
 
 	inputs?: {
-		type: DataType;
+		type: PipelineDataType;
 		id: string;
 		tooltip: string;
 	}[];
@@ -77,7 +78,12 @@ export function BaseNode(params: {
 										key={`handle-${x.id}`}
 										className={`${style.node_port} ${style.input}`}
 									>
-										{getAttrTypeInfo(x.type).icon}
+										{
+											// Convert `Reference(number)` into `number
+											x.type.startsWith("Reference")
+												? getAttrTypeInfo("Reference").icon
+												: getAttrTypeInfo(x.type as AttrDataType).icon
+										}
 										<Handle type="target" position={Position.Left} id={x.id} />
 										<div className={`${style.port_tooltip} ${style.input}`}>
 											{x.tooltip}
@@ -103,7 +109,12 @@ export function BaseNode(params: {
 										key={`handle-${x.id}`}
 										className={`${style.node_port} ${style.output}`}
 									>
-										{getAttrTypeInfo(x.type).icon}
+										{
+											// Convert `Reference(number)` into `number
+											x.type.startsWith("Reference")
+												? getAttrTypeInfo("Reference").icon
+												: getAttrTypeInfo(x.type as AttrDataType).icon
+										}
 										<Handle type="source" position={Position.Right} id={x.id} />
 										<div className={`${style.port_tooltip} ${style.output}`}>
 											{x.tooltip}

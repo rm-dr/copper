@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
 import { components } from "@/lib/api/openapi";
 import { ReactElement, useState } from "react";
-import { DataType, dataTypes, getAttrTypeInfo } from "@/lib/attributes";
+import { AttrDataType, attrDataTypes, getAttrTypeInfo } from "@/lib/attributes";
 
 export function useAddAttributeModal(params: {
 	dataset_id: number;
@@ -20,7 +20,7 @@ export function useAddAttributeModal(params: {
 		response: string | null;
 	}>({ type: null, response: null });
 
-	const [newAttrType, setNewAttrType] = useState<DataType | null>(null);
+	const [newAttrType, setNewAttrType] = useState<AttrDataType | null>(null);
 
 	// Get input ui for attr-specific parameters
 	let NewAttrForm:
@@ -101,7 +101,7 @@ export function useAddAttributeModal(params: {
 				<Select
 					required={true}
 					placeholder={"select attribute type"}
-					data={dataTypes.map((x) => {
+					data={attrDataTypes.map((x) => {
 						const attrdef = getAttrTypeInfo(x);
 						return {
 							label: attrdef.pretty_name,

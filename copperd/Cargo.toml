@@ -145,9 +145,6 @@ serde_with = "3.8.1"
 utoipa = { version = "5.0.0-alpha.0", features = ["axum_extras"] }
 thiserror = "2.0.1"
 
-# Because we can't clone tokio's `broadcast::Receiver`
-async-broadcast = "0.7.1"
-
 
 [workspace.dependencies.time]
 version = "0.3.36"

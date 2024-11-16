@@ -20,7 +20,7 @@ export const _integerAttrType: attrTypeInfo<"Integer"> = {
 		form: (params) => Form(params),
 	},
 
-	table_cell: (value) => {
+	table_cell: ({ value }) => {
 		return (
 			<div
 				style={{

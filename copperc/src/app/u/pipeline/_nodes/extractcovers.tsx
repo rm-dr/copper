@@ -11,7 +11,7 @@ function ExtractCoversNodeElement({ id }: NodeProps<ExtractCoversNodeType>) {
 				id={id}
 				title={"Extract covers"}
 				inputs={[{ id: "data", type: "Blob", tooltip: "Audio data" }]}
-				outputs={[{ id: "out", type: "Blob", tooltip: "Cover" }]}
+				outputs={[{ id: "cover_data", type: "Blob", tooltip: "Cover" }]}
 			/>
 		</>
 	);
@@ -23,7 +23,7 @@ export const ExtractCoversNode: NodeDef<ExtractCoversNodeType> = {
 	node: ExtractCoversNodeElement,
 
 	getInputs: () => [{ id: "data", type: "Blob" }],
-	getOutputs: () => [{ id: "out", type: "Blob" }],
+	getOutputs: () => [{ id: "cover_data", type: "Blob" }],
 
 	initialData: {},
 	serialize: () => ({}),

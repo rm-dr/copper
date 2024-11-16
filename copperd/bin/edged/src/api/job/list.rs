@@ -8,7 +8,6 @@ use axum::{
 	response::{IntoResponse, Response},
 };
 use axum_extra::extract::CookieJar;
-use copper_itemdb::client::base::client::ItemdbClient;
 use copper_jobqueue::base::errors::GetUserJobsError;
 use serde::Deserialize;
 use tracing::error;
@@ -33,9 +32,9 @@ pub(super) struct PaginateParams {
 		("bearer" = []),
 	)
 )]
-pub(super) async fn list_jobs<Client: DatabaseClient, Itemdb: ItemdbClient>(
+pub(super) async fn list_jobs<Client: DatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, Itemdb>>,
+	State(state): State<RouterState<Client>>,
 	Query(paginate): Query<PaginateParams>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {
@@ -52,7 +51,11 @@ pub(super) async fn list_jobs<Client: DatabaseClient, Itemdb: ItemdbClient>(
 
 		Err(GetUserJobsError::DbError(error)) => {
 			error!(message = "Error while getting user jobs", ?error, ?user);
-			return (StatusCode::INTERNAL_SERVER_ERROR, Json("Internal server error")).into_response();
+			return (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				Json("Internal server error"),
+			)
+				.into_response();
 		}
 	};
 }

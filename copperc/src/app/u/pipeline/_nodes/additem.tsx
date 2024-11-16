@@ -1,4 +1,4 @@
-import { Select } from "@mantine/core";
+import { Select, Switch } from "@mantine/core";
 import {
 	Node,
 	NodeProps,
@@ -8,17 +8,17 @@ import {
 import { BaseNode } from "./base";
 import { useQuery } from "@tanstack/react-query";
 import { edgeclient } from "@/lib/api/client";
-import { NodeDef } from ".";
+import { NodeDef, PipelineDataType } from ".";
 import { useCallback } from "react";
-import { DataType } from "@/lib/attributes";
 
 type AddItemNodeType = Node<
 	{
 		dataset: null | number;
 		class: null | number;
+		on_unique_violation: "fail" | "select";
 
 		inputs: {
-			type: DataType;
+			type: PipelineDataType;
 			id: string;
 			tooltip: string;
 		}[];
@@ -72,7 +72,10 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 								?.classes.find((x) => x.id === cls)
 								?.attributes.map((x) => ({
 									id: x.name,
-									type: x.data_type.type,
+									type:
+										x.data_type.type === "Reference"
+											? `Reference(${x.data_type.class})`
+											: x.data_type.type,
 									tooltip: x.name,
 								})) || undefined,
 			});
@@ -82,7 +85,22 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 
 	return (
 		<>
-			<BaseNode id={id} title={"Add Item"} inputs={data.inputs}>
+			<BaseNode
+				id={id}
+				title={"Add Item"}
+				inputs={data.inputs}
+				outputs={
+					data.class === null
+						? []
+						: [
+								{
+									id: "new_item",
+									tooltip: "Reference to new item",
+									type: `Reference(${data.class})`,
+								},
+							]
+				}
+			>
 				<Select
 					clearable
 					label="Select dataset"
@@ -152,6 +170,17 @@ function AddItemNodeElement({ data, id }: NodeProps<AddItemNodeType>) {
 					}}
 					value={data.class?.toString() || null}
 				/>
+
+				<Switch
+					label="Select if not unique"
+					checked={data.on_unique_violation === "select"}
+					onChange={(e) => {
+						data.on_unique_violation = e.currentTarget.checked
+							? "select"
+							: "fail";
+						updateNodeInternals(id);
+					}}
+				/>
 			</BaseNode>
 		</>
 	);
@@ -165,11 +194,22 @@ export const AddItemNode: NodeDef<AddItemNodeType> = {
 	initialData: {
 		dataset: null,
 		class: null,
+		on_unique_violation: "fail",
 		inputs: [],
 	},
 
-	getInputs: (data) => data.inputs,
-	getOutputs: () => [],
+	getInputs: (data) =>
+		data.inputs.map((x) => {
+			return {
+				id: x.id,
+				type: x.type,
+			};
+		}),
+
+	getOutputs: (data) =>
+		data.class === null
+			? []
+			: [{ id: "new_item", type: `Reference(${data.class})` }],
 
 	serialize: (node) => {
 		if (node.data.class === null || node.data.dataset === null) {
@@ -177,6 +217,11 @@ export const AddItemNode: NodeDef<AddItemNodeType> = {
 		}
 
 		return {
+			// TODO: add ui
+			on_unique_violation: {
+				parameter_type: "String",
+				value: node.data.on_unique_violation,
+			},
 			dataset: {
 				parameter_type: "Integer",
 				value: node.data.dataset,
@@ -213,15 +258,28 @@ export const AddItemNode: NodeDef<AddItemNodeType> = {
 		const clsinfo =
 			datasetinfo?.classes.find((x) => x.id === cls.value) || null;
 
+		const ouv = serialized.params.on_unique_violation;
+		if (
+			ouv?.parameter_type !== "String" ||
+			!(ouv?.value === "fail" || ouv?.value === "select")
+		) {
+			return null;
+		}
+
 		return {
 			dataset: datasetinfo?.id || null,
 			class: clsinfo?.id || null,
+			on_unique_violation: ouv.value as "fail" | "select",
 
 			inputs:
 				clsinfo?.attributes.map((x) => ({
 					id: x.name,
-					type: x.data_type.type,
 					tooltip: x.name,
+
+					type:
+						x.data_type.type === "Reference"
+							? `Reference(${x.data_type.class})`
+							: x.data_type.type,
 				})) || [],
 		};
 	},

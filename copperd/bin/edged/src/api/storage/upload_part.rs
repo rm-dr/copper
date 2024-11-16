@@ -6,7 +6,6 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_itemdb::client::base::client::ItemdbClient;
 use tracing::{error, warn};
 
 use crate::{api::RouterState, uploader::errors::UploadFragmentError};
@@ -28,9 +27,9 @@ use crate::{database::base::client::DatabaseClient, uploader::UploadJobId};
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn upload_part<Client: DatabaseClient, Itemdb: ItemdbClient>(
+pub(super) async fn upload_part<Client: DatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, Itemdb>>,
+	State(state): State<RouterState<Client>>,
 	Path(job_id): Path<UploadJobId>,
 	mut multipart: Multipart,
 ) -> Response {

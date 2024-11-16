@@ -64,14 +64,6 @@ where
 	/// If this job is not `Running`, throw an error.
 	async fn fail_job_run(&self, job_id: &QueuedJobId, message: &str) -> Result<(), FailJobError>;
 
-	/// Atomically mark the given job as `FailedRunning`.
-	/// If this job is not `Running`, throw an error.
-	async fn fail_job_transaction(
-		&self,
-		job_id: &QueuedJobId,
-		message: &str,
-	) -> Result<(), FailJobError>;
-
 	/// Atomically mark the given job as `Success`.
 	/// If this job is not `Running`, throw an error.
 	async fn success_job(&self, job_id: &QueuedJobId) -> Result<(), SuccessJobError>;

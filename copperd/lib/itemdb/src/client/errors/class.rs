@@ -58,3 +58,13 @@ pub enum DeleteClassError {
 	#[error("database backend error")]
 	DbError(#[from] sqlx::Error),
 }
+
+/// An error we can encounter when getting a class' primary attribute
+#[derive(Debug, Error)]
+pub enum ClassPrimaryAttributeError {
+	#[error("database backend error")]
+	DbError(#[from] sqlx::Error),
+
+	#[error("class not found")]
+	NotFound,
+}

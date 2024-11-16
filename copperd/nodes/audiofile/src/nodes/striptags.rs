@@ -2,42 +2,45 @@
 
 use crate::flac::proc::metastrip::FlacMetaStrip;
 use async_trait::async_trait;
-use copper_itemdb::client::base::client::ItemdbClient;
 use copper_piper::{
-	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
-	data::{BytesSource, PipeData},
-	helpers::BytesSourceReader,
-	CopperContext, JobRunResult,
+	base::{Node, NodeBuilder, NodeId, PortName, RunNodeError, ThisNodeInfo},
+	data::PipeData,
+	helpers::{
+		processor::{StreamProcessor, StreamProcessorBuilder},
+		NodeParameters,
+	},
+	CopperContext,
 };
 use copper_util::MimeType;
 use smartstring::{LazyCompact, SmartString};
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::mpsc;
-use tracing::{debug, trace};
+use tokio::sync::mpsc::{Receiver, Sender};
+use tracing::debug;
 
 /// Strip all metadata from an audio file
 pub struct StripTags {}
 
+impl NodeBuilder for StripTags {
+	fn build<'ctx>(&self) -> Box<dyn Node<'ctx>> {
+		Box::new(Self {})
+	}
+}
+
 // Input: "data" - Blob
 // Output: "out" - Blob
 #[async_trait]
-impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for StripTags {
+impl<'ctx> Node<'ctx> for StripTags {
 	async fn run(
 		&self,
-		ctx: &CopperContext<Itemdb>,
+		_ctx: &CopperContext<'ctx>,
 		this_node: ThisNodeInfo,
-		params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
+		params: NodeParameters,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
-		output: mpsc::Sender<NodeOutput<PipeData>>,
-	) -> Result<(), RunNodeError<PipeData>> {
+	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
 		//
 		// Extract parameters
 		//
-		if let Some((param, _)) = params.first_key_value() {
-			return Err(RunNodeError::UnexpectedParameter {
-				parameter: param.clone(),
-			});
-		}
+		params.err_if_not_empty()?;
 
 		//
 		// Extract arguments
@@ -52,14 +55,14 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 			return Err(RunNodeError::UnrecognizedInput { port });
 		}
 
-		let mut reader = match data.unwrap() {
+		let source = match data.unwrap() {
 			None => {
 				return Err(RunNodeError::RequiredInputNull {
 					port: PortName::new("data"),
 				})
 			}
 
-			Some(PipeData::Blob { source, .. }) => BytesSourceReader::open(ctx, source).await?,
+			Some(PipeData::Blob { source, .. }) => source,
 
 			_ => {
 				return Err(RunNodeError::BadInputType {
@@ -68,39 +71,72 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 			}
 		};
 
-		//
-		// Send output handle
-		//
-		let (tx, rx) = async_broadcast::broadcast(ctx.stream_channel_capacity);
-		output
-			.send(NodeOutput {
-				node: this_node.clone(),
-				port: PortName::new("out"),
-				data: Some(PipeData::Blob {
-					source: BytesSource::Stream {
-						mime: MimeType::Flac,
-						receiver: rx,
-					},
-				}),
-			})
-			.await?;
-
 		debug!(
 			message = "Setup done, stripping tags",
 			node_id = ?this_node.id
 		);
 
+		let mut output = BTreeMap::new();
+
+		output.insert(
+			PortName::new("out"),
+			PipeData::Blob {
+				source: source.add_processor(Arc::new(TagStripProcessor {
+					node_id: this_node.id.clone(),
+					node_type: this_node.node_type.clone(),
+				})),
+			},
+		);
+
+		return Ok(output);
+	}
+}
+
+#[derive(Debug, Clone)]
+struct TagStripProcessor {
+	node_id: NodeId,
+	node_type: SmartString<LazyCompact>,
+}
+
+impl StreamProcessorBuilder for TagStripProcessor {
+	fn build(&self) -> Box<dyn StreamProcessor> {
+		Box::new(self.clone())
+	}
+}
+
+#[async_trait]
+impl StreamProcessor for TagStripProcessor {
+	fn mime(&self) -> &MimeType {
+		return &MimeType::Flac;
+	}
+
+	fn name(&self) -> &'static str {
+		"TagStripProcessor"
+	}
+
+	fn source_node_id(&self) -> &NodeId {
+		&self.node_id
+	}
+
+	/// Return the type of the node that created this processor
+	fn source_node_type(&self) -> &str {
+		&self.node_type
+	}
+
+	async fn run(
+		&self,
+		mut source: Receiver<Arc<Vec<u8>>>,
+		sink: Sender<Arc<Vec<u8>>>,
+		max_buffer_size: usize,
+	) -> Result<(), RunNodeError> {
 		//
 		// Strip tags
 		//
-		debug!(
-			message = "Stripping tags",
-			node_id = ?this_node.id
-		);
+
 		let mut strip = FlacMetaStrip::new();
 		let mut out_bytes = Vec::new();
 
-		while let Some(data) = reader.next_fragment(ctx.blob_fragment_size).await? {
+		while let Some(data) = source.recv().await {
 			strip
 				.push_data(&data)
 				.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
@@ -109,26 +145,16 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 				.read_data(&mut out_bytes)
 				.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 
-			if out_bytes.len() >= ctx.blob_fragment_size {
+			if out_bytes.len() >= max_buffer_size {
 				let x = std::mem::take(&mut out_bytes);
-				trace!(
-					message = "Sending bytes",
-					n_bytes = x.len(),
-					node_id = ?this_node.id
-				);
 
-				match tx.broadcast(Arc::new(x)).await {
-					Ok(_) => {}
+				match sink.send(Arc::new(x)).await {
+					Ok(()) => {}
 
-					// Exit early if no receivers exist
-					Err(async_broadcast::SendError(_)) => {
-						debug!(
-							message = "Byte sender is closed, exiting early",
-							node_id = ?this_node.id
-						);
-						return Ok(());
-					}
-				}
+					// Not an error, our receiver was dropped.
+					// Exit early if that happens!
+					Err(_) => return Ok(()),
+				};
 			}
 		}
 
@@ -142,24 +168,13 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 				.map_err(|e| RunNodeError::Other(Arc::new(e)))?;
 		}
 
-		trace!(
-			message = "Sending final bytes",
-			n_bytes = out_bytes.len(),
-			node_id = ?this_node.id
-		);
+		match sink.send(Arc::new(out_bytes)).await {
+			Ok(()) => {}
 
-		match tx.broadcast(Arc::new(out_bytes)).await {
-			Ok(_) => {}
-
-			// Exit early if no receivers exist
-			Err(async_broadcast::SendError(_)) => {
-				debug!(
-					message = "Byte sender is closed, exiting early",
-					node_id = ?this_node.id
-				);
-				return Ok(());
-			}
-		}
+			// Not an error, our receiver was dropped.
+			// Exit early if that happens!
+			Err(_) => return Ok(()),
+		};
 
 		return Ok(());
 	}

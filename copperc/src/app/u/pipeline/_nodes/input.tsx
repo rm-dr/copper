@@ -1,18 +1,28 @@
 import { Select } from "@mantine/core";
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { BaseNode } from "./base";
-import { dataTypes } from "@/lib/attributes";
-import { NodeDef } from ".";
-import { components } from "@/lib/api/openapi";
-
-const types = ["Text", "Integer", "Float"] as const;
+import { NodeDef, PipelineDataType } from ".";
+import { stringUnionToArray } from "@/lib/util";
 
 type InputNodeType = Node<
 	{
-		type: (typeof types)[number];
+		type: Exclude<
+			PipelineDataType,
+			// Not supported yet
+			`Reference(${number})`
+		>;
 	},
 	"pipelineinput"
 >;
+
+const inputTypes = stringUnionToArray<InputNodeType["data"]["type"]>()(
+	"Text",
+	"Integer",
+	"Float",
+	"Boolean",
+	"Hash",
+	"Blob",
+);
 
 function InputNodeElement({ data, id }: NodeProps<InputNodeType>) {
 	const { deleteElements, getEdges, updateNodeData } = useReactFlow();
@@ -28,17 +38,13 @@ function InputNodeElement({ data, id }: NodeProps<InputNodeType>) {
 				<Select
 					label="Data type"
 					placeholder="Pick value"
-					data={dataTypes}
+					data={inputTypes}
 					onChange={(value) => {
 						if (value === null || value === data.type) {
 							return;
 						}
 
-						if (
-							dataTypes.includes(
-								value as components["schemas"]["AttrDataStub"]["type"],
-							)
-						) {
+						if (inputTypes.includes(value as InputNodeType["data"]["type"])) {
 							updateNodeData(id, {
 								type: value,
 							});
@@ -92,8 +98,12 @@ export const InputNode: NodeDef<InputNodeType> = {
 			return null;
 		}
 
-		return {
-			type: data_type.value as (typeof types)[number],
-		};
+		if (
+			!inputTypes.includes(data_type.value as InputNodeType["data"]["type"])
+		) {
+			return null;
+		}
+
+		return { type: data_type.value as InputNodeType["data"]["type"] };
 	},
 };

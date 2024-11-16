@@ -5,7 +5,6 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_itemdb::client::base::client::ItemdbClient;
 use copper_util::MimeType;
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -37,9 +36,9 @@ pub(super) struct StartUploadResponse {
 		(status = 500, description = "Internal server error"),
 	)
 )]
-pub(super) async fn start_upload<Client: DatabaseClient, Itemdb: ItemdbClient>(
+pub(super) async fn start_upload<Client: DatabaseClient>(
 	jar: CookieJar,
-	State(state): State<RouterState<Client, Itemdb>>,
+	State(state): State<RouterState<Client>>,
 	Json(payload): Json<StartUploadRequest>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {

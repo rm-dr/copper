@@ -5,7 +5,7 @@ use aws_sdk_s3::config::Credentials;
 use axum::Router;
 use config::EdgedConfig;
 use copper_edged::UserPassword;
-use copper_itemdb::client::postgres::{PgItemdbClient, PgItemdbOpenError};
+use copper_itemdb::client::{ItemdbClient, ItemdbOpenError};
 use copper_jobqueue::postgres::{PgJobQueueClient, PgJobQueueOpenError};
 use copper_util::{load_env, s3client::S3Client, LoadedEnv};
 use database::{
@@ -39,19 +39,19 @@ async fn make_app(config: Arc<EdgedConfig>, s3_client: Arc<S3Client>) -> Router 
 
 	trace!(message = "Connecting to itemdb");
 	// Connect to database
-	let itemdb_client = match PgItemdbClient::open(&config.edged_itemdb_addr, true).await {
+	let itemdb_client = match ItemdbClient::open(&config.edged_itemdb_addr, true).await {
 		Ok(db) => Arc::new(db),
-		Err(PgItemdbOpenError::Database(e)) => {
+		Err(ItemdbOpenError::Database(e)) => {
 			error!(message = "SQL error while opening item database", err = ?e);
 			std::process::exit(1);
 		}
 
-		Err(PgItemdbOpenError::Migrate(e)) => {
+		Err(ItemdbOpenError::Migrate(e)) => {
 			error!(message = "Migration error while opening item database", err = ?e);
 			std::process::exit(1);
 		}
 
-		Err(PgItemdbOpenError::NotMigrated) => unreachable!(),
+		Err(ItemdbOpenError::NotMigrated) => unreachable!(),
 	};
 	trace!(message = "Successfully connected to itemdb");
 

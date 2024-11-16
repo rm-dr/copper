@@ -23,7 +23,7 @@ copper-itemdb = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 serde = { workspace = true }
+sqlx = { workspace = true }
 tokio = { workspace = true }
 smartstring = { workspace = true }
 utoipa = { workspace = true }
-async-broadcast = { workspace = true }

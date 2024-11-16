@@ -6,7 +6,6 @@ use axum::{
 	Json,
 };
 use axum_extra::extract::CookieJar;
-use copper_itemdb::client::base::client::ItemdbClient;
 use copper_piper::json::PipelineJson;
 use serde::Deserialize;
 use tracing::error;
@@ -34,10 +33,10 @@ pub(super) struct NewPipelineRequest {
 		("bearer" = []),
 	)
 )]
-pub(super) async fn add_pipeline<Client: DatabaseClient, Itemdb: ItemdbClient>(
+pub(super) async fn add_pipeline<Client: DatabaseClient>(
 	// OriginalUri(uri): OriginalUri,
 	jar: CookieJar,
-	State(state): State<RouterState<Client, Itemdb>>,
+	State(state): State<RouterState<Client>>,
 	Json(payload): Json<NewPipelineRequest>,
 ) -> Response {
 	let user = match state.auth.auth_or_logout(&state, &jar).await {

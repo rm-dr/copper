@@ -35,21 +35,15 @@ pub struct PiperConfig {
 	/// Looks like `postgres://user:pass@host/database`
 	pub piper_jobqueue_addr: String,
 
-	/// The maximum size, in bytes, of a binary fragment in the pipeline.
+	/// The maximum size, in bytes, of a stream fragment in the pipeline.
 	/// Smaller values slow down pipelines; larger values use more memory.
 	#[serde(default = "PiperConfig::default_frag_size")]
-	pub piper_blob_fragment_size: usize,
+	pub piper_stream_fragment_size: usize,
 
-	/// The message capacity of binary stream channels.
-	///
-	/// Smaller values increase the probability of pipeline runs failing due to an
-	/// overflowing channel, larger values use more memory.
-	#[serde(default = "PiperConfig::default_channel_size")]
+	/// The maximum size, in bytes, of a stream processing channel.
+	/// Stream channels hold stream fragments, which contain at most `stream_fragment_size` bytes.
+	#[serde(default = "PiperConfig::default_chan_size")]
 	pub piper_stream_channel_size: usize,
-
-	/// How many pipeline jobs to run at once
-	#[serde(default = "PiperConfig::default_max_running_jobs")]
-	pub piper_max_running_jobs: usize,
 }
 
 impl PiperConfig {
@@ -57,11 +51,7 @@ impl PiperConfig {
 		10_000_000
 	}
 
-	fn default_channel_size() -> usize {
-		16
-	}
-
-	fn default_max_running_jobs() -> usize {
-		4
+	fn default_chan_size() -> usize {
+		10
 	}
 }

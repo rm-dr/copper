@@ -1,12 +1,12 @@
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::BTreeMap, marker::PhantomData};
+use std::collections::BTreeMap;
 use thiserror::Error;
 
-use super::{Node, NodeParameterSpec, PipelineData, PipelineJobContext, PipelineJobResult};
+use super::{Node, NodeParameterSpec};
 
-// This type must be send + sync, since we use this inside tokio's async runtime.
-type NodeInitFnType<ResultType, DataType, ContextType> =
-	&'static (dyn Fn() -> Box<dyn Node<ResultType, DataType, ContextType>> + Send + Sync);
+pub trait NodeBuilder {
+	fn build<'ctx>(&self) -> Box<dyn Node<'ctx>>;
+}
 
 pub const INPUT_NODE_TYPE: &str = "Input";
 
@@ -19,40 +19,23 @@ pub enum RegisterNodeError {
 }
 
 /// A node type we've registered inside a [`NodeDispatcher`]
-struct RegisteredNode<
-	ResultType: PipelineJobResult,
-	DataType: PipelineData,
-	ContextType: PipelineJobContext<DataType, ResultType>,
-> {
-	_p: PhantomData<ResultType>,
-
+struct RegisteredNode {
 	/// A method that constructs a new node of this type with the provided parameters.
-	node_init: NodeInitFnType<ResultType, DataType, ContextType>,
+	builder: Box<dyn NodeBuilder>,
 
 	/// The parameters this node takes
 	_parameters: BTreeMap<SmartString<LazyCompact>, NodeParameterSpec>,
 }
 
 /// A factory struct that constructs pipeline nodes
-pub struct NodeDispatcher<
-	ResultType: PipelineJobResult,
-	DataType: PipelineData,
-	ContextType: PipelineJobContext<DataType, ResultType>,
-> {
-	_pa: PhantomData<DataType>,
-	nodes: BTreeMap<SmartString<LazyCompact>, RegisteredNode<ResultType, DataType, ContextType>>,
+pub struct NodeDispatcher {
+	nodes: BTreeMap<SmartString<LazyCompact>, RegisteredNode>,
 }
 
-impl<
-		ResultType: PipelineJobResult,
-		DataType: PipelineData,
-		ContextType: PipelineJobContext<DataType, ResultType>,
-	> NodeDispatcher<ResultType, DataType, ContextType>
-{
+impl NodeDispatcher {
 	/// Create a new [`NodeDispatcher`]
 	pub fn new() -> Self {
 		return Self {
-			_pa: PhantomData {},
 			nodes: BTreeMap::new(),
 		};
 	}
@@ -65,7 +48,7 @@ impl<
 		&mut self,
 		type_name: &str,
 		parameters: BTreeMap<SmartString<LazyCompact>, NodeParameterSpec>,
-		node_init: NodeInitFnType<ResultType, DataType, ContextType>,
+		builder: Box<dyn NodeBuilder>,
 	) -> Result<(), RegisterNodeError> {
 		if self.nodes.contains_key(type_name) || type_name == INPUT_NODE_TYPE {
 			return Err(RegisterNodeError::AlreadyExists);
@@ -74,8 +57,7 @@ impl<
 		self.nodes.insert(
 			type_name.into(),
 			RegisteredNode {
-				_p: PhantomData {},
-				node_init,
+				builder,
 				_parameters: parameters,
 			},
 		);
@@ -87,12 +69,9 @@ impl<
 		return self.nodes.contains_key(node_name);
 	}
 
-	pub fn init_node(
-		&self,
-		node_type: &str,
-	) -> Option<Box<dyn Node<ResultType, DataType, ContextType>>> {
+	pub fn init_node<'ctx>(&self, node_type: &str) -> Option<Box<dyn Node<'ctx>>> {
 		if let Some(node) = self.nodes.get(node_type) {
-			return Some((node.node_init)());
+			return Some(node.builder.build());
 		} else {
 			return None;
 		}

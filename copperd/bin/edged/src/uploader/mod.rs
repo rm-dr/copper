@@ -176,7 +176,6 @@ impl Uploader {
 
 							match info.unwrap().state {
 								QueuedJobState::FailedRunning { .. } => true,
-								QueuedJobState::FailedTransaction { .. } => true,
 								QueuedJobState::BuildError { .. } => true,
 								QueuedJobState::Success => true,
 

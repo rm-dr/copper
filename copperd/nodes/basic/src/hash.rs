@@ -1,19 +1,16 @@
 use async_trait::async_trait;
-use copper_itemdb::client::base::client::ItemdbClient;
 use copper_piper::{
-	base::{Node, NodeOutput, NodeParameterValue, PortName, RunNodeError, ThisNodeInfo},
+	base::{Node, NodeBuilder, PortName, RunNodeError, ThisNodeInfo},
 	data::PipeData,
-	helpers::BytesSourceReader,
-	CopperContext, JobRunResult,
+	helpers::NodeParameters,
+	CopperContext,
 };
 use copper_util::HashType;
 use sha2::{Digest, Sha256, Sha512};
-use smartstring::{LazyCompact, SmartString};
 use std::{
 	collections::BTreeMap,
 	io::{Cursor, Read},
 };
-use tokio::sync::mpsc;
 use tracing::{debug, trace};
 
 enum HashComputer {
@@ -78,43 +75,43 @@ impl HashComputer {
 
 pub struct Hash {}
 
+impl NodeBuilder for Hash {
+	fn build<'ctx>(&self) -> Box<dyn Node<'ctx>> {
+		Box::new(Self {})
+	}
+}
+
 // Inputs: "data", Bytes
 // Outputs: "hash", Hash
 #[async_trait]
-impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> for Hash {
+impl<'ctx> Node<'ctx> for Hash {
 	async fn run(
 		&self,
-		ctx: &CopperContext<Itemdb>,
+		ctx: &CopperContext<'ctx>,
 		this_node: ThisNodeInfo,
-		mut params: BTreeMap<SmartString<LazyCompact>, NodeParameterValue>,
+		mut params: NodeParameters,
 		mut input: BTreeMap<PortName, Option<PipeData>>,
-		output: mpsc::Sender<NodeOutput<PipeData>>,
-	) -> Result<(), RunNodeError<PipeData>> {
+	) -> Result<BTreeMap<PortName, PipeData>, RunNodeError> {
 		//
 		// Extract parameters
 		//
-		let hash_type: HashType = if let Some(value) = params.remove("hash_type") {
-			match value {
-				NodeParameterValue::String(hash_type) => {
-					// TODO: this is a hack
-					serde_json::from_str(&format!("\"{hash_type}\"")).unwrap()
-				}
-				_ => {
-					return Err(RunNodeError::BadParameterType {
+		let hash_type: HashType = {
+			let s = params.pop_str("hash_type")?;
+			match s.as_str() {
+				"MD5" => HashType::MD5,
+				"SHA256" => HashType::SHA256,
+				"SHA512" => HashType::SHA512,
+
+				x => {
+					return Err(RunNodeError::BadParameterOther {
 						parameter: "hash_type".into(),
+						message: format!("Invalid hash type `{x}`"),
 					})
 				}
 			}
-		} else {
-			return Err(RunNodeError::MissingParameter {
-				parameter: "hash_type".into(),
-			});
 		};
-		if let Some((param, _)) = params.first_key_value() {
-			return Err(RunNodeError::UnexpectedParameter {
-				parameter: param.clone(),
-			});
-		}
+
+		params.err_if_not_empty()?;
 
 		//
 		// Extract inputs
@@ -141,7 +138,7 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 				})
 			}
 
-			Some(PipeData::Blob { source, .. }) => BytesSourceReader::open(ctx, source).await?,
+			Some(PipeData::Blob { source, .. }) => source.build(ctx).await?,
 
 			_ => {
 				return Err(RunNodeError::BadInputType {
@@ -159,7 +156,7 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 		);
 		let mut hasher = HashComputer::new(hash_type);
 
-		while let Some(data) = reader.next_fragment(ctx.blob_fragment_size).await? {
+		while let Some(data) = reader.next_fragment().await? {
 			hasher = tokio::task::spawn_blocking(move || {
 				let res = hasher.update(&mut Cursor::new(&*data));
 				if let Err(e) = res {
@@ -175,14 +172,9 @@ impl<Itemdb: ItemdbClient> Node<JobRunResult, PipeData, CopperContext<Itemdb>> f
 			message = "Hash ready, sending output",
 			node_id = ?this_node.id
 		);
-		output
-			.send(NodeOutput {
-				node: this_node,
-				port: PortName::new("hash"),
-				data: Some(hasher.finish()),
-			})
-			.await?;
 
-		return Ok(());
+		let mut output = BTreeMap::new();
+		output.insert(PortName::new("hash"), hasher.finish());
+		return Ok(output);
 	}
 }
