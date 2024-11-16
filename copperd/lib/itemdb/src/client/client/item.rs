@@ -1,7 +1,7 @@
 //! This modules contains Copper's itemdb client
 
 use itertools::Itertools;
-use sqlx::Row;
+use sqlx::{Acquire, Row};
 use std::collections::BTreeMap;
 use thiserror::Error;
 
@@ -161,7 +161,7 @@ impl ItemdbClient {
 
 	pub async fn add_item(
 		&self,
-		t: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+		trans: &mut sqlx::Transaction<'_, sqlx::Postgres>,
 		to_class: ClassId,
 		attributes: Vec<(AttributeId, AttrData)>,
 	) -> Result<ItemId, AddItemError> {
@@ -170,9 +170,21 @@ impl ItemdbClient {
 			return Err(AddItemError::RepeatedAttribute);
 		}
 
+		// We need to lock here to prevent race conditions on the `unique` constraint.
+		// If this lock is omitted, we could create two items with the same value in
+		// an attribute that is marked `unique`.
+		//
+		// This lock significantly slows down pipelines---we can only create one item at a time!
+		// TODO: is there a better way to do this?
+		let mut t = trans.begin().await?;
+		sqlx::query("LOCK TABLE item IN SHARE ROW EXCLUSIVE MODE;")
+			.bind(i64::from(to_class))
+			.execute(&mut *t)
+			.await?;
+
 		let res = sqlx::query("INSERT INTO item (class_id) VALUES ($1) RETURNING id;")
 			.bind(i64::from(to_class))
-			.fetch_one(&mut **t)
+			.fetch_one(&mut *t)
 			.await;
 
 		// Create the new item, we attach attributes afterwards
@@ -195,7 +207,7 @@ impl ItemdbClient {
 		// Get all attributes this class has
 		let all_attrs = sqlx::query("SELECT * FROM attribute WHERE class_id=$1;")
 			.bind(i64::from(to_class))
-			.fetch_all(&mut **t)
+			.fetch_all(&mut *t)
 			.await?
 			.into_iter()
 			.map(|row| AttributeInfo {
@@ -256,7 +268,7 @@ impl ItemdbClient {
 					)
 					.bind(i64::from(attr.id))
 					.bind(&value_ser)
-					.fetch_all(&mut **t)
+					.fetch_all(&mut *t)
 					.await
 					{
 						Ok(res) => {
@@ -277,7 +289,7 @@ impl ItemdbClient {
 				.bind(i64::from(new_item))
 				.bind(i64::from(attr.id))
 				.bind(&value_ser)
-				.execute(&mut **t)
+				.execute(&mut *t)
 				.await;
 
 				match res {
@@ -303,6 +315,7 @@ impl ItemdbClient {
 			return Err(AddItemError::UniqueViolated { conflicting_ids });
 		}
 
+		t.commit().await?;
 		return Ok(new_item);
 	}
 
