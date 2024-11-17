@@ -275,8 +275,8 @@ impl ItemdbClient {
 				)
 				.bind(i64::from(new_item))
 				.bind(i64::from(attr.id))
-				.bind(&value_ser)
-				.bind(&unique_hash)
+				.bind(value_ser)
+				.bind(unique_hash)
 				.execute(&mut *t)
 				.await;
 
@@ -310,7 +310,7 @@ impl ItemdbClient {
 									",
 								)
 								.bind(i64::from(attr.id))
-								.bind(&unique_hash)
+								.bind(unique_hash)
 								.fetch_all(&mut **trans)
 								.await
 								{
