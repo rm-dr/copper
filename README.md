@@ -26,7 +26,6 @@
 ---
 
 Copper is the universal digital library, aiming to replace ad-hoc solutions like [Paperless], [Calibre], and [Beets].
-It provides powerful data processing pipelines and universal item search, editing, and viewing
 
 ## 🚨 Warning 🚨
 Copper is still very incomplete, and is nowhere near ready for daily use. \
@@ -39,14 +38,9 @@ PRs are very welcome, especially for the web ui!
 
 ## Features
 
-- Supports all kinds of collections: audio, ebooks, photos, ad infinitum.
+- Supports any kind of collection: audio, ebooks, photos, ad infinitum.
 - Simple drag and drop uploads
 - Graphical data pipeline editor
-- Replaces
-  - [Paperless](https://github.com/paperless-ngx/paperless-ngx) (documents)
-  - [Calibre](https://github.com/kovidgoyal/calibre) (ebooks)
-  - [Beets](https://github.com/beetbox/beets) (music)
-  - [Photoview](https://github.com/photoview/photoview) (photos)
 - <span style="color:grey">~~Edit items in bulk~~ (planned)</span>
 - <span style="color:grey">~~Simple backup~~ (planned)</span>
 - <span style="color:grey">~~Powerful export pipelines~~ (planned)</span>
@@ -75,10 +69,10 @@ Copper is designed to be run in docker. To get started, to the following:
 - Download the contents of [`./dist`](./dist/)
 - `cd dist`
 - `docker compose up -d`
-- Read `./dist/docker-compose.yml` \
+- Read `./dist/docker-compose.yml`. \
   If you want to run the stack manually, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
-A prebuild docker image will be published once Copper reaches v1.
+A prebuilt docker image will be published once Copper reaches v1.
 
 ## User Documentation
 
