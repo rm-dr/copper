@@ -5,6 +5,7 @@ copperd/.env
 
 # Runtime data
 dist/data
+dev/data
 
 # Generic ignores
 *.ignore
