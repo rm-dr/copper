@@ -10,9 +10,14 @@
 
 <div align="center">
 
-![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/rm-dr/copper)
-![GitHub Repo stars](https://img.shields.io/github/stars/rm-dr/copper)
-![GitHub License](https://img.shields.io/github/license/rm-dr/copper)
+![GitHub Repo stars](https://img.shields.io/github/stars/rm-dr/copper?style=flat)
+![GitHub License](https://img.shields.io/github/license/rm-dr/copper?style=flat)
+![Issues](https://img.shields.io/github/issues/rm-dr/copper?style=flat)
+![Pull Requests](https://img.shields.io/github/issues-pr/rm-dr/copper)
+
+![cargo test](https://img.shields.io/github/actions/workflow/status/rm-dr/copper/cargo-test.yml?label=cargo%20test)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/rm-dr/copper/lints.yml?label=lints&cacheSeconds=30)
+
 
 **Copper** is the universal, automatic digital library.
 
@@ -24,7 +29,7 @@ Copper is the universal digital library, aiming to replace ad-hoc solutions like
 It provides powerful data processing pipelines and universal item search, editing, and viewing
 
 ## 🚨 Warning 🚨
-This project is still very incomplete, and is nowhere near ready for daily use. \
+Copper is still very incomplete, and is nowhere near ready for daily use. \
 This might change once the following projects are resolved:
 - [Backend v1](https://github.com/rm-dr/copper/milestone/1)
 - [Webui v1](https://github.com/rm-dr/copper/milestone/2)
