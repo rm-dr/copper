@@ -170,17 +170,7 @@ impl ItemdbClient {
 			return Err(AddItemError::RepeatedAttribute);
 		}
 
-		// We need to lock here to prevent race conditions on the `unique` constraint.
-		// If this lock is omitted, we could create two items with the same value in
-		// an attribute that is marked `unique`.
-		//
-		// This lock significantly slows down pipelines---we can only create one item at a time!
-		// TODO: is there a better way to do this?
 		let mut t = trans.begin().await?;
-		sqlx::query("LOCK TABLE item IN SHARE ROW EXCLUSIVE MODE;")
-			.bind(i64::from(to_class))
-			.execute(&mut *t)
-			.await?;
 
 		let res = sqlx::query("INSERT INTO item (class_id) VALUES ($1) RETURNING id;")
 			.bind(i64::from(to_class))
@@ -235,60 +225,58 @@ impl ItemdbClient {
 			}
 		}
 
-		// Keep track of ALL conflicts
-		// (even those across multiple attributes)
-		let mut conflicting_ids = Vec::new();
+		// Serialize each attribute...
+		let ser_attrs = {
+			let mut ser_attrs = Vec::new();
 
-		// Now, create instances for every attribute we got.
-		for attr in all_attrs.into_iter() {
-			let value = attributes
-				.iter()
-				.find(|(a_id, _)| *a_id == attr.id)
-				.map(|x| &x.1);
+			for attr in all_attrs.into_iter() {
+				let value = attributes
+					.iter()
+					.find(|(a_id, _)| *a_id == attr.id)
+					.map(|x| &x.1);
 
-			if let Some(value) = value {
-				// Make sure type matches
-				if value.as_stub() != attr.data_type {
-					return Err(AddItemError::AttributeDataTypeMismatch);
+				if let Some(value) = value {
+					// Make sure type matches
+					if value.as_stub() != attr.data_type {
+						return Err(AddItemError::AttributeDataTypeMismatch);
+					}
 				}
 
-				let value_ser = serde_json::to_string(&value).unwrap();
+				let value_ser = value.map(|x| serde_json::to_string(&x).unwrap());
 
-				// Check "unique" constraint
+				// Generate value for "unique" constraint
 				// Has no effect on blobs, so don't check them.
 				// (this is why that switch is hidden in ui)
-				if attr.options.is_unique && value.as_stub() != AttrDataStub::Blob {
-					// Look for non-unique row
-					match sqlx::query(
-						"
-						SELECT item_id FROM attribute_instance
-						WHERE attribute_id=$1
-						AND attribute_value=$2
-						",
-					)
-					.bind(i64::from(attr.id))
-					.bind(&value_ser)
-					.fetch_all(&mut *t)
-					.await
-					{
-						Ok(res) => {
-							for row in res {
-								conflicting_ids.push(row.get::<i64, _>("item_id").into())
-							}
-						}
+				let unique_hash: Option<String> = if attr.options.is_unique
+					&& attr.data_type != AttrDataStub::Blob
+					&& value_ser.is_some()
+				{
+					Some(value_ser.clone().unwrap())
+				} else {
+					None
+				};
 
-						Err(e) => return Err(e.into()),
-					};
-				}
+				ser_attrs.push((attr, value_ser, unique_hash));
+			}
 
+			ser_attrs
+		};
+
+		// Now, create instances for every attribute we got.
+		for (attr, value_ser, unique_hash) in &ser_attrs {
+			if let Some(value_ser) = value_ser {
 				// Create the attribute instances
 				let res = sqlx::query(
-					"INSERT INTO attribute_instance (item_id, attribute_id, attribute_value)
-				VALUES ($1, $2, $3);",
+					"
+					INSERT INTO attribute_instance
+					(item_id, attribute_id, attribute_value, unique_hash)
+					VALUES ($1, $2, $3, $4);
+					",
 				)
 				.bind(i64::from(new_item))
 				.bind(i64::from(attr.id))
 				.bind(&value_ser)
+				.bind(&unique_hash)
 				.execute(&mut *t)
 				.await;
 
@@ -297,6 +285,47 @@ impl ItemdbClient {
 					Err(sqlx::Error::Database(e)) => {
 						if e.is_foreign_key_violation() {
 							return Err(AddItemError::BadAttribute);
+						} else if e
+							.constraint()
+							.map(|x| x == "idx_attrinst_unique_hash")
+							.unwrap_or(false) && attr.options.is_unique
+							&& attr.data_type != AttrDataStub::Blob
+						{
+							// Drop transaction to free `trans`, we can't use it anyway
+							// (since it encountered an error)
+							t.rollback().await?;
+
+							// Find all conflicts
+							// (even those across multiple attributes)
+							let mut conflicting_ids = Vec::new();
+
+							for (attr, _, unique_hash) in &ser_attrs {
+								// Look for non-unique row
+								match sqlx::query(
+									"
+									SELECT item_id
+									FROM attribute_instance
+									WHERE attribute_id=$1
+									AND unique_hash=$2
+									",
+								)
+								.bind(i64::from(attr.id))
+								.bind(&unique_hash)
+								.fetch_all(&mut **trans)
+								.await
+								{
+									Ok(res) => {
+										for row in res {
+											conflicting_ids
+												.push(row.get::<i64, _>("item_id").into())
+										}
+									}
+
+									Err(e) => return Err(e.into()),
+								};
+							}
+
+							return Err(AddItemError::UniqueViolated { conflicting_ids });
 						} else {
 							return Err(sqlx::Error::Database(e).into());
 						}
@@ -309,10 +338,6 @@ impl ItemdbClient {
 					return Err(AddItemError::NotNullViolated);
 				}
 			}
-		}
-
-		if !conflicting_ids.is_empty() {
-			return Err(AddItemError::UniqueViolated { conflicting_ids });
 		}
 
 		t.commit().await?;

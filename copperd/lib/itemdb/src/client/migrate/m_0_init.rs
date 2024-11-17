@@ -132,8 +132,23 @@ impl Migration for MigrationStep {
 				-- The value of this instance
 				attribute_value TEXT NOT NULL,
 
+				-- A string that includes this this attribute's value and attribute id.
+				-- This is set if the corresponding attribute is `unique`,
+				-- and is `null` otherwise.
+				unique_hash TEXT,
+
 				PRIMARY KEY (item_id, attribute_id)
 			);",
+		)
+		.execute(&mut *t)
+		.await?;
+
+		sqlx::query(
+			"
+			CREATE UNIQUE INDEX idx_attrinst_unique_hash
+			ON attribute_instance(attribute_id, unique_hash)
+			WHERE unique_hash IS NOT NULL;
+			",
 		)
 		.execute(&mut *t)
 		.await?;
